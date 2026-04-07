@@ -74,6 +74,8 @@ services:
       VELO_FRONTEND_BASE_URL: http://frontend-admin:3000
       VELO_E2E_ADMIN_EMAIL: admin@velo-platform.com
       VELO_E2E_ADMIN_PASSWORD: password123
+      VELO_E2E_RIDER_EMAIL: alice@example.com
+      VELO_E2E_RIDER_PASSWORD: password123
     command: sh -lc "node velo-frontend/tests/integration/handshake.mjs"
     volumes:
       - .:/workspace

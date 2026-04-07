@@ -4,6 +4,8 @@ const FRONTEND_BASE_URL = process.env.VELO_FRONTEND_BASE_URL ?? "http://localhos
 const BACKEND_BASE_URL = process.env.VELO_BACKEND_BASE_URL ?? "http://localhost:8080";
 const ADMIN_EMAIL = process.env.VELO_E2E_ADMIN_EMAIL ?? "admin@velo-platform.com";
 const ADMIN_PASSWORD = process.env.VELO_E2E_ADMIN_PASSWORD ?? "password123";
+const RIDER_EMAIL = process.env.VELO_E2E_RIDER_EMAIL ?? "alice@example.com";
+const RIDER_PASSWORD = process.env.VELO_E2E_RIDER_PASSWORD ?? "password123";
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -90,6 +92,9 @@ async function main() {
   const backendHealth = await requestWithRetry(`${BACKEND_BASE_URL}/actuator/health`);
   assert.equal(backendHealth.status, 200, "Backend health check should respond with 200");
 
+  const openApi = await requestWithRetry(`${BACKEND_BASE_URL}/v3/api-docs`);
+  assert.equal(openApi.status, 200, "Backend OpenAPI should be reachable");
+
   const publicLoginPage = await requestWithRetry(`${FRONTEND_BASE_URL}/login`);
   assert.equal(publicLoginPage.status, 200, "Login page should be reachable");
 
@@ -119,6 +124,14 @@ async function main() {
   assert.ok(
     setCookieValues.some((cookie) => /HttpOnly/i.test(cookie)),
     "Auth cookie should be HttpOnly"
+  );
+  assert.ok(
+    setCookieValues.some((cookie) => /SameSite=Lax/i.test(cookie)),
+    "Auth cookie should enforce SameSite=Lax"
+  );
+  assert.ok(
+    setCookieValues.some((cookie) => /Secure/i.test(cookie)),
+    "Auth cookie should be Secure in production mode"
   );
 
   const backendLogin = await requestWithRetry(`${BACKEND_BASE_URL}/auth/login`, {
@@ -150,6 +163,60 @@ async function main() {
 
   const authenticatedHtml = await authenticatedHome.text();
   assert.match(authenticatedHtml, /Phase 1 control center|Dashboard/, "Admin page should render expected shell copy");
+
+  const riderLogin = await requestWithRetry(`${BACKEND_BASE_URL}/auth/login`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ email: RIDER_EMAIL, password: RIDER_PASSWORD })
+  });
+  assert.equal(riderLogin.status, 200, "Rider backend login should return 200");
+  const riderPayload = await riderLogin.json();
+  const riderToken = extractToken(riderPayload);
+  assert.ok(riderToken, "Rider login should return a JWT token");
+
+  const riderRidePayload = {
+    pickupLocation: {
+      type: "Point",
+      coordinates: [77.5946, 12.9716]
+    },
+    dropOffLocation: {
+      type: "Point",
+      coordinates: [77.5800, 12.9600]
+    },
+    paymentMethod: "WALLET"
+  };
+
+  const fareEstimate = await requestWithRetry(`${BACKEND_BASE_URL}/riders/fare-estimate`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${riderToken}`
+    },
+    body: JSON.stringify(riderRidePayload)
+  });
+  assert.equal(fareEstimate.status, 200, "Rider fare estimate should return 200");
+
+  const rideRequest = await requestWithRetry(`${BACKEND_BASE_URL}/riders/requestRide`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${riderToken}`
+    },
+    body: JSON.stringify(riderRidePayload)
+  });
+  assert.equal(rideRequest.status, 200, "Rider request ride should return 200");
+
+  const invalidRideRequest = await requestWithRetry(`${BACKEND_BASE_URL}/riders/requestRide`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${riderToken}`
+    },
+    body: JSON.stringify({ paymentMethod: "WALLET" })
+  });
+  assert.ok(invalidRideRequest.status >= 400, "Invalid rider request payload should be rejected");
 
   console.log("Frontend-backend handshake checks passed.");
 }

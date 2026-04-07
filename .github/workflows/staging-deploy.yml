@@ -1,0 +1,151 @@
+name: Staging Deployment Scaffold
+
+on:
+  workflow_dispatch:
+    inputs:
+      promote_to_production:
+        description: "Run manual promotion gate after staging smoke checks."
+        required: false
+        type: boolean
+        default: false
+  push:
+    branches:
+      - main
+      - "frontend/**"
+    paths:
+      - "velo-frontend/**"
+      - "velo-platform/**"
+      - ".github/workflows/staging-deploy.yml"
+
+concurrency:
+  group: staging-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  quality-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: velo-frontend/package-lock.json
+
+      - name: Use Java 22
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 22
+          cache: maven
+
+      - name: Install frontend dependencies
+        working-directory: velo-frontend
+        run: npm ci
+
+      - name: Frontend lint
+        working-directory: velo-frontend
+        run: npm run lint
+
+      - name: Frontend typecheck
+        working-directory: velo-frontend
+        run: npm run typecheck
+
+      - name: Frontend unit tests
+        working-directory: velo-frontend
+        run: npm run test:unit
+
+      - name: Frontend contract tests
+        working-directory: velo-frontend
+        run: npm run test:contracts
+
+      - name: Frontend build
+        working-directory: velo-frontend
+        run: npm run build
+
+      - name: Backend tests
+        working-directory: velo-platform
+        run: ./mvnw -q test
+
+  deploy-staging:
+    needs: quality-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: staging
+      url: ${{ vars.STAGING_ADMIN_URL }}
+    env:
+      STAGING_DEPLOY_TARGET: ${{ vars.STAGING_DEPLOY_TARGET }}
+      STAGING_ADMIN_URL: ${{ vars.STAGING_ADMIN_URL }}
+      STAGING_RIDER_URL: ${{ vars.STAGING_RIDER_URL }}
+      STAGING_DEPLOY_TOKEN: ${{ secrets.STAGING_DEPLOY_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate staging configuration placeholders
+        shell: bash
+        run: |
+          missing=0
+          for key in STAGING_DEPLOY_TARGET STAGING_ADMIN_URL STAGING_RIDER_URL STAGING_DEPLOY_TOKEN; do
+            if [ -z "${!key}" ]; then
+              echo "::warning::${key} is not configured. Set environment/repository value before real deployment."
+              missing=1
+            fi
+          done
+          echo "missing=${missing}" >> "$GITHUB_OUTPUT"
+
+      # Staging deploy scaffold:
+      # Replace this placeholder with your deployment mechanism (SSH, Terraform, Helm, etc.).
+      - name: Deploy to staging (placeholder)
+        shell: bash
+        run: |
+          echo "Deploy scaffold only. Wire this step to your deploy command:"
+          echo "Target: ${STAGING_DEPLOY_TARGET:-<unset>}"
+          echo "Admin URL: ${STAGING_ADMIN_URL:-<unset>}"
+          echo "Rider URL: ${STAGING_RIDER_URL:-<unset>}"
+
+  staging-smoke:
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      STAGING_ADMIN_URL: ${{ vars.STAGING_ADMIN_URL }}
+      STAGING_RIDER_URL: ${{ vars.STAGING_RIDER_URL }}
+    steps:
+      - name: Run staging smoke checks (placeholder)
+        shell: bash
+        run: |
+          if [ -n "$STAGING_ADMIN_URL" ]; then
+            curl --fail --silent --show-error "$STAGING_ADMIN_URL/login" > /dev/null
+          else
+            echo "::warning::STAGING_ADMIN_URL not set. Skipping admin smoke probe."
+          fi
+
+          if [ -n "$STAGING_RIDER_URL" ]; then
+            curl --fail --silent --show-error "$STAGING_RIDER_URL" > /dev/null
+          else
+            echo "::warning::STAGING_RIDER_URL not set. Skipping rider smoke probe."
+          fi
+
+  production-promotion-gate:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.promote_to_production == true }}
+    needs: staging-smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: production
+    steps:
+      # Promotion gate scaffold:
+      # Keep this job environment-protected with required reviewers before enabling production deploy.
+      - name: Hold for manual promotion
+        run: |
+          echo "Staging checks passed. Manual approval required for production promotion."
+          echo "Add production deploy commands after environment protection is configured."
