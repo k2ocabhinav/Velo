@@ -1,0 +1,77 @@
+package com.velo.platform.testdata;
+
+import com.velo.platform.entities.Driver;
+import com.velo.platform.entities.User;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.PrecisionModel;
+
+public class DriverTestBuilder {
+    private static final GeometryFactory GF = new GeometryFactory(new PrecisionModel(), 4326);
+
+    private Long id = 1L;
+    private User user;
+    private String vehicleId = "ABC123";
+    private Double rating = 5.0;
+    private Boolean available = true;
+    private Point currentLocation = GF.createPoint(new Coordinate(-73.935242, 40.730610));
+
+    public DriverTestBuilder withId(Long id) {
+        this.id = id;
+        return this;
+    }
+
+    public DriverTestBuilder withUser(User user) {
+        this.user = user;
+        return this;
+    }
+
+    public DriverTestBuilder withVehicleId(String vehicleId) {
+        this.vehicleId = vehicleId;
+        return this;
+    }
+
+    public DriverTestBuilder withRating(Double rating) {
+        this.rating = rating;
+        return this;
+    }
+
+    public DriverTestBuilder available() {
+        this.available = true;
+        return this;
+    }
+
+    public DriverTestBuilder unavailable() {
+        this.available = false;
+        return this;
+    }
+
+    public DriverTestBuilder withCurrentLocation(double lon, double lat) {
+        this.currentLocation = GF.createPoint(new Coordinate(lon, lat));
+        return this;
+    }
+
+    public Driver build() {
+        return Driver.builder()
+                .id(id)
+                .user(user)
+                .vehicleId(vehicleId)
+                .rating(rating)
+                .available(available)
+                .currentLocation(currentLocation)
+                .build();
+    }
+
+    public static DriverTestBuilder aDriver() {
+        return new DriverTestBuilder();
+    }
+
+    public static DriverTestBuilder anAvailableDriver() {
+        return aDriver().available();
+    }
+
+    public static DriverTestBuilder anUnavailableDriver() {
+        return aDriver().unavailable();
+    }
+}

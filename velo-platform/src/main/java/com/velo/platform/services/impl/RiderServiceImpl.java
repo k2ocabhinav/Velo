@@ -1,0 +1,156 @@
+package com.velo.platform.services.impl;
+
+import com.velo.platform.dto.DriverDto;
+import com.velo.platform.dto.RideDto;
+import com.velo.platform.dto.RideRequestDto;
+import com.velo.platform.dto.RiderDto;
+import com.velo.platform.entities.*;
+import com.velo.platform.entities.enums.RideRequestStatus;
+import com.velo.platform.entities.enums.RideStatus;
+import com.velo.platform.events.RideCancelledEvent;
+import com.velo.platform.events.RideRequestedEvent;
+import com.velo.platform.exceptions.ResourceNotFoundException;
+import com.velo.platform.repositories.RideRequestRepository;
+import com.velo.platform.repositories.RiderRepository;
+import com.velo.platform.security.UserPrincipal;
+import com.velo.platform.services.DriverService;
+import com.velo.platform.services.PromoCodeService;
+import com.velo.platform.services.RatingService;
+import com.velo.platform.services.RideService;
+import com.velo.platform.services.RiderService;
+import com.velo.platform.strategies.RideStrategyManager;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.modelmapper.ModelMapper;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class RiderServiceImpl implements RiderService {
+
+    private final ModelMapper modelMapper;
+    private final RideStrategyManager rideStrategyManager;
+    private final RideRequestRepository rideRequestRepository;
+    private final RiderRepository riderRepository;
+    private final RideService rideService;
+    private final DriverService driverService;
+    private final RatingService ratingService;
+    private final PromoCodeService promoCodeService;
+    private final ApplicationEventPublisher eventPublisher;
+
+    @Override
+    @Transactional
+    public RideRequestDto requestRide(RideRequestDto rideRequestDto) {
+        Rider rider = getCurrentRider();
+        RideRequest rideRequest = modelMapper.map(rideRequestDto, RideRequest.class);
+        rideRequest.setRideRequestStatus(RideRequestStatus.PENDING);
+        rideRequest.setRider(rider);
+
+        BigDecimal fare = rideStrategyManager.rideFareCalculationStrategy().calculateFare(rideRequest);
+
+        String promoCode = rideRequestDto.getPromoCode();
+        if (promoCode != null && !promoCode.isBlank()) {
+            com.velo.platform.dto.PromoCodeResultDto promoResult = 
+                promoCodeService.validateAndApplyPromo(promoCode, rider.getUser(), fare);
+            if (promoResult.isValid() && promoResult.getDiscountAmount() != null) {
+                rideRequest.setPromoCode(promoCode);
+                rideRequest.setDiscountAmount(promoResult.getDiscountAmount());
+                fare = fare.subtract(promoResult.getDiscountAmount());
+            }
+        }
+
+        rideRequest.setFare(fare);
+
+        RideRequest savedRideRequest = rideRequestRepository.save(rideRequest);
+
+        rideStrategyManager
+                .driverMatchingStrategy(rider.getRating()).findMatchingDrivers(rideRequest);
+
+        eventPublisher.publishEvent(new RideRequestedEvent(this, savedRideRequest));
+
+        return modelMapper.map(savedRideRequest, RideRequestDto.class);
+    }
+
+    @Override
+    @Transactional
+    public RideDto cancelRide(Long rideId) {
+        Rider rider = getCurrentRider();
+        Ride ride = rideService.getRideById(rideId);
+
+        if(!rider.equals(ride.getRider())) {
+            throw new RuntimeException(("Rider does not own this ride with id: "+rideId));
+        }
+
+        if(!ride.getRideStatus().equals(RideStatus.CONFIRMED)) {
+            throw new RuntimeException("Ride cannot be cancelled, invalid status: "+ride.getRideStatus());
+        }
+
+        Ride savedRide = rideService.updateRideStatus(ride, RideStatus.CANCELLED);
+        driverService.updateDriverAvailability(ride.getDriver(), true);
+
+        eventPublisher.publishEvent(new RideCancelledEvent(this, savedRide));
+
+        return modelMapper.map(savedRide, RideDto.class);
+    }
+
+    @Override
+    @Transactional
+    public DriverDto rateDriver(Long rideId, Integer rating) {
+        Ride ride = rideService.getRideById(rideId);
+        Rider rider = getCurrentRider();
+
+        if(!rider.equals(ride.getRider())) {
+            throw new RuntimeException("Rider is not the owner of this Ride");
+        }
+
+        if(!ride.getRideStatus().equals(RideStatus.ENDED)) {
+            throw new RuntimeException("Ride status is not Ended hence cannot start rating, status: "+ride.getRideStatus());
+        }
+
+        return ratingService.rateDriver(ride, rating);
+    }
+    @Override
+    @Transactional(readOnly = true)
+    public RiderDto getMyProfile() {
+        Rider currentRider = getCurrentRider();
+        return modelMapper.map(currentRider, RiderDto.class);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<RideDto> getAllMyRides(PageRequest pageRequest) {
+        Rider currentRider = getCurrentRider();
+        return rideService.getAllRidesOfRider(currentRider, pageRequest).map(
+                ride -> modelMapper.map(ride, RideDto.class)
+        );
+    }
+
+    @Override
+    @Transactional
+    public Rider createNewRider(User user) {
+        Rider rider = Rider
+                .builder()
+                .user(user)
+                .rating(0.0)
+                .build();
+        return riderRepository.save(rider);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Rider getCurrentRider() {
+        UserPrincipal principal = (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return riderRepository.findByUserId(principal.getUserId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Rider not found for user id " + principal.getUserId()
+                ));
+    }
+}

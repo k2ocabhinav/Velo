@@ -1,0 +1,25 @@
+# Local tooling state
+.claude/
+.codex/
+.agents/
+.claude-flow/
+**/.claude-flow/
+*.anthropic*
+ai_instructions/
+.mcp.json
+
+# OS / IDE
+.DS_Store
+.vscode/
+
+# Local instruction files
+CLAUDE.md
+claude.md
+AGENTS.md
+agents.md
+
+# Personal docs
+docs/
+
+# Local reference artifacts
+DFD Level 1 - New Page - Uber_UML_Diagram_6bee8f589b.pdf

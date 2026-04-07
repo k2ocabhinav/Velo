@@ -1,0 +1,115 @@
+package com.velo.platform.services.impl;
+
+import com.velo.platform.entities.Ride;
+import com.velo.platform.entities.User;
+import com.velo.platform.entities.Wallet;
+import com.velo.platform.entities.WalletTransaction;
+import com.velo.platform.entities.enums.TransactionMethod;
+import com.velo.platform.entities.enums.TransactionType;
+import com.velo.platform.exceptions.ResourceNotFoundException;
+import com.velo.platform.repositories.WalletRepository;
+import com.velo.platform.services.WalletService;
+import com.velo.platform.services.WalletTransactionService;
+import lombok.RequiredArgsConstructor;
+import org.modelmapper.ModelMapper;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+
+@Service
+@RequiredArgsConstructor
+public class WalletServiceImpl implements WalletService {
+
+    private final WalletRepository walletRepository;
+    private final WalletTransactionService walletTransactionService;
+    private final ModelMapper modelMapper;
+
+    @Override
+    @Transactional
+    public Wallet addMoneyToWallet(User user, BigDecimal amount, String transactionId, Ride ride, TransactionMethod transactionMethod) {
+        Wallet wallet = findByUser(user);
+        wallet.setBalance(wallet.getBalance().add(amount));
+
+        WalletTransaction walletTransaction = WalletTransaction.builder()
+                .transactionId(transactionId)
+                .ride(ride)
+                .wallet(wallet)
+                .transactionType(TransactionType.CREDIT)
+                .transactionMethod(transactionMethod)
+                .amount(amount)
+                .build();
+
+        walletTransactionService.createNewWalletTransaction(walletTransaction);
+
+        return walletRepository.save(wallet);
+    }
+
+    @Override
+    @Transactional
+    public Wallet deductMoneyFromWallet(User user, BigDecimal amount,
+                                        String transactionId, Ride ride,
+                                        TransactionMethod transactionMethod) {
+        Wallet wallet = findByUser(user);
+        wallet.setBalance(wallet.getBalance().subtract(amount));
+
+        WalletTransaction walletTransaction = WalletTransaction.builder()
+                .transactionId(transactionId)
+                .ride(ride)
+                .wallet(wallet)
+                .transactionType(TransactionType.DEBIT)
+                .transactionMethod(transactionMethod)
+                .amount(amount)
+                .build();
+
+        walletTransactionService.createNewWalletTransaction(walletTransaction);
+
+        return walletRepository.save(wallet);
+    }
+
+    @Override
+    @Transactional
+    public void withdrawAllMyMoneyFromWallet(User user) {
+        Wallet wallet = findByUser(user);
+        
+        if (wallet.getBalance().compareTo(BigDecimal.ZERO) <= 0) {
+            return;
+        }
+        
+        BigDecimal amount = wallet.getBalance();
+        wallet.setBalance(BigDecimal.ZERO);
+
+        WalletTransaction walletTransaction = WalletTransaction.builder()
+                .transactionId(java.util.UUID.randomUUID().toString())
+                .wallet(wallet)
+                .transactionType(TransactionType.DEBIT)
+                .transactionMethod(TransactionMethod.WALLET)
+                .amount(amount)
+                .build();
+
+        walletTransactionService.createNewWalletTransaction(walletTransaction);
+        walletRepository.save(wallet);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Wallet findWalletById(Long walletId) {
+        return walletRepository.findById(walletId)
+                .orElseThrow(() -> new ResourceNotFoundException("Wallet not found with id: "+walletId));
+    }
+
+    @Override
+    @Transactional
+    public Wallet createNewWallet(User user) {
+        Wallet wallet = new Wallet();
+        wallet.setUser(user);
+        return walletRepository.save(wallet);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Wallet findByUser(User user) {
+        return walletRepository.findByUser(user)
+                .orElseThrow(() -> new ResourceNotFoundException("Wallet not found for user with id: "+user.getId()));
+    }
+}

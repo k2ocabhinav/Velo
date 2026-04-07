@@ -1,0 +1,131 @@
+package com.velo.platform.services.impl;
+
+import com.velo.platform.entities.Ride;
+import com.velo.platform.entities.User;
+import com.velo.platform.entities.Wallet;
+import com.velo.platform.entities.WalletTransaction;
+import com.velo.platform.entities.enums.TransactionMethod;
+import com.velo.platform.entities.enums.TransactionType;
+import com.velo.platform.exceptions.ResourceNotFoundException;
+import com.velo.platform.repositories.WalletRepository;
+import com.velo.platform.services.WalletTransactionService;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.modelmapper.ModelMapper;
+
+import java.math.BigDecimal;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+class WalletServiceImplTest {
+
+    @Mock
+    private WalletRepository walletRepository;
+
+    @Mock
+    private WalletTransactionService walletTransactionService;
+
+    @Mock
+    private ModelMapper modelMapper;
+
+    private WalletServiceImpl walletService;
+
+    private User testUser;
+    private Wallet testWallet;
+
+    @BeforeEach
+    void setUp() {
+        walletService = new WalletServiceImpl(walletRepository, walletTransactionService, modelMapper);
+        
+        testUser = User.builder()
+                .id(1L)
+                .email("test@example.com")
+                .firstName("Test")
+                .lastName("User")
+                .build();
+        
+        testWallet = Wallet.builder()
+                .id(1L)
+                .user(testUser)
+                .balance(BigDecimal.valueOf(100.0))
+                .build();
+    }
+
+    @Test
+    @DisplayName("Should add money to wallet correctly")
+    void shouldAddMoneyToWallet() {
+        when(walletRepository.findByUser(testUser)).thenReturn(Optional.of(testWallet));
+        when(walletRepository.save(any(Wallet.class))).thenReturn(testWallet);
+        
+        Wallet result = walletService.addMoneyToWallet(
+                testUser, BigDecimal.valueOf(50.0), "TXN123", null, TransactionMethod.BANKING);
+        
+        ArgumentCaptor<WalletTransaction> transactionCaptor = 
+                ArgumentCaptor.forClass(WalletTransaction.class);
+        verify(walletTransactionService).createNewWalletTransaction(transactionCaptor.capture());
+        
+        WalletTransaction capturedTransaction = transactionCaptor.getValue();
+        assertThat(capturedTransaction.getTransactionType()).isEqualTo(TransactionType.CREDIT);
+        assertThat(capturedTransaction.getAmount()).isEqualByComparingTo(BigDecimal.valueOf(50.0));
+        assertThat(testWallet.getBalance()).isEqualByComparingTo(BigDecimal.valueOf(150.0));
+    }
+
+    @Test
+    @DisplayName("Should deduct money from wallet correctly")
+    void shouldDeductMoneyFromWallet() {
+        when(walletRepository.findByUser(testUser)).thenReturn(Optional.of(testWallet));
+        when(walletRepository.save(any(Wallet.class))).thenReturn(testWallet);
+        
+        Wallet result = walletService.deductMoneyFromWallet(
+                testUser, BigDecimal.valueOf(30.0), "TXN456", null, TransactionMethod.RIDE);
+        
+        assertThat(testWallet.getBalance()).isEqualByComparingTo(BigDecimal.valueOf(70.0));
+    }
+
+    @Test
+    @DisplayName("Should find wallet by user")
+    void shouldFindWalletByUser() {
+        when(walletRepository.findByUser(testUser)).thenReturn(Optional.of(testWallet));
+        
+        Wallet result = walletService.findByUser(testUser);
+        
+        assertThat(result).isEqualTo(testWallet);
+        assertThat(result.getBalance()).isEqualByComparingTo(BigDecimal.valueOf(100.0));
+    }
+
+    @Test
+    @DisplayName("Should throw exception when wallet not found")
+    void shouldThrowExceptionWhenWalletNotFound() {
+        when(walletRepository.findByUser(testUser)).thenReturn(Optional.empty());
+        
+        assertThatThrownBy(() -> walletService.findByUser(testUser))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("Wallet not found");
+    }
+
+    @Test
+    @DisplayName("Should create new wallet for user")
+    void shouldCreateNewWallet() {
+        when(walletRepository.save(any(Wallet.class))).thenAnswer(invocation -> {
+            Wallet wallet = invocation.getArgument(0);
+            wallet.setId(2L);
+            return wallet;
+        });
+        
+        Wallet result = walletService.createNewWallet(testUser);
+        
+        assertThat(result.getUser()).isEqualTo(testUser);
+        assertThat(result.getBalance()).isEqualByComparingTo(BigDecimal.ZERO);
+        verify(walletRepository).save(any(Wallet.class));
+    }
+}
