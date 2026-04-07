@@ -21,7 +21,7 @@ import com.velo.platform.services.AuthService;
 import com.velo.platform.services.DriverService;
 import com.velo.platform.services.RiderService;
 import com.velo.platform.services.WalletService;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
@@ -145,6 +145,7 @@ public UserDto updateProfile(UpdateProfileRequestDto requestDto) {
 }
 
 @Override
+@Transactional
 public Map<String, String> forgotPassword(ForgotPasswordRequestDto requestDto) {
     User user = userRepository.findByEmail(requestDto.getEmail())
             .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + requestDto.getEmail()));
@@ -161,14 +162,15 @@ public Map<String, String> forgotPassword(ForgotPasswordRequestDto requestDto) {
 
     log.info("Password reset token generated for user: {}", user.getEmail());
     log.debug("Reset token: {} ( expires at: {} )", token, resetToken.getExpiryDate());
+    log.info("Password reset token for {}: {}", user.getEmail(), token);
 
     return Map.of(
-            "message", "Password reset instructions sent to your email",
-            "token", token
+            "message", "If an account exists with this email, a password reset link has been sent"
     );
 }
 
 @Override
+@Transactional
 public Map<String, String> resetPassword(ResetPasswordRequestDto requestDto) {
     PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(requestDto.getToken())
             .orElseThrow(() -> new ResourceNotFoundException("Invalid or expired reset token"));
