@@ -116,6 +116,33 @@ describe("auth and driver endpoints", () => {
     expect(api).not.toHaveProperty("getProfile");
   });
 
+  it("maps register to the signup endpoint contract", async () => {
+    const { client, requests } = createRecordingClient({
+      name: "Alex Rider",
+      email: "alex@example.com",
+      roles: ["RIDER"],
+    });
+
+    const api = createAuthApi(client);
+    await api.register({
+      name: "Alex Rider",
+      email: "alex@example.com",
+      password: "secret123",
+      referredByCode: "VELO123",
+    });
+
+    expect(requests[0]).toMatchObject({
+      method: "POST",
+      url: "/auth/signup",
+      data: {
+        name: "Alex Rider",
+        email: "alex@example.com",
+        password: "secret123",
+        referredByCode: "VELO123",
+      },
+    });
+  });
+
   it("maps auth requests to the current controller contract", async () => {
     const { client, requests } = createRecordingClient({
       token: "jwt",
@@ -187,9 +214,94 @@ describe("auth and driver endpoints", () => {
       params: { pageOffset: 3, pageSize: 5 },
     });
   });
+
+  it("supports rider rating through path variables for driver flows", async () => {
+    const { client, requests } = createRecordingClient({
+      id: 12,
+      user: {
+        name: "Rider One",
+        email: "rider@example.com",
+        roles: ["RIDER"],
+      },
+      rating: 4.8,
+    });
+
+    const api = createDriversApi(client);
+    await api.rateRiderByRide(99, 5);
+
+    expect(requests[0]).toMatchObject({
+      method: "POST",
+      url: "/drivers/rateRider/99/5",
+    });
+  });
 });
 
 describe("rider and supporting domains", () => {
+  it("uses booking contracts for fare estimate and immediate ride request", async () => {
+    const fareEstimate = createRecordingClient({
+      estimatedFare: 25,
+      baseFare: 20,
+      surgeMultiplier: 1,
+      discountAmount: 0,
+      distanceKm: 8,
+      durationMinutes: 18,
+      applicablePromos: [],
+    });
+    const requestRide = createRecordingClient({
+      id: 77,
+      pickupLocation: { coordinates: [1, 2], type: "Point" },
+      dropOffLocation: { coordinates: [3, 4], type: "Point" },
+      paymentMethod: "CARD",
+      rideRequestStatus: "REQUESTED",
+    });
+
+    const estimateApi = createRidesApi(fareEstimate.client);
+    const requestApi = createRidesApi(requestRide.client);
+
+    const payload = {
+      pickupLocation: { coordinates: [12.9, 77.5], type: "Point" as const },
+      dropOffLocation: { coordinates: [12.95, 77.6], type: "Point" as const },
+      paymentMethod: "CARD",
+      promoCode: "SAVE10",
+    };
+
+    await estimateApi.getFareEstimate(payload);
+    await requestApi.requestRide(payload);
+
+    expect(fareEstimate.requests[0]).toMatchObject({
+      method: "POST",
+      url: "/riders/fare-estimate",
+      data: payload,
+    });
+    expect(requestRide.requests[0]).toMatchObject({
+      method: "POST",
+      url: "/riders/requestRide",
+      data: payload,
+    });
+  });
+
+  it("supports rider rating through the path parameter variant", async () => {
+    const { client, requests } = createRecordingClient({
+      id: 19,
+      user: {
+        name: "Driver One",
+        email: "driver@example.com",
+        roles: ["DRIVER"],
+      },
+      rating: 4.9,
+      available: true,
+      vehicleId: "VH-1",
+    });
+
+    const api = createRidesApi(client);
+    await api.rateDriverByRide(101, 4);
+
+    expect(requests[0]).toMatchObject({
+      method: "POST",
+      url: "/riders/rateDriver/101/4",
+    });
+  });
+
   it("reschedules rides through the required query parameter", async () => {
     const { client, requests } = createRecordingClient({
       id: 11,

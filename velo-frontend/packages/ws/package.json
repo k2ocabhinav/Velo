@@ -5,7 +5,9 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./events": "./src/events.ts",
     "./hooks": "./src/hooks.ts",
+    "./subscription-registry": "./src/subscription-registry.ts",
     "./stomp-client": "./src/stomp-client.ts"
   },
   "scripts": {

@@ -6,6 +6,7 @@ import type {
   ForgotPasswordRequestDto,
   LoginRequestDto,
   OnboardDriverDto,
+  RegisterRequestDto,
   ResetPasswordRequestDto,
   SignupDto,
   UpdateProfileRequestDto,
@@ -16,6 +17,7 @@ export type AuthMessageResponse = Record<string, string>;
 
 export interface AuthApi {
   login(input: LoginRequestDto): Promise<AuthResponseDto>;
+  register(input: RegisterRequestDto): Promise<UserDto>;
   signup(input: SignupDto): Promise<UserDto>;
   onboardNewDriver(userId: number, payload: OnboardDriverDto): Promise<DriverDto>;
   forgotPassword(input: ForgotPasswordRequestDto): Promise<AuthMessageResponse>;
@@ -24,6 +26,13 @@ export interface AuthApi {
 }
 
 export function createAuthApi(client: AxiosInstance = createVeloClient()): AuthApi {
+  const signupRequest = (input: SignupDto) =>
+    requestData<UserDto>(client, {
+      method: "POST",
+      url: "/auth/signup",
+      data: input,
+    });
+
   return {
     login: (input) =>
       requestData<AuthResponseDto>(client, {
@@ -31,12 +40,8 @@ export function createAuthApi(client: AxiosInstance = createVeloClient()): AuthA
         url: "/auth/login",
         data: input,
       }),
-    signup: (input) =>
-      requestData<UserDto>(client, {
-        method: "POST",
-        url: "/auth/signup",
-        data: input,
-      }),
+    register: signupRequest,
+    signup: signupRequest,
     onboardNewDriver: (userId, payload) =>
       requestData<DriverDto>(client, {
         method: "POST",

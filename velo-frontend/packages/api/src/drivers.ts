@@ -20,6 +20,7 @@ export interface DriversApi {
   endRide(rideId: number): Promise<RideDto>;
   cancelRide(rideId: number): Promise<RideDto>;
   rateRider(input: RatingDto): Promise<RiderDto>;
+  rateRiderByRide(rideId: number, rating: number): Promise<RiderDto>;
 }
 
 export function createDriversApi(client: AxiosInstance = createVeloClient()): DriversApi {
@@ -67,6 +68,11 @@ export function createDriversApi(client: AxiosInstance = createVeloClient()): Dr
         method: "POST",
         url: "/drivers/rateRider",
         data: input,
+      }),
+    rateRiderByRide: (rideId, rating) =>
+      requestData<RiderDto>(client, {
+        method: "POST",
+        url: `/drivers/rateRider/${rideId}/${rating}`,
       }),
   };
 }

@@ -77,6 +77,8 @@ export interface SignupDto {
   referredByCode?: string;
 }
 
+export type RegisterRequestDto = SignupDto;
+
 export interface LoginRequestDto {
   email: string;
   password: string;
@@ -131,6 +133,11 @@ export interface RideStartDto {
 }
 
 export interface RatingDto {
+  rideId: number;
+  rating: number;
+}
+
+export interface PathRatingInput {
   rideId: number;
   rating: number;
 }

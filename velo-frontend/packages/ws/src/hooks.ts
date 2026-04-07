@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useRef } from "react";
-import type { Client, IMessage, IFrame } from "@stomp/stompjs";
+import type { Client } from "@stomp/stompjs";
+import {
+  parseNotificationEventMessage,
+  parseRideUpdateEventMessage,
+  type NotificationEvent,
+  type RideUpdateEvent,
+} from "./events";
+import { registerStompSubscription } from "./subscription-registry";
 import { createStompClient, type CreateStompClientOptions, type StompFrameHandler } from "./stomp-client";
 
 export interface UseStompClientResult {
@@ -48,33 +55,16 @@ export function useStompSubscription(
       return;
     }
 
-    let subscription: { unsubscribe: () => void } | undefined;
-    const previousOnConnect = client.onConnect;
-    const subscribe = () => {
-      subscription = client.subscribe(options.destination, (message: IMessage) => {
-        latestHandler.current(message);
-      });
-    };
-
-    if (client.connected) {
-      subscribe();
-    } else {
-      client.onConnect = (frame: IFrame) => {
-        previousOnConnect?.(frame);
-        subscribe();
-      };
-    }
-
-    return () => {
-      subscription?.unsubscribe();
-      client.onConnect = previousOnConnect;
-    };
+    return registerStompSubscription(client, options.destination, (message) => {
+      latestHandler.current(message);
+    });
   }, [client, options.destination, options.enabled]);
 }
 
 export interface NotificationSubscriptionOptions {
   enabled?: boolean;
   onNotification: StompFrameHandler;
+  onNotificationEvent?: (event: NotificationEvent) => void;
 }
 
 export function useNotificationSubscription(
@@ -84,7 +74,16 @@ export function useNotificationSubscription(
   useStompSubscription(client, {
     enabled: options.enabled ?? true,
     destination: "/user/queue/notifications",
-    onMessage: options.onNotification,
+    onMessage: (message) => {
+      options.onNotification(message);
+      if (!options.onNotificationEvent) {
+        return;
+      }
+      const event = parseNotificationEventMessage(message);
+      if (event) {
+        options.onNotificationEvent(event);
+      }
+    },
   });
 }
 
@@ -92,6 +91,7 @@ export interface RideUpdateSubscriptionOptions {
   enabled?: boolean;
   destination?: string;
   onRideUpdate: StompFrameHandler;
+  onRideUpdateEvent?: (event: RideUpdateEvent) => void;
 }
 
 export function useRideUpdateSubscription(
@@ -101,6 +101,15 @@ export function useRideUpdateSubscription(
   useStompSubscription(client, {
     enabled: options.enabled ?? true,
     destination: options.destination ?? "/topic/ride-updates",
-    onMessage: options.onRideUpdate,
+    onMessage: (message) => {
+      options.onRideUpdate(message);
+      if (!options.onRideUpdateEvent) {
+        return;
+      }
+      const event = parseRideUpdateEventMessage(message);
+      if (event) {
+        options.onRideUpdateEvent(event);
+      }
+    },
   });
 }
