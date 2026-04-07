@@ -5,6 +5,7 @@ import com.velo.platform.services.DriverService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -77,7 +78,7 @@ public class DriverController {
     @PutMapping("/availability")
     @PreAuthorize("hasRole('DRIVER')")
     @Operation(summary = "Toggle driver availability status")
-    public ResponseEntity<DriverDto> toggleAvailability(@RequestBody DriverAvailabilityRequestDto availabilityRequest) {
+    public ResponseEntity<DriverDto> toggleAvailability(@RequestBody @Valid DriverAvailabilityRequestDto availabilityRequest) {
         return ResponseEntity.ok(driverService.updateDriverAvailability(availabilityRequest.getAvailable()));
     }
 }

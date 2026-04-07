@@ -1,5 +1,7 @@
 package com.velo.platform.dto;
 
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -7,6 +9,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class    PointDto {
 
+    @NotNull(message = "Coordinates are required")
+    @NotEmpty(message = "Coordinates cannot be empty")
     private double[] coordinates;
     private String type = "Point";
 

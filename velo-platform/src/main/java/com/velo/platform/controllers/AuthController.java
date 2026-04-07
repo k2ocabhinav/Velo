@@ -29,7 +29,7 @@ public class AuthController {
 
     @PostMapping("/signup")
     @Operation(summary = "Create a new rider account")
-    public ResponseEntity<UserDto> signUp(@RequestBody SignupDto signupDto) {
+    public ResponseEntity<UserDto> signUp(@RequestBody @Valid SignupDto signupDto) {
         return new ResponseEntity<>(authService.signup(signupDto), HttpStatus.CREATED);
     }
 
