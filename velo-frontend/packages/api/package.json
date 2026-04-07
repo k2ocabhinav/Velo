@@ -1,0 +1,28 @@
+{
+  "name": "@velo/api",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./auth": "./src/auth.ts",
+    "./admin": "./src/admin.ts",
+    "./client": "./src/client.ts",
+    "./drivers": "./src/drivers.ts",
+    "./earnings": "./src/earnings.ts",
+    "./notifications": "./src/notifications.ts",
+    "./payments": "./src/payments.ts",
+    "./promo-codes": "./src/promo-codes.ts",
+    "./rides": "./src/rides.ts",
+    "./types": "./src/types.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "axios": "^1.8.4"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}

@@ -1,0 +1,49 @@
+:root {
+  --color-background: 210 20% 98%;
+  --color-surface: 0 0% 100%;
+  --color-surface-hover: 210 15% 95%;
+  --color-surface-active: 210 12% 90%;
+  --color-elevated: 0 0% 100%;
+  --color-foreground: 210 20% 10%;
+  --color-muted: 210 7% 50%;
+  --color-placeholder: 210 8% 65%;
+  --color-primary: 220 75% 42%;
+  --color-primary-hover: 220 72% 50%;
+  --color-primary-fg: 0 0% 100%;
+  --color-accent: 173 58% 39%;
+  --color-accent-fg: 0 0% 100%;
+  --color-success: 142 71% 45%;
+  --color-warning: 38 92% 50%;
+  --color-danger: 0 84% 60%;
+  --color-info: 220 72% 50%;
+  --color-border: 210 12% 90%;
+  --color-border-hover: 210 10% 80%;
+  --color-ring: 220 72% 50% / 0.3;
+  --color-overlay: 210 25% 5% / 0.5;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 8px;
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px hsl(210 20% 10% / 0.05);
+  --shadow-md: 0 2px 8px hsl(210 20% 10% / 0.08);
+  --shadow-lg: 0 8px 24px hsl(210 20% 10% / 0.12);
+  --shadow-xl: 0 16px 48px hsl(210 20% 10% / 0.16);
+  --shadow-inner: inset 0 1px 2px hsl(210 20% 10% / 0.06);
+  --font-display: "Satoshi", "General Sans", system-ui, sans-serif;
+  --font-body: "General Sans", "Satoshi", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+.velo-theme-dark {
+  --color-background: 210 25% 5%;
+  --color-surface: 210 20% 10%;
+  --color-surface-hover: 210 15% 18%;
+  --color-surface-active: 210 12% 27%;
+  --color-elevated: 210 20% 10%;
+  --color-foreground: 210 20% 98%;
+  --color-muted: 210 8% 65%;
+  --color-placeholder: 210 10% 80%;
+  --color-border: 210 12% 27%;
+  --color-border-hover: 210 15% 18%;
+}
