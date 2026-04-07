@@ -19,6 +19,9 @@
     "./lib": "./src/lib/index.ts",
     "./tokens.css": "./src/theme/tokens.css"
   },
+  "scripts": {
+    "lint": "eslint ."
+  },
   "peerDependencies": {
     "motion": "^12.0.0",
     "react": "^19.0.0",
