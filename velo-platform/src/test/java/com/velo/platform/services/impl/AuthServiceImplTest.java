@@ -9,6 +9,7 @@ import com.velo.platform.entities.User;
 import com.velo.platform.entities.enums.Role;
 import com.velo.platform.exceptions.ResourceNotFoundException;
 import com.velo.platform.exceptions.RuntimeConflictException;
+import com.velo.platform.repositories.PasswordResetTokenRepository;
 import com.velo.platform.repositories.UserRepository;
 import com.velo.platform.security.JwtTokenProvider;
 import com.velo.platform.services.DriverService;
@@ -56,12 +57,15 @@ class AuthServiceImplTest {
     @Mock
     private JwtTokenProvider jwtTokenProvider;
 
+    @Mock
+    private PasswordResetTokenRepository passwordResetTokenRepository;
+
     private AuthServiceImpl authService;
 
     @BeforeEach
     void setUp() {
         authService = new AuthServiceImpl(
-                userRepository, modelMapper, riderService, walletService, driverService, passwordEncoder, jwtTokenProvider);
+                userRepository, passwordResetTokenRepository, modelMapper, riderService, walletService, driverService, passwordEncoder, jwtTokenProvider);
     }
 
     @Test

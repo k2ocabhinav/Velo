@@ -2,14 +2,18 @@ package com.velo.platform.services.impl;
 
 import com.velo.platform.dto.AuthResponseDto;
 import com.velo.platform.dto.DriverDto;
+import com.velo.platform.dto.ForgotPasswordRequestDto;
+import com.velo.platform.dto.ResetPasswordRequestDto;
 import com.velo.platform.dto.SignupDto;
 import com.velo.platform.dto.UpdateProfileRequestDto;
 import com.velo.platform.dto.UserDto;
 import com.velo.platform.entities.Driver;
+import com.velo.platform.entities.PasswordResetToken;
 import com.velo.platform.entities.User;
 import com.velo.platform.entities.enums.Role;
 import com.velo.platform.exceptions.ResourceNotFoundException;
 import com.velo.platform.exceptions.RuntimeConflictException;
+import com.velo.platform.repositories.PasswordResetTokenRepository;
 import com.velo.platform.repositories.UserRepository;
 import com.velo.platform.security.JwtTokenProvider;
 import com.velo.platform.security.UserPrincipal;
@@ -19,20 +23,26 @@ import com.velo.platform.services.RiderService;
 import com.velo.platform.services.WalletService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.Random;
+import java.util.UUID;
 import java.util.Set;
 
 import static com.velo.platform.entities.enums.Role.DRIVER;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final ModelMapper modelMapper;
     private final RiderService riderService;
     private final WalletService walletService;
@@ -132,5 +142,50 @@ public UserDto updateProfile(UpdateProfileRequestDto requestDto) {
 
     User savedUser = userRepository.save(user);
     return modelMapper.map(savedUser, UserDto.class);
+}
+
+@Override
+public Map<String, String> forgotPassword(ForgotPasswordRequestDto requestDto) {
+    User user = userRepository.findByEmail(requestDto.getEmail())
+            .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + requestDto.getEmail()));
+
+    String token = UUID.randomUUID().toString();
+    PasswordResetToken resetToken = PasswordResetToken.builder()
+            .token(token)
+            .user(user)
+            .expiryDate(LocalDateTime.now().plusHours(24))
+            .used(false)
+            .build();
+
+    passwordResetTokenRepository.save(resetToken);
+
+    log.info("Password reset token generated for user: {}", user.getEmail());
+    log.debug("Reset token: {} ( expires at: {} )", token, resetToken.getExpiryDate());
+
+    return Map.of(
+            "message", "Password reset instructions sent to your email",
+            "token", token
+    );
+}
+
+@Override
+public Map<String, String> resetPassword(ResetPasswordRequestDto requestDto) {
+    PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(requestDto.getToken())
+            .orElseThrow(() -> new ResourceNotFoundException("Invalid or expired reset token"));
+
+    if (!resetToken.isValid()) {
+        throw new RuntimeConflictException("Reset token is expired or already used");
+    }
+
+    User user = resetToken.getUser();
+    user.setPassword(passwordEncoder.encode(requestDto.getNewPassword()));
+    userRepository.save(user);
+
+    resetToken.setUsed(true);
+    passwordResetTokenRepository.save(resetToken);
+
+    log.info("Password reset successful for user: {}", user.getEmail());
+
+    return Map.of("message", "Password reset successful");
 }
 }
