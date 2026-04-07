@@ -17,12 +17,11 @@ public interface DriverRepository extends JpaRepository<Driver, Long> {
     Optional<Driver> findByUserId(@Param("userId") Long userId);
 
     /*
-     * ST_Distance(Point1, Point2)
-     * ST_DWithin(Point1, 10000)
+     * Use geography so SRID 4326 distances are measured in meters.
      * */
-    @Query(value = "SELECT d.*, ST_Distance(d.current_location, :pickupLocation) AS distance " +
+    @Query(value = "SELECT d.*, ST_Distance(d.current_location::geography, :pickupLocation::geography) AS distance " +
             "FROM driver AS d " +
-            "WHERE d.available = true AND ST_DWithin(d.current_location, :pickupLocation, 10000) " +
+            "WHERE d.available = true AND ST_DWithin(d.current_location::geography, :pickupLocation::geography, 10000) " +
             "ORDER BY distance " +
             "LIMIT 10",
             nativeQuery = true
@@ -31,7 +30,7 @@ public interface DriverRepository extends JpaRepository<Driver, Long> {
 
     @Query(value = "SELECT d.* " +
             "FROM driver d " +
-            "WHERE d.available = true AND ST_DWithin(d.current_location, :pickupLocation, 15000) " +
+            "WHERE d.available = true AND ST_DWithin(d.current_location::geography, :pickupLocation::geography, 15000) " +
             "ORDER BY d.rating DESC " +
             "LIMIT 10", nativeQuery = true)
     List<Driver> findTenNearbyTopRatedDrivers(@Param("pickupLocation") Point pickupLocation);
