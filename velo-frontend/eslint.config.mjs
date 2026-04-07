@@ -63,5 +63,11 @@ export default tseslint.config(
         process: "readonly"
       }
     }
+  },
+  {
+    files: ["apps/**/*.{js,jsx,mjs,ts,tsx}"],
+    rules: {
+      "@next/next/no-html-link-for-pages": "off"
+    }
   }
 );

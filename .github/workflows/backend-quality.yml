@@ -1,0 +1,42 @@
+name: Backend Quality
+
+on:
+  pull_request:
+    paths:
+      - "velo-platform/**"
+      - ".github/workflows/backend-quality.yml"
+  push:
+    branches:
+      - main
+      - "frontend/**"
+    paths:
+      - "velo-platform/**"
+      - ".github/workflows/backend-quality.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: backend-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Java 22
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 22
+          cache: maven
+
+      - name: Run backend tests
+        working-directory: velo-platform
+        run: ./mvnw -q test
