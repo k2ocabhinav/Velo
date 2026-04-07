@@ -5,6 +5,7 @@ import com.velo.platform.dto.RideDto;
 import com.velo.platform.dto.RideRequestDto;
 import com.velo.platform.dto.RiderDto;
 import com.velo.platform.entities.*;
+import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.enums.RideRequestStatus;
 import com.velo.platform.entities.enums.RideStatus;
 import com.velo.platform.events.RideCancelledEvent;
@@ -30,6 +31,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -71,10 +73,11 @@ public class RiderServiceImpl implements RiderService {
 
         RideRequest savedRideRequest = rideRequestRepository.save(rideRequest);
 
-        rideStrategyManager
-                .driverMatchingStrategy(rider.getRating()).findMatchingDrivers(rideRequest);
+        List<Driver> matchedDrivers = rideStrategyManager
+                .driverMatchingStrategy(rider.getRating())
+                .findMatchingDrivers(savedRideRequest);
 
-        eventPublisher.publishEvent(new RideRequestedEvent(this, savedRideRequest));
+        eventPublisher.publishEvent(new RideRequestedEvent(this, savedRideRequest, matchedDrivers, false));
 
         return modelMapper.map(savedRideRequest, RideRequestDto.class);
     }

@@ -7,6 +7,10 @@ import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.RideRequest;
 import com.velo.platform.entities.Rider;
 import com.velo.platform.entities.enums.RideRequestStatus;
+import com.velo.platform.events.RideRequestedEvent;
+import com.velo.platform.events.ScheduledRideCancelledEvent;
+import com.velo.platform.events.ScheduledRideCreatedEvent;
+import com.velo.platform.events.ScheduledRideRescheduledEvent;
 import com.velo.platform.exceptions.ResourceNotFoundException;
 import com.velo.platform.exceptions.RuntimeConflictException;
 import com.velo.platform.repositories.RideRequestRepository;
@@ -16,6 +20,7 @@ import com.velo.platform.strategies.RideStrategyManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -38,6 +43,7 @@ public class ScheduledRideServiceImpl implements ScheduledRideService {
     private final RideStrategyManager rideStrategyManager;
     private final ScheduledRideConfig scheduledRideConfig;
     private final ModelMapper modelMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -56,6 +62,7 @@ public class ScheduledRideServiceImpl implements ScheduledRideService {
         rideRequest.setFare(fare);
 
         RideRequest saved = rideRequestRepository.save(rideRequest);
+        eventPublisher.publishEvent(new ScheduledRideCreatedEvent(this, saved));
         log.info("Scheduled ride created: id={}, scheduledTime={}", saved.getId(), scheduledTime);
 
         return toScheduledRideDto(saved);
@@ -68,6 +75,7 @@ public class ScheduledRideServiceImpl implements ScheduledRideService {
 
         rideRequest.setRideRequestStatus(RideRequestStatus.CANCELLED);
         RideRequest saved = rideRequestRepository.save(rideRequest);
+        eventPublisher.publishEvent(new ScheduledRideCancelledEvent(this, saved));
         log.info("Scheduled ride cancelled: id={}", rideRequestId);
 
         return toScheduledRideDto(saved);
@@ -85,6 +93,7 @@ public class ScheduledRideServiceImpl implements ScheduledRideService {
         rideRequest.setFare(fare);
 
         RideRequest saved = rideRequestRepository.save(rideRequest);
+        eventPublisher.publishEvent(new ScheduledRideRescheduledEvent(this, saved));
         log.info("Scheduled ride rescheduled: id={}, newTime={}", rideRequestId, newScheduledTime);
 
         return toScheduledRideDto(saved);
@@ -120,15 +129,17 @@ public class ScheduledRideServiceImpl implements ScheduledRideService {
         for (RideRequest rideRequest : dueRides) {
             try {
                 rideRequest.setRideRequestStatus(RideRequestStatus.PENDING);
-                rideRequestRepository.save(rideRequest);
+                RideRequest savedRideRequest = rideRequestRepository.save(rideRequest);
 
-                Rider rider = rideRequest.getRider();
+                Rider rider = savedRideRequest.getRider();
                 List<Driver> matchedDrivers = rideStrategyManager
                         .driverMatchingStrategy(rider.getRating())
-                        .findMatchingDrivers(rideRequest);
+                        .findMatchingDrivers(savedRideRequest);
+
+                eventPublisher.publishEvent(new RideRequestedEvent(this, savedRideRequest, matchedDrivers, true));
 
                 log.info("Dispatched scheduled ride: id={}, matchedDrivers={}",
-                        rideRequest.getId(), matchedDrivers.size());
+                        savedRideRequest.getId(), matchedDrivers.size());
                 dispatched++;
             } catch (Exception e) {
                 log.error("Failed to dispatch scheduled ride id={}: {}",
