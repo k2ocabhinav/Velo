@@ -10,6 +10,7 @@ import com.velo.platform.entities.enums.PaymentMethod;
 import com.velo.platform.entities.enums.RideRequestStatus;
 import com.velo.platform.entities.enums.RideStatus;
 import com.velo.platform.repositories.DriverRepository;
+import com.velo.platform.repositories.RideRepository;
 import com.velo.platform.security.UserPrincipal;
 import com.velo.platform.services.PaymentService;
 import com.velo.platform.services.RatingService;
@@ -52,6 +53,9 @@ class DriverServiceImplTest {
     private DriverRepository driverRepository;
 
     @Mock
+    private RideRepository rideRepository;
+
+    @Mock
     private RideService rideService;
 
     @Mock
@@ -87,7 +91,7 @@ class DriverServiceImplTest {
     @BeforeEach
     void setUp() {
         driverService = new DriverServiceImpl(
-                rideRequestService, driverRepository, rideService, modelMapper, paymentService, ratingService, driverEarningsService, eventPublisher);
+                rideRequestService, driverRepository, rideRepository, rideService, modelMapper, paymentService, ratingService, driverEarningsService, eventPublisher);
 
         testDriver = Driver.builder()
                 .id(1L)

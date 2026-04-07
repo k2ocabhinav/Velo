@@ -13,7 +13,9 @@ import com.velo.platform.events.RideCancelledEvent;
 import com.velo.platform.events.RideEndedEvent;
 import com.velo.platform.events.RideStartedEvent;
 import com.velo.platform.exceptions.ResourceNotFoundException;
+import com.velo.platform.exceptions.RuntimeConflictException;
 import com.velo.platform.repositories.DriverRepository;
+import com.velo.platform.repositories.RideRepository;
 import com.velo.platform.security.UserPrincipal;
 import com.velo.platform.services.*;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +36,7 @@ public class DriverServiceImpl implements DriverService {
 
     private final RideRequestService rideRequestService;
     private final DriverRepository driverRepository;
+    private final RideRepository rideRepository;
     private final RideService rideService;
     private final ModelMapper modelMapper;
     private final PaymentService paymentService;
@@ -195,6 +198,15 @@ public class DriverServiceImpl implements DriverService {
     @Override
     @Transactional
     public DriverDto updateDriverAvailability(Driver driver, boolean available) {
+        if (!available) {
+            List<Ride> activeRides = rideRepository.findByDriverAndRideStatusIn(
+                    driver,
+                    List.of(RideStatus.CONFIRMED, RideStatus.ONGOING)
+            );
+            if (!activeRides.isEmpty()) {
+                throw new RuntimeConflictException("Cannot go offline with active rides. Please complete or cancel active rides first.");
+            }
+        }
         driver.setAvailable(available);
         Driver updatedDriver = driverRepository.save(driver);
         return modelMapper.map(updatedDriver, DriverDto.class);

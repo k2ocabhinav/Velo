@@ -13,12 +13,15 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Repository
 public interface RideRepository extends JpaRepository<Ride, Long> {
     Page<Ride> findByRider(Rider rider, Pageable pageRequest);
 
     Page<Ride> findByDriver(Driver driver, Pageable pageRequest);
+
+    List<Ride> findByDriverAndRideStatusIn(Driver driver, List<RideStatus> rideStatuses);
 
     long countByRideStatus(RideStatus rideStatus);
 
