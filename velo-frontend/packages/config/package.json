@@ -1,0 +1,14 @@
+{
+  "name": "@velo/config",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "tailwind.preset.ts",
+    "tsconfig.base.json"
+  ],
+  "exports": {
+    "./tailwind": "./tailwind.preset.ts",
+    "./tsconfig": "./tsconfig.base.json"
+  }
+}
