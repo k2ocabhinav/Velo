@@ -3,6 +3,7 @@ package com.velo.platform.services.impl;
 import com.velo.platform.dto.AuthResponseDto;
 import com.velo.platform.dto.DriverDto;
 import com.velo.platform.dto.SignupDto;
+import com.velo.platform.dto.UpdateProfileRequestDto;
 import com.velo.platform.dto.UserDto;
 import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.User;
@@ -11,6 +12,7 @@ import com.velo.platform.exceptions.ResourceNotFoundException;
 import com.velo.platform.exceptions.RuntimeConflictException;
 import com.velo.platform.repositories.UserRepository;
 import com.velo.platform.security.JwtTokenProvider;
+import com.velo.platform.security.UserPrincipal;
 import com.velo.platform.services.AuthService;
 import com.velo.platform.services.DriverService;
 import com.velo.platform.services.RiderService;
@@ -109,9 +111,26 @@ public class AuthServiceImpl implements AuthService {
                 .vehicleId(vehicleId)
                 .available(true)
                 .build();
-        user.getRoles().add(DRIVER);
-        userRepository.save(user);
-        Driver savedDriver = driverService.createNewDriver(createDriver);
-        return modelMapper.map(savedDriver, DriverDto.class);
-    }
+user.getRoles().add(DRIVER);
+    userRepository.save(user);
+    Driver savedDriver = driverService.createNewDriver(createDriver);
+    return modelMapper.map(savedDriver, DriverDto.class);
+}
+
+@Override
+@Transactional
+public UserDto updateProfile(UpdateProfileRequestDto requestDto) {
+    UserPrincipal principal = (UserPrincipal) org.springframework.security.core.context.SecurityContextHolder
+            .getContext().getAuthentication().getPrincipal();
+
+    User user = userRepository.findById(principal.getUserId())
+            .orElseThrow(() -> new ResourceNotFoundException("User not found with id " + principal.getUserId()));
+
+    user.setFirstName(requestDto.getFirstName());
+    user.setLastName(requestDto.getLastName());
+    user.setPhoneNumber(requestDto.getPhoneNumber());
+
+    User savedUser = userRepository.save(user);
+    return modelMapper.map(savedUser, UserDto.class);
+}
 }

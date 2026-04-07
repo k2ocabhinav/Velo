@@ -4,6 +4,7 @@ import com.velo.platform.dto.AuthResponseDto;
 import com.velo.platform.dto.DriverDto;
 import com.velo.platform.dto.OnboardDriverDto;
 import com.velo.platform.dto.SignupDto;
+import com.velo.platform.dto.UpdateProfileRequestDto;
 import com.velo.platform.dto.UserDto;
 import com.velo.platform.services.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -26,21 +27,25 @@ public class AuthController {
 
     @PostMapping("/signup")
     @Operation(summary = "Create a new rider account")
-    ResponseEntity<UserDto> signUp(@RequestBody SignupDto signupDto) {
+    public ResponseEntity<UserDto> signUp(@RequestBody SignupDto signupDto) {
         return new ResponseEntity<>(authService.signup(signupDto), HttpStatus.CREATED);
     }
 
     @PostMapping("/login")
     @Operation(summary = "Authenticate a user and return a JWT")
-    ResponseEntity<AuthResponseDto> login(@RequestBody Map<String, String> credentials) {
+    public ResponseEntity<AuthResponseDto> login(@RequestBody Map<String, String> credentials) {
         return ResponseEntity.ok(authService.login(credentials.get("email"), credentials.get("password")));
     }
 
     @PostMapping("/onBoardNewDriver/{userId}")
     @Operation(summary = "Complete driver onboarding for an existing user")
-    ResponseEntity<DriverDto> onBoardNewDriver(@PathVariable Long userId, @RequestBody @Valid OnboardDriverDto onboardDriverDto) {
-        return new ResponseEntity<>(authService.onboardNewDriver(userId,
-                onboardDriverDto.getVehicleId()), HttpStatus.CREATED);
+    public ResponseEntity<DriverDto> onBoardNewDriver(@PathVariable Long userId, @RequestBody @Valid OnboardDriverDto onboardDriverDto) {
+        return new ResponseEntity<>(authService.onboardNewDriver(userId, onboardDriverDto.getVehicleId()), HttpStatus.CREATED);
     }
 
+    @PutMapping("/profile")
+    @Operation(summary = "Update current user's profile")
+    public ResponseEntity<UserDto> updateProfile(@RequestBody @Valid UpdateProfileRequestDto requestDto) {
+        return ResponseEntity.ok(authService.updateProfile(requestDto));
+    }
 }
