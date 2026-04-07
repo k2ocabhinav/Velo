@@ -14,6 +14,24 @@
         "dist/**"
       ]
     },
+    "lint": {
+      "dependsOn": [
+        "^lint"
+      ],
+      "outputs": []
+    },
+    "test:unit": {
+      "dependsOn": [
+        "^test:unit"
+      ],
+      "outputs": []
+    },
+    "test:contracts": {
+      "dependsOn": [
+        "^test:contracts"
+      ],
+      "outputs": []
+    },
     "typecheck": {
       "dependsOn": [
         "^typecheck"

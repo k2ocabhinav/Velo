@@ -7,6 +7,9 @@
     "tailwind.preset.ts",
     "tsconfig.base.json"
   ],
+  "scripts": {
+    "lint": "eslint ."
+  },
   "exports": {
     "./tailwind": "./tailwind.preset.ts",
     "./tsconfig": "./tsconfig.base.json"

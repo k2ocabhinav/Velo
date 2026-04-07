@@ -9,6 +9,8 @@
     "./stomp-client": "./src/stomp-client.ts"
   },
   "scripts": {
+    "lint": "eslint .",
+    "test:unit": "vitest run --config vitest.config.mts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

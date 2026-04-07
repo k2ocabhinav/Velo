@@ -1,12 +1,12 @@
+export type ISODate = string;
+export type ISODateTime = string;
+export type DecimalValue = number | string;
+
 export interface ApiResponse<T> {
   data: T;
   error: string;
   statusCode: number;
 }
-
-export type Identifier = number | string;
-export type ISODateTime = string;
-export type CurrencyCode = string;
 
 export interface PaginationMeta {
   page: number;
@@ -20,37 +20,54 @@ export interface PaginatedResponse<T> {
   meta: PaginationMeta;
 }
 
-export interface LocationPoint {
-  latitude: number;
-  longitude: number;
-  address?: string;
-  label?: string;
+export interface SpringPage<T> {
+  content: T[];
+  number: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  numberOfElements?: number;
+  first?: boolean;
+  last?: boolean;
+  empty?: boolean;
+  pageable?: {
+    pageNumber?: number;
+    pageSize?: number;
+  };
 }
 
-export interface MoneyAmount {
-  amount: number;
-  currency: CurrencyCode;
+export interface PageRequestInput {
+  page?: number;
+  size?: number;
 }
 
-export interface UserSummaryDto {
-  id: number;
+export interface OffsetPageRequestInput {
+  pageOffset?: number;
+  pageSize?: number;
+}
+
+export interface PointDto {
+  coordinates: [number, number];
+  type: "Point";
+}
+
+export interface UserDto {
   name: string;
   email: string;
-  phone?: string;
-  active?: boolean;
-  roles?: string[];
+  roles: string[];
 }
 
-export interface AuthResponseDto {
-  token: string;
-  userId: number;
+export interface AdminUserDto {
+  id: number;
+  firstName: string;
+  lastName: string;
   email: string;
-  role: string;
-}
-
-export interface LoginRequestDto {
-  email: string;
-  password: string;
+  phoneNumber?: string | null;
+  active: boolean;
+  referralCode?: string | null;
+  createdTime?: ISODateTime;
+  roles: string[];
+  version?: number | null;
 }
 
 export interface SignupDto {
@@ -58,6 +75,11 @@ export interface SignupDto {
   email: string;
   password: string;
   referredByCode?: string;
+}
+
+export interface LoginRequestDto {
+  email: string;
+  password: string;
 }
 
 export interface ForgotPasswordRequestDto {
@@ -70,160 +92,38 @@ export interface ResetPasswordRequestDto {
 }
 
 export interface UpdateProfileRequestDto {
-  name?: string;
-  phone?: string;
+  firstName: string;
+  lastName: string;
+  phoneNumber: string;
 }
 
-export interface DriverProfileDto {
+export interface OnboardDriverDto {
+  vehicleId: string;
+}
+
+export interface AuthResponseDto {
+  token: string;
+  userId: number;
+  email: string;
+  role: string;
+}
+
+export interface DriverDto {
   id: number;
-  user: UserSummaryDto;
+  user: UserDto;
   rating: number;
   available: boolean;
   vehicleId: string;
 }
 
-export interface DriverApprovalDto {
-  driverId: number;
-  userId: number;
-  name: string;
-  email: string;
-  phone: string;
+export interface RiderDto {
+  id: number;
+  user: UserDto;
   rating: number;
-  vehicleId: string;
-  appliedAt: ISODateTime;
 }
 
-export interface AdminDashboardDto {
-  totalUsers: number;
-  totalDrivers: number;
-  totalRides: number;
-  totalRevenue: number;
-  activeRides: number;
-  pendingApprovals: number;
-  ridesByStatus: Record<string, number>;
-  revenueByDay: Array<{
-    date: ISODateTime;
-    revenue: number;
-  }>;
-}
-
-export interface AdminStatsDto {
-  date: ISODateTime;
-  totalRides: number;
-  completedRides: number;
-  cancelledRides: number;
-  totalRevenue: number;
-  platformCommission: number;
-  totalUsers: number;
-  newUsers: number;
-  activeDrivers: number;
-  pendingDriverApprovals: number;
-}
-
-export interface RevenueReportDto {
-  date: ISODateTime;
-  grossRevenue: number;
-  platformCommission: number;
-  driverEarnings: number;
-  rideCount: number;
-}
-
-export interface UserAdminDto {
-  id: number;
-  name: string;
-  email: string;
-  phone?: string;
-  role: string;
-  active: boolean;
-  createdAt?: ISODateTime;
-}
-
-export interface PayoutDto {
-  id: number;
-  driverId: number;
-  driverName?: string;
-  amount: number;
-  currency: CurrencyCode;
-  status: string;
-  requestedAt: ISODateTime;
-  processedAt?: ISODateTime;
-  reason?: string;
-}
-
-export interface PromoCodeDto {
-  id: number;
-  code: string;
-  description?: string;
-  discountType: string;
-  discountValue: number;
-  maxDiscountAmount?: number;
-  minimumRideAmount?: number;
-  usageLimit?: number;
-  usedCount?: number;
-  active: boolean;
-  startsAt?: ISODateTime;
-  endsAt?: ISODateTime;
-}
-
-export interface PromoCodeCreateDto {
-  code: string;
-  description?: string;
-  discountType: string;
-  discountValue: number;
-  maxDiscountAmount?: number;
-  minimumRideAmount?: number;
-  usageLimit?: number;
-  startsAt?: ISODateTime;
-  endsAt?: ISODateTime;
-  active?: boolean;
-}
-
-export interface PromoCodeUpdateDto extends Partial<PromoCodeCreateDto> {}
-
-export interface ScheduledRideDto {
-  id: number;
-  riderId: number;
-  riderName?: string;
-  pickupLocation: LocationPoint;
-  dropOffLocation: LocationPoint;
-  requestedTime?: ISODateTime;
-  scheduledTime: ISODateTime;
-  rideRequestStatus?: string;
-  paymentMethod?: string;
-  fare?: number;
-  promoCode?: string;
-  discountAmount?: number;
-}
-
-export interface RideRequestDto {
-  id: number;
-  pickupLocation: LocationPoint;
-  dropOffLocation: LocationPoint;
-  paymentMethod: string;
-  requestedTime?: ISODateTime;
-  fare?: number;
-  promoCode?: string;
-  discountAmount?: number;
-  rider?: UserSummaryDto;
-  rideRequestStatus?: string;
-  scheduledTime?: ISODateTime;
-}
-
-export interface RideDto {
-  id: number;
-  pickupLocation: LocationPoint;
-  dropOffLocation: LocationPoint;
-  createdTime?: ISODateTime;
-  startedAt?: ISODateTime;
-  endedAt?: ISODateTime;
-  rider?: UserSummaryDto;
-  driver?: DriverProfileDto;
-  otp?: string;
-  paymentMethod: string;
-  rideStatus: string;
-  fare?: number;
-  promoCode?: string;
-  discountAmount?: number;
+export interface DriverAvailabilityRequestDto {
+  available: boolean;
 }
 
 export interface RideStartDto {
@@ -235,73 +135,95 @@ export interface RatingDto {
   rating: number;
 }
 
-export interface PointDto {
-  coordinates: [number, number];
-  type: "Point";
-}
-
 export interface FareEstimateRequestDto {
-  pickupLocation: LocationPoint;
-  dropOffLocation: LocationPoint;
+  pickupLocation: PointDto;
+  dropOffLocation: PointDto;
   paymentMethod: string;
   promoCode?: string;
 }
 
 export interface FareEstimateDto {
-  estimatedFare: number;
-  baseFare: number;
+  estimatedFare: DecimalValue;
+  baseFare: DecimalValue;
   surgeMultiplier: number;
-  discountAmount: number;
+  discountAmount: DecimalValue;
   distanceKm: number;
   durationMinutes: number;
-  estimatedPickupTime?: ISODateTime;
+  estimatedPickupTime?: ISODateTime | null;
   applicablePromos: PromoCodeDto[];
+}
+
+export interface PromoCodeDto {
+  id: number;
+  code: string;
+  discountType: string;
+  discountValue: DecimalValue;
+  maxUses?: number | null;
+  currentUses?: number | null;
+  startDate?: ISODate | null;
+  endDate?: ISODate | null;
+  minRideFare?: DecimalValue | null;
+  active: boolean;
+  description?: string | null;
+}
+
+export interface ScheduledRideDto {
+  id: number;
+  pickupLocation: PointDto;
+  dropOffLocation: PointDto;
+  paymentMethod: string;
+  fare: DecimalValue;
+  scheduledTime: ISODateTime;
+  status: string;
+  requestedTime?: ISODateTime | null;
+}
+
+export interface RideRequestDto {
+  id?: number;
+  pickupLocation: PointDto;
+  dropOffLocation: PointDto;
+  paymentMethod: string;
+  requestedTime?: ISODateTime | null;
+  fare?: DecimalValue | null;
+  promoCode?: string | null;
+  discountAmount?: DecimalValue | null;
+  rider?: RiderDto | null;
+  rideRequestStatus?: string | null;
+  scheduledTime?: ISODateTime | null;
+}
+
+export interface RideDto {
+  id: number;
+  pickupLocation: PointDto;
+  dropOffLocation: PointDto;
+  createdTime?: ISODateTime | null;
+  startedAt?: ISODateTime | null;
+  endedAt?: ISODateTime | null;
+  rider?: RiderDto | null;
+  driver?: DriverDto | null;
+  otp?: string | null;
+  paymentMethod: string;
+  rideStatus: string;
+  fair?: DecimalValue | null;
+  promoCode?: string | null;
+  discountAmount?: DecimalValue | null;
 }
 
 export interface PaymentMethodDto {
   id: number;
   type: string;
-  lastFour: string;
+  lastFourDigits: string;
+  expiryDate: string;
   isDefault: boolean;
-  brand?: string;
-  expMonth?: number;
-  expYear?: number;
 }
 
-export interface WalletDto {
+export interface PayoutRequestDto {
   id: number;
-  balance: number;
-  currency: CurrencyCode;
-}
-
-export interface WalletTransactionDto {
-  id: number;
-  ride?: RideDto;
-  transactionId?: string;
-  wallet?: WalletDto;
-  amount: number;
-  type: string;
-  method?: string;
+  amount: DecimalValue;
   status: string;
-  timeStamp: ISODateTime;
-}
-
-export interface DriverEarningDto {
-  id: number;
-  rideId?: number;
-  grossAmount: number;
-  commission: number;
-  netAmount: number;
-  earnedAt: ISODateTime;
-  status?: string;
-}
-
-export interface EarningsSummaryDto {
-  period: string;
-  totalEarnings: number;
-  totalPayouts: number;
-  balance: number;
-  rideCount: number;
+  requestedAt: ISODateTime;
+  processedAt?: ISODateTime | null;
+  adminNote?: string | null;
 }
 
 export interface NotificationDto {
@@ -309,11 +231,69 @@ export interface NotificationDto {
   title: string;
   message: string;
   type: string;
-  referenceId?: number;
+  referenceId?: number | null;
   read: boolean;
   createdTime: ISODateTime;
 }
 
-export interface UnreadCountDto {
-  count: number;
+export interface DriverEarningDto {
+  id: number;
+  rideId?: number | null;
+  grossFare: DecimalValue;
+  platformCommission: DecimalValue;
+  netEarning: DecimalValue;
+  createdTime: ISODateTime;
+}
+
+export interface EarningsSummaryDto {
+  totalGross: DecimalValue;
+  totalCommission: DecimalValue;
+  totalNet: DecimalValue;
+  rideCount: number;
+  period: string;
+  startDate?: ISODateTime | null;
+  endDate?: ISODateTime | null;
+}
+
+export interface DashboardDto {
+  totalUsers: number;
+  totalDrivers: number;
+  totalRides: number;
+  totalRevenue: DecimalValue;
+  activeRides: number;
+  pendingApprovals: number;
+  ridesByStatus: Record<string, number>;
+  revenueByDay: Record<string, DecimalValue>;
+}
+
+export interface AdminStatsDto {
+  date: ISODate;
+  totalRides: number;
+  completedRides: number;
+  cancelledRides: number;
+  totalRevenue: DecimalValue;
+  platformCommission: DecimalValue;
+  totalUsers: number;
+  newUsers: number;
+  activeDrivers: number;
+  pendingDriverApprovals: number;
+}
+
+export interface PendingDriverDto {
+  driverId: number;
+  userId: number;
+  name: string;
+  email: string;
+  phone: string;
+  rating: number;
+  vehicleId: string;
+  appliedAt: ISODateTime;
+}
+
+export interface RevenueReportDto {
+  date: ISODate;
+  grossRevenue: DecimalValue;
+  platformCommission: DecimalValue;
+  driverEarnings: DecimalValue;
+  rideCount: number;
 }

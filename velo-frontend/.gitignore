@@ -3,6 +3,9 @@ node_modules
 .turbo
 dist
 coverage
+playwright-report
+test-results
+.eslintcache
 .env
 .env.local
 .env.development.local

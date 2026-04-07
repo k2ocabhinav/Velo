@@ -1,26 +1,26 @@
 import type { AxiosInstance } from "axios";
-import {
-  createVeloClient,
-  requestData,
-} from "./client";
+import { createVeloClient, requestData } from "./client";
 import type {
   AuthResponseDto,
+  DriverDto,
   ForgotPasswordRequestDto,
   LoginRequestDto,
+  OnboardDriverDto,
+  ResetPasswordRequestDto,
   SignupDto,
   UpdateProfileRequestDto,
-  UserSummaryDto,
-  ResetPasswordRequestDto,
+  UserDto,
 } from "./types";
+
+export type AuthMessageResponse = Record<string, string>;
 
 export interface AuthApi {
   login(input: LoginRequestDto): Promise<AuthResponseDto>;
-  signup(input: SignupDto): Promise<AuthResponseDto>;
-  onboardNewDriver(userId: number, payload: { vehicleId: string }): Promise<void>;
-  forgotPassword(input: ForgotPasswordRequestDto): Promise<void>;
-  resetPassword(input: ResetPasswordRequestDto): Promise<void>;
-  updateProfile(input: UpdateProfileRequestDto): Promise<UserSummaryDto>;
-  getProfile(): Promise<UserSummaryDto>;
+  signup(input: SignupDto): Promise<UserDto>;
+  onboardNewDriver(userId: number, payload: OnboardDriverDto): Promise<DriverDto>;
+  forgotPassword(input: ForgotPasswordRequestDto): Promise<AuthMessageResponse>;
+  resetPassword(input: ResetPasswordRequestDto): Promise<AuthMessageResponse>;
+  updateProfile(input: UpdateProfileRequestDto): Promise<UserDto>;
 }
 
 export function createAuthApi(client: AxiosInstance = createVeloClient()): AuthApi {
@@ -32,39 +32,34 @@ export function createAuthApi(client: AxiosInstance = createVeloClient()): AuthA
         data: input,
       }),
     signup: (input) =>
-      requestData<AuthResponseDto>(client, {
+      requestData<UserDto>(client, {
         method: "POST",
         url: "/auth/signup",
         data: input,
       }),
     onboardNewDriver: (userId, payload) =>
-      requestData<void>(client, {
+      requestData<DriverDto>(client, {
         method: "POST",
         url: `/auth/onBoardNewDriver/${userId}`,
         data: payload,
-      }).then(() => undefined),
+      }),
     forgotPassword: (input) =>
-      requestData<void>(client, {
+      requestData<AuthMessageResponse>(client, {
         method: "POST",
         url: "/auth/forgot-password",
         data: input,
-      }).then(() => undefined),
+      }),
     resetPassword: (input) =>
-      requestData<void>(client, {
+      requestData<AuthMessageResponse>(client, {
         method: "POST",
         url: "/auth/reset-password",
         data: input,
-      }).then(() => undefined),
+      }),
     updateProfile: (input) =>
-      requestData<UserSummaryDto>(client, {
+      requestData<UserDto>(client, {
         method: "PUT",
         url: "/auth/profile",
         data: input,
-      }),
-    getProfile: () =>
-      requestData<UserSummaryDto>(client, {
-        method: "GET",
-        url: "/auth/profile",
       }),
   };
 }

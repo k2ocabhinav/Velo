@@ -1,42 +1,45 @@
 import type { AxiosInstance } from "axios";
-import { createVeloClient, requestData } from "./client";
-import type { DriverProfileDto, RideDto, RideStartDto, RatingDto, UserSummaryDto } from "./types";
+import { createVeloClient, requestData, requestPageData } from "./client";
+import type {
+  DriverAvailabilityRequestDto,
+  DriverDto,
+  OffsetPageRequestInput,
+  PaginatedResponse,
+  RatingDto,
+  RideDto,
+  RideStartDto,
+  RiderDto,
+} from "./types";
 
 export interface DriversApi {
-  getMyProfile(): Promise<DriverProfileDto>;
-  updateMyProfile(input: Partial<DriverProfileDto>): Promise<DriverProfileDto>;
-  toggleAvailability(available: boolean): Promise<DriverProfileDto>;
-  getMyRides(): Promise<RideDto[]>;
+  getMyProfile(): Promise<DriverDto>;
+  setAvailability(available: boolean): Promise<DriverDto>;
+  getMyRides(params?: OffsetPageRequestInput): Promise<PaginatedResponse<RideDto>>;
   acceptRide(rideRequestId: number): Promise<RideDto>;
   startRide(rideRequestId: number, input: RideStartDto): Promise<RideDto>;
   endRide(rideId: number): Promise<RideDto>;
   cancelRide(rideId: number): Promise<RideDto>;
-  rateRider(input: RatingDto): Promise<void>;
+  rateRider(input: RatingDto): Promise<RiderDto>;
 }
 
 export function createDriversApi(client: AxiosInstance = createVeloClient()): DriversApi {
   return {
     getMyProfile: () =>
-      requestData<DriverProfileDto>(client, {
+      requestData<DriverDto>(client, {
         method: "GET",
         url: "/drivers/getMyProfile",
       }),
-    updateMyProfile: (input) =>
-      requestData<DriverProfileDto>(client, {
-        method: "PUT",
-        url: "/drivers/profile",
-        data: input,
-      }),
-    toggleAvailability: (available) =>
-      requestData<DriverProfileDto>(client, {
+    setAvailability: (available) =>
+      requestData<DriverDto>(client, {
         method: "PUT",
         url: "/drivers/availability",
-        data: { available },
+        data: { available } satisfies DriverAvailabilityRequestDto,
       }),
-    getMyRides: () =>
-      requestData<RideDto[]>(client, {
+    getMyRides: (params) =>
+      requestPageData<RideDto>(client, {
         method: "GET",
         url: "/drivers/getMyRides",
+        params,
       }),
     acceptRide: (rideRequestId) =>
       requestData<RideDto>(client, {
@@ -60,10 +63,10 @@ export function createDriversApi(client: AxiosInstance = createVeloClient()): Dr
         url: `/drivers/cancelRide/${rideId}`,
       }),
     rateRider: (input) =>
-      requestData<void>(client, {
+      requestData<RiderDto>(client, {
         method: "POST",
         url: "/drivers/rateRider",
         data: input,
-      }).then(() => undefined),
+      }),
   };
 }

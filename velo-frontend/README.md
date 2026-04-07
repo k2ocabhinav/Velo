@@ -27,9 +27,24 @@ npm install
 ```bash
 npm run dev
 npm run build
+npm run lint
 npm run typecheck
+npm run test:unit
+npm run test:contracts
+npm run test:e2e
 npm run start
 ```
+
+## Quality Gates
+
+- `npm run lint` - ESLint across the workspace
+- `npm run test:unit` - workspace unit tests via Turbo
+- `npm run test:contracts` - backend handshake and API contract checks
+- `npm run test:e2e` - Playwright smoke test for the admin shell
+
+`npm run test` runs all of the above in sequence.
+
+The backend handshake contracts use `VELO_API_BASE_URL` or `NEXT_PUBLIC_API_BASE_URL` when set. If neither is set, the contract suite skips cleanly so local UI work remains usable without the backend.
 
 ## Apps
 

@@ -1,15 +1,13 @@
 import type { AxiosInstance } from "axios";
 import { createVeloClient, requestData } from "./client";
-import type { PromoCodeCreateDto, PromoCodeDto, PromoCodeUpdateDto } from "./types";
+import type { PromoCodeDto } from "./types";
 
 export interface PromoCodesApi {
   listActivePromoCodes(): Promise<PromoCodeDto[]>;
-  validatePromoCode(code: string): Promise<PromoCodeDto>;
   listPromoCodes(): Promise<PromoCodeDto[]>;
-  createPromoCode(input: PromoCodeCreateDto): Promise<PromoCodeDto>;
-  updatePromoCode(id: number, input: PromoCodeUpdateDto): Promise<PromoCodeDto>;
-  deletePromoCode(id: number): Promise<void>;
-  deactivatePromoCode(id: number): Promise<void>;
+  createPromoCode(input: PromoCodeDto): Promise<PromoCodeDto>;
+  updatePromoCode(id: number, input: PromoCodeDto): Promise<PromoCodeDto>;
+  deactivatePromoCode(id: number): Promise<PromoCodeDto>;
 }
 
 export function createPromoCodesApi(client: AxiosInstance = createVeloClient()): PromoCodesApi {
@@ -18,11 +16,6 @@ export function createPromoCodesApi(client: AxiosInstance = createVeloClient()):
       requestData<PromoCodeDto[]>(client, {
         method: "GET",
         url: "/promo-codes/active",
-      }),
-    validatePromoCode: (code) =>
-      requestData<PromoCodeDto>(client, {
-        method: "GET",
-        url: `/promo-codes/${code}`,
       }),
     listPromoCodes: () =>
       requestData<PromoCodeDto[]>(client, {
@@ -41,15 +34,10 @@ export function createPromoCodesApi(client: AxiosInstance = createVeloClient()):
         url: `/api/v1/admin/promo-codes/${id}`,
         data: input,
       }),
-    deletePromoCode: (id) =>
-      requestData<void>(client, {
-        method: "DELETE",
-        url: `/api/v1/admin/promo-codes/${id}`,
-      }).then(() => undefined),
     deactivatePromoCode: (id) =>
-      requestData<void>(client, {
+      requestData<PromoCodeDto>(client, {
         method: "POST",
         url: `/api/v1/admin/promo-codes/${id}/deactivate`,
-      }).then(() => undefined),
+      }),
   };
 }

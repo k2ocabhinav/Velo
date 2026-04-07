@@ -1,35 +1,58 @@
 import type { AxiosInstance } from "axios";
-import { createVeloClient, requestData } from "./client";
-import type { DriverEarningDto, EarningsSummaryDto, PayoutDto } from "./types";
+import { createVeloClient, requestData, requestPageData } from "./client";
+import type {
+  DecimalValue,
+  DriverEarningDto,
+  EarningsSummaryDto,
+  ISODate,
+  OffsetPageRequestInput,
+  PaginatedResponse,
+  PayoutRequestDto,
+} from "./types";
+
+export interface EarningsSummaryParams {
+  period?: "DAILY" | "WEEKLY" | "MONTHLY";
+  date?: ISODate;
+}
 
 export interface EarningsApi {
-  getEarningsHistory(): Promise<DriverEarningDto[]>;
-  getEarningsSummary(): Promise<EarningsSummaryDto>;
-  getBalance(): Promise<{ balance: number; currency: string }>;
-  getPayoutHistory(): Promise<PayoutDto[]>;
+  getEarningsHistory(params?: OffsetPageRequestInput): Promise<PaginatedResponse<DriverEarningDto>>;
+  getEarningsSummary(params?: EarningsSummaryParams): Promise<EarningsSummaryDto>;
+  getBalance(): Promise<DecimalValue>;
+  requestPayout(amount: DecimalValue): Promise<PayoutRequestDto>;
+  getPayoutHistory(params?: OffsetPageRequestInput): Promise<PaginatedResponse<PayoutRequestDto>>;
 }
 
 export function createEarningsApi(client: AxiosInstance = createVeloClient()): EarningsApi {
   return {
-    getEarningsHistory: () =>
-      requestData<DriverEarningDto[]>(client, {
+    getEarningsHistory: (params) =>
+      requestPageData<DriverEarningDto>(client, {
         method: "GET",
         url: "/drivers/earnings",
+        params,
       }),
-    getEarningsSummary: () =>
+    getEarningsSummary: (params) =>
       requestData<EarningsSummaryDto>(client, {
         method: "GET",
         url: "/drivers/earnings/summary",
+        params,
       }),
     getBalance: () =>
-      requestData<{ balance: number; currency: string }>(client, {
+      requestData<DecimalValue>(client, {
         method: "GET",
         url: "/drivers/earnings/balance",
       }),
-    getPayoutHistory: () =>
-      requestData<PayoutDto[]>(client, {
+    requestPayout: (amount) =>
+      requestData<PayoutRequestDto>(client, {
+        method: "POST",
+        url: "/drivers/earnings/payout",
+        params: { amount },
+      }),
+    getPayoutHistory: (params) =>
+      requestPageData<PayoutRequestDto>(client, {
         method: "GET",
         url: "/drivers/earnings/payouts",
+        params,
       }),
   };
 }

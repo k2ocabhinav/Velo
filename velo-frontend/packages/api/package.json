@@ -17,6 +17,10 @@
     "./types": "./src/types.ts"
   },
   "scripts": {
+    "lint": "eslint src tests",
+    "test": "npm run test:unit && npm run test:contracts",
+    "test:unit": "vitest run --config vitest.unit.config.mts",
+    "test:contracts": "vitest run --config vitest.contracts.config.mts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

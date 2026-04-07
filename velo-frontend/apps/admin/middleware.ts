@@ -1,4 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import { sanitizeNextPath } from "./app/login/_lib/redirect";
 
 const PROTECTED_PATHS = [
   "/",
@@ -30,7 +32,8 @@ export function middleware(request: NextRequest) {
   }
 
   const loginUrl = new URL("/login", request.url);
-  loginUrl.searchParams.set("next", `${pathname}${search}`);
+  const safeNext = sanitizeNextPath(`${pathname}${search}`);
+  loginUrl.searchParams.set("next", safeNext);
   return NextResponse.redirect(loginUrl);
 }
 
