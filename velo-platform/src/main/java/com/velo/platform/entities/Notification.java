@@ -13,7 +13,11 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Table(name = "notification")
+// Hot path: per-user feed, unread counts, and bulk read updates.
+@Table(name = "notification", indexes = {
+        @Index(name = "idx_notification_user_created", columnList = "user_id,createdTime"),
+        @Index(name = "idx_notification_user_read", columnList = "user_id,read")
+})
 public class Notification {
 
     @Id

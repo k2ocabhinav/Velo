@@ -13,7 +13,10 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Table(name = "promo_code")
+// Hot path: active promo lookup.
+@Table(name = "promo_code", indexes = {
+        @Index(name = "idx_promo_code_active", columnList = "active")
+})
 public class PromoCode {
 
     @Id

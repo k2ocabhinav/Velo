@@ -14,9 +14,12 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+// Hot path: driver payout history and pending payout queues.
 @Table(indexes = {
         @Index(name = "idx_payout_driver", columnList = "driver_id"),
-        @Index(name = "idx_payout_status", columnList = "status")
+        @Index(name = "idx_payout_status", columnList = "status"),
+        @Index(name = "idx_payout_driver_requested", columnList = "driver_id,requestedAt"),
+        @Index(name = "idx_payout_status_requested", columnList = "status,requestedAt")
 })
 public class PayoutRequest {
 

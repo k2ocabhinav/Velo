@@ -16,11 +16,14 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 @ToString
+// Hot path: scheduled-ride queues and rider history.
 @Table(
         indexes = {
                 @Index(name = "idx_ride_request_rider", columnList = "rider_id"),
                 @Index(name = "idx_ride_request_status", columnList = "rideRequestStatus"),
-                @Index(name = "idx_ride_request_scheduled", columnList = "scheduledTime")
+                @Index(name = "idx_ride_request_scheduled", columnList = "scheduledTime"),
+                @Index(name = "idx_ride_request_rider_status_scheduled", columnList = "rider_id,rideRequestStatus,scheduledTime"),
+                @Index(name = "idx_ride_request_status_scheduled", columnList = "rideRequestStatus,scheduledTime")
         }
 )
 public class RideRequest {
