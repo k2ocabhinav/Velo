@@ -1,36 +1,30 @@
 import type { AxiosInstance } from "axios";
-import { createVeloClient, requestData } from "./client";
+import { createVeloClient, requestData, requestPageData } from "./client";
 import type {
+  DriverDto,
   FareEstimateDto,
   FareEstimateRequestDto,
-  ISODateTime,
+  OffsetPageRequestInput,
+  PageRequestInput,
   PaginatedResponse,
   RatingDto,
   RideDto,
   RideRequestDto,
+  RiderDto,
   ScheduledRideDto,
 } from "./types";
-
-export interface RideScheduleRequestDto {
-  pickupLocation: RideRequestDto["pickupLocation"];
-  dropOffLocation: RideRequestDto["dropOffLocation"];
-  scheduledTime: ISODateTime;
-  paymentMethod: string;
-  promoCode?: string;
-}
 
 export interface RidesApi {
   getFareEstimate(input: FareEstimateRequestDto): Promise<FareEstimateDto>;
   requestRide(input: RideRequestDto): Promise<RideRequestDto>;
-  cancelRide(rideId: number): Promise<void>;
-  rateDriver(input: RatingDto): Promise<void>;
-  getMyRides(params?: { page?: number; size?: number }): Promise<PaginatedResponse<RideDto>>;
-  getRide(rideId: number): Promise<RideDto>;
-  scheduleRide(input: RideScheduleRequestDto): Promise<ScheduledRideDto>;
-  getScheduledRides(): Promise<ScheduledRideDto[]>;
-  cancelScheduledRide(rideId: number): Promise<void>;
-  rescheduleScheduledRide(rideId: number, scheduledTime: string): Promise<ScheduledRideDto>;
-  trackRide(rideId: number): Promise<RideDto>;
+  cancelRide(rideId: number): Promise<RideDto>;
+  rateDriver(input: RatingDto): Promise<DriverDto>;
+  getMyProfile(): Promise<RiderDto>;
+  getMyRides(params?: OffsetPageRequestInput): Promise<PaginatedResponse<RideDto>>;
+  scheduleRide(input: RideRequestDto): Promise<ScheduledRideDto>;
+  getScheduledRides(params?: PageRequestInput): Promise<PaginatedResponse<ScheduledRideDto>>;
+  cancelScheduledRide(rideId: number): Promise<ScheduledRideDto>;
+  rescheduleScheduledRide(rideId: number, newTime: string): Promise<ScheduledRideDto>;
 }
 
 export function createRidesApi(client: AxiosInstance = createVeloClient()): RidesApi {
@@ -48,26 +42,26 @@ export function createRidesApi(client: AxiosInstance = createVeloClient()): Ride
         data: input,
       }),
     cancelRide: (rideId) =>
-      requestData<void>(client, {
+      requestData<RideDto>(client, {
         method: "POST",
         url: `/riders/cancelRide/${rideId}`,
-      }).then(() => undefined),
+      }),
     rateDriver: (input) =>
-      requestData<void>(client, {
+      requestData<DriverDto>(client, {
         method: "POST",
         url: "/riders/rateDriver",
         data: input,
-      }).then(() => undefined),
+      }),
+    getMyProfile: () =>
+      requestData<RiderDto>(client, {
+        method: "GET",
+        url: "/riders/getMyProfile",
+      }),
     getMyRides: (params) =>
-      requestData<PaginatedResponse<RideDto>>(client, {
+      requestPageData<RideDto>(client, {
         method: "GET",
         url: "/riders/getMyRides",
         params,
-      }),
-    getRide: (rideId) =>
-      requestData<RideDto>(client, {
-        method: "GET",
-        url: `/rides/${rideId}`,
       }),
     scheduleRide: (input) =>
       requestData<ScheduledRideDto>(client, {
@@ -75,26 +69,22 @@ export function createRidesApi(client: AxiosInstance = createVeloClient()): Ride
         url: "/riders/schedule-ride",
         data: input,
       }),
-    getScheduledRides: () =>
-      requestData<ScheduledRideDto[]>(client, {
+    getScheduledRides: (params) =>
+      requestPageData<ScheduledRideDto>(client, {
         method: "GET",
         url: "/riders/scheduled-rides",
+        params,
       }),
     cancelScheduledRide: (rideId) =>
-      requestData<void>(client, {
+      requestData<ScheduledRideDto>(client, {
         method: "DELETE",
         url: `/riders/scheduled-rides/${rideId}`,
-      }).then(() => undefined),
-    rescheduleScheduledRide: (rideId, scheduledTime) =>
+      }),
+    rescheduleScheduledRide: (rideId, newTime) =>
       requestData<ScheduledRideDto>(client, {
         method: "PUT",
         url: `/riders/scheduled-rides/${rideId}/reschedule`,
-        data: { scheduledTime },
-      }),
-    trackRide: (rideId) =>
-      requestData<RideDto>(client, {
-        method: "GET",
-        url: `/rides/${rideId}/track`,
+        params: { newTime },
       }),
   };
 }

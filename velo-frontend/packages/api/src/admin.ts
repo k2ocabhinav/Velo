@@ -1,83 +1,77 @@
 import type { AxiosInstance } from "axios";
-import { createVeloClient, requestData } from "./client";
+import { createVeloClient, requestData, requestPageData } from "./client";
 import type {
-  AdminDashboardDto,
   AdminStatsDto,
-  DriverApprovalDto,
+  AdminUserDto,
+  DashboardDto,
+  PageRequestInput,
   PaginatedResponse,
-  PayoutDto,
-  PromoCodeCreateDto,
-  PromoCodeDto,
-  PromoCodeUpdateDto,
+  PendingDriverDto,
+  PayoutRequestDto,
   RevenueReportDto,
   ScheduledRideDto,
-  UserAdminDto,
 } from "./types";
 
-export interface AdminListParams {
-  page?: number;
-  size?: number;
-  sortBy?: string;
-  sortDirection?: "asc" | "desc";
-  query?: string;
-}
-
 export interface AdminApi {
-  getDashboardStats(): Promise<AdminDashboardDto>;
-  getDailyStats(): Promise<AdminStatsDto[]>;
-  getRevenueStats(): Promise<RevenueReportDto[]>;
-  getPendingDrivers(): Promise<DriverApprovalDto[]>;
+  getDashboardStats(): Promise<DashboardDto>;
+  getDailyStats(date: string): Promise<AdminStatsDto>;
+  getRevenueStats(startDate: string, endDate: string): Promise<RevenueReportDto[]>;
+  getPendingDrivers(params?: PageRequestInput): Promise<PaginatedResponse<PendingDriverDto>>;
   approveDriver(driverId: number): Promise<void>;
-  rejectDriver(driverId: number): Promise<void>;
-  getUsers(params?: AdminListParams): Promise<PaginatedResponse<UserAdminDto>>;
+  rejectDriver(driverId: number, reason: string): Promise<void>;
+  getUsers(params?: PageRequestInput): Promise<PaginatedResponse<AdminUserDto>>;
   activateUser(userId: number): Promise<void>;
   deactivateUser(userId: number): Promise<void>;
-  getPendingPayouts(params?: AdminListParams): Promise<PaginatedResponse<PayoutDto>>;
-  approvePayout(payoutId: number): Promise<void>;
-  rejectPayout(payoutId: number): Promise<void>;
-  processPayout(payoutId: number): Promise<void>;
-  listPromoCodes(): Promise<PromoCodeDto[]>;
-  createPromoCode(input: PromoCodeCreateDto): Promise<PromoCodeDto>;
-  updatePromoCode(id: number, input: PromoCodeUpdateDto): Promise<PromoCodeDto>;
-  deletePromoCode(id: number): Promise<void>;
-  deactivatePromoCode(id: number): Promise<void>;
-  getScheduledRides(params?: AdminListParams): Promise<ScheduledRideDto[]>;
+  getPendingPayouts(params?: PageRequestInput): Promise<PaginatedResponse<PayoutRequestDto>>;
+  approvePayout(payoutId: number, adminNote?: string): Promise<PayoutRequestDto>;
+  rejectPayout(payoutId: number, adminNote: string): Promise<PayoutRequestDto>;
+  processPayout(payoutId: number): Promise<PayoutRequestDto>;
+  getScheduledRides(params?: PageRequestInput): Promise<PaginatedResponse<ScheduledRideDto>>;
+}
+
+function textBodyHeaders(): Record<string, string> {
+  return { "Content-Type": "text/plain" };
 }
 
 export function createAdminApi(client: AxiosInstance = createVeloClient()): AdminApi {
   return {
     getDashboardStats: () =>
-      requestData<AdminDashboardDto>(client, {
+      requestData<DashboardDto>(client, {
         method: "GET",
         url: "/api/v1/admin/stats/dashboard",
       }),
-    getDailyStats: () =>
-      requestData<AdminStatsDto[]>(client, {
+    getDailyStats: (date) =>
+      requestData<AdminStatsDto>(client, {
         method: "GET",
         url: "/api/v1/admin/stats/daily",
+        params: { date },
       }),
-    getRevenueStats: () =>
+    getRevenueStats: (startDate, endDate) =>
       requestData<RevenueReportDto[]>(client, {
         method: "GET",
         url: "/api/v1/admin/stats/revenue",
+        params: { startDate, endDate },
       }),
-    getPendingDrivers: () =>
-      requestData<DriverApprovalDto[]>(client, {
+    getPendingDrivers: (params) =>
+      requestPageData<PendingDriverDto>(client, {
         method: "GET",
         url: "/api/v1/admin/drivers/pending",
+        params,
       }),
     approveDriver: (driverId) =>
       requestData<void>(client, {
         method: "POST",
         url: `/api/v1/admin/drivers/${driverId}/approve`,
       }).then(() => undefined),
-    rejectDriver: (driverId) =>
+    rejectDriver: (driverId, reason) =>
       requestData<void>(client, {
         method: "POST",
         url: `/api/v1/admin/drivers/${driverId}/reject`,
+        data: reason,
+        headers: textBodyHeaders(),
       }).then(() => undefined),
     getUsers: (params) =>
-      requestData<PaginatedResponse<UserAdminDto>>(client, {
+      requestPageData<AdminUserDto>(client, {
         method: "GET",
         url: "/api/v1/admin/users",
         params,
@@ -93,55 +87,37 @@ export function createAdminApi(client: AxiosInstance = createVeloClient()): Admi
         url: `/api/v1/admin/users/${userId}/deactivate`,
       }).then(() => undefined),
     getPendingPayouts: (params) =>
-      requestData<PaginatedResponse<PayoutDto>>(client, {
+      requestPageData<PayoutRequestDto>(client, {
         method: "GET",
         url: "/api/v1/admin/payouts/pending",
         params,
       }),
-    approvePayout: (payoutId) =>
-      requestData<void>(client, {
+    approvePayout: (payoutId, adminNote) => {
+      return requestData<PayoutRequestDto>(client, {
         method: "POST",
         url: `/api/v1/admin/payouts/${payoutId}/approve`,
-      }).then(() => undefined),
-    rejectPayout: (payoutId) =>
-      requestData<void>(client, {
+        ...(adminNote !== undefined
+          ? {
+              data: adminNote,
+              headers: textBodyHeaders(),
+            }
+          : {}),
+      });
+    },
+    rejectPayout: (payoutId, adminNote) =>
+      requestData<PayoutRequestDto>(client, {
         method: "POST",
         url: `/api/v1/admin/payouts/${payoutId}/reject`,
-      }).then(() => undefined),
+        data: adminNote,
+        headers: textBodyHeaders(),
+      }),
     processPayout: (payoutId) =>
-      requestData<void>(client, {
+      requestData<PayoutRequestDto>(client, {
         method: "POST",
         url: `/api/v1/admin/payouts/${payoutId}/process`,
-      }).then(() => undefined),
-    listPromoCodes: () =>
-      requestData<PromoCodeDto[]>(client, {
-        method: "GET",
-        url: "/api/v1/admin/promo-codes",
       }),
-    createPromoCode: (input) =>
-      requestData<PromoCodeDto>(client, {
-        method: "POST",
-        url: "/api/v1/admin/promo-codes",
-        data: input,
-      }),
-    updatePromoCode: (id, input) =>
-      requestData<PromoCodeDto>(client, {
-        method: "PUT",
-        url: `/api/v1/admin/promo-codes/${id}`,
-        data: input,
-      }),
-    deletePromoCode: (id) =>
-      requestData<void>(client, {
-        method: "DELETE",
-        url: `/api/v1/admin/promo-codes/${id}`,
-      }).then(() => undefined),
-    deactivatePromoCode: (id) =>
-      requestData<void>(client, {
-        method: "POST",
-        url: `/api/v1/admin/promo-codes/${id}/deactivate`,
-      }).then(() => undefined),
     getScheduledRides: (params) =>
-      requestData<ScheduledRideDto[]>(client, {
+      requestPageData<ScheduledRideDto>(client, {
         method: "GET",
         url: "/api/v1/admin/scheduled-rides",
         params,

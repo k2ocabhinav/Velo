@@ -1,0 +1,305 @@
+import type { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
+import { describe, expect, it } from "vitest";
+import { createAdminApi } from "../../src/admin";
+import { createAuthApi } from "../../src/auth";
+import { createDriversApi } from "../../src/drivers";
+import { createEarningsApi } from "../../src/earnings";
+import { createNotificationsApi } from "../../src/notifications";
+import { createPaymentsApi } from "../../src/payments";
+import { createPromoCodesApi } from "../../src/promo-codes";
+import { createRidesApi } from "../../src/rides";
+import type { ApiResponse, SpringPage } from "../../src/types";
+
+function createRecordingClient<T>(responseData: T | ApiResponse<T>) {
+  const requests: AxiosRequestConfig[] = [];
+
+  const client = {
+    request: async (config: AxiosRequestConfig): Promise<AxiosResponse<T | ApiResponse<T>>> => {
+      requests.push(config);
+
+      return {
+        data: responseData,
+        status: 200,
+        statusText: "OK",
+        headers: {},
+        config,
+      };
+    },
+  } as unknown as AxiosInstance;
+
+  return { client, requests };
+}
+
+describe("admin endpoints", () => {
+  it("sends the required query params for analytics endpoints", async () => {
+    const { client, requests } = createRecordingClient({
+      totalUsers: 10,
+      totalDrivers: 3,
+      totalRides: 50,
+      totalRevenue: 1234.56,
+      activeRides: 2,
+      pendingApprovals: 1,
+      ridesByStatus: {},
+      revenueByDay: {},
+    });
+
+    const api = createAdminApi(client);
+    await api.getDailyStats("2026-04-07");
+    await api.getRevenueStats("2026-04-01", "2026-04-07");
+
+    expect(requests[0]).toMatchObject({
+      method: "GET",
+      url: "/api/v1/admin/stats/daily",
+      params: { date: "2026-04-07" },
+    });
+    expect(requests[1]).toMatchObject({
+      method: "GET",
+      url: "/api/v1/admin/stats/revenue",
+      params: { startDate: "2026-04-01", endDate: "2026-04-07" },
+    });
+  });
+
+  it("unwraps spring pages for admin lists", async () => {
+    const { client, requests } = createRecordingClient({
+      content: [
+        {
+          id: 1,
+          firstName: "Asha",
+          lastName: "Patel",
+          email: "asha@example.com",
+          active: true,
+          roles: ["RIDER"],
+        },
+      ],
+      number: 0,
+      size: 10,
+      totalElements: 1,
+      totalPages: 1,
+    } satisfies SpringPage<unknown>);
+
+    const api = createAdminApi(client);
+    const page = await api.getUsers({ page: 2, size: 25 });
+
+    expect(page.items).toHaveLength(1);
+    expect(page.meta).toEqual({ page: 0, size: 10, total: 1, totalPages: 1 });
+    expect(requests[0]).toMatchObject({
+      method: "GET",
+      url: "/api/v1/admin/users",
+      params: { page: 2, size: 25 },
+    });
+  });
+
+  it("sends plain text bodies for moderation endpoints", async () => {
+    const { client, requests } = createRecordingClient({
+      id: 42,
+      amount: 18,
+      status: "APPROVED",
+      requestedAt: "2026-04-07T10:15:00",
+    });
+
+    const api = createAdminApi(client);
+    await api.rejectDriver(9, "duplicate account");
+
+    expect(requests[0]).toMatchObject({
+      method: "POST",
+      url: "/api/v1/admin/drivers/9/reject",
+      data: "duplicate account",
+      headers: { "Content-Type": "text/plain" },
+    });
+    expect("wallet" in (api as Record<string, unknown>)).toBe(false);
+  });
+});
+
+describe("auth and driver endpoints", () => {
+  it("does not expose unsupported profile lookup methods", () => {
+    const api = createAuthApi();
+    expect(api).not.toHaveProperty("getProfile");
+  });
+
+  it("maps auth requests to the current controller contract", async () => {
+    const { client, requests } = createRecordingClient({
+      token: "jwt",
+      userId: 1,
+      email: "user@example.com",
+      role: "RIDER",
+    });
+
+    const api = createAuthApi(client);
+    await api.signup({
+      name: "Alex",
+      email: "alex@example.com",
+      password: "secret123",
+    });
+
+    expect(requests[0]).toMatchObject({
+      method: "POST",
+      url: "/auth/signup",
+      data: {
+        name: "Alex",
+        email: "alex@example.com",
+        password: "secret123",
+      },
+    });
+  });
+
+  it("uses the driver availability and paging contract", async () => {
+    const availability = createRecordingClient({
+      id: 7,
+      user: {
+        name: "Driver One",
+        email: "driver@example.com",
+        roles: ["DRIVER"],
+      },
+      rating: 4.9,
+      available: true,
+      vehicleId: "VH-1",
+    });
+
+    const rides = createRecordingClient({
+      content: [
+        {
+          id: 44,
+          pickupLocation: { coordinates: [1, 2], type: "Point" },
+          dropOffLocation: { coordinates: [3, 4], type: "Point" },
+          paymentMethod: "CARD",
+          rideStatus: "COMPLETED",
+        },
+      ],
+      number: 0,
+      size: 5,
+      totalElements: 1,
+      totalPages: 1,
+    } satisfies SpringPage<unknown>);
+
+    const driverApi = createDriversApi(availability.client);
+    const ridesApi = createDriversApi(rides.client);
+    await driverApi.setAvailability(true);
+    await ridesApi.getMyRides({ pageOffset: 3, pageSize: 5 });
+
+    expect(availability.requests[0]).toMatchObject({
+      method: "PUT",
+      url: "/drivers/availability",
+      data: { available: true },
+    });
+    expect(rides.requests[0]).toMatchObject({
+      method: "GET",
+      url: "/drivers/getMyRides",
+      params: { pageOffset: 3, pageSize: 5 },
+    });
+  });
+});
+
+describe("rider and supporting domains", () => {
+  it("reschedules rides through the required query parameter", async () => {
+    const { client, requests } = createRecordingClient({
+      id: 11,
+      pickupLocation: { coordinates: [1, 2], type: "Point" },
+      dropOffLocation: { coordinates: [3, 4], type: "Point" },
+      paymentMethod: "CARD",
+      fare: 19.5,
+      scheduledTime: "2026-04-07T12:00:00",
+      status: "SCHEDULED",
+    });
+
+    const api = createRidesApi(client);
+    await api.rescheduleScheduledRide(11, "2026-04-08T09:00:00");
+
+    expect(requests[0]).toMatchObject({
+      method: "PUT",
+      url: "/riders/scheduled-rides/11/reschedule",
+      params: { newTime: "2026-04-08T09:00:00" },
+    });
+  });
+
+  it("keeps payment methods flat and excludes wallet endpoints", async () => {
+    const { client, requests } = createRecordingClient([
+      {
+        id: 1,
+        type: "CARD",
+        lastFourDigits: "4242",
+        expiryDate: "12/30",
+        isDefault: true,
+      },
+    ]);
+
+    const api = createPaymentsApi(client);
+    const methods = await api.listPaymentMethods();
+
+    expect(methods).toHaveLength(1);
+    expect(requests[0]).toMatchObject({
+      method: "GET",
+      url: "/payment-methods",
+    });
+    expect(api).not.toHaveProperty("wallet");
+  });
+
+  it("returns paginated notifications and numeric unread counts", async () => {
+    const { client, requests } = createRecordingClient({
+      content: [
+        {
+          id: 1,
+          title: "Trip update",
+          message: "Your driver is arriving",
+          type: "RIDE",
+          referenceId: 88,
+          read: false,
+          createdTime: "2026-04-07T08:00:00",
+        },
+      ],
+      number: 0,
+      size: 20,
+      totalElements: 1,
+      totalPages: 1,
+    } satisfies SpringPage<unknown>);
+
+    const api = createNotificationsApi(client);
+    const page = await api.listNotifications({ page: 0, size: 20 });
+
+    expect(page.items).toHaveLength(1);
+    expect(requests[0]).toMatchObject({
+      method: "GET",
+      url: "/notifications",
+      params: { page: 0, size: 20 },
+    });
+  });
+
+  it("keeps promo codes limited to supported endpoints", () => {
+    const api = createPromoCodesApi();
+    expect(api).not.toHaveProperty("validatePromoCode");
+    expect(api).not.toHaveProperty("deletePromoCode");
+  });
+
+  it("uses driver earnings query parameters and payout requests", async () => {
+    const { client, requests } = createRecordingClient({
+      content: [
+        {
+          id: 1,
+          rideId: 99,
+          grossFare: 50,
+          platformCommission: 5,
+          netEarning: 45,
+          createdTime: "2026-04-07T07:30:00",
+        },
+      ],
+      number: 1,
+      size: 10,
+      totalElements: 1,
+      totalPages: 1,
+    } satisfies SpringPage<unknown>);
+
+    const api = createEarningsApi(client);
+    await api.getEarningsHistory({ pageOffset: 1, pageSize: 10 });
+    await api.requestPayout(25);
+
+    expect(requests[0]).toMatchObject({
+      method: "GET",
+      url: "/drivers/earnings",
+      params: { pageOffset: 1, pageSize: 10 },
+    });
+    expect(requests[1]).toMatchObject({
+      method: "POST",
+      url: "/drivers/earnings/payout",
+      params: { amount: 25 },
+    });
+  });
+});
