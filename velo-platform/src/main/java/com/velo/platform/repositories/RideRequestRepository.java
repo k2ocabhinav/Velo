@@ -17,6 +17,8 @@ import java.util.List;
 public interface RideRequestRepository extends JpaRepository<RideRequest, Long> {
     List<RideRequest> findByRideRequestStatus(RideRequestStatus rideRequestStatus);
 
+    long countByRideRequestStatus(RideRequestStatus rideRequestStatus);
+
     Page<RideRequest> findByRiderAndRideRequestStatusOrderByScheduledTimeAsc(
             Rider rider, RideRequestStatus status, Pageable pageable);
 

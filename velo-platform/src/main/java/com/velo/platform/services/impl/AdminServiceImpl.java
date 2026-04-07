@@ -5,8 +5,6 @@ import com.velo.platform.dto.admin.DashboardDto;
 import com.velo.platform.dto.admin.PendingDriverDto;
 import com.velo.platform.dto.admin.RevenueReportDto;
 import com.velo.platform.entities.Driver;
-import com.velo.platform.entities.Payment;
-import com.velo.platform.entities.Ride;
 import com.velo.platform.entities.User;
 import com.velo.platform.entities.enums.PaymentStatus;
 import com.velo.platform.entities.enums.RideRequestStatus;
@@ -41,6 +39,7 @@ public class AdminServiceImpl implements AdminService {
     private final CacheService cacheService;
 
     private static final BigDecimal PLATFORM_COMMISSION = BigDecimal.valueOf(0.30);
+    private static final double PENDING_DRIVER_APPROVAL_THRESHOLD = 1.0;
 
     @Override
     @Transactional(readOnly = true)
@@ -53,24 +52,18 @@ public class AdminServiceImpl implements AdminService {
         long totalUsers = userRepository.count();
         long totalDrivers = driverRepository.count();
         long totalRides = rideRepository.count();
-        
-        List<Payment> confirmedPayments = paymentRepository.findByPaymentStatus(PaymentStatus.CONFIRMED);
-        BigDecimal totalRevenue = confirmedPayments.stream()
-                .map(Payment::getAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        
+
+        BigDecimal totalRevenue = nullToZero(paymentRepository.sumAmountByPaymentStatus(PaymentStatus.CONFIRMED));
         long activeRides = rideRepository.countByRideStatus(RideStatus.ONGOING);
-        
-        long pendingApprovals = driverRepository.findAll().stream()
-                .filter(d -> d.getRating() == null || d.getRating() < 1.0)
-                .count();
-        
+
+        long pendingApprovals = countPendingDriverApprovals();
+
         Map<String, Long> ridesByStatus = new HashMap<>();
         ridesByStatus.put("COMPLETED", rideRepository.countByRideStatus(RideStatus.ENDED));
         ridesByStatus.put("CANCELLED", rideRepository.countByRideStatus(RideStatus.CANCELLED));
         ridesByStatus.put("ONGOING", activeRides);
         ridesByStatus.put("CONFIRMED", rideRepository.countByRideStatus(RideStatus.CONFIRMED));
-        
+
         DashboardDto dashboard = DashboardDto.builder()
                 .totalUsers(totalUsers)
                 .totalDrivers(totalDrivers)
@@ -88,62 +81,22 @@ public class AdminServiceImpl implements AdminService {
     @Override
     @Transactional(readOnly = true)
     public AdminStatsDto getDailyStats(LocalDate date) {
-        Long cachedCount = cacheService.getAvailableDriversCount();
-        long activeDrivers;
-        
-        if (cachedCount != null) {
-            activeDrivers = cachedCount;
-        } else {
-            activeDrivers = driverRepository.findAll().stream()
-                    .filter(Driver::getAvailable)
-                    .count();
-            cacheService.cacheAvailableDriversCount(activeDrivers);
-        }
-        
         LocalDateTime startOfDay = date.atStartOfDay();
         LocalDateTime endOfDay = date.plusDays(1).atStartOfDay();
-        
-        List<Ride> dailyRides = rideRepository.findAll().stream()
-                .filter(r -> {
-                    LocalDateTime created = r.getCreatedTime();
-                    return created != null && 
-                           created.isAfter(startOfDay) && 
-                           created.isBefore(endOfDay);
-                })
-                .toList();
-        
-        long totalRides = dailyRides.size();
-        long completedRides = dailyRides.stream()
-                .filter(r -> r.getRideStatus() == RideStatus.ENDED)
-                .count();
-        long cancelledRides = dailyRides.stream()
-                .filter(r -> r.getRideStatus() == RideStatus.CANCELLED)
-                .count();
-        
-        BigDecimal totalRevenue = dailyRides.stream()
-                .filter(r -> r.getFare() != null)
-                .map(Ride::getFare)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        
-        BigDecimal platformCommission = totalRevenue.multiply(PLATFORM_COMMISSION);
+
+        long activeDrivers = getAvailableDriversCount();
+        DailyRideStats dailyRideStats = getDailyRideStats(startOfDay, endOfDay);
+        BigDecimal platformCommission = dailyRideStats.totalRevenue().multiply(PLATFORM_COMMISSION);
         long totalUsers = userRepository.count();
-        long newUsers = userRepository.findAll().stream()
-                .filter(u -> {
-                    LocalDateTime created = u.getCreatedTime();
-                    return created != null && 
-                           created.isAfter(startOfDay) && 
-                           created.isBefore(endOfDay);
-                })
-                .count();
-        
-        long pendingDriverApprovals = rideRequestRepository.findByRideRequestStatus(RideRequestStatus.PENDING).size();
-        
+        long newUsers = userRepository.countByCreatedTimeAfterAndCreatedTimeBefore(startOfDay, endOfDay);
+        long pendingDriverApprovals = rideRequestRepository.countByRideRequestStatus(RideRequestStatus.PENDING);
+
         return AdminStatsDto.builder()
                 .date(date)
-                .totalRides(totalRides)
-                .completedRides(completedRides)
-                .cancelledRides(cancelledRides)
-                .totalRevenue(totalRevenue)
+                .totalRides(dailyRideStats.totalRides())
+                .completedRides(dailyRideStats.completedRides())
+                .cancelledRides(dailyRideStats.cancelledRides())
+                .totalRevenue(dailyRideStats.totalRevenue())
                 .platformCommission(platformCommission)
                 .totalUsers(totalUsers)
                 .newUsers(newUsers)
@@ -157,13 +110,14 @@ public class AdminServiceImpl implements AdminService {
     public List<RevenueReportDto> getRevenueReport(LocalDate startDate, LocalDate endDate) {
         return startDate.datesUntil(endDate.plusDays(1))
                 .map(date -> {
-                    AdminStatsDto stats = getDailyStats(date);
+                    DailyRideStats stats = getDailyRideStats(date.atStartOfDay(), date.plusDays(1).atStartOfDay());
+                    // Revenue report only needs ride-side aggregates.
                     return RevenueReportDto.builder()
                             .date(date)
-                            .grossRevenue(stats.getTotalRevenue())
-                            .platformCommission(stats.getPlatformCommission())
-                            .driverEarnings(stats.getTotalRevenue().multiply(BigDecimal.ONE.subtract(PLATFORM_COMMISSION)))
-                            .rideCount(stats.getCompletedRides())
+                            .grossRevenue(stats.totalRevenue())
+                            .platformCommission(stats.totalRevenue().multiply(PLATFORM_COMMISSION))
+                            .driverEarnings(stats.totalRevenue().multiply(BigDecimal.ONE.subtract(PLATFORM_COMMISSION)))
+                            .rideCount(stats.completedRides())
                             .build();
                 })
                 .collect(Collectors.toList());
@@ -172,7 +126,7 @@ public class AdminServiceImpl implements AdminService {
     @Override
     @Transactional(readOnly = true)
     public Page<PendingDriverDto> getPendingDrivers(Pageable pageable) {
-        return driverRepository.findAll(pageable)
+        return driverRepository.findPendingDriverApprovals(PENDING_DRIVER_APPROVAL_THRESHOLD, pageable)
                 .map(driver -> {
                     User user = driver.getUser();
                     return PendingDriverDto.builder()
@@ -231,5 +185,39 @@ public class AdminServiceImpl implements AdminService {
                 .orElseThrow(() -> new RuntimeConflictException("User not found"));
         user.setActive(false);  // Set to true to activate
         userRepository.save(user);
+    }
+
+    private long getAvailableDriversCount() {
+        Long cachedCount = cacheService.getAvailableDriversCount();
+        if (cachedCount != null) {
+            return cachedCount;
+        }
+
+        // Cache miss falls back to a database count.
+        long activeDrivers = driverRepository.countByAvailableTrue();
+        cacheService.cacheAvailableDriversCount(activeDrivers);
+        return activeDrivers;
+    }
+
+    private long countPendingDriverApprovals() {
+        return driverRepository.countPendingDriverApprovals(PENDING_DRIVER_APPROVAL_THRESHOLD);
+    }
+
+    private DailyRideStats getDailyRideStats(LocalDateTime startOfDay, LocalDateTime endOfDay) {
+        long totalRides = rideRepository.countByCreatedTimeAfterAndCreatedTimeBefore(startOfDay, endOfDay);
+        long completedRides = rideRepository.countByCreatedTimeAfterAndCreatedTimeBeforeAndRideStatus(
+                startOfDay, endOfDay, RideStatus.ENDED);
+        long cancelledRides = rideRepository.countByCreatedTimeAfterAndCreatedTimeBeforeAndRideStatus(
+                startOfDay, endOfDay, RideStatus.CANCELLED);
+        BigDecimal totalRevenue = nullToZero(rideRepository.sumFareByCreatedTimeAfterAndCreatedTimeBefore(startOfDay, endOfDay));
+
+        return new DailyRideStats(totalRides, completedRides, cancelledRides, totalRevenue);
+    }
+
+    private BigDecimal nullToZero(BigDecimal value) {
+        return value != null ? value : BigDecimal.ZERO;
+    }
+
+    private record DailyRideStats(long totalRides, long completedRides, long cancelledRides, BigDecimal totalRevenue) {
     }
 }
