@@ -187,9 +187,17 @@ public class DriverServiceImpl implements DriverService {
 
     @Override
     @Transactional
-    public Driver updateDriverAvailability(Driver driver, boolean available) {
+    public DriverDto updateDriverAvailability(boolean available) {
+        Driver driver = getCurrentDriver();
+        return updateDriverAvailability(driver, available);
+    }
+
+    @Override
+    @Transactional
+    public DriverDto updateDriverAvailability(Driver driver, boolean available) {
         driver.setAvailable(available);
-        return driverRepository.save(driver);
+        Driver updatedDriver = driverRepository.save(driver);
+        return modelMapper.map(updatedDriver, DriverDto.class);
     }
 
     @Override

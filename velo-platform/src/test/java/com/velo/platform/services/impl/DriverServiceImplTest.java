@@ -176,6 +176,7 @@ class DriverServiceImplTest {
         when(rideService.getRideById(1L)).thenReturn(testRide);
         when(rideService.updateRideStatus(testRide, RideStatus.CANCELLED)).thenReturn(testRide);
         when(modelMapper.map(testRide, RideDto.class)).thenReturn(new RideDto());
+        when(modelMapper.map(testDriver, DriverDto.class)).thenReturn(new DriverDto());
 
         RideDto result = driverService.cancelRide(1L);
 
@@ -281,6 +282,7 @@ class DriverServiceImplTest {
         when(rideService.getRideById(1L)).thenReturn(testRide);
         when(rideService.updateRideStatus(testRide, RideStatus.ENDED)).thenReturn(testRide);
         when(modelMapper.map(testRide, RideDto.class)).thenReturn(new RideDto());
+        when(modelMapper.map(testDriver, DriverDto.class)).thenReturn(new DriverDto());
 
         RideDto result = driverService.endRide(1L);
 
@@ -369,12 +371,15 @@ class DriverServiceImplTest {
         assertThat(result.getContent()).hasSize(1);
     }
 
-    @Test
+@Test
     @DisplayName("Update driver availability should save and return driver")
     void updateDriverAvailability_ShouldSaveAndReturnDriver() {
         when(driverRepository.save(testDriver)).thenReturn(testDriver);
+        DriverDto mockDto = new DriverDto();
+        mockDto.setAvailable(false);
+        when(modelMapper.map(testDriver, DriverDto.class)).thenReturn(mockDto);
 
-        Driver result = driverService.updateDriverAvailability(testDriver, false);
+        DriverDto result = driverService.updateDriverAvailability(testDriver, false);
 
         assertThat(result.getAvailable()).isFalse();
     }

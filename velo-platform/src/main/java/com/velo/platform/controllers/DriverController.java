@@ -10,6 +10,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -71,5 +72,12 @@ public class DriverController {
     @Operation(summary = "Rate a rider using path variables")
     public ResponseEntity<RiderDto> rateRider(@PathVariable Long rideId, @PathVariable Integer rating) {
         return ResponseEntity.ok(driverService.rateRider(rideId, rating));
+    }
+
+    @PutMapping("/availability")
+    @PreAuthorize("hasRole('DRIVER')")
+    @Operation(summary = "Toggle driver availability status")
+    public ResponseEntity<DriverDto> toggleAvailability(@RequestBody DriverAvailabilityRequestDto availabilityRequest) {
+        return ResponseEntity.ok(driverService.updateDriverAvailability(availabilityRequest.getAvailable()));
     }
 }
