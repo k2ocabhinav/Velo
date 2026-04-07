@@ -296,6 +296,42 @@ input {
   background: var(--accent-strong);
 }
 
+.secondary-button,
+.danger-button {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.danger-button {
+  border-color: hsl(0 84% 60% / 0.24);
+  background: hsl(0 84% 60% / 0.12);
+}
+
+.secondary-button:disabled,
+.danger-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pager {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .helper {
   color: var(--muted);
   font-size: 14px;
