@@ -38,4 +38,4 @@ Single source of truth for the Velo project.
 ## Current State
 
 - Backend: 158 tests passing, BUILD SUCCESS
-- Frontend: Turborepo monorepo with admin (API-backed), rider (API-backed with lifecycle hardening), driver (shell). See `PROGRESS.md` for details.
+- Frontend: Turborepo monorepo with admin/rider/driver API-backed flows, explicit session logout controls, and full frontend-connected integration handshake coverage. See `PROGRESS.md` for details.

@@ -210,3 +210,37 @@
 ### Testing and quality coverage added in this pass
 - Rider smoke coverage now includes booking, history, notifications, and rating flows.
 - Compose handshake checks now fail fast if driver availability mutations return unexpected statuses.
+
+## Implementation Status Update (2026-04-08 — Session Control + Frontend Integration Readiness)
+
+### Core functionality delivered in this pass
+- Session control is now first-class across Admin/Rider/Driver:
+  - `POST /api/auth/logout` added in all three frontend apps.
+  - Protected shells now expose visible `Logout` action and deterministic sign-out behavior.
+  - Rider/Driver logout now clears `sessionStorage` WebSocket token (`velo_ws_token`).
+- Role-safe access behavior tightened without backend contract changes:
+  - login proxy sets `velo_role_hint`.
+  - middleware uses role hint only for early UX guard (fallback allowed when hint absent).
+- Rider booking surface continuity hardened:
+  - trip lane now keeps `PENDING -> CONFIRMED -> ONGOING -> ENDED/CANCELLED` continuity messaging.
+  - realtime notification events trigger trip lane refresh.
+  - adaptive polling cadence (faster when active/pending, slower when idle).
+  - cancellable active trip action added on booking surface.
+- Frontend-backend integration harness now validates Admin + Rider + Driver through each app’s frontend proxy/BFF path (not admin-only).
+
+### Manual QA Quickstart (append-only)
+- URLs:
+  - Admin: `http://localhost:3000`
+  - Rider: `http://localhost:3001`
+  - Driver: `http://localhost:3002`
+- Seed credentials:
+  - Admin: `admin@velo-platform.com` / `password123`
+  - Rider: `alice@example.com` / `password123`
+  - Driver: `eve.driver@example.com` / `password123`
+- Smoke order:
+  1. Admin login -> dashboard load -> users/drivers/payout action.
+  2. Rider login -> fare estimate -> request ride -> ride lane continuity.
+  3. Driver login -> toggle availability -> accept/start/end flow.
+  4. Logout from each app -> protected route redirects back to login.
+- Known constraint:
+  - map/live GPS visualization remains deferred in this phase.

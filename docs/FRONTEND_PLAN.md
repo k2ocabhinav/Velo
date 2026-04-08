@@ -436,3 +436,24 @@ The frontend only needs to: call the right endpoint, display the response, and l
 - Rider lifecycle now includes active-ride continuity, notifications live-state handling, and rating completion from ride history.
 - Shared websocket behavior is reused for rider live updates with deterministic reconnect behavior.
 - Integration gating now requires rider Playwright smoke alongside admin and driver smoke coverage.
+
+## Implementation Status Update (2026-04-08, Session Control + Integration Coverage)
+
+- Session lifecycle now includes explicit logout BFF routes in Admin, Rider, and Driver apps with cookie cleanup.
+- Protected shells now provide user-visible logout actions with deterministic redirect-to-login behavior.
+- Role hint cookie (`velo_role_hint`) is now set during login and used by middleware for early UX-safe routing.
+- Rider booking trip lane continuity now includes pending-driver state, realtime-triggered refresh, and adaptive polling.
+- Compose integration handshake now validates frontend-connected flows for:
+  - Admin: login + protected shell + user activation/deactivation mutation path.
+  - Rider: login + fare estimate + request ride + trip lane source endpoint.
+  - Driver: login + profile + availability toggle path.
+
+### Testing Delta in this pass
+- Added unit coverage for:
+  - auth middleware role-hint fallback/mismatch behavior
+  - logout utility cleanup behavior
+  - logout routes in all three frontend apps
+  - rider trip-lane state selection helpers.
+- Added/extended Playwright coverage for:
+  - logout flow in Admin, Rider, Driver (post-logout protected-route blocking).
+- Integration harness now asserts auth cookie policy and runs full app-level frontend->backend checks.
