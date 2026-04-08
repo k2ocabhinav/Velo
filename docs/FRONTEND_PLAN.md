@@ -430,3 +430,9 @@ The frontend only needs to: call the right endpoint, display the response, and l
 - Backend security dependency remediation for this phase is complete and keeps frontend API/route contracts stable.
 - `/v3/api-docs` and `/swagger-ui/**` behavior remains profile-governed: local/dev/test enabled, staging/prod disabled.
 - Full security scan comparison and command-level verification are documented in [SECURITY_REMEDIATION.md](SECURITY_REMEDIATION.md).
+
+## Implementation Status Update (2026-04-08, Rider Lifecycle Hardening)
+
+- Rider lifecycle now includes active-ride continuity, notifications live-state handling, and rating completion from ride history.
+- Shared websocket behavior is reused for rider live updates with deterministic reconnect behavior.
+- Integration gating now requires rider Playwright smoke alongside admin and driver smoke coverage.

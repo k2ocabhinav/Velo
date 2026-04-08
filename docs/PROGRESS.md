@@ -199,3 +199,14 @@
   - earnings payout happy path
   - notifications action failure path rendering
 - Integration handshake expanded with driver login/profile and availability probe.
+
+## Implementation Status Update (2026-04-08 — Rider Lifecycle Hardening)
+
+### Rider lifecycle and integration tightening
+- Rider realtime notifications now use the shared ws subscription pattern with reconnect state surfaced in the UI.
+- Rider ride history now includes post-ride rating actions with clearer pending/error handling.
+- Integration gating now runs rider Playwright smoke as a required CI job.
+
+### Testing and quality coverage added in this pass
+- Rider smoke coverage now includes booking, history, notifications, and rating flows.
+- Compose handshake checks now fail fast if driver availability mutations return unexpected statuses.
