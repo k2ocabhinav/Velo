@@ -95,3 +95,11 @@ jobs:
       - name: Run OWASP dependency check (no update)
         working-directory: velo-platform
         run: ./mvnw -q -DdataDirectory="$ODC_DATA_DIR" -DautoUpdate=false dependency-check:check
+
+      - name: Upload dependency-check report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-report
+          path: velo-platform/target/dependency-check-report.html
+          if-no-files-found: ignore

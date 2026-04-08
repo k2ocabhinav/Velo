@@ -6,6 +6,8 @@ const ADMIN_EMAIL = process.env.VELO_E2E_ADMIN_EMAIL ?? "admin@velo-platform.com
 const ADMIN_PASSWORD = process.env.VELO_E2E_ADMIN_PASSWORD ?? "password123";
 const RIDER_EMAIL = process.env.VELO_E2E_RIDER_EMAIL ?? "alice@example.com";
 const RIDER_PASSWORD = process.env.VELO_E2E_RIDER_PASSWORD ?? "password123";
+const PROFILE_CONTEXT = (process.env.VELO_PROFILE_CONTEXT ?? "local-dev").toLowerCase();
+const EXPECT_OPENAPI_IN_CONTEXT = new Set(["local", "dev", "development", "local-dev"]);
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -93,7 +95,18 @@ async function main() {
   assert.equal(backendHealth.status, 200, "Backend health check should respond with 200");
 
   const openApi = await requestWithRetry(`${BACKEND_BASE_URL}/v3/api-docs`);
-  assert.equal(openApi.status, 200, "Backend OpenAPI should be reachable");
+  if (EXPECT_OPENAPI_IN_CONTEXT.has(PROFILE_CONTEXT)) {
+    assert.equal(
+      openApi.status,
+      200,
+      `Backend OpenAPI should be reachable in ${PROFILE_CONTEXT} context`
+    );
+  } else {
+    assert.ok(
+      openApi.status >= 400,
+      `Backend OpenAPI should be disabled outside local/dev contexts, got ${openApi.status}`
+    );
+  }
 
   const publicLoginPage = await requestWithRetry(`${FRONTEND_BASE_URL}/login`);
   assert.equal(publicLoginPage.status, 200, "Login page should be reachable");

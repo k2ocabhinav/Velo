@@ -23,13 +23,14 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Set;
+import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@ActiveProfiles("test")
+@ActiveProfiles({"test", "test-security-bypass"})
 @Import(TestSecurityConfig.class)
 @Transactional
 class PaymentMethodControllerIntegrationTest {
@@ -50,11 +51,8 @@ class PaymentMethodControllerIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        paymentMethodRepository.deleteAll();
-        userRepository.deleteAll();
-
         testUser = new User();
-        testUser.setEmail("payment@test.com");
+        testUser.setEmail("payment+" + UUID.randomUUID() + "@test.com");
         testUser.setPassword("password123");
         testUser.setFirstName("Test");
         testUser.setLastName("User");

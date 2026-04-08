@@ -345,3 +345,8 @@ JWT_SECRET_KEY=<from-secrets-manager>
   - compose integration remains supported in CI; local run requires Docker daemon availability.
 - Security gate caveat:
   - local execution of `dependency-check:check` may fail during NVD update due CVSS v4 parser mismatch (`SAFETY` enum) until upstream dependency-check parser data compatibility is updated.
+
+## Security Remediation Note (2026-04-08)
+
+- See [SECURITY_REMEDIATION.md](SECURITY_REMEDIATION.md) for the dependency-check baseline, remediation strategy, and NVD API key handling guidance.
+- Treat that note as the source of truth for dependency vulnerability follow-up during deployment and CI hardening.

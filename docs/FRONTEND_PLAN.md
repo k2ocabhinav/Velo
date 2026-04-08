@@ -419,3 +419,8 @@ The frontend only needs to: call the right endpoint, display the response, and l
   - frontend audit passed (`npm audit --audit-level=high`)
   - compose integration command is CI-gated when Docker is unavailable locally
   - dependency-check may fail due upstream NVD CVSS v4 parser incompatibility (`SAFETY` enum), not app-code regression.
+
+## Security Remediation Note (2026-04-08)
+
+- Frontend-facing security follow-up, including docs exposure policy and the dependency-check remediation baseline, is tracked in [SECURITY_REMEDIATION.md](SECURITY_REMEDIATION.md).
+- Use that note when coordinating future frontend-auth, API-docs, or security workflow changes.

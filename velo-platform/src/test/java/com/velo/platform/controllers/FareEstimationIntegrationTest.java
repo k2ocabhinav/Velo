@@ -29,7 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@ActiveProfiles("test")
+@ActiveProfiles({"test", "test-security-bypass"})
 @Import(TestSecurityConfig.class)
 class FareEstimationIntegrationTest {
 

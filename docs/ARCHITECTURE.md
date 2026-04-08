@@ -231,3 +231,8 @@ Reusable builders in `testdata/` package: `UserTestBuilder`, `RiderTestBuilder`,
   - backend tests pass.
 - Known external caveat:
   - OWASP dependency-check can fail during NVD update on CVSS v4 `SAFETY` enum parsing; this is upstream feed/parser compatibility, not a Velo architecture defect.
+
+## Security Remediation Note (2026-04-08)
+
+- The remediation baseline, suppression policy, and NVD key handling notes live in [SECURITY_REMEDIATION.md](SECURITY_REMEDIATION.md).
+- Use that document as the architecture-side reference for dependency vulnerability follow-up and current remediation posture.
