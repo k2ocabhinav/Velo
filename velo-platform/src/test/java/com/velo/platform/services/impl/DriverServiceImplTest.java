@@ -9,6 +9,7 @@ import com.velo.platform.entities.RideRequest;
 import com.velo.platform.entities.enums.PaymentMethod;
 import com.velo.platform.entities.enums.RideRequestStatus;
 import com.velo.platform.entities.enums.RideStatus;
+import com.velo.platform.exceptions.RuntimeConflictException;
 import com.velo.platform.repositories.DriverRepository;
 import com.velo.platform.repositories.RideRepository;
 import com.velo.platform.security.UserPrincipal;
@@ -175,6 +176,7 @@ class DriverServiceImplTest {
     @DisplayName("Cancel ride should update status and make driver available")
     void cancelRide_WithConfirmedStatus_ShouldCancelAndMakeAvailable() {
         mockAuthenticatedDriver();
+        testDriver.setAvailable(false);
         testRide.setRideStatus(RideStatus.CONFIRMED);
 
         when(rideService.getRideById(1L)).thenReturn(testRide);
@@ -186,7 +188,8 @@ class DriverServiceImplTest {
 
         assertThat(result).isNotNull();
         verify(rideService).updateRideStatus(testRide, RideStatus.CANCELLED);
-        verify(driverRepository).save(testDriver);
+        verify(driverRepository).updateAvailabilityById(testDriver.getId(), true);
+        verify(driverRepository, never()).save(any(Driver.class));
     }
 
     @Test
@@ -375,10 +378,12 @@ class DriverServiceImplTest {
         assertThat(result.getContent()).hasSize(1);
     }
 
-@Test
+    @Test
     @DisplayName("Update driver availability should save and return driver")
     void updateDriverAvailability_ShouldSaveAndReturnDriver() {
-        when(driverRepository.save(testDriver)).thenReturn(testDriver);
+        when(rideRepository.findByDriverAndRideStatusIn(testDriver, List.of(RideStatus.CONFIRMED, RideStatus.ONGOING)))
+                .thenReturn(Collections.emptyList());
+        when(driverRepository.updateAvailabilityById(testDriver.getId(), false)).thenReturn(1);
         DriverDto mockDto = new DriverDto();
         mockDto.setAvailable(false);
         when(modelMapper.map(testDriver, DriverDto.class)).thenReturn(mockDto);
@@ -386,6 +391,43 @@ class DriverServiceImplTest {
         DriverDto result = driverService.updateDriverAvailability(testDriver, false);
 
         assertThat(result.getAvailable()).isFalse();
+        verify(driverRepository).updateAvailabilityById(testDriver.getId(), false);
+        verify(driverRepository, never()).save(any(Driver.class));
+    }
+
+    @Test
+    @DisplayName("Update driver availability should return current driver without save for no-op state changes")
+    void updateDriverAvailability_WithNoStateChange_ShouldReturnWithoutSave() {
+        testDriver.setAvailable(true);
+        DriverDto mockDto = new DriverDto();
+        mockDto.setAvailable(true);
+        when(modelMapper.map(testDriver, DriverDto.class)).thenReturn(mockDto);
+
+        DriverDto result = driverService.updateDriverAvailability(testDriver, true);
+
+        assertThat(result.getAvailable()).isTrue();
+        verify(driverRepository, never()).updateAvailabilityById(anyLong(), anyBoolean());
+        verify(driverRepository, never()).save(any(Driver.class));
+        verify(rideRepository, never()).findByDriverAndRideStatusIn(any(Driver.class), anyList());
+    }
+
+    @Test
+    @DisplayName("Update driver availability should reject offline transition when active rides exist")
+    void updateDriverAvailability_WithActiveRides_ShouldThrowConflict() {
+        testDriver.setAvailable(true);
+        Ride activeRide = Ride.builder()
+                .id(77L)
+                .rideStatus(RideStatus.ONGOING)
+                .build();
+        when(rideRepository.findByDriverAndRideStatusIn(testDriver, List.of(RideStatus.CONFIRMED, RideStatus.ONGOING)))
+                .thenReturn(List.of(activeRide));
+
+        assertThatThrownBy(() -> driverService.updateDriverAvailability(testDriver, false))
+                .isInstanceOf(RuntimeConflictException.class)
+                .hasMessageContaining("Cannot go offline with active rides");
+
+        verify(driverRepository, never()).updateAvailabilityById(anyLong(), anyBoolean());
+        verify(driverRepository, never()).save(any(Driver.class));
     }
 
     @Test

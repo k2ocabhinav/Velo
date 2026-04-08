@@ -198,7 +198,11 @@ public class DriverServiceImpl implements DriverService {
     @Override
     @Transactional
     public DriverDto updateDriverAvailability(Driver driver, boolean available) {
-        if (!available) {
+        if (driver.getAvailable() != null && driver.getAvailable() == available) {
+            return modelMapper.map(driver, DriverDto.class);
+        }
+
+        if (!available && Boolean.TRUE.equals(driver.getAvailable())) {
             List<Ride> activeRides = rideRepository.findByDriverAndRideStatusIn(
                     driver,
                     List.of(RideStatus.CONFIRMED, RideStatus.ONGOING)
@@ -207,9 +211,11 @@ public class DriverServiceImpl implements DriverService {
                 throw new RuntimeConflictException("Cannot go offline with active rides. Please complete or cancel active rides first.");
             }
         }
-        driver.setAvailable(available);
-        Driver updatedDriver = driverRepository.save(driver);
-        return modelMapper.map(updatedDriver, DriverDto.class);
+
+        driverRepository.updateAvailabilityById(driver.getId(), available);
+        DriverDto dto = modelMapper.map(driver, DriverDto.class);
+        dto.setAvailable(available);
+        return dto;
     }
 
     @Override

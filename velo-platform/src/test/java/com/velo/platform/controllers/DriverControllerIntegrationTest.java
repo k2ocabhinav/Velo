@@ -126,7 +126,7 @@ class DriverControllerIntegrationTest {
         return builder
                 .header("X-Test-User-Id", testDriver.getUser().getId())
                 .header("X-Test-Email", testDriver.getUser().getEmail())
-                .header("X-Test-Role", Role.DRIVER.name());
+                .header("X-Test-Role", "ROLE_" + Role.DRIVER.name());
     }
 
     @Test
@@ -161,5 +161,33 @@ class DriverControllerIntegrationTest {
         mockMvc.perform(withDriverAuth(post("/drivers/cancelRide/" + confirmedRide.getId())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.rideStatus").value("CANCELLED"));
+    }
+
+    @Test
+    @DisplayName("PUT /drivers/availability should return current profile for no-op transitions")
+    void toggleAvailability_WithNoStateChange_ShouldReturnOk() throws Exception {
+        mockMvc.perform(withDriverAuth(put("/drivers/availability")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "available": true
+                                }
+                                """)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.available").value(true));
+    }
+
+    @Test
+    @DisplayName("PUT /drivers/availability should return conflict when active rides exist")
+    void toggleAvailability_WithActiveRides_ShouldReturnConflict() throws Exception {
+        mockMvc.perform(withDriverAuth(put("/drivers/availability")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "available": false
+                                }
+                                """)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.message").value("Cannot go offline with active rides. Please complete or cancel active rides first."));
     }
 }

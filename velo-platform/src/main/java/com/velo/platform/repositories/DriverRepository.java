@@ -5,6 +5,7 @@ import org.locationtech.jts.geom.Point;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -46,4 +47,8 @@ public interface DriverRepository extends JpaRepository<Driver, Long> {
             "ORDER BY d.rating DESC, ST_Distance(CAST(d.current_location AS geography), CAST(:pickupLocation AS geography)) " +
             "LIMIT 10", nativeQuery = true)
     List<Driver> findTenNearbyTopRatedDrivers(@Param("pickupLocation") Point pickupLocation);
+
+    @Modifying(flushAutomatically = true)
+    @Query("update Driver d set d.available = :available where d.id = :driverId")
+    int updateAvailabilityById(@Param("driverId") Long driverId, @Param("available") boolean available);
 }
