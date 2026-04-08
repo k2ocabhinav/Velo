@@ -424,3 +424,9 @@ The frontend only needs to: call the right endpoint, display the response, and l
 
 - Frontend-facing security follow-up, including docs exposure policy and the dependency-check remediation baseline, is tracked in [SECURITY_REMEDIATION.md](SECURITY_REMEDIATION.md).
 - Use that note when coordinating future frontend-auth, API-docs, or security workflow changes.
+
+## Implementation Status Update (2026-04-08, Security Remediation Pass 2)
+
+- Backend security dependency remediation for this phase is complete and keeps frontend API/route contracts stable.
+- `/v3/api-docs` and `/swagger-ui/**` behavior remains profile-governed: local/dev/test enabled, staging/prod disabled.
+- Full security scan comparison and command-level verification are documented in [SECURITY_REMEDIATION.md](SECURITY_REMEDIATION.md).

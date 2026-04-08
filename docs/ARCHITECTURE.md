@@ -236,3 +236,9 @@ Reusable builders in `testdata/` package: `UserTestBuilder`, `RiderTestBuilder`,
 
 - The remediation baseline, suppression policy, and NVD key handling notes live in [SECURITY_REMEDIATION.md](SECURITY_REMEDIATION.md).
 - Use that document as the architecture-side reference for dependency vulnerability follow-up and current remediation posture.
+
+## Implementation Status Update (2026-04-08, Security Remediation Pass 2)
+
+- Dependency versions for `commons-lang3`, `log4j-api`/`log4j-to-slf4j`, and `swagger-ui` are now pinned to patched versions via Maven dependency management.
+- `springdoc.swagger-ui.version` is explicitly aligned to the overridden webjar version so local/dev/test docs endpoints resolve correctly.
+- Verification and CVE comparison for this pass are tracked in [SECURITY_REMEDIATION.md](SECURITY_REMEDIATION.md).

@@ -161,3 +161,9 @@ Single source of truth for the Velo project.
 
 - Security remediation notes are tracked in [SECURITY_REMEDIATION.md](SECURITY_REMEDIATION.md).
 - `docs/` is tracked normally so future documentation updates should be committed alongside code changes.
+
+## Implementation Status Update (2026-04-08, Security Remediation Pass 2)
+
+- Backend dependency remediation removed the remaining 4 medium CVEs from dependency-check in this phase.
+- Current CVE-only dependency-check result: 0 CVEs (previously 4).
+- Detailed comparison, command history, and residual caveats are recorded in [SECURITY_REMEDIATION.md](SECURITY_REMEDIATION.md).

@@ -230,6 +230,15 @@ JWT_SECRET_KEY=<from-secrets-manager>
 - For multi-tenancy (Phase 2 of product vision): consider RDS per-tenant or schema-per-tenant
 - WebSocket connections: ALB supports sticky sessions for STOMP; at scale, consider a dedicated WebSocket service or use Redis pub/sub for cross-instance notification delivery
 
+## CI/CD Workflows (added 2026-04-08)
+- `frontend-quality.yml` — lint, typecheck, unit, contracts, build
+- `backend-quality.yml` — Maven regression tests
+- `security.yml` — npm audit + OWASP dependency-check
+- `integration-e2e.yml` — compose-based frontend-backend handshake
+- `staging-deploy.yml` — staging gate scaffold (placeholder)
+- Integration harness: `velo-frontend/docker-compose.e2e.yml` + `tests/integration/handshake.mjs`
+- Security remediation tracking: see `docs/SECURITY_REMEDIATION.md`
+
 ## Implementation Status Update (2026-04-08)
 
 ### Deployment and CI Baseline Added
@@ -350,3 +359,9 @@ JWT_SECRET_KEY=<from-secrets-manager>
 
 - See [SECURITY_REMEDIATION.md](SECURITY_REMEDIATION.md) for the dependency-check baseline, remediation strategy, and NVD API key handling guidance.
 - Treat that note as the source of truth for dependency vulnerability follow-up during deployment and CI hardening.
+
+## Implementation Status Update (2026-04-08, Security Remediation Pass 2)
+
+- Security gate baseline improved: OWASP dependency-check CVE-only count is now 0 in the backend build after targeted dependency updates.
+- The warm-update + no-update dependency-check flow remains the expected CI execution pattern and continues to require `NVD_API_KEY`.
+- Local compose handshake requires an active Docker daemon; when unavailable locally, `.github/workflows/integration-e2e.yml` remains the authoritative cross-stack gate.
