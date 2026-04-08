@@ -1,6 +1,8 @@
 services:
   postgres:
-    image: postgis/postgis:16-3.4-alpine
+    build:
+      context: ./docker/postgis
+    image: velo/postgis:16
     environment:
       POSTGRES_DB: postgres
       POSTGRES_USER: postgres
@@ -50,6 +52,19 @@ services:
     ports:
       - "8080:8080"
 
+  frontend-deps:
+    image: node:22-alpine
+    working_dir: /workspace/velo-frontend
+    command: sh -lc "npm ci --include=dev && touch /tmp/deps.ready && tail -f /dev/null"
+    volumes:
+      - .:/workspace
+      - frontend_node_modules:/workspace/velo-frontend/node_modules
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/deps.ready"]
+      interval: 2s
+      timeout: 1s
+      retries: 60
+
   frontend-admin:
     image: node:22-alpine
     working_dir: /workspace/velo-frontend
@@ -57,14 +72,59 @@ services:
       VELO_API_BASE_URL: http://backend:8080
       NEXT_PUBLIC_API_BASE_URL: http://backend:8080
       NODE_ENV: production
-    command: sh -lc "npm ci && npm run build --workspace @velo/admin && npm run start --workspace @velo/admin"
+    command: sh -lc "npm run build --workspace @velo/admin && npm run start --workspace @velo/admin"
     volumes:
       - .:/workspace
       - frontend_node_modules:/workspace/velo-frontend/node_modules
     depends_on:
-      - backend
+      backend:
+        condition: service_started
+      frontend-deps:
+        condition: service_healthy
     ports:
       - "3000:3000"
+
+  frontend-rider:
+    profiles:
+      - full
+    image: node:22-alpine
+    working_dir: /workspace/velo-frontend
+    environment:
+      VELO_API_BASE_URL: http://backend:8080
+      NEXT_PUBLIC_API_BASE_URL: http://backend:8080
+      NODE_ENV: production
+    command: sh -lc "npm run build --workspace @velo/rider && npm run start --workspace @velo/rider"
+    volumes:
+      - .:/workspace
+      - frontend_node_modules:/workspace/velo-frontend/node_modules
+    depends_on:
+      backend:
+        condition: service_started
+      frontend-deps:
+        condition: service_healthy
+    ports:
+      - "3001:3001"
+
+  frontend-driver:
+    profiles:
+      - full
+    image: node:22-alpine
+    working_dir: /workspace/velo-frontend
+    environment:
+      VELO_API_BASE_URL: http://backend:8080
+      NEXT_PUBLIC_API_BASE_URL: http://backend:8080
+      NODE_ENV: production
+    command: sh -lc "npm run build --workspace @velo/driver && npm run start --workspace @velo/driver"
+    volumes:
+      - .:/workspace
+      - frontend_node_modules:/workspace/velo-frontend/node_modules
+    depends_on:
+      backend:
+        condition: service_started
+      frontend-deps:
+        condition: service_healthy
+    ports:
+      - "3002:3002"
 
   smoke:
     image: node:22-alpine

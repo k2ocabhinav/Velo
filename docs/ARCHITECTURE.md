@@ -152,93 +152,10 @@ Reusable builders in `testdata/` package: `UserTestBuilder`, `RiderTestBuilder`,
 5. Both parties can rate each other via `RatingService`
 6. Events are published at each step, creating notifications for both parties
 
-## Implementation Status Update (2026-04-08)
+## Frontend Architecture
 
-### Frontend Architecture Baseline Added
-- A frontend monorepo now exists at `velo-frontend/` with apps (`admin`, `rider`, `driver`) and shared packages (`api`, `ui`, `ws`, `config`).
-- Admin authentication now includes a Next.js BFF login route that proxies to backend auth and stores JWT in httpOnly cookies.
-- Admin protected-route middleware is active with safe redirect sanitization.
-- Frontend API contracts are aligned to backend controller paths and Spring page response shapes.
-
-### Quality/Verification Architecture Added
-- Repository workflows now enforce frontend/backend/security/integration checks.
-- Compose-based frontend-backend handshake script validates auth/session and protected route behavior.
-
-### Testing Status (2026-04-08)
-- Current layers:
-  - Frontend unit (admin/api/ws)
-  - Frontend API contract tests
-  - Frontend E2E smoke
-  - Frontend-backend integration handshake
-  - Backend regression suite
-  - Security checks in CI
-- Phase 2 coverage gaps to close:
-  - Rider MVP unit + e2e behavior tests
-  - Admin action-flow e2e assertions
-  - Expanded integration scenarios for booking lifecycle paths
-
-## Implementation Status Update (2026-04-08)
-
-### Architecture Progress Snapshot
-- Frontend architecture is operating as a monorepo adjunct to the backend, with typed API and websocket packages as the integration boundary.
-- Auth/session architecture is centered on Next.js BFF login + httpOnly cookie + protected-route middleware.
-- Backend route contracts remain authoritative; frontend contract surface extends without breaking existing exports.
-
-### Testing Status (Unit/Contracts/E2E/Integration/Backend/Security)
-- Current layers:
-  - Unit: frontend logic tests (auth/middleware/forms/helpers/ws internals).
-  - Contracts: API method/path/payload and response-unwrapping assertions in `packages/api`.
-  - E2E: Playwright smoke checks for baseline UI auth/navigation behavior.
-  - Integration: compose-driven frontend-backend handshake checks.
-  - Backend: Maven unit/integration regression suite.
-  - Security: static/dependency checks via CI workflows.
-- Passing now (baseline currently recorded):
-  - `npm run lint`
-  - `npm run typecheck`
-  - `npm run test:unit`
-  - `npm run test:contracts`
-  - `npm run build`
-  - `./mvnw -q test`
-- Phase 2 gaps:
-  - Full rider booking lifecycle coverage from UI through integration flow.
-  - Admin operation-action E2E coverage (approve/reject/activate/deactivate/process paths).
-  - WS reconnection and subscription-safety regression coverage under reconnect scenarios.
-
-## Implementation Status Update (2026-04-08, Phase 2 Architecture Progress)
-
-### Architecture deltas in this run
-- Rider web architecture now includes:
-  - auth entry routes (`/login`, `/register`) and BFF auth routes (`/api/auth/login`, `/api/auth/register`)
-  - protected-route middleware enforcement with safe `next` path sanitization
-  - backend proxy gateway route (`/api/backend/[...path]`) for cookie-to-bearer bridging.
-- Admin architecture now uses live API-backed pages for operational screens while preserving route surfaces.
-- Shared reliability architecture expanded in websocket layer:
-  - per-client subscription registry for reconnect-safe re-subscription
-  - typed notification and ride update event parsing.
-- API contract layer expanded with non-breaking additions while preserving existing exports.
-
-### Testing Status (2026-04-08, Phase 2 Architecture Progress)
-- Current layers active:
-  - Unit: admin/rider/ws/api helper and middleware tests.
-  - Contracts: endpoint method/path/payload assertions in `packages/api`.
-  - E2E: Playwright smoke for admin + rider key flows.
-  - Integration: compose handshake script updated with rider backend flow assertions.
-  - Backend: Maven unit/integration suite.
-  - Security: npm audit + dependency-check workflow path.
-- Verified now:
-  - frontend lint/typecheck/unit/contracts/build pass
-  - admin/rider e2e smoke pass
-  - backend tests pass.
-- Known external caveat:
-  - OWASP dependency-check can fail during NVD update on CVSS v4 `SAFETY` enum parsing; this is upstream feed/parser compatibility, not a Velo architecture defect.
-
-## Security Remediation Note (2026-04-08)
-
-- The remediation baseline, suppression policy, and NVD key handling notes live in [SECURITY_REMEDIATION.md](SECURITY_REMEDIATION.md).
-- Use that document as the architecture-side reference for dependency vulnerability follow-up and current remediation posture.
-
-## Implementation Status Update (2026-04-08, Security Remediation Pass 2)
-
-- Dependency versions for `commons-lang3`, `log4j-api`/`log4j-to-slf4j`, and `swagger-ui` are now pinned to patched versions via Maven dependency management.
-- `springdoc.swagger-ui.version` is explicitly aligned to the overridden webjar version so local/dev/test docs endpoints resolve correctly.
-- Verification and CVE comparison for this pass are tracked in [SECURITY_REMEDIATION.md](SECURITY_REMEDIATION.md).
+- Monorepo at `velo-frontend/` with apps (`admin`, `rider`, `driver`) and shared packages (`api`, `ui`, `ws`, `config`).
+- Auth: Next.js BFF login route proxies to backend, stores JWT in httpOnly cookies. Middleware enforces protected routes.
+- API: Backend proxy gateway (`/api/backend/[...path]`) bridges cookies to Bearer tokens.
+- WebSocket: STOMP client with per-client subscription registry for reconnect safety.
+- See `FRONTEND_PLAN.md` for full details.

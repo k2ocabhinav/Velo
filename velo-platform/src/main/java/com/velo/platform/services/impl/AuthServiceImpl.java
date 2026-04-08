@@ -59,7 +59,14 @@ public class AuthServiceImpl implements AuthService {
             throw new RuntimeConflictException("Invalid password");
         }
 
-        String role = user.getRoles().contains(DRIVER) ? DRIVER.name() : Role.RIDER.name();
+        String role;
+        if (user.getRoles().contains(Role.ADMIN)) {
+            role = Role.ADMIN.name();
+        } else if (user.getRoles().contains(DRIVER)) {
+            role = DRIVER.name();
+        } else {
+            role = Role.RIDER.name();
+        }
         String token = jwtTokenProvider.generateToken(user.getEmail(), user.getId(), role);
 
         return AuthResponseDto.builder()

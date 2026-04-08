@@ -20,7 +20,7 @@ These come from `velo-platform/src/main/resources/data.sql`.
 ## Run it
 
 ```bash
-docker compose -f velo-frontend/docker-compose.e2e.yml up --build --abort-on-container-exit --exit-code-from smoke
+docker compose --project-directory . -f velo-frontend/docker-compose.e2e.yml up --build --abort-on-container-exit --exit-code-from smoke
 ```
 
 The smoke service runs:

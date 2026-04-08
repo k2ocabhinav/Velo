@@ -25,7 +25,7 @@ cd velo-platform
 Integration:
 
 ```bash
-docker compose -f velo-frontend/docker-compose.e2e.yml up --build --abort-on-container-exit --exit-code-from smoke
+docker compose --project-directory . -f velo-frontend/docker-compose.e2e.yml up --build --abort-on-container-exit --exit-code-from smoke
 ```
 
 ## CI Coverage

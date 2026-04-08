@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -29,13 +30,13 @@ public class RiderController {
 
     @PostMapping("/fare-estimate")
     @Operation(summary = "Get a fare estimate and ETA for a potential ride")
-    public ResponseEntity<FareEstimateDto> getFareEstimate(@RequestBody FareEstimateRequestDto fareEstimateRequestDto) {
+    public ResponseEntity<FareEstimateDto> getFareEstimate(@Valid @RequestBody FareEstimateRequestDto fareEstimateRequestDto) {
         return ResponseEntity.ok(fareEstimationService.estimateFare(fareEstimateRequestDto));
     }
 
     @PostMapping(path = "/requestRide")
     @Operation(summary = "Request an immediate ride")
-    public ResponseEntity<RideRequestDto> requestRide(@RequestBody RideRequestDto rideRequestDto){
+    public ResponseEntity<RideRequestDto> requestRide(@Valid @RequestBody RideRequestDto rideRequestDto){
         return ResponseEntity.ok(riderService.requestRide(rideRequestDto));
     }
 
@@ -74,7 +75,7 @@ public class RiderController {
 
     @PostMapping("/schedule-ride")
     @Operation(summary = "Schedule a ride for a future time")
-    public ResponseEntity<ScheduledRideDto> scheduleRide(@RequestBody RideRequestDto rideRequestDto) {
+    public ResponseEntity<ScheduledRideDto> scheduleRide(@Valid @RequestBody RideRequestDto rideRequestDto) {
         return ResponseEntity.ok(scheduledRideService.scheduleRide(rideRequestDto));
     }
 
