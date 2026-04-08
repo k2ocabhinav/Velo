@@ -1,4 +1,11 @@
-import { Client, type IMessage, type IFrame, type StompSubscription, type StompConfig } from "@stomp/stompjs";
+import {
+  Client,
+  ReconnectionTimeMode,
+  type IMessage,
+  type IFrame,
+  type StompSubscription,
+  type StompConfig,
+} from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 
 export interface CreateStompClientOptions {
@@ -7,8 +14,15 @@ export interface CreateStompClientOptions {
   token?: string | null;
   connectHeaders?: Record<string, string>;
   reconnectDelay?: number;
+  maxReconnectDelay?: number;
+  reconnectTimeMode?: ReconnectionTimeMode;
   heartbeatIncoming?: number;
   heartbeatOutgoing?: number;
+  beforeConnect?: StompConfig["beforeConnect"];
+  onConnect?: StompConfig["onConnect"];
+  onStompError?: StompConfig["onStompError"];
+  onWebSocketClose?: StompConfig["onWebSocketClose"];
+  onWebSocketError?: StompConfig["onWebSocketError"];
   debug?: boolean;
   webSocketFactory?: () => WebSocket;
 }
@@ -33,6 +47,8 @@ export function createStompClient(options: CreateStompClientOptions = {}): Clien
   const endpoint = options.endpoint ?? "/ws";
   const socketUrl = normalizeEndpoint(baseURL, endpoint);
   const token = options.token ? (options.token.startsWith("Bearer ") ? options.token : `Bearer ${options.token}`) : undefined;
+  const reconnectDelay = options.reconnectDelay ?? 5000;
+  const maxReconnectDelay = Math.max(options.maxReconnectDelay ?? 60_000, reconnectDelay);
 
   const config: StompConfig = {
     webSocketFactory: options.webSocketFactory ?? createSockJsFactory(socketUrl),
@@ -40,10 +56,28 @@ export function createStompClient(options: CreateStompClientOptions = {}): Clien
       ...(token ? { Authorization: token } : {}),
       ...options.connectHeaders,
     },
-    reconnectDelay: options.reconnectDelay ?? 5000,
+    reconnectDelay,
+    maxReconnectDelay,
+    reconnectTimeMode: options.reconnectTimeMode ?? ReconnectionTimeMode.EXPONENTIAL,
     heartbeatIncoming: options.heartbeatIncoming ?? 10000,
     heartbeatOutgoing: options.heartbeatOutgoing ?? 10000,
   };
+
+  if (options.beforeConnect) {
+    config.beforeConnect = options.beforeConnect;
+  }
+  if (options.onConnect) {
+    config.onConnect = options.onConnect;
+  }
+  if (options.onStompError) {
+    config.onStompError = options.onStompError;
+  }
+  if (options.onWebSocketClose) {
+    config.onWebSocketClose = options.onWebSocketClose;
+  }
+  if (options.onWebSocketError) {
+    config.onWebSocketError = options.onWebSocketError;
+  }
 
   if (options.debug) {
     config.debug = (message: string) => console.debug(`[stomp] ${message}`);

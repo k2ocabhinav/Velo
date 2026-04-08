@@ -136,6 +136,8 @@ services:
       VELO_E2E_ADMIN_PASSWORD: password123
       VELO_E2E_RIDER_EMAIL: alice@example.com
       VELO_E2E_RIDER_PASSWORD: password123
+      VELO_E2E_DRIVER_EMAIL: eve.driver@example.com
+      VELO_E2E_DRIVER_PASSWORD: password123
     command: sh -lc "node velo-frontend/tests/integration/handshake.mjs"
     volumes:
       - .:/workspace

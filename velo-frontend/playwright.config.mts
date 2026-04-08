@@ -2,6 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 const adminBaseURL = process.env.PLAYWRIGHT_ADMIN_BASE_URL ?? "http://127.0.0.1:3000";
 const riderBaseURL = process.env.PLAYWRIGHT_RIDER_BASE_URL ?? "http://127.0.0.1:3001";
+const driverBaseURL = process.env.PLAYWRIGHT_DRIVER_BASE_URL ?? "http://127.0.0.1:3002";
 const enableRiderProject = process.env.PLAYWRIGHT_ENABLE_RIDER === "true";
 
 export default defineConfig({
@@ -16,6 +17,12 @@ export default defineConfig({
     {
       command: "npm run dev --workspace @velo/admin",
       url: adminBaseURL,
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000
+    },
+    {
+      command: "npm run dev --workspace @velo/driver",
+      url: driverBaseURL,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000
     },
@@ -37,6 +44,14 @@ export default defineConfig({
       use: {
         ...devices["Desktop Chrome"],
         baseURL: adminBaseURL
+      }
+    },
+    {
+      name: "driver-chromium",
+      testMatch: /driver-.*\.spec\.ts/,
+      use: {
+        ...devices["Desktop Chrome"],
+        baseURL: driverBaseURL
       }
     },
     ...(enableRiderProject

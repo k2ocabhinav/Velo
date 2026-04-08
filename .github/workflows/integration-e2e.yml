@@ -72,6 +72,33 @@ jobs:
       - name: Run Playwright admin smoke
         run: npm run test:e2e -- --project=admin-chromium
 
+  playwright-driver-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: velo-frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: velo-frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright driver smoke
+        run: npm run test:e2e -- --project=driver-chromium
+
   playwright-rider-smoke:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_rider_e2e == true }}
     runs-on: ubuntu-latest

@@ -414,4 +414,67 @@ describe("rider and supporting domains", () => {
       params: { amount: 25 },
     });
   });
+
+  it("uses driver ride action endpoint contracts", async () => {
+    const { client, requests } = createRecordingClient({
+      id: 55,
+      pickupLocation: { coordinates: [1, 2], type: "Point" },
+      dropOffLocation: { coordinates: [3, 4], type: "Point" },
+      paymentMethod: "WALLET",
+      rideStatus: "CONFIRMED",
+    });
+
+    const api = createDriversApi(client);
+    await api.acceptRide(11);
+    await api.startRide(55, { otp: "1234" });
+    await api.endRide(55);
+    await api.cancelRide(55);
+
+    expect(requests[0]).toMatchObject({
+      method: "POST",
+      url: "/drivers/acceptRide/11",
+    });
+    expect(requests[1]).toMatchObject({
+      method: "POST",
+      url: "/drivers/startRide/55",
+      data: { otp: "1234" },
+    });
+    expect(requests[2]).toMatchObject({
+      method: "POST",
+      url: "/drivers/endRide/55",
+    });
+    expect(requests[3]).toMatchObject({
+      method: "POST",
+      url: "/drivers/cancelRide/55",
+    });
+  });
+
+  it("uses notification unread and mark-read contracts", async () => {
+    const { client, requests } = createRecordingClient({
+      id: 9,
+      title: "New ride request",
+      message: "A rider is waiting nearby.",
+      type: "RIDE_REQUESTED",
+      read: false,
+      createdTime: "2026-04-08T12:00:00",
+    });
+
+    const api = createNotificationsApi(client);
+    await api.getUnreadCount();
+    await api.markRead(9);
+    await api.markAllRead();
+
+    expect(requests[0]).toMatchObject({
+      method: "GET",
+      url: "/notifications/unread-count",
+    });
+    expect(requests[1]).toMatchObject({
+      method: "POST",
+      url: "/notifications/9/read",
+    });
+    expect(requests[2]).toMatchObject({
+      method: "POST",
+      url: "/notifications/read-all",
+    });
+  });
 });

@@ -167,3 +167,35 @@
 - [x] BRANCHING.md
 - [x] SECURITY_REMEDIATION.md
 - [x] CLAUDE.md (agent instructions)
+
+---
+
+## Implementation Status Update (2026-04-08 — Driver MVP)
+
+### Driver vertical slice delivered (mapless, API-backed)
+- Driver auth/session flow implemented: `/login`, BFF login route, httpOnly cookie session, safe redirect sanitization.
+- Driver route protection implemented with middleware for `/`, `/ride/[id]`, `/rides`, `/earnings`, `/notifications`.
+- Driver backend proxy implemented at `/api/backend/[...path]` for cookie -> Bearer forwarding.
+- Driver core pages implemented:
+  - `/` availability toggle + incoming request actions
+  - `/ride/[id]` OTP start/end/cancel flow
+  - `/rides` paginated ride history
+  - `/earnings` summary + payout request + payout/earnings history
+  - `/notifications` unread/read flows
+- Realtime behavior implemented with WebSocket subscription and REST refresh fallback.
+
+### Testing and quality coverage added in this pass
+- Driver unit tests:
+  - login redirect safety and middleware behavior
+  - login BFF timeout/network/upstream mapping
+  - payout and ride action validation helpers
+- API contract tests expanded for:
+  - driver ride action endpoint contracts
+  - notifications unread/read/read-all endpoint contracts
+- Driver Playwright smoke suite added:
+  - auth redirect
+  - availability toggle success/conflict
+  - accept -> start(OTP) -> end flow
+  - earnings payout happy path
+  - notifications action failure path rendering
+- Integration handshake expanded with driver login/profile and availability probe.
