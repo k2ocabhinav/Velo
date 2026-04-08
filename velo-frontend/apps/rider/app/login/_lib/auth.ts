@@ -1,6 +1,7 @@
 import {
   LOGIN_COOKIE_MAX_AGE_SECONDS,
   LOGIN_COOKIE_NAME,
+  LOGIN_ROLE_COOKIE_NAME,
   LOGIN_REDIRECT_FALLBACK,
   LOGIN_REQUEST_TIMEOUT_MS,
   LOGIN_USER_ID_COOKIE_NAME,
@@ -10,6 +11,7 @@ import {
   extractAuthValues,
   getApiBaseUrl,
   performLoginProxy as performSharedLoginProxy,
+  performLogoutProxy as performSharedLogoutProxy,
   performRegisterProxy as performSharedRegisterProxy,
   readResponsePayload,
   sanitizeNextPath
@@ -18,6 +20,7 @@ import {
 export {
   LOGIN_COOKIE_MAX_AGE_SECONDS,
   LOGIN_COOKIE_NAME,
+  LOGIN_ROLE_COOKIE_NAME,
   LOGIN_REDIRECT_FALLBACK,
   LOGIN_REQUEST_TIMEOUT_MS,
   LOGIN_USER_ID_COOKIE_NAME,
@@ -33,7 +36,10 @@ export async function performLoginProxy(
   body: LoginPayload,
   fetchImpl: typeof fetch = fetch
 ) {
-  return performSharedLoginProxy(body, fetchImpl);
+  return performSharedLoginProxy(body, fetchImpl, {
+    requiredRoleHint: "RIDER",
+    roleGuardMessage: "This account is not authorized for the rider workspace."
+  });
 }
 
 export async function performRegisterProxy(
@@ -43,3 +49,8 @@ export async function performRegisterProxy(
   return performSharedRegisterProxy(body, fetchImpl);
 }
 
+export function performLogoutProxy() {
+  return performSharedLogoutProxy({
+    roleCookieName: LOGIN_ROLE_COOKIE_NAME
+  });
+}

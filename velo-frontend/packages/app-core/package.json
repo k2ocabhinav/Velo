@@ -10,6 +10,7 @@
     "./browser-proxy": "./src/browser-proxy.ts",
     "./env": "./src/env.ts",
     "./http-payload": "./src/http-payload.ts",
+    "./logout": "./src/logout.ts",
     "./proxy-route": "./src/proxy-route.ts",
     "./redirect": "./src/redirect.ts"
   },

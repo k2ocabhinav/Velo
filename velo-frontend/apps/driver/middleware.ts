@@ -4,7 +4,8 @@ import { createCookieAuthMiddleware } from "@velo/app-core/auth-middleware";
 const cookieAuthMiddleware = createCookieAuthMiddleware({
   publicPaths: ["/login"],
   protectedPaths: ["/", "/ride", "/rides", "/earnings", "/notifications"],
-  redirectAuthenticatedPublicTo: "/"
+  redirectAuthenticatedPublicTo: "/",
+  requiredRoleHint: "DRIVER"
 });
 
 export function middleware(request: NextRequest) {

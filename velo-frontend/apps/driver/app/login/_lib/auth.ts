@@ -1,6 +1,7 @@
 import {
   LOGIN_COOKIE_MAX_AGE_SECONDS,
   LOGIN_COOKIE_NAME,
+  LOGIN_ROLE_COOKIE_NAME,
   LOGIN_REDIRECT_FALLBACK,
   LOGIN_REQUEST_TIMEOUT_MS,
   LOGIN_USER_ID_COOKIE_NAME,
@@ -9,6 +10,7 @@ import {
   extractAuthValues,
   getApiBaseUrl,
   performLoginProxy as performSharedLoginProxy,
+  performLogoutProxy as performSharedLogoutProxy,
   readResponsePayload,
   sanitizeNextPath
 } from "@velo/app-core/auth";
@@ -16,6 +18,7 @@ import {
 export {
   LOGIN_COOKIE_MAX_AGE_SECONDS,
   LOGIN_COOKIE_NAME,
+  LOGIN_ROLE_COOKIE_NAME,
   LOGIN_REDIRECT_FALLBACK,
   LOGIN_REQUEST_TIMEOUT_MS,
   LOGIN_USER_ID_COOKIE_NAME,
@@ -31,6 +34,14 @@ export async function performLoginProxy(
   body: LoginPayload,
   fetchImpl: typeof fetch = fetch
 ) {
-  return performSharedLoginProxy(body, fetchImpl);
+  return performSharedLoginProxy(body, fetchImpl, {
+    requiredRoleHint: "DRIVER",
+    roleGuardMessage: "This account is not authorized for the driver workspace."
+  });
 }
 
+export function performLogoutProxy() {
+  return performSharedLogoutProxy({
+    roleCookieName: LOGIN_ROLE_COOKIE_NAME
+  });
+}

@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { performClientLogout } from "@velo/app-core/logout";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard" },
@@ -20,6 +21,16 @@ export function AdminShell({
   children: ReactNode;
 }>) {
   const pathname = usePathname();
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  async function handleLogout() {
+    setLoggingOut(true);
+    await performClientLogout({
+      logoutPath: "/api/auth/logout",
+      loginPath: "/login"
+    });
+    setLoggingOut(false);
+  }
 
   return (
     <div className="admin-root">
@@ -45,6 +56,14 @@ export function AdminShell({
             <div>
               <p>Phase 1 control center</p>
             </div>
+            <button
+              className="secondary-button"
+              type="button"
+              disabled={loggingOut}
+              onClick={() => void handleLogout()}
+            >
+              {loggingOut ? "Signing out..." : "Logout"}
+            </button>
           </header>
           <main className="admin-content">{children}</main>
         </div>

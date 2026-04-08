@@ -24,8 +24,15 @@ export type AuthExtractionResult = Readonly<{
   userId: string | number | null;
 }>;
 
+export type LoginProxyOptions = Readonly<{
+  requiredRoleHint?: string | null;
+  roleCookieName?: string;
+  roleGuardMessage?: string;
+}>;
+
 export const LOGIN_COOKIE_NAME = "velo_token";
 export const LOGIN_USER_ID_COOKIE_NAME = "velo_user_id";
+export const LOGIN_ROLE_COOKIE_NAME = "velo_role_hint";
 export const LOGIN_REQUEST_TIMEOUT_MS = 10_000;
 export const LOGIN_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24;
 
@@ -50,22 +57,140 @@ export function extractAuthValues(payload: unknown): AuthExtractionResult {
   return { token, userId };
 }
 
-function buildLoginCookieOptions() {
+function normalizeRoleHint(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const normalized = value.trim().toUpperCase();
+  if (!normalized) {
+    return null;
+  }
+
+  if (normalized.startsWith("ROLE_")) {
+    return normalized.slice(5) || null;
+  }
+
+  return normalized;
+}
+
+function collectRoleHintValue(target: Set<string>, value: unknown): void {
+  if (typeof value === "string") {
+    const normalized = normalizeRoleHint(value);
+    if (normalized) {
+      target.add(normalized);
+    }
+    return;
+  }
+
+  if (!Array.isArray(value)) {
+    return;
+  }
+
+  for (const entry of value) {
+    if (typeof entry === "string") {
+      const normalized = normalizeRoleHint(entry);
+      if (normalized) {
+        target.add(normalized);
+      }
+      continue;
+    }
+
+    if (!isRecordLike(entry)) {
+      continue;
+    }
+
+    if (typeof entry.authority === "string") {
+      const normalized = normalizeRoleHint(entry.authority);
+      if (normalized) {
+        target.add(normalized);
+      }
+    }
+  }
+}
+
+export function extractRoleHints(payload: unknown): string[] {
+  const hints = new Set<string>();
+  if (!isRecordLike(payload)) {
+    return [];
+  }
+
+  collectRoleHintValue(hints, payload.role);
+  collectRoleHintValue(hints, payload.roles);
+  collectRoleHintValue(hints, payload.authorities);
+
+  const data = isRecordLike(payload.data) ? payload.data : null;
+  if (data) {
+    collectRoleHintValue(hints, data.role);
+    collectRoleHintValue(hints, data.roles);
+    collectRoleHintValue(hints, data.authorities);
+  }
+
+  return Array.from(hints);
+}
+
+function buildCookieOptions(maxAge: number) {
   return {
     httpOnly: true,
     sameSite: "lax" as const,
     secure: getEnvValue("NODE_ENV") === "production",
     path: "/",
-    maxAge: LOGIN_COOKIE_MAX_AGE_SECONDS
+    maxAge
   };
 }
 
-function setLoginCookies(response: NextResponse, token: string, userId: string | number | null): void {
+function buildLoginCookieOptions() {
+  return buildCookieOptions(LOGIN_COOKIE_MAX_AGE_SECONDS);
+}
+
+function buildClearedCookieOptions() {
+  return {
+    ...buildCookieOptions(0),
+    expires: new Date(0)
+  };
+}
+
+function setLoginCookies(
+  response: NextResponse,
+  token: string,
+  userId: string | number | null,
+  roleHint: string | null,
+  roleCookieName = LOGIN_ROLE_COOKIE_NAME
+): void {
   response.cookies.set(LOGIN_COOKIE_NAME, token, buildLoginCookieOptions());
 
   if (userId !== null) {
     response.cookies.set(LOGIN_USER_ID_COOKIE_NAME, String(userId), buildLoginCookieOptions());
   }
+
+  if (roleHint) {
+    response.cookies.set(roleCookieName, roleHint, buildLoginCookieOptions());
+    return;
+  }
+
+  response.cookies.set(roleCookieName, "", buildClearedCookieOptions());
+}
+
+export function clearLoginCookies(
+  response: NextResponse,
+  roleCookieName = LOGIN_ROLE_COOKIE_NAME
+): void {
+  const cleared = buildClearedCookieOptions();
+  response.cookies.set(LOGIN_COOKIE_NAME, "", cleared);
+  response.cookies.set(LOGIN_USER_ID_COOKIE_NAME, "", cleared);
+  response.cookies.set(roleCookieName, "", cleared);
+}
+
+function selectRoleHint(roleHints: string[], requiredRoleHint: string | null): string | null {
+  if (requiredRoleHint && roleHints.includes(requiredRoleHint)) {
+    return requiredRoleHint;
+  }
+
+  if (roleHints.length === 0) {
+    return null;
+  }
+
+  return [...roleHints].sort()[0] ?? null;
 }
 
 function isTimeoutLike(error: unknown): boolean {
@@ -99,7 +224,8 @@ function createAuthFetchInit(body: Record<string, unknown>, signal: AbortSignal 
 
 export async function performLoginProxy(
   body: LoginPayload,
-  fetchImpl: typeof fetch = fetch
+  fetchImpl: typeof fetch = fetch,
+  options: LoginProxyOptions = {}
 ): Promise<NextResponse> {
   if (!body?.email || !body?.password) {
     return NextResponse.json({ error: "Email and password are required." }, { status: 400 });
@@ -140,8 +266,28 @@ export async function performLoginProxy(
     );
   }
 
+  const requiredRoleHint = normalizeRoleHint(options.requiredRoleHint);
+  const roleHints = extractRoleHints(payload);
+  if (requiredRoleHint && roleHints.length > 0 && !roleHints.includes(requiredRoleHint)) {
+    return NextResponse.json(
+      {
+        error:
+          options.roleGuardMessage ??
+          "This account is not authorized for this workspace."
+      },
+      { status: 403 }
+    );
+  }
+
+  const selectedRoleHint = selectRoleHint(roleHints, requiredRoleHint);
   const response = NextResponse.json(payload ?? { ok: true }, { status: 200 });
-  setLoginCookies(response, token, userId);
+  setLoginCookies(response, token, userId, selectedRoleHint, options.roleCookieName);
+  return response;
+}
+
+export function performLogoutProxy(options: Pick<LoginProxyOptions, "roleCookieName"> = {}): NextResponse {
+  const response = NextResponse.json({ ok: true }, { status: 200 });
+  clearLoginCookies(response, options.roleCookieName ?? LOGIN_ROLE_COOKIE_NAME);
   return response;
 }
 

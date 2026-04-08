@@ -3,6 +3,8 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
+import { performClientLogout } from "@velo/app-core/logout";
 import { DriverNotificationsNavIndicator } from "../notifications/_components/nav-indicator";
 
 const PUBLIC_ROUTES = ["/login"];
@@ -27,6 +29,18 @@ function isActiveRoute(pathname: string, href: string): boolean {
 
 export function DriverShell({ children }: Readonly<{ children: ReactNode }>) {
   const pathname = usePathname() ?? "/";
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  async function handleLogout() {
+    setLoggingOut(true);
+    await performClientLogout({
+      logoutPath: "/api/auth/logout",
+      loginPath: "/login",
+      sessionStorageKeysToClear: ["velo_ws_token"],
+    });
+    setLoggingOut(false);
+  }
+
   if (isPublicRoute(pathname)) {
     return <>{children}</>;
   }
@@ -47,7 +61,17 @@ export function DriverShell({ children }: Readonly<{ children: ReactNode }>) {
               </Link>
             ))}
           </div>
-          <DriverNotificationsNavIndicator />
+          <div className="actions" style={{ alignItems: "center" }}>
+            <DriverNotificationsNavIndicator />
+            <button
+              className="secondary-button"
+              type="button"
+              disabled={loggingOut}
+              onClick={() => void handleLogout()}
+            >
+              {loggingOut ? "Signing out..." : "Logout"}
+            </button>
+          </div>
         </div>
       </header>
       {children}
