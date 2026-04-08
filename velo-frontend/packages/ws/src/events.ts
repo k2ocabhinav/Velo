@@ -13,12 +13,24 @@ export interface NotificationEvent {
 }
 
 export interface RideUpdateEvent {
+  eventType?: string;
   rideId?: string | number;
+  rideRequestId?: string | number;
   status?: string;
   driverId?: string | number;
   riderId?: string | number;
   etaMinutes?: number;
   updatedAt?: string;
+  routePolyline?: string | null;
+  driverLocation?: {
+    lat?: number;
+    lng?: number;
+    heading?: number;
+    speedKph?: number;
+    accuracyM?: number;
+    capturedAt?: string;
+    [key: string]: unknown;
+  };
   location?: {
     lat?: number;
     lng?: number;

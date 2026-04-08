@@ -128,6 +128,25 @@ export interface DriverAvailabilityRequestDto {
   available: boolean;
 }
 
+export interface DriverLocationUpdateRequestDto {
+  lat: number;
+  lng: number;
+  heading?: number | null;
+  speedKph?: number | null;
+  accuracyM?: number | null;
+  capturedAt?: ISODateTime | null;
+}
+
+export interface DriverLocationDto {
+  lat: number;
+  lng: number;
+  heading?: number | null;
+  speedKph?: number | null;
+  accuracyM?: number | null;
+  capturedAt?: ISODateTime | null;
+  updatedAt?: ISODateTime | null;
+}
+
 export interface RideStartDto {
   otp: string;
 }
@@ -214,6 +233,49 @@ export interface RideDto {
   fair?: DecimalValue | null;
   promoCode?: string | null;
   discountAmount?: DecimalValue | null;
+}
+
+export interface RideLocationDto {
+  lat: number;
+  lng: number;
+  heading?: number | null;
+  speedKph?: number | null;
+  accuracyM?: number | null;
+  capturedAt?: ISODateTime | null;
+}
+
+export interface RideTrackingDriverDto {
+  id: number;
+  name?: string | null;
+  vehicleId?: string | null;
+  rating?: number | null;
+}
+
+export interface RideTrackingDto {
+  rideId?: number | null;
+  rideRequestId?: number | null;
+  status?: string | null;
+  pickupLocation?: PointDto | null;
+  dropOffLocation?: PointDto | null;
+  driver?: RideTrackingDriverDto | null;
+  lastDriverLocation?: RideLocationDto | null;
+  etaMinutes?: number | null;
+  routePolyline?: string | null;
+  updatedAt?: ISODateTime | null;
+  canCancel?: boolean | null;
+}
+
+export interface RideUpdateEventDto {
+  eventType: "RIDE_STATUS_CHANGED" | "DRIVER_LOCATION_UPDATED" | "RIDE_COMPLETED" | "RIDE_CANCELLED";
+  rideId?: number | null;
+  rideRequestId?: number | null;
+  status?: string | null;
+  riderId?: number | null;
+  driverId?: number | null;
+  driverLocation?: RideLocationDto | null;
+  etaMinutes?: number | null;
+  routePolyline?: string | null;
+  updatedAt?: ISODateTime | null;
 }
 
 export interface PaymentMethodDto {

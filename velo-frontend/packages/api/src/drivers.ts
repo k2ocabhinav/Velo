@@ -3,6 +3,8 @@ import { createVeloClient, requestData, requestPageData } from "./client";
 import type {
   DriverAvailabilityRequestDto,
   DriverDto,
+  DriverLocationDto,
+  DriverLocationUpdateRequestDto,
   OffsetPageRequestInput,
   PaginatedResponse,
   RatingDto,
@@ -14,6 +16,7 @@ import type {
 export interface DriversApi {
   getMyProfile(): Promise<DriverDto>;
   setAvailability(available: boolean): Promise<DriverDto>;
+  updateLocation(input: DriverLocationUpdateRequestDto): Promise<DriverLocationDto>;
   getMyRides(params?: OffsetPageRequestInput): Promise<PaginatedResponse<RideDto>>;
   acceptRide(rideRequestId: number): Promise<RideDto>;
   startRide(rideRequestId: number, input: RideStartDto): Promise<RideDto>;
@@ -35,6 +38,12 @@ export function createDriversApi(client: AxiosInstance = createVeloClient()): Dr
         method: "PUT",
         url: "/drivers/availability",
         data: { available } satisfies DriverAvailabilityRequestDto,
+      }),
+    updateLocation: (input) =>
+      requestData<DriverLocationDto>(client, {
+        method: "PUT",
+        url: "/drivers/location",
+        data: input,
       }),
     getMyRides: (params) =>
       requestPageData<RideDto>(client, {

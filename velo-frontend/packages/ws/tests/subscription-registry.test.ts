@@ -133,7 +133,16 @@ describe("subscription registry", () => {
       createMessage({ id: "n-1", type: "PROMO", message: "20% off" }),
     );
     const rideUpdate = parseRideUpdateEventMessage(
-      createMessage({ rideId: "r-42", status: "ONGOING", etaMinutes: 5 }),
+      createMessage({
+        eventType: "DRIVER_LOCATION_UPDATED",
+        rideId: "r-42",
+        status: "ONGOING",
+        etaMinutes: 5,
+        driverLocation: {
+          lat: 12.97,
+          lng: 77.59,
+        },
+      }),
     );
 
     expect(notification).toEqual({
@@ -142,9 +151,14 @@ describe("subscription registry", () => {
       message: "20% off",
     });
     expect(rideUpdate).toEqual({
+      eventType: "DRIVER_LOCATION_UPDATED",
       rideId: "r-42",
       status: "ONGOING",
       etaMinutes: 5,
+      driverLocation: {
+        lat: 12.97,
+        lng: 77.59,
+      },
     });
     expect(parseNotificationEventMessage({ body: "not-json" } as IMessage)).toBeNull();
   });

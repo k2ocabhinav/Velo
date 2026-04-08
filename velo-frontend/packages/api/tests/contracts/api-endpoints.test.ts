@@ -215,6 +215,41 @@ describe("auth and driver endpoints", () => {
     });
   });
 
+  it("publishes driver location through the additive location endpoint", async () => {
+    const { client, requests } = createRecordingClient({
+      lat: 12.9716,
+      lng: 77.5946,
+      heading: 120,
+      speedKph: 28,
+      accuracyM: 9,
+      capturedAt: "2026-04-09T11:20:00Z",
+      updatedAt: "2026-04-09T11:20:01Z",
+    });
+
+    const api = createDriversApi(client);
+    await api.updateLocation({
+      lat: 12.9716,
+      lng: 77.5946,
+      heading: 120,
+      speedKph: 28,
+      accuracyM: 9,
+      capturedAt: "2026-04-09T11:20:00Z",
+    });
+
+    expect(requests[0]).toMatchObject({
+      method: "PUT",
+      url: "/drivers/location",
+      data: {
+        lat: 12.9716,
+        lng: 77.5946,
+        heading: 120,
+        speedKph: 28,
+        accuracyM: 9,
+        capturedAt: "2026-04-09T11:20:00Z",
+      },
+    });
+  });
+
   it("supports rider rating through path variables for driver flows", async () => {
     const { client, requests } = createRecordingClient({
       id: 12,
@@ -320,6 +355,23 @@ describe("rider and supporting domains", () => {
       method: "PUT",
       url: "/riders/scheduled-rides/11/reschedule",
       params: { newTime: "2026-04-08T09:00:00" },
+    });
+  });
+
+  it("fetches rider active ride tracking through additive endpoint", async () => {
+    const { client, requests } = createRecordingClient({
+      rideId: 99,
+      status: "ONGOING",
+      canCancel: false,
+      updatedAt: "2026-04-09T11:20:00Z",
+    });
+
+    const api = createRidesApi(client);
+    await api.getActiveRide();
+
+    expect(requests[0]).toMatchObject({
+      method: "GET",
+      url: "/riders/active-ride",
     });
   });
 
