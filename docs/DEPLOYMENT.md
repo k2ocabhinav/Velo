@@ -50,13 +50,15 @@ cd velo-platform
 ```
 
 ### Docker Compose (Optional)
-For portable local dev without installing PostgreSQL/Redis natively:
+For portable local dev without installing PostgreSQL/Redis natively. On Apple Silicon, prefer the repo's `docker/postgis` build to avoid running PostGIS images via amd64 emulation.
 
 ```yaml
 # docker-compose.yml (place in project root)
 services:
   postgres:
-    image: postgis/postgis:16-3.4
+    build:
+      context: ./docker/postgis
+    image: velo/postgis:16
     environment:
       POSTGRES_PASSWORD: user
       POSTGRES_DB: postgres
@@ -66,7 +68,9 @@ services:
       - pgdata:/var/lib/postgresql/data
 
   testdb:
-    image: postgis/postgis:16-3.4
+    build:
+      context: ./docker/postgis
+    image: velo/postgis:16
     environment:
       POSTGRES_PASSWORD: user
       POSTGRES_DB: testpostgres
