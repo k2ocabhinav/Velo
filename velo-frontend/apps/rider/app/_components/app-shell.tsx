@@ -37,6 +37,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="actions" style={{ justifyContent: "space-between", alignItems: "center" }}>
           <div className="actions">
             <Link href="/">Book</Link>
+            <Link href="/ride/active">Active Trip</Link>
             <Link href="/rides">Rides</Link>
             <Link href="/scheduled">Scheduled</Link>
             <Link href="/wallet">Wallet</Link>

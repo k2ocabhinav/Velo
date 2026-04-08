@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { createStompClient, parseNotificationEventMessage, registerStompSubscription } from "@velo/ws";
+import { createStompClient, parseNotificationEventMessage, parseRideUpdateEventMessage, registerStompSubscription } from "@velo/ws";
 import type { IFrame, IMessage } from "@stomp/stompjs";
 import { getRiderRealtimeStatusText, type RiderWsConnectionState } from "./rider-realtime-status";
 
 const NOTIFICATIONS_DESTINATION = "/user/queue/notifications";
+const RIDE_UPDATES_DESTINATION = "/user/queue/ride-updates";
 
 export interface RiderNotificationEvent {
   id?: number;
@@ -15,6 +16,26 @@ export interface RiderNotificationEvent {
   referenceId?: number | null;
   read?: boolean;
   createdTime?: string;
+}
+
+export interface RiderRideUpdateEvent {
+  eventType: "RIDE_STATUS_CHANGED" | "DRIVER_LOCATION_UPDATED" | "RIDE_COMPLETED" | "RIDE_CANCELLED";
+  rideId?: number;
+  rideRequestId?: number;
+  status?: string;
+  riderId?: number;
+  driverId?: number;
+  etaMinutes?: number | null;
+  routePolyline?: string | null;
+  updatedAt?: string;
+  driverLocation?: {
+    lat?: number;
+    lng?: number;
+    heading?: number | null;
+    speedKph?: number | null;
+    accuracyM?: number | null;
+    capturedAt?: string | null;
+  } | null;
 }
 
 export interface RiderNotificationSubscriptionState {
@@ -45,14 +66,29 @@ function getSessionWsToken(): string | null {
   return token;
 }
 
-function parseNotificationId(value: unknown): number | undefined {
+function parseInteger(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.trunc(value);
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return Math.trunc(parsed);
+    }
+  }
+
+  return undefined;
+}
+
+function parseNumber(value: unknown): number | undefined {
   if (typeof value === "number" && Number.isFinite(value)) {
     return value;
   }
 
   if (typeof value === "string" && value.trim()) {
     const parsed = Number(value);
-    if (Number.isInteger(parsed)) {
+    if (Number.isFinite(parsed)) {
       return parsed;
     }
   }
@@ -66,7 +102,7 @@ function toRiderNotificationEvent(event: unknown): RiderNotificationEvent | null
   }
 
   const record = event as Record<string, unknown>;
-  const id = parseNotificationId(record.id);
+  const id = parseInteger(record.id);
   if (id === undefined || typeof record.title !== "string" || typeof record.message !== "string") {
     return null;
   }
@@ -83,7 +119,7 @@ function toRiderNotificationEvent(event: unknown): RiderNotificationEvent | null
     title: record.title,
     message: record.message,
     type: typeof record.type === "string" ? record.type : "GENERAL",
-    referenceId: parseNotificationId(record.referenceId) ?? null,
+    referenceId: parseInteger(record.referenceId) ?? null,
     read: record.read === true,
     createdTime,
   };
@@ -103,6 +139,72 @@ function getFrameErrorMessage(frame: IFrame): string {
   return "Realtime connection failed.";
 }
 
+function isRideUpdateType(value: unknown): value is RiderRideUpdateEvent["eventType"] {
+  return (
+    value === "RIDE_STATUS_CHANGED" ||
+    value === "DRIVER_LOCATION_UPDATED" ||
+    value === "RIDE_COMPLETED" ||
+    value === "RIDE_CANCELLED"
+  );
+}
+
+export function normalizeRideUpdateEvent(event: unknown): RiderRideUpdateEvent | null {
+  if (!event || typeof event !== "object") {
+    return null;
+  }
+
+  const record = event as Record<string, unknown>;
+  if (!isRideUpdateType(record.eventType)) {
+    return null;
+  }
+
+  const driverLocationRecord =
+    record.driverLocation && typeof record.driverLocation === "object"
+      ? (record.driverLocation as Record<string, unknown>)
+      : null;
+
+  const location =
+    driverLocationRecord !== null
+      ? {
+          lat: parseNumber(driverLocationRecord.lat),
+          lng: parseNumber(driverLocationRecord.lng),
+          heading: parseNumber(driverLocationRecord.heading) ?? null,
+          speedKph: parseNumber(driverLocationRecord.speedKph) ?? null,
+          accuracyM: parseNumber(driverLocationRecord.accuracyM) ?? null,
+          capturedAt: typeof driverLocationRecord.capturedAt === "string" ? driverLocationRecord.capturedAt : null,
+        }
+      : null;
+
+  return {
+    eventType: record.eventType,
+    rideId: parseInteger(record.rideId),
+    rideRequestId: parseInteger(record.rideRequestId),
+    status: typeof record.status === "string" ? record.status : undefined,
+    riderId: parseInteger(record.riderId),
+    driverId: parseInteger(record.driverId),
+    etaMinutes: parseInteger(record.etaMinutes) ?? null,
+    routePolyline: typeof record.routePolyline === "string" ? record.routePolyline : null,
+    updatedAt: typeof record.updatedAt === "string" ? record.updatedAt : new Date().toISOString(),
+    driverLocation: location,
+  };
+}
+
+export function createRideUpdateEventDedupeKey(event: RiderRideUpdateEvent): string {
+  const locationPart =
+    event.driverLocation && typeof event.driverLocation.lat === "number" && typeof event.driverLocation.lng === "number"
+      ? `${event.driverLocation.lat}:${event.driverLocation.lng}:${event.driverLocation.capturedAt ?? ""}`
+      : "";
+
+  return [
+    event.eventType,
+    event.rideId ?? "",
+    event.rideRequestId ?? "",
+    event.status ?? "",
+    event.updatedAt ?? "",
+    locationPart,
+  ].join("|");
+}
+
 export { getRiderRealtimeStatusText, type RiderWsConnectionState };
 
 const INITIAL_STATE: RiderNotificationSubscriptionState = {
@@ -111,16 +213,17 @@ const INITIAL_STATE: RiderNotificationSubscriptionState = {
   lastError: null,
 };
 
-export function useRiderNotificationSubscription(
+function useRiderStompSubscription(
   enabled: boolean,
-  onNotification: (event: RiderNotificationEvent) => void,
+  destination: string,
+  onMessage: (message: IMessage) => void,
 ): RiderNotificationSubscriptionState {
   const [connection, setConnection] = useState<RiderNotificationSubscriptionState>(INITIAL_STATE);
-  const latestHandler = useRef(onNotification);
+  const latestHandler = useRef(onMessage);
 
   useEffect(() => {
-    latestHandler.current = onNotification;
-  }, [onNotification]);
+    latestHandler.current = onMessage;
+  }, [onMessage]);
 
   useEffect(() => {
     if (!enabled) {
@@ -210,12 +313,8 @@ export function useRiderNotificationSubscription(
       },
     });
 
-    const cleanupSubscription = registerStompSubscription(client, NOTIFICATIONS_DESTINATION, (message: IMessage) => {
-      const parsed = parseNotificationEventMessage(message);
-      const normalized = toRiderNotificationEvent(parsed);
-      if (normalized) {
-        latestHandler.current(normalized);
-      }
+    const cleanupSubscription = registerStompSubscription(client, destination, (message: IMessage) => {
+      latestHandler.current(message);
     });
 
     client.activate();
@@ -225,7 +324,43 @@ export function useRiderNotificationSubscription(
       cleanupSubscription();
       void client.deactivate();
     };
-  }, [enabled]);
+  }, [destination, enabled]);
 
   return connection;
+}
+
+export function useRiderNotificationSubscription(
+  enabled: boolean,
+  onNotification: (event: RiderNotificationEvent) => void,
+): RiderNotificationSubscriptionState {
+  return useRiderStompSubscription(enabled, NOTIFICATIONS_DESTINATION, (message) => {
+    const parsed = parseNotificationEventMessage(message);
+    const normalized = toRiderNotificationEvent(parsed);
+    if (normalized) {
+      onNotification(normalized);
+    }
+  });
+}
+
+export function useRiderRideUpdatesSubscription(
+  enabled: boolean,
+  onUpdate: (event: RiderRideUpdateEvent) => void,
+): RiderNotificationSubscriptionState {
+  const lastEventKeyRef = useRef<string | null>(null);
+
+  return useRiderStompSubscription(enabled, RIDE_UPDATES_DESTINATION, (message) => {
+    const parsed = parseRideUpdateEventMessage(message);
+    const normalized = normalizeRideUpdateEvent(parsed);
+    if (!normalized) {
+      return;
+    }
+
+    const dedupeKey = createRideUpdateEventDedupeKey(normalized);
+    if (lastEventKeyRef.current === dedupeKey) {
+      return;
+    }
+
+    lastEventKeyRef.current = dedupeKey;
+    onUpdate(normalized);
+  });
 }

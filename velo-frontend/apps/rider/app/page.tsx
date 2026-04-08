@@ -26,6 +26,7 @@ import {
   useRiderNotificationSubscription,
   type RiderNotificationEvent,
 } from "./_lib/rider-ws";
+import { useActiveRideRedirect } from "./_lib/use-active-ride-redirect";
 
 type FareEstimate = {
   estimatedFare: DecimalValue;
@@ -73,6 +74,8 @@ const INITIAL_TRIP_LANE: RiderHomeTripLane = {
 };
 
 export default function RiderHomePage() {
+  useActiveRideRedirect("/");
+
   const [pickupLat, setPickupLat] = useState("12.9716");
   const [pickupLng, setPickupLng] = useState("77.5946");
   const [dropLat, setDropLat] = useState("12.9352");

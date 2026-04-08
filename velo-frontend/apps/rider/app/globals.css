@@ -222,6 +222,80 @@ a {
   font-size: 14px;
 }
 
+.active-ride-map {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.active-ride-map-inner {
+  min-height: 320px;
+  width: 100%;
+}
+
+.timeline {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.timeline-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.timeline-item p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.timeline-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.timeline-dot.done {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.finding-driver-indicator {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.finding-driver-indicator .dot {
+  display: inline-block;
+  min-width: 6px;
+  animation: ride-dot-fade 1.2s infinite;
+}
+
+.finding-driver-indicator .dot.two {
+  animation-delay: 0.2s;
+}
+
+.finding-driver-indicator .dot.three {
+  animation-delay: 0.4s;
+}
+
+@keyframes ride-dot-fade {
+  0% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.2;
+  }
+}
+
 .form-shell {
   min-height: 100vh;
   padding: 24px;
@@ -244,5 +318,9 @@ a {
 
   .split-row {
     flex-wrap: wrap;
+  }
+
+  .timeline {
+    grid-template-columns: 1fr 1fr;
   }
 }

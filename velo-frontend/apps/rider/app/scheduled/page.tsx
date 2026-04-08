@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { validatePointInput, validateScheduleInput } from "../_lib/ride-forms";
 import { requestRiderProxy, type SpringPage } from "../_lib/rider-client";
+import { useActiveRideRedirect } from "../_lib/use-active-ride-redirect";
 
 type ScheduledRide = {
   id: number;
@@ -20,6 +21,8 @@ function unwrapPage(payload: unknown): ScheduledRide[] {
 }
 
 export default function RiderScheduledPage() {
+  useActiveRideRedirect("/scheduled");
+
   const [rides, setRides] = useState<ScheduledRide[]>([]);
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState(false);

@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { isActionPending, setActionPending } from "@velo/app-core/async-actions";
 import { requestRiderProxy, toCurrency, type DecimalValue, type SpringPage } from "../_lib/rider-client";
 import { mapApiError, validateRatingInput } from "../_lib/ride-forms";
+import { useActiveRideRedirect } from "../_lib/use-active-ride-redirect";
 
 type RideItem = {
   id: number;
@@ -49,12 +51,15 @@ function canRate(status: string): boolean {
 }
 
 export default function RiderRidesPage() {
+  useActiveRideRedirect("/rides");
+
   const [rides, setRides] = useState<RideItem[]>([]);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [pendingRideId, setPendingRideId] = useState<number | null>(null);
   const [pendingAction, setPendingAction] = useState<"CANCEL" | "RATE" | null>(null);
+  const [pendingActions, setPendingActions] = useState<Record<string, boolean>>({});
   const [ratingByRideId, setRatingByRideId] = useState<Record<number, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -83,6 +88,12 @@ export default function RiderRidesPage() {
   }, [loadRides]);
 
   async function cancelRide(rideId: number): Promise<void> {
+    const actionKey = `ride:${rideId}:cancel`;
+    if (isActionPending(pendingActions, actionKey)) {
+      return;
+    }
+
+    setPendingActions((current) => setActionPending(current, actionKey, true));
     setPendingRideId(rideId);
     setPendingAction("CANCEL");
     setError(null);
@@ -101,10 +112,16 @@ export default function RiderRidesPage() {
     } finally {
       setPendingRideId(null);
       setPendingAction(null);
+      setPendingActions((current) => setActionPending(current, actionKey, false));
     }
   }
 
   async function rateDriver(rideId: number): Promise<void> {
+    const actionKey = `ride:${rideId}:rate`;
+    if (isActionPending(pendingActions, actionKey)) {
+      return;
+    }
+
     const ratingValue = ratingByRideId[rideId] ?? DEFAULT_RATING;
     const validation = validateRatingInput(ratingValue);
     if (!validation.ok) {
@@ -113,6 +130,7 @@ export default function RiderRidesPage() {
       return;
     }
 
+    setPendingActions((current) => setActionPending(current, actionKey, true));
     setPendingRideId(rideId);
     setPendingAction("RATE");
     setError(null);
@@ -139,6 +157,7 @@ export default function RiderRidesPage() {
     } finally {
       setPendingRideId(null);
       setPendingAction(null);
+      setPendingActions((current) => setActionPending(current, actionKey, false));
     }
   }
 
@@ -180,7 +199,7 @@ export default function RiderRidesPage() {
                           <span>Rating</span>
                           <select
                             value={ratingByRideId[ride.id] ?? DEFAULT_RATING}
-                            disabled={pendingRideId === ride.id}
+                            disabled={isActionPending(pendingActions, `ride:${ride.id}:rate`)}
                             onChange={(event) =>
                               setRatingByRideId((current) => ({
                                 ...current,
@@ -198,7 +217,7 @@ export default function RiderRidesPage() {
                         <button
                           className="primary-button"
                           type="button"
-                          disabled={pendingRideId === ride.id}
+                          disabled={isActionPending(pendingActions, `ride:${ride.id}:rate`)}
                           onClick={() => void rateDriver(ride.id)}
                         >
                           {pendingRideId === ride.id && pendingAction === "RATE" ? "Rating..." : "Rate driver"}
@@ -209,7 +228,7 @@ export default function RiderRidesPage() {
                       <button
                         className="primary-button"
                         type="button"
-                        disabled={pendingRideId === ride.id}
+                        disabled={isActionPending(pendingActions, `ride:${ride.id}:cancel`)}
                         onClick={() => void cancelRide(ride.id)}
                       >
                         {pendingRideId === ride.id && pendingAction === "CANCEL" ? "Canceling..." : "Cancel ride"}
