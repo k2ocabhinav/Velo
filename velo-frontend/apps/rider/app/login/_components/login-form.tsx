@@ -6,6 +6,27 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { sanitizeNextPath } from "../_lib/redirect";
 
+function extractAuthToken(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+
+  const root = payload as Record<string, unknown>;
+  if (typeof root.token === "string" && root.token.trim()) {
+    return root.token;
+  }
+
+  const data = root.data;
+  if (data && typeof data === "object") {
+    const dataRecord = data as Record<string, unknown>;
+    if (typeof dataRecord.token === "string" && dataRecord.token.trim()) {
+      return dataRecord.token;
+    }
+  }
+
+  return null;
+}
+
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -35,6 +56,15 @@ export function LoginForm() {
       if (!response.ok) {
         setError(payload?.error ?? "Unable to sign in.");
         return;
+      }
+
+      const token = extractAuthToken(payload);
+      if (typeof window !== "undefined") {
+        if (token) {
+          window.sessionStorage.setItem("velo_ws_token", token);
+        } else {
+          window.sessionStorage.removeItem("velo_ws_token");
+        }
       }
 
       router.replace(nextPath);
