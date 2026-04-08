@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { isActionPending, setActionPending } from "@velo/app-core/async-actions";
 import { PageFrame } from "../_components/page-frame";
 import { adminClient, type UserAccount } from "../_lib/admin-client";
 import {
@@ -22,7 +23,7 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [submittingId, setSubmittingId] = useState<number | null>(null);
+  const [pendingActions, setPendingActions] = useState<Record<string, boolean>>({});
 
   async function load(targetPage = page, allowFallback = true): Promise<void> {
     setLoading(true);
@@ -62,11 +63,16 @@ export default function UsersPage() {
 
   async function toggleUser(user: UserAccount): Promise<void> {
     const actionLabel = user.active ? "deactivate" : "activate";
+    const actionKey = `toggle-user:${user.id}`;
+    if (isActionPending(pendingActions, actionKey)) {
+      return;
+    }
+
     if (!window.confirm(`Are you sure you want to ${actionLabel} this user?`)) {
       return;
     }
 
-    setSubmittingId(user.id);
+    setPendingActions((current) => setActionPending(current, actionKey, true));
     setError(null);
     setStatusMessage(null);
     try {
@@ -80,7 +86,7 @@ export default function UsersPage() {
     } catch (actionError) {
       setError(toActionErrorMessage(actionError, "Unable to update user status."));
     } finally {
-      setSubmittingId(null);
+      setPendingActions((current) => setActionPending(current, actionKey, false));
     }
   }
 
@@ -118,7 +124,7 @@ export default function UsersPage() {
                     <button
                       className={user.active ? "danger-button" : "secondary-button"}
                       type="button"
-                      disabled={submittingId === user.id}
+                      disabled={isActionPending(pendingActions, `toggle-user:${user.id}`)}
                       onClick={() => void toggleUser(user)}
                     >
                       {user.active ? "Deactivate" : "Activate"}

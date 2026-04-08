@@ -315,6 +315,13 @@ async function runRiderFrontendChecks() {
   );
   assert.equal(ridesResponse.status, 200, "Rider trip lane source should be reachable via frontend backend proxy");
 
+  const activeRideResponse = await requestWithRetry(`${RIDER_FRONTEND_BASE_URL}/api/backend/riders/active-ride`, {
+    headers: {
+      Cookie: riderLogin.cookieHeader,
+    },
+  });
+  assert.equal(activeRideResponse.status, 200, "Rider active-ride tracking endpoint should be reachable via frontend backend proxy");
+
   const invalidRideRequest = await requestWithRetry(`${RIDER_FRONTEND_BASE_URL}/api/backend/riders/requestRide`, {
     method: "POST",
     headers: {
@@ -372,6 +379,23 @@ async function runDriverFrontendChecks() {
     availabilityOff.status === 200 || availabilityOff.status === 409,
     `Driver availability toggle-off should return 200/409, got ${availabilityOff.status}`,
   );
+
+  const locationUpdate = await requestWithRetry(`${DRIVER_FRONTEND_BASE_URL}/api/backend/drivers/location`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Cookie: driverLogin.cookieHeader,
+    },
+    body: JSON.stringify({
+      lat: 12.9716,
+      lng: 77.5946,
+      heading: 90,
+      speedKph: 24,
+      accuracyM: 8,
+      capturedAt: new Date().toISOString(),
+    }),
+  });
+  assert.equal(locationUpdate.status, 200, "Driver location publish should return 200");
 }
 
 async function main() {

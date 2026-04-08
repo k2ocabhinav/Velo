@@ -307,6 +307,171 @@ test.describe("rider smoke", () => {
     expect(ratingCalled).toBe(true);
   });
 
+  test("rider active-trip page shows map continuity and rating fallback after completion", async ({ baseURL, context, page }) => {
+    const riderBaseUrl = baseURL ?? "http://127.0.0.1:3001";
+    await context.addCookies([
+      {
+        name: "velo_token",
+        value: "e2e-rider-token",
+        url: riderBaseUrl,
+      },
+    ]);
+    await mockUnreadCount(page);
+
+    let activeRideVisible = true;
+    let ratingSubmitted = false;
+
+    await page.route("**/api/backend/riders/active-ride", async (route) => {
+      const payload = activeRideVisible
+        ? {
+            data: {
+              rideId: 501,
+              status: "ONGOING",
+              canCancel: false,
+              pickupLocation: { type: "Point", coordinates: [77.5946, 12.9716] },
+              dropOffLocation: { type: "Point", coordinates: [77.6245, 12.9352] },
+              driver: { id: 31, name: "Driver One", vehicleId: "KA01AB1234" },
+              lastDriverLocation: {
+                lat: 12.9651,
+                lng: 77.6022,
+                speedKph: 30,
+                capturedAt: new Date().toISOString(),
+              },
+            },
+          }
+        : {
+            data: null,
+          };
+
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(payload),
+      });
+    });
+
+    await page.route("https://router.project-osrm.org/**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          code: "Ok",
+          routes: [
+            {
+              distance: 1200,
+              duration: 480,
+              geometry: {
+                coordinates: [
+                  [77.5946, 12.9716],
+                  [77.61, 12.955],
+                  [77.6245, 12.9352],
+                ],
+              },
+            },
+          ],
+        }),
+      });
+    });
+
+    await page.route("**/api/backend/riders/getMyRides?pageOffset=0&pageSize=10", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: {
+            content: activeRideVisible
+              ? []
+              : [
+                  {
+                    id: 777,
+                    rideStatus: "ENDED",
+                    paymentMethod: "WALLET",
+                    endedAt: new Date().toISOString(),
+                    fare: 205,
+                  },
+                ],
+          },
+        }),
+      });
+    });
+
+    await page.route("**/api/backend/riders/rateDriver", async (route) => {
+      ratingSubmitted = true;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ data: { id: 1 } }),
+      });
+    });
+
+    await page.goto("/ride/active");
+    await expect(page.getByText("Live trip continuity")).toBeVisible();
+    await expect(page.getByText("Ride #501 • Request #—")).toBeVisible();
+    await expect(page.locator(".active-ride-map")).toBeVisible();
+
+    activeRideVisible = false;
+    await page.getByRole("button", { name: "Refresh now" }).click();
+    await expect(page.getByText("No active trip right now.")).toBeVisible();
+    await expect(page.getByText("Rate your latest ride")).toBeVisible();
+
+    await page.getByRole("button", { name: "Submit rating" }).click();
+    await expect(page.getByText("Rated ride #777 with 5 stars.")).toBeVisible();
+    expect(ratingSubmitted).toBe(true);
+  });
+
+  test("rider booking/history/scheduled routes auto-redirect to active trip when in-flight ride exists", async ({
+    baseURL,
+    context,
+    page,
+  }) => {
+    const riderBaseUrl = baseURL ?? "http://127.0.0.1:3001";
+    await context.addCookies([
+      {
+        name: "velo_token",
+        value: "e2e-rider-token",
+        url: riderBaseUrl,
+      },
+    ]);
+    await mockUnreadCount(page);
+
+    await page.route("**/api/backend/riders/active-ride", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: {
+            rideId: 910,
+            status: "CONFIRMED",
+            canCancel: true,
+            pickupLocation: { type: "Point", coordinates: [77.5946, 12.9716] },
+            dropOffLocation: { type: "Point", coordinates: [77.6245, 12.9352] },
+          },
+        }),
+      });
+    });
+    await page.route("**/api/backend/riders/scheduled-rides*", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ data: { content: [] } }),
+      });
+    });
+    await page.route("https://router.project-osrm.org/**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          code: "Ok",
+          routes: [{ geometry: { coordinates: [[77.5946, 12.9716], [77.6245, 12.9352]] } }],
+        }),
+      });
+    });
+
+    await page.goto("/scheduled");
+    await page.waitForURL("**/ride/active");
+    await expect(page.getByText("Live trip continuity")).toBeVisible();
+  });
+
   test("rider session expiry redirects protected routes to login", async ({ context, page }) => {
     await context.clearCookies();
     await page.goto("/scheduled");

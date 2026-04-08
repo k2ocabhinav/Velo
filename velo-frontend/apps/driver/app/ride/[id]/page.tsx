@@ -17,6 +17,7 @@ import {
   mapApiError,
   validateOtpInput,
 } from "../../_lib/driver-forms";
+import { useDriverLocationPublisher } from "../../_lib/driver-location-publisher";
 
 export default function DriverRidePage() {
   const params = useParams<{ id: string }>();
@@ -60,6 +61,7 @@ export default function DriverRidePage() {
   }, [loadRide]);
 
   const status = ride?.rideStatus ?? null;
+  const locationPublisher = useDriverLocationPublisher(status);
 
   const canStart = useMemo(() => canSubmitStartRide(status, otp, pendingAction !== null), [status, otp, pendingAction]);
   const canEnd = useMemo(() => canSubmitEndRide(status, pendingAction !== null), [status, pendingAction]);
@@ -193,6 +195,16 @@ export default function DriverRidePage() {
                 <p className="helper">Started: {toRelativeTimestamp(ride.startedAt)}</p>
                 <p className="helper">Ended: {toRelativeTimestamp(ride.endedAt)}</p>
               </div>
+            </div>
+            <div className="list-item">
+              <div className="stack compact">
+                <strong>Live location publishing</strong>
+                <p className="helper">{locationPublisher.message}</p>
+                <p className="helper">
+                  Last publish: {locationPublisher.lastPublishedAt ? toRelativeTimestamp(locationPublisher.lastPublishedAt) : "--"}
+                </p>
+              </div>
+              <span className="badge">{locationPublisher.mode}</span>
             </div>
           </div>
         ) : null}

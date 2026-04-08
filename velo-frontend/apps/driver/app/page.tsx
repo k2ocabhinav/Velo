@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { isActionPending, setActionPending } from "@velo/app-core/async-actions";
 import {
   requestDriverProxy,
   toRelativeTimestamp,
@@ -62,6 +63,7 @@ export default function DriverHomePage() {
 
   const [acceptingRequestId, setAcceptingRequestId] = useState<number | null>(null);
   const [markingNotificationId, setMarkingNotificationId] = useState<number | null>(null);
+  const [pendingActions, setPendingActions] = useState<Record<string, boolean>>({});
 
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -135,7 +137,11 @@ export default function DriverHomePage() {
     if (!profile) {
       return;
     }
+    if (isActionPending(pendingActions, "availability")) {
+      return;
+    }
 
+    setPendingActions((current) => setActionPending(current, "availability", true));
     setTogglingAvailability(true);
     setError(null);
     setMessage(null);
@@ -156,6 +162,7 @@ export default function DriverHomePage() {
       );
     } finally {
       setTogglingAvailability(false);
+      setPendingActions((current) => setActionPending(current, "availability", false));
     }
   }
 
@@ -165,7 +172,12 @@ export default function DriverHomePage() {
       setError("This request is missing a ride reference. Please refresh.");
       return;
     }
+    const actionKey = `accept:${rideRequestId}`;
+    if (isActionPending(pendingActions, actionKey)) {
+      return;
+    }
 
+    setPendingActions((current) => setActionPending(current, actionKey, true));
     setAcceptingRequestId(rideRequestId);
     setError(null);
     setMessage(null);
@@ -192,10 +204,17 @@ export default function DriverHomePage() {
       );
     } finally {
       setAcceptingRequestId(null);
+      setPendingActions((current) => setActionPending(current, actionKey, false));
     }
   }
 
   async function markRead(notification: DriverNotification): Promise<void> {
+    const actionKey = `dismiss:${notification.id}`;
+    if (isActionPending(pendingActions, actionKey)) {
+      return;
+    }
+
+    setPendingActions((current) => setActionPending(current, actionKey, true));
     setMarkingNotificationId(notification.id);
     setError(null);
     setMessage(null);
@@ -210,6 +229,7 @@ export default function DriverHomePage() {
       setError(markError instanceof Error ? markError.message : "Unable to mark notification as read.");
     } finally {
       setMarkingNotificationId(null);
+      setPendingActions((current) => setActionPending(current, actionKey, false));
     }
   }
 
@@ -237,7 +257,7 @@ export default function DriverHomePage() {
           <button
             className="primary-button"
             type="button"
-            disabled={loadingProfile || togglingAvailability || !profile}
+            disabled={loadingProfile || togglingAvailability || !profile || isActionPending(pendingActions, "availability")}
             onClick={() => void toggleAvailability()}
           >
             {togglingAvailability
@@ -294,7 +314,7 @@ export default function DriverHomePage() {
                     <button
                       className="primary-button"
                       type="button"
-                      disabled={busy || requestId === null}
+                      disabled={busy || requestId === null || (requestId !== null && isActionPending(pendingActions, `accept:${requestId}`))}
                       onClick={() => void acceptRide(notification)}
                     >
                       {busy ? "Accepting..." : "Accept"}
@@ -302,7 +322,7 @@ export default function DriverHomePage() {
                     <button
                       className="secondary-button"
                       type="button"
-                      disabled={markingNotificationId === notification.id}
+                      disabled={markingNotificationId === notification.id || isActionPending(pendingActions, `dismiss:${notification.id}`)}
                       onClick={() => void markRead(notification)}
                     >
                       {markingNotificationId === notification.id ? "Saving..." : "Dismiss"}
