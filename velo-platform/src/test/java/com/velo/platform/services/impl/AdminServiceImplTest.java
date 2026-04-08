@@ -29,6 +29,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -222,5 +223,33 @@ class AdminServiceImplTest {
         });
         verify(driverRepository).findPendingDriverApprovals(1.0, pageRequest);
         verify(driverRepository, never()).findAll(pageRequest);
+    }
+
+    @Test
+    @DisplayName("Deactivate user should persist active=false")
+    void deactivateUser_ShouldSetActiveFalse() {
+        User user = new User();
+        user.setId(55L);
+        user.setActive(true);
+        when(userRepository.findById(55L)).thenReturn(Optional.of(user));
+
+        adminService.deactivateUser(55L);
+
+        assertThat(user.getActive()).isFalse();
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    @DisplayName("Activate user should persist active=true")
+    void activateUser_ShouldSetActiveTrue() {
+        User user = new User();
+        user.setId(56L);
+        user.setActive(false);
+        when(userRepository.findById(56L)).thenReturn(Optional.of(user));
+
+        adminService.activateUser(56L);
+
+        assertThat(user.getActive()).isTrue();
+        verify(userRepository).save(user);
     }
 }

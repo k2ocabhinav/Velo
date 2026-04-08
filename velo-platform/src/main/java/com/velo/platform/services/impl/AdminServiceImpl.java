@@ -174,7 +174,7 @@ public class AdminServiceImpl implements AdminService {
     public void deactivateUser(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeConflictException("User not found"));
-        user.setActive(true);  // Set to false to deactivate (Lombok interprets active=true as enabled, so set false to disable)
+        user.setActive(false);
         userRepository.save(user);
     }
 
@@ -183,7 +183,7 @@ public class AdminServiceImpl implements AdminService {
     public void activateUser(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeConflictException("User not found"));
-        user.setActive(false);  // Set to true to activate
+        user.setActive(true);
         userRepository.save(user);
     }
 

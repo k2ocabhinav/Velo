@@ -6,6 +6,10 @@ INSERT INTO app_user (id, first_name, last_name, email, password, phone_number, 
 (2, 'Bob', 'Driver', 'bob.driver@example.com', '$2y$10$Nt93cyP1zWSTQC12nvIGkO6OuFhozbuu48Kjv6Z0UMRtATnhYFy0a', '+91-9000000002', true, '2026-04-01 08:05:00'),
 (3, 'Carol', 'Captain', 'carol.driver@example.com', '$2y$10$Nt93cyP1zWSTQC12nvIGkO6OuFhozbuu48Kjv6Z0UMRtATnhYFy0a', '+91-9000000003', true, '2026-04-01 08:10:00'),
 (4, 'Dave', 'Rider', 'dave@example.com', '$2y$10$Nt93cyP1zWSTQC12nvIGkO6OuFhozbuu48Kjv6Z0UMRtATnhYFy0a', '+91-9000000004', true, '2026-04-02 09:00:00'),
+(5, 'Eve', 'Applicant', 'eve.driver@example.com', '$2y$10$Nt93cyP1zWSTQC12nvIGkO6OuFhozbuu48Kjv6Z0UMRtATnhYFy0a', '+91-9000000005', true, '2026-04-06 08:00:00'),
+(6, 'Frank', 'Dormant', 'frank@example.com', '$2y$10$Nt93cyP1zWSTQC12nvIGkO6OuFhozbuu48Kjv6Z0UMRtATnhYFy0a', '+91-9000000006', false, '2026-04-06 08:10:00'),
+(7, 'Grace', 'Applicant', 'grace.driver@example.com', '$2y$10$Nt93cyP1zWSTQC12nvIGkO6OuFhozbuu48Kjv6Z0UMRtATnhYFy0a', '+91-9000000007', true, '2026-04-06 08:20:00'),
+(8, 'Henry', 'Rider', 'henry@example.com', '$2y$10$Nt93cyP1zWSTQC12nvIGkO6OuFhozbuu48Kjv6Z0UMRtATnhYFy0a', '+91-9000000008', true, '2026-04-06 08:30:00'),
 (41, 'Admin', 'User', 'admin@velo-platform.com', '$2y$10$Nt93cyP1zWSTQC12nvIGkO6OuFhozbuu48Kjv6Z0UMRtATnhYFy0a', '+91-9999999999', true, '2026-04-01 07:30:00');
 
 INSERT INTO user_roles (user_id, roles) VALUES
@@ -15,27 +19,41 @@ INSERT INTO user_roles (user_id, roles) VALUES
 (3, 'RIDER'),
 (3, 'DRIVER'),
 (4, 'RIDER'),
+(5, 'DRIVER'),
+(6, 'RIDER'),
+(7, 'DRIVER'),
+(8, 'RIDER'),
 (41, 'ADMIN');
 
 INSERT INTO rider (id, user_id, rating) VALUES
 (1, 1, 4.9),
 (2, 2, 4.7),
 (3, 3, 4.8),
-(4, 4, 4.5);
+(4, 4, 4.5),
+(5, 6, 4.2),
+(6, 8, 4.6);
 
 INSERT INTO driver (id, user_id, vehicle_id, rating, available, current_location, created_at) VALUES
 (1, 2, 'KA01AB1234', 4.8, true, ST_GeomFromText('POINT(77.5946 12.9716)', 4326), '2026-04-01 08:15:00'),
-(2, 3, 'KA01CD5678', 4.6, true, ST_GeomFromText('POINT(77.6090 12.9800)', 4326), '2026-04-01 08:20:00');
+(2, 3, 'KA01CD5678', 4.6, true, ST_GeomFromText('POINT(77.6090 12.9800)', 4326), '2026-04-01 08:20:00'),
+(3, 5, 'KA02EF9012', 0.4, false, ST_GeomFromText('POINT(77.6200 12.9850)', 4326), '2026-04-06 08:05:00'),
+(4, 7, 'KA03GH3456', null, false, ST_GeomFromText('POINT(77.6300 12.9750)', 4326), '2026-04-06 08:25:00');
 
 INSERT INTO wallet (id, user_id, balance) VALUES
 (1, 1, 850.00),
 (2, 2, 500.00),
 (3, 3, 420.00),
 (4, 4, 275.00),
-(5, 41, 0.00);
+(5, 5, 100.00),
+(6, 6, 90.00),
+(7, 7, 120.00),
+(8, 8, 640.00),
+(9, 41, 0.00);
 
 INSERT INTO ride_request (id, pickup_location, drop_off_location, requested_time, rider_id, payment_method, ride_request_status, fare) VALUES
-(1, ST_GeomFromText('POINT(77.6100 12.9350)', 4326), ST_GeomFromText('POINT(77.6200 12.9450)', 4326), '2026-04-05 08:45:00', 4, 'WALLET', 'PENDING', 180.00);
+(1, ST_GeomFromText('POINT(77.6100 12.9350)', 4326), ST_GeomFromText('POINT(77.6200 12.9450)', 4326), '2026-04-05 08:45:00', 4, 'WALLET', 'PENDING', 180.00),
+(2, ST_GeomFromText('POINT(77.6350 12.9650)', 4326), ST_GeomFromText('POINT(77.6450 12.9750)', 4326), '2026-04-06 09:20:00', 1, 'CASH', 'SCHEDULED', 145.00),
+(3, ST_GeomFromText('POINT(77.5850 12.9550)', 4326), ST_GeomFromText('POINT(77.5750 12.9450)', 4326), '2026-04-06 09:30:00', 6, 'WALLET', 'SCHEDULED', 205.00);
 
 INSERT INTO ride (id, pickup_location, drop_off_location, created_time, started_at, ended_at, rider_id, driver_id, payment_method, ride_status, fare, otp) VALUES
 (1, ST_GeomFromText('POINT(77.5946 12.9716)', 4326), ST_GeomFromText('POINT(77.5800 12.9600)', 4326), '2026-04-03 09:00:00', '2026-04-03 09:10:00', '2026-04-03 09:40:00', 1, 1, 'WALLET', 'ENDED', 150.00, '1234'),
@@ -55,6 +73,17 @@ INSERT INTO wallet_transaction (id, amount, transaction_type, transaction_method
 (2, 150.00, 1, 1, 'RIDE-1-DEBIT', 1, 1, '2026-04-03 09:41:00'),
 (3, 105.00, 0, 1, 'RIDE-1-CREDIT', 1, 2, '2026-04-03 09:41:00');
 
+INSERT INTO payout_request (id, driver_id, amount, status, requested_at, processed_at, admin_note) VALUES
+(1, 1, 220.00, 'PENDING', '2026-04-06 11:10:00', null, null),
+(2, 2, 180.00, 'APPROVED', '2026-04-06 10:00:00', null, 'Approved by admin shift A'),
+(3, 1, 95.00, 'REJECTED', '2026-04-05 16:00:00', null, 'Invalid payout details'),
+(4, 2, 130.00, 'PROCESSED', '2026-04-04 13:00:00', '2026-04-04 13:45:00', 'Processed to bank account');
+
+INSERT INTO promo_code (id, code, discount_type, discount_value, max_uses, current_uses, start_date, end_date, min_ride_fare, active, description) VALUES
+(1, 'WELCOME50', 'FLAT', 50.00, 500, 3, '2026-04-01', '2026-05-31', 100.00, true, 'Welcome offer for first-time riders'),
+(2, 'WEEKEND20', 'PERCENTAGE', 20.00, 1000, 21, '2026-04-01', '2026-06-30', 120.00, true, 'Weekend surge relief campaign'),
+(3, 'EXPIRED10', 'FLAT', 10.00, 500, 500, '2026-01-01', '2026-03-31', 80.00, false, 'Expired campaign kept for audit');
+
 SELECT setval(pg_get_serial_sequence('app_user', 'id'), (SELECT MAX(id) FROM app_user));
 SELECT setval(pg_get_serial_sequence('rider', 'id'), (SELECT MAX(id) FROM rider));
 SELECT setval(pg_get_serial_sequence('driver', 'id'), (SELECT MAX(id) FROM driver));
@@ -64,3 +93,5 @@ SELECT setval(pg_get_serial_sequence('ride', 'id'), (SELECT MAX(id) FROM ride));
 SELECT setval(pg_get_serial_sequence('payment', 'id'), (SELECT MAX(id) FROM payment));
 SELECT setval(pg_get_serial_sequence('rating', 'id'), (SELECT MAX(id) FROM rating));
 SELECT setval(pg_get_serial_sequence('wallet_transaction', 'id'), (SELECT MAX(id) FROM wallet_transaction));
+SELECT setval(pg_get_serial_sequence('payout_request', 'id'), (SELECT MAX(id) FROM payout_request));
+SELECT setval(pg_get_serial_sequence('promo_code', 'id'), (SELECT MAX(id) FROM promo_code));
