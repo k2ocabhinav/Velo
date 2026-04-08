@@ -42,6 +42,53 @@ async function mockRideHistory(
 }
 
 test.describe("rider smoke", () => {
+  test("rider logout clears ws session token and blocks protected routes", async ({ baseURL, context, page }) => {
+    const riderBaseUrl = baseURL ?? "http://127.0.0.1:3001";
+    await context.addCookies([
+      {
+        name: "velo_token",
+        value: "e2e-rider-token",
+        url: riderBaseUrl,
+      },
+      {
+        name: "velo_role_hint",
+        value: "RIDER",
+        url: riderBaseUrl,
+      },
+    ]);
+
+    await mockUnreadCount(page);
+    await page.route("**/api/backend/riders/getMyRides?pageOffset=0&pageSize=10", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: {
+            content: [],
+            number: 0,
+            totalPages: 1,
+            totalElements: 0,
+            size: 10,
+          },
+        }),
+      });
+    });
+
+    await page.goto("/");
+    await page.evaluate(() => {
+      window.sessionStorage.setItem("velo_ws_token", "ws-token");
+    });
+    await expect(page.getByRole("button", { name: "Logout" })).toBeVisible();
+    await page.getByRole("button", { name: "Logout" }).click();
+
+    await page.waitForURL("**/login");
+    const wsToken = await page.evaluate(() => window.sessionStorage.getItem("velo_ws_token"));
+    expect(wsToken).toBeNull();
+
+    await page.goto("/scheduled");
+    await page.waitForURL("**/login?next=%2Fscheduled");
+  });
+
   test("rider scheduled flow supports happy-path scheduling", async ({ baseURL, context, page }) => {
     const riderBaseUrl = baseURL ?? "http://127.0.0.1:3001";
     await context.addCookies([
@@ -108,6 +155,21 @@ test.describe("rider smoke", () => {
       },
     ]);
     await mockUnreadCount(page);
+    await page.route("**/api/backend/riders/getMyRides?pageOffset=0&pageSize=10", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: {
+            content: [],
+            number: 0,
+            totalPages: 1,
+            totalElements: 0,
+            size: 10,
+          },
+        }),
+      });
+    });
 
     await page.route("**/api/backend/riders/fare-estimate", async (route) => {
       await route.fulfill({
@@ -148,7 +210,8 @@ test.describe("rider smoke", () => {
 
     await page.getByRole("button", { name: "Request ride" }).click();
     await expect(page.getByText("Ride request created successfully.")).toBeVisible();
-    await expect(page.getByText("Request #501")).toBeVisible();
+    await expect(page.getByText("Request #501").first()).toBeVisible();
+    await expect(page.getByText("Finding a driver")).toBeVisible();
   });
 
   test("rider ride history keeps active ride continuity and accepts rating API calls", async ({ baseURL, context, page }) => {

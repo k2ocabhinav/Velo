@@ -11,9 +11,16 @@ export type RiderHomeRide = {
   fair?: DecimalValue | null;
 };
 
+export type RiderHomePendingRequest = Readonly<{
+  id?: number;
+  rideRequestStatus?: string | null;
+  paymentMethod?: string | null;
+  createdTime?: string | null;
+}>;
+
 export type RiderHomeTripLane = Readonly<{
   ride: RiderHomeRide | null;
-  mode: "empty" | "recent" | "active";
+  mode: "empty" | "pending" | "recent" | "active";
   title: string;
   description: string;
   statusLabel: string | null;
@@ -22,6 +29,8 @@ export type RiderHomeTripLane = Readonly<{
 }>;
 
 const ACTIVE_STATUSES = new Set(["CONFIRMED", "ONGOING"]);
+const CANCELLABLE_STATUSES = new Set(["CONFIRMED"]);
+const PENDING_REQUEST_STATUSES = new Set(["PENDING", "CONFIRMED", "SCHEDULED"]);
 
 function normalizeStatus(status: string | null | undefined): string {
   return (status ?? "").toUpperCase();
@@ -29,6 +38,10 @@ function normalizeStatus(status: string | null | undefined): string {
 
 function isActiveStatus(status: string | null | undefined): boolean {
   return ACTIVE_STATUSES.has(normalizeStatus(status));
+}
+
+function isPendingRequestStatus(status: string | null | undefined): boolean {
+  return PENDING_REQUEST_STATUSES.has(normalizeStatus(status));
 }
 
 function getRideTimestamp(ride: RiderHomeRide): number {
@@ -64,6 +77,8 @@ export function normalizeRidePage(payload: SpringPage<RiderHomeRide> | null | un
 
 export function getRideStatusLabel(status: string | null | undefined): string {
   switch ((status ?? "").toUpperCase()) {
+    case "PENDING":
+      return "Finding driver";
     case "CONFIRMED":
       return "Driver assigned";
     case "ONGOING":
@@ -90,8 +105,52 @@ export function getRideTimeLabel(ride: RiderHomeRide): string {
   return time.toLocaleString();
 }
 
-export function selectTripLaneRide(rides: RiderHomeRide[]): RiderHomeTripLane {
+function getPendingRequestTimeLabel(request: RiderHomePendingRequest): string {
+  if (!request.createdTime) {
+    return "--";
+  }
+
+  const parsed = new Date(request.createdTime);
+  if (Number.isNaN(parsed.getTime())) {
+    return "--";
+  }
+
+  return parsed.toLocaleString();
+}
+
+function getPendingRequestDescription(status: string): string {
+  switch (status) {
+    case "CONFIRMED":
+      return "A driver match is being finalized. We will keep this lane updated automatically.";
+    case "SCHEDULED":
+      return "Your scheduled request is queued. We will update this lane when dispatch begins.";
+    default:
+      return "We are finding a nearby driver. Keep this screen open for live trip updates.";
+  }
+}
+
+export function isRideCancelableFromTripLane(status: string | null | undefined): boolean {
+  return CANCELLABLE_STATUSES.has(normalizeStatus(status));
+}
+
+export function selectTripLaneRide(
+  rides: RiderHomeRide[],
+  pendingRequest: RiderHomePendingRequest | null = null,
+): RiderHomeTripLane {
   if (rides.length === 0) {
+    const pendingStatus = normalizeStatus(pendingRequest?.rideRequestStatus);
+    if (pendingRequest && isPendingRequestStatus(pendingStatus)) {
+      return {
+        ride: null,
+        mode: "pending",
+        title: "Finding a driver",
+        description: getPendingRequestDescription(pendingStatus),
+        statusLabel: getRideStatusLabel(pendingStatus),
+        timeLabel: getPendingRequestTimeLabel(pendingRequest),
+        count: 0,
+      };
+    }
+
     return {
       ride: null,
       mode: "empty",
@@ -107,6 +166,19 @@ export function selectTripLaneRide(rides: RiderHomeRide[]): RiderHomeTripLane {
   const activeRide = sorted.find((ride) => isActiveStatus(ride.rideStatus)) ?? null;
   const latestRide = sorted[0] ?? null;
   if (!activeRide && !latestRide) {
+    const pendingStatus = normalizeStatus(pendingRequest?.rideRequestStatus);
+    if (pendingRequest && isPendingRequestStatus(pendingStatus)) {
+      return {
+        ride: null,
+        mode: "pending",
+        title: "Finding a driver",
+        description: getPendingRequestDescription(pendingStatus),
+        statusLabel: getRideStatusLabel(pendingStatus),
+        timeLabel: getPendingRequestTimeLabel(pendingRequest),
+        count: rides.length,
+      };
+    }
+
     return {
       ride: null,
       mode: "empty",
