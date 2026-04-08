@@ -18,6 +18,30 @@ describe("stomp client", () => {
     client.deactivate();
   });
 
+  it("applies explicit reconnect and heartbeat options", () => {
+    const client = createStompClient({
+      baseURL: "http://localhost:8080",
+      token: "Bearer live-token",
+      reconnectDelay: 4000,
+      maxReconnectDelay: 1000,
+      reconnectTimeMode: ReconnectionTimeMode.EXPONENTIAL,
+      heartbeatIncoming: 2000,
+      heartbeatOutgoing: 3000,
+      connectHeaders: {
+        "X-Client": "driver",
+      },
+    });
+
+    expect(client.reconnectDelay).toBe(4000);
+    expect(client.maxReconnectDelay).toBe(4000);
+    expect(client.reconnectTimeMode).toBe(ReconnectionTimeMode.EXPONENTIAL);
+    expect(client.heartbeatIncoming).toBe(2000);
+    expect(client.heartbeatOutgoing).toBe(3000);
+    expect(client.connectHeaders.Authorization).toBe("Bearer live-token");
+    expect(client.connectHeaders["X-Client"]).toBe("driver");
+    client.deactivate();
+  });
+
   it("normalizes max reconnect delay when lower than reconnect delay", () => {
     const client = createStompClient({
       baseURL: "http://localhost:8080",

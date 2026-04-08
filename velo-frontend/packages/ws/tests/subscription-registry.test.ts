@@ -82,6 +82,29 @@ describe("subscription registry", () => {
     cleanup();
   });
 
+  it("keeps a single active handler across repeated reconnect cycles", () => {
+    const harness = createClientHarness(false);
+    const onMessage = vi.fn();
+
+    const cleanup = registerStompSubscription(harness.client, "/topic/ride-updates", onMessage);
+
+    harness.connect();
+    harness.connect();
+    harness.connect();
+
+    expect(harness.subscribeSpy).toHaveBeenCalledTimes(3);
+    expect(harness.records).toHaveLength(3);
+    expect(harness.records[0]?.unsubscribe).toHaveBeenCalledTimes(1);
+    expect(harness.records[1]?.unsubscribe).toHaveBeenCalledTimes(1);
+    expect(harness.records[2]?.unsubscribe).toHaveBeenCalledTimes(0);
+
+    harness.emit("/topic/ride-updates", { rideId: "r-2", status: "ONGOING" });
+    expect(onMessage).toHaveBeenCalledTimes(1);
+
+    cleanup();
+    expect(harness.records[2]?.unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps registration and deregistration behavior correct for multiple handlers", () => {
     const harness = createClientHarness(true);
     const firstHandler = vi.fn();
