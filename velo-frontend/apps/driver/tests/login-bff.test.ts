@@ -37,8 +37,31 @@ describe("driver performLoginProxy", () => {
       expect.arrayContaining([
         expect.objectContaining({ name: "velo_token", value: "token-123" }),
         expect.objectContaining({ name: "velo_user_id", value: "2" }),
+        expect.objectContaining({ name: "velo_role_hint", value: "DRIVER" }),
       ]),
     );
+  });
+
+  it("rejects users from a different workspace role", async () => {
+    const response = await performLoginProxy(
+      { email: "alice@example.com", password: "password123" },
+      async () =>
+        createJsonResponse({
+          data: {
+            token: "token-123",
+            userId: 2,
+            email: "alice@example.com",
+            role: "RIDER",
+          },
+          error: "",
+          statusCode: 200,
+        }),
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({
+      error: "This account is not authorized for the driver workspace.",
+    });
   });
 
   it("maps network errors to 502", async () => {

@@ -20,6 +20,58 @@ test("driver app redirects unauthenticated visitors to login", async ({ page }) 
   await expect(page.getByRole("heading", { name: /sign in/i })).toBeVisible();
 });
 
+test("driver logout clears ws session token and blocks protected routes", async ({ baseURL, context, page }) => {
+  const appBaseUrl = baseURL ?? "http://127.0.0.1:3002";
+  await context.addCookies([
+    {
+      name: "velo_token",
+      value: "e2e-driver-token",
+      url: appBaseUrl,
+    },
+    {
+      name: "velo_role_hint",
+      value: "DRIVER",
+      url: appBaseUrl,
+    },
+  ]);
+
+  await mockUnreadCount(page);
+  await page.route("**/api/backend/drivers/getMyProfile", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: {
+          id: 2,
+          vehicleId: "KA01AB1234",
+          available: false,
+        },
+      }),
+    });
+  });
+  await page.route("**/api/backend/notifications?page=0&size=25", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ data: { content: [] } }),
+    });
+  });
+
+  await page.goto("/");
+  await page.evaluate(() => {
+    window.sessionStorage.setItem("velo_ws_token", "ws-token");
+  });
+  await expect(page.getByRole("button", { name: "Logout" })).toBeVisible();
+  await page.getByRole("button", { name: "Logout" }).click();
+
+  await page.waitForURL("**/login");
+  const wsToken = await page.evaluate(() => window.sessionStorage.getItem("velo_ws_token"));
+  expect(wsToken).toBeNull();
+
+  await page.goto("/rides");
+  await page.waitForURL("**/login?next=%2Frides");
+});
+
 test("driver home supports availability toggle and ride acceptance flow", async ({ baseURL, context, page }) => {
   const appBaseUrl = baseURL ?? "http://127.0.0.1:3002";
   await context.addCookies([

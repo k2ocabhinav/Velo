@@ -12,6 +12,94 @@ test("admin app redirects unauthenticated visitors to login", async ({ page }) =
   await expect(page.getByRole("button", { name: /sign in/i })).toBeVisible();
 });
 
+test("admin logout clears session and re-blocks protected routes", async ({ baseURL, context, page }) => {
+  const appBaseUrl = baseURL ?? "http://127.0.0.1:3000";
+  await context.addCookies([
+    {
+      name: "velo_token",
+      value: "e2e-admin-token",
+      url: appBaseUrl,
+    },
+    {
+      name: "velo_role_hint",
+      value: "ADMIN",
+      url: appBaseUrl,
+    },
+  ]);
+
+  await page.route("**/api/proxy/**", async (route) => {
+    const url = route.request().url();
+
+    if (url.includes("/stats/dashboard")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: {
+            totalUsers: 10,
+            totalDrivers: 5,
+            totalRides: 12,
+            totalRevenue: 1000,
+            activeRides: 2,
+            pendingApprovals: 0,
+            ridesByStatus: { CONFIRMED: 1, ONGOING: 1, COMPLETED: 8, CANCELLED: 2 },
+            revenueByDay: {
+              [new Date().toISOString().slice(0, 10)]: 220,
+            },
+          },
+        }),
+      });
+      return;
+    }
+
+    if (url.includes("/stats/daily")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: {
+            date: new Date().toISOString().slice(0, 10),
+            totalRides: 4,
+            completedRides: 3,
+            cancelledRides: 1,
+            totalRevenue: 220,
+            platformCommission: 40,
+            totalUsers: 10,
+            newUsers: 1,
+            activeDrivers: 3,
+            pendingDriverApprovals: 0,
+          },
+        }),
+      });
+      return;
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: {
+          content: [],
+          totalPages: 1,
+          number: 0,
+          totalElements: 0,
+          size: 10,
+        },
+      }),
+    });
+  });
+
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "Logout" })).toBeVisible();
+  await page.getByRole("button", { name: "Logout" }).click();
+
+  await page.waitForURL("**/login");
+  await expect(page.getByRole("heading", { name: /sign in/i })).toBeVisible();
+
+  await page.goto("/");
+  await page.waitForURL("**/login?next=%2F");
+});
+
 test("admin payouts page supports action smoke flow", async ({ baseURL, context, page }) => {
   const appBaseUrl = baseURL ?? "http://127.0.0.1:3000";
   await context.addCookies([

@@ -36,9 +36,32 @@ describe("performLoginProxy", () => {
     expect(cookies).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ name: "velo_token", value: "token-123" }),
-        expect.objectContaining({ name: "velo_user_id", value: "42" })
+        expect.objectContaining({ name: "velo_user_id", value: "42" }),
+        expect.objectContaining({ name: "velo_role_hint", value: "ADMIN" }),
       ])
     );
+  });
+
+  it("rejects users from a different workspace role", async () => {
+    const response = await performLoginProxy(
+      { email: "driver@velo.dev", password: "secret" },
+      async () =>
+        createJsonResponse({
+          data: {
+            token: "token-123",
+            userId: 42,
+            email: "driver@velo.dev",
+            role: "DRIVER",
+          },
+          error: "",
+          statusCode: 200,
+        })
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({
+      error: "This account is not authorized for the admin workspace.",
+    });
   });
 
   it("returns a safe error for non-json upstream failures", async () => {
