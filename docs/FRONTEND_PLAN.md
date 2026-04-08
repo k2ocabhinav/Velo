@@ -457,3 +457,24 @@ The frontend only needs to: call the right endpoint, display the response, and l
 - Added/extended Playwright coverage for:
   - logout flow in Admin, Rider, Driver (post-logout protected-route blocking).
 - Integration harness now asserts auth cookie policy and runs full app-level frontend->backend checks.
+
+## Implementation Status Update (2026-04-09, Rider Core Completion + Cross-App Reliability)
+
+- Rider continuity now has a dedicated `/ride/active` route with active-ride guard redirects from booking/history/scheduled surfaces.
+- Rider live updates now consume typed ride update events and apply dedupe/reconnect-safe handling with polling fallback.
+- Driver app now publishes live location updates during active rides with adaptive cadence and graceful permission degradation.
+- Map/routing flow is modularized for provider swap by environment; dev defaults use OSM tiles + OSRM routing with fallback path behavior.
+- Shared async action-state helper now standardizes per-action locks, retry behavior, and loading/error handling across Rider/Admin/Driver action-heavy views.
+
+### Testing Status Delta (2026-04-09)
+- Added unit coverage for:
+  - rider active state transitions and redirect guard behavior
+  - rider map/routing adapter fallback parsing
+  - rider ws ride-update parsing/dedupe
+  - driver location cadence/stop conditions
+  - shared async action-state utility.
+- Added/expanded contracts for:
+  - `PUT /drivers/location`
+  - `GET /riders/active-ride`.
+- Rider/admin/driver Playwright smoke remains green with rider active lifecycle assertions.
+- Compose integration handshake now enforces active-ride and location update backend-connected assertions.

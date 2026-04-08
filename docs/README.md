@@ -39,3 +39,8 @@ Single source of truth for the Velo project.
 
 - Backend: 158 tests passing, BUILD SUCCESS
 - Frontend: Turborepo monorepo with admin/rider/driver API-backed flows, explicit session logout controls, and full frontend-connected integration handshake coverage. See `PROGRESS.md` for details.
+
+### Update (2026-04-09)
+
+- Rider core continuity now includes dedicated active-trip lifecycle tracking (`/ride/active`) with live ride updates and driver location publishing support.
+- Frontend and backend reliability gates include backend-connected rider active-ride and driver location assertions in compose smoke.

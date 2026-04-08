@@ -244,3 +244,24 @@
   4. Logout from each app -> protected route redirects back to login.
 - Known constraint:
   - map/live GPS visualization remains deferred in this phase.
+
+## Implementation Status Update (2026-04-09 — Rider Core Completion + Cross-App Reliability)
+
+### Core delivery in this pass
+- Added additive backend tracking contracts for live lifecycle continuity:
+  - `PUT /drivers/location`
+  - `GET /riders/active-ride`
+  - rider realtime updates on `/user/queue/ride-updates` with typed ride/location events.
+- Added dedicated Rider active continuity surface at `/ride/active`:
+  - active trip guard redirects from booking/history/scheduled when an in-flight ride exists
+  - status timeline + finding-driver state + map markers + route fallback when routing provider fails.
+- Added driver location publisher flow in frontend with adaptive cadence and graceful geolocation fallback.
+- Added shared async action-state utility and applied it to action-heavy Rider/Admin/Driver pages for deterministic lock/retry/loading/error behavior.
+
+### Testing and QA status in this pass
+- Frontend gates green: `lint`, `typecheck`, `test:unit`, `test:contracts`, `build`.
+- Playwright rider/admin/driver smoke suites green, including rider active-trip continuity checks.
+- Backend gates green: `./mvnw -q test`, `./mvnw -q -DskipTests package`.
+- Compose integration handshake green from clean state (`down -v` before run), including assertions for:
+  - rider active-ride endpoint through frontend proxy
+  - driver location update mutation through frontend proxy.
