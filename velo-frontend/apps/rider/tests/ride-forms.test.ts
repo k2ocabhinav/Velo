@@ -3,6 +3,7 @@ import {
   mapApiError,
   shouldDisableSubmit,
   validatePointInput,
+  validateRatingInput,
   validateScheduleInput,
 } from "../app/_lib/ride-forms";
 
@@ -49,5 +50,19 @@ describe("ride form helpers", () => {
     expect(shouldDisableSubmit(true, ["a"])).toBe(true);
     expect(shouldDisableSubmit(false, ["a", "b"])).toBe(false);
     expect(shouldDisableSubmit(false, ["a", ""])).toBe(true);
+    expect(shouldDisableSubmit(false, ["   ", "b"])).toBe(true);
+  });
+
+  it("validates rating inputs for ended-ride feedback", () => {
+    expect(validateRatingInput("5")).toEqual({ ok: true, rating: 5 });
+    expect(validateRatingInput("3")).toEqual({ ok: true, rating: 3 });
+    expect(validateRatingInput("0")).toEqual({
+      ok: false,
+      error: "Rating must be between 1 and 5.",
+    });
+    expect(validateRatingInput("4.5")).toEqual({
+      ok: false,
+      error: "Rating must be a whole number.",
+    });
   });
 });

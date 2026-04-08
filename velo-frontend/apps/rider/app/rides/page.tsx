@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { requestRiderProxy, toCurrency, type DecimalValue, type SpringPage } from "../_lib/rider-client";
+import { mapApiError, validateRatingInput } from "../_lib/ride-forms";
 
 type RideItem = {
   id: number;
@@ -15,6 +16,7 @@ type RideItem = {
 };
 
 const PAGE_SIZE = 10;
+const DEFAULT_RATING = "5";
 
 function toPageInfo(payload: SpringPage<RideItem>, fallbackPage: number) {
   return {
@@ -42,12 +44,18 @@ function canCancel(status: string): boolean {
   return normalized !== "CANCELLED" && normalized !== "ENDED";
 }
 
+function canRate(status: string): boolean {
+  return status.toUpperCase() === "ENDED";
+}
+
 export default function RiderRidesPage() {
   const [rides, setRides] = useState<RideItem[]>([]);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [pendingId, setPendingId] = useState<number | null>(null);
+  const [pendingRideId, setPendingRideId] = useState<number | null>(null);
+  const [pendingAction, setPendingAction] = useState<"CANCEL" | "RATE" | null>(null);
+  const [ratingByRideId, setRatingByRideId] = useState<Record<number, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -75,7 +83,8 @@ export default function RiderRidesPage() {
   }, [loadRides]);
 
   async function cancelRide(rideId: number): Promise<void> {
-    setPendingId(rideId);
+    setPendingRideId(rideId);
+    setPendingAction("CANCEL");
     setError(null);
     setMessage(null);
 
@@ -84,9 +93,52 @@ export default function RiderRidesPage() {
       setMessage(`Ride #${rideId} canceled.`);
       await loadRides(page);
     } catch (cancelError) {
-      setError(cancelError instanceof Error ? cancelError.message : "Unable to cancel ride.");
+      setError(
+        cancelError instanceof Error
+          ? mapApiError({ error: cancelError.message }, "Unable to cancel ride.")
+          : "Unable to cancel ride.",
+      );
     } finally {
-      setPendingId(null);
+      setPendingRideId(null);
+      setPendingAction(null);
+    }
+  }
+
+  async function rateDriver(rideId: number): Promise<void> {
+    const ratingValue = ratingByRideId[rideId] ?? DEFAULT_RATING;
+    const validation = validateRatingInput(ratingValue);
+    if (!validation.ok) {
+      setError(validation.error);
+      setMessage(null);
+      return;
+    }
+
+    setPendingRideId(rideId);
+    setPendingAction("RATE");
+    setError(null);
+    setMessage(null);
+
+    try {
+      await requestRiderProxy<unknown>("riders/rateDriver", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rideId,
+          rating: validation.rating,
+        }),
+      });
+
+      setMessage(`Driver rated ${validation.rating} star${validation.rating === 1 ? "" : "s"} for ride #${rideId}.`);
+      await loadRides(page);
+    } catch (rateError) {
+      setError(
+        rateError instanceof Error
+          ? mapApiError({ error: rateError.message }, "Unable to rate driver.")
+          : "Unable to rate driver.",
+      );
+    } finally {
+      setPendingRideId(null);
+      setPendingAction(null);
     }
   }
 
@@ -121,16 +173,49 @@ export default function RiderRidesPage() {
                   <span className="badge">
                     {ride.paymentMethod} • {toCurrency(ride.fare ?? ride.fair ?? null)}
                   </span>
-                  {canCancel(ride.rideStatus) ? (
-                    <button
-                      className="primary-button"
-                      type="button"
-                      disabled={pendingId === ride.id}
-                      onClick={() => void cancelRide(ride.id)}
-                    >
-                      {pendingId === ride.id ? "Canceling..." : "Cancel ride"}
-                    </button>
-                  ) : null}
+                  <div className="actions" style={{ justifyContent: "flex-end" }}>
+                    {canRate(ride.rideStatus) ? (
+                      <>
+                        <label className="field-inline">
+                          <span>Rating</span>
+                          <select
+                            value={ratingByRideId[ride.id] ?? DEFAULT_RATING}
+                            disabled={pendingRideId === ride.id}
+                            onChange={(event) =>
+                              setRatingByRideId((current) => ({
+                                ...current,
+                                [ride.id]: event.target.value,
+                              }))
+                            }
+                          >
+                            <option value="5">5</option>
+                            <option value="4">4</option>
+                            <option value="3">3</option>
+                            <option value="2">2</option>
+                            <option value="1">1</option>
+                          </select>
+                        </label>
+                        <button
+                          className="primary-button"
+                          type="button"
+                          disabled={pendingRideId === ride.id}
+                          onClick={() => void rateDriver(ride.id)}
+                        >
+                          {pendingRideId === ride.id && pendingAction === "RATE" ? "Rating..." : "Rate driver"}
+                        </button>
+                      </>
+                    ) : null}
+                    {canCancel(ride.rideStatus) ? (
+                      <button
+                        className="primary-button"
+                        type="button"
+                        disabled={pendingRideId === ride.id}
+                        onClick={() => void cancelRide(ride.id)}
+                      >
+                        {pendingRideId === ride.id && pendingAction === "CANCEL" ? "Canceling..." : "Cancel ride"}
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
               </article>
             ))}

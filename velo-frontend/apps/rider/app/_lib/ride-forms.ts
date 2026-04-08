@@ -11,6 +11,10 @@ export type ScheduleValidationResult =
   | { ok: true; isoDateTime: string }
   | { ok: false; error: string };
 
+export type RatingValidationResult =
+  | { ok: true; rating: number }
+  | { ok: false; error: string };
+
 function parseCoordinate(value: string): number | null {
   const numeric = Number(value.trim());
   if (!Number.isFinite(numeric)) {
@@ -60,6 +64,24 @@ export function validateScheduleInput(value: string): ScheduleValidationResult {
   }
 
   return { ok: true, isoDateTime: date.toISOString() };
+}
+
+export function validateRatingInput(value: string): RatingValidationResult {
+  const candidate = value.trim();
+  if (!candidate) {
+    return { ok: false, error: "Rating is required." };
+  }
+
+  const rating = Number(candidate);
+  if (!Number.isInteger(rating)) {
+    return { ok: false, error: "Rating must be a whole number." };
+  }
+
+  if (rating < 1 || rating > 5) {
+    return { ok: false, error: "Rating must be between 1 and 5." };
+  }
+
+  return { ok: true, rating };
 }
 
 function extractErrorMessage(payload: unknown): string | null {
