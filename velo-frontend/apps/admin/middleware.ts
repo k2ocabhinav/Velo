@@ -1,40 +1,13 @@
 import type { NextRequest } from "next/server";
-import { NextResponse } from "next/server";
-import { sanitizeNextPath } from "./app/login/_lib/redirect";
+import { createCookieAuthMiddleware } from "@velo/app-core/auth-middleware";
 
-const PROTECTED_PATHS = [
-  "/",
-  "/drivers",
-  "/users",
-  "/payouts",
-  "/promo-codes",
-  "/revenue",
-  "/scheduled-rides"
-];
-
-function hasProtectedPrefix(pathname: string) {
-  return PROTECTED_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
-}
+const cookieAuthMiddleware = createCookieAuthMiddleware({
+  publicPaths: ["/login"],
+  protectedPaths: ["/", "/drivers", "/users", "/payouts", "/promo-codes", "/revenue", "/scheduled-rides"]
+});
 
 export function middleware(request: NextRequest) {
-  const { pathname, search } = request.nextUrl;
-  if (pathname.startsWith("/login") || pathname.startsWith("/api") || pathname.startsWith("/_next")) {
-    return NextResponse.next();
-  }
-
-  if (!hasProtectedPrefix(pathname)) {
-    return NextResponse.next();
-  }
-
-  const token = request.cookies.get("velo_token")?.value;
-  if (token) {
-    return NextResponse.next();
-  }
-
-  const loginUrl = new URL("/login", request.url);
-  const safeNext = sanitizeNextPath(`${pathname}${search}`);
-  loginUrl.searchParams.set("next", safeNext);
-  return NextResponse.redirect(loginUrl);
+  return cookieAuthMiddleware(request);
 }
 
 export const config = {

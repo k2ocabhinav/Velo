@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@velo/app-core": "*",
     "@stomp/stompjs": "^7.0.0",
     "@velo/ws": "*",
     "next": "^15.2.4",

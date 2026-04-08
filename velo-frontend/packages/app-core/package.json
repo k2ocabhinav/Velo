@@ -1,0 +1,27 @@
+{
+  "name": "@velo/app-core",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./auth": "./src/auth.ts",
+    "./auth-middleware": "./src/auth-middleware.ts",
+    "./browser-proxy": "./src/browser-proxy.ts",
+    "./env": "./src/env.ts",
+    "./http-payload": "./src/http-payload.ts",
+    "./proxy-route": "./src/proxy-route.ts",
+    "./redirect": "./src/redirect.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "test:unit": "vitest run --config vitest.config.mts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "peerDependencies": {
+    "next": "^15.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}
