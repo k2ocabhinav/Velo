@@ -53,6 +53,7 @@ export default function DashboardPage() {
   const [queueItems, setQueueItems] = useState<QueueItem[]>(initialQueue);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reloadVersion, setReloadVersion] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -60,6 +61,8 @@ export default function DashboardPage() {
     async function load(): Promise<void> {
       setLoading(true);
       setError(null);
+      setMetrics(initialMetrics);
+      setQueueItems(initialQueue);
 
       const today = new Date();
       const dateKey = today.toISOString().slice(0, 10);
@@ -141,7 +144,7 @@ export default function DashboardPage() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [reloadVersion]);
 
   return (
     <div className="stack">
@@ -150,7 +153,18 @@ export default function DashboardPage() {
         description="Track ride operations, approvals, and revenue from one place."
       />
 
-      {error ? <p className="error-text">{error}</p> : null}
+      {error ? (
+        <div className="row-actions">
+          <p className="error-text">{error}</p>
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={() => setReloadVersion((value) => value + 1)}
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
       {loading ? <p className="helper">Loading dashboard data...</p> : null}
 
       <section className="metric-grid">

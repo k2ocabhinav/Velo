@@ -3,6 +3,12 @@
 import { useEffect, useState } from "react";
 import { PageFrame } from "../_components/page-frame";
 import { adminClient, type PendingDriver } from "../_lib/admin-client";
+import {
+  normalizePageNumber,
+  normalizeTotalPages,
+  pageFallbackAfterMutation,
+  toActionErrorMessage,
+} from "../_lib/ui-state";
 
 const PAGE_SIZE = 10;
 const REJECT_REASON = "Rejected via admin review queue.";
@@ -21,19 +27,37 @@ export default function DriversPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<number | null>(null);
 
-  async function load(targetPage = page): Promise<void> {
+  async function load(targetPage = page, allowFallback = true): Promise<void> {
     setLoading(true);
     setError(null);
 
     try {
       const response = await adminClient.getPendingDrivers(targetPage, PAGE_SIZE);
-      setDrivers(response.content);
-      setPage(response.number);
-      setTotalPages(Math.max(response.totalPages, 1));
+      const content = response.content ?? [];
+      const nextPage = normalizePageNumber(response.number, targetPage);
+      const nextTotalPages = normalizeTotalPages(response.totalPages);
+      const fallbackPage = allowFallback
+        ? pageFallbackAfterMutation({
+            requestedPage: targetPage,
+            returnedPage: nextPage,
+            totalPages: nextTotalPages,
+            itemCount: content.length,
+          })
+        : null;
+
+      if (fallbackPage !== null && fallbackPage !== targetPage) {
+        await load(fallbackPage, false);
+        return;
+      }
+
+      setDrivers(content);
+      setPage(nextPage);
+      setTotalPages(nextTotalPages);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Unable to load pending drivers.");
+      setError(toActionErrorMessage(loadError, "Unable to load pending drivers."));
     } finally {
       setLoading(false);
     }
@@ -44,26 +68,38 @@ export default function DriversPage() {
   }, []);
 
   async function approve(driverId: number): Promise<void> {
+    if (!window.confirm("Approve this driver application?")) {
+      return;
+    }
+
     setProcessingId(driverId);
     setError(null);
+    setStatusMessage(null);
     try {
       await adminClient.approveDriver(driverId);
       await load(page);
+      setStatusMessage("Driver approved.");
     } catch (approveError) {
-      setError(approveError instanceof Error ? approveError.message : "Unable to approve driver.");
+      setError(toActionErrorMessage(approveError, "Unable to approve driver."));
     } finally {
       setProcessingId(null);
     }
   }
 
   async function reject(driverId: number): Promise<void> {
+    if (!window.confirm("Reject this driver application?")) {
+      return;
+    }
+
     setProcessingId(driverId);
     setError(null);
+    setStatusMessage(null);
     try {
       await adminClient.rejectDriver(driverId, REJECT_REASON);
       await load(page);
+      setStatusMessage("Driver rejected.");
     } catch (rejectError) {
-      setError(rejectError instanceof Error ? rejectError.message : "Unable to reject driver.");
+      setError(toActionErrorMessage(rejectError, "Unable to reject driver."));
     } finally {
       setProcessingId(null);
     }
@@ -76,7 +112,15 @@ export default function DriversPage() {
         description="Review onboarding, documents, and approval status for new drivers."
       />
 
-      {error ? <p className="error-text">{error}</p> : null}
+      {error ? (
+        <div className="row-actions">
+          <p className="error-text">{error}</p>
+          <button className="secondary-button" type="button" onClick={() => void load(page)}>
+            Retry
+          </button>
+        </div>
+      ) : null}
+      {statusMessage ? <p className="helper">{statusMessage}</p> : null}
       {loading ? <p className="helper">Loading driver applications...</p> : null}
 
       <section className="panel metric-card">

@@ -2,57 +2,55 @@
 
 import { useEffect, useState } from "react";
 import { PageFrame } from "../_components/page-frame";
-import { requestAdminProxy } from "../_lib/http";
+import { adminClient, type UserAccount } from "../_lib/admin-client";
+import {
+  normalizePageNumber,
+  normalizeTotalPages,
+  pageFallbackAfterMutation,
+  toActionErrorMessage,
+} from "../_lib/ui-state";
 
-type UserRow = {
-  id: number;
-  firstName?: string;
-  lastName?: string;
-  email: string;
-  active?: boolean;
-};
-
-type UserPagePayload = {
-  content: UserRow[];
-  totalPages: number;
-  number: number;
-};
-
-function displayName(user: UserRow): string {
+function displayName(user: UserAccount): string {
   const fullName = `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim();
   return fullName || user.email;
 }
 
-function buildUsersPath(page: number, size = 10): string {
-  return `/api/proxy/api/v1/admin/users?page=${page}&size=${size}`;
-}
-
-function buildUserToggleRequest(user: UserRow): { path: string; init: RequestInit } {
-  const action = user.active ? "deactivate" : "activate";
-  return {
-    path: `/api/proxy/api/v1/admin/users/${user.id}/${action}`,
-    init: { method: "POST" },
-  };
-}
-
 export default function UsersPage() {
-  const [users, setUsers] = useState<UserRow[]>([]);
+  const [users, setUsers] = useState<UserAccount[]>([]);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [submittingId, setSubmittingId] = useState<number | null>(null);
 
-  async function load(targetPage = page): Promise<void> {
+  async function load(targetPage = page, allowFallback = true): Promise<void> {
     setLoading(true);
     setError(null);
     try {
-      const payload = await requestAdminProxy<UserPagePayload>(buildUsersPath(targetPage).replace("/api/proxy/", ""));
-      setUsers(payload.content ?? []);
-      setPage(payload.number ?? targetPage);
-      setTotalPages(Math.max(payload.totalPages ?? 1, 1));
+      const payload = await adminClient.getUsers(targetPage, 10);
+      const content = payload.content ?? [];
+      const nextPage = normalizePageNumber(payload.number, targetPage);
+      const nextTotalPages = normalizeTotalPages(payload.totalPages);
+      const fallbackPage = allowFallback
+        ? pageFallbackAfterMutation({
+            requestedPage: targetPage,
+            returnedPage: nextPage,
+            totalPages: nextTotalPages,
+            itemCount: content.length,
+          })
+        : null;
+
+      if (fallbackPage !== null && fallbackPage !== targetPage) {
+        await load(fallbackPage, false);
+        return;
+      }
+
+      setUsers(content);
+      setPage(nextPage);
+      setTotalPages(nextTotalPages);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Unable to load users.");
+      setError(toActionErrorMessage(loadError, "Unable to load users."));
     } finally {
       setLoading(false);
     }
@@ -62,15 +60,25 @@ export default function UsersPage() {
     void load(0);
   }, []);
 
-  async function toggleUser(user: UserRow): Promise<void> {
+  async function toggleUser(user: UserAccount): Promise<void> {
+    const actionLabel = user.active ? "deactivate" : "activate";
+    if (!window.confirm(`Are you sure you want to ${actionLabel} this user?`)) {
+      return;
+    }
+
     setSubmittingId(user.id);
     setError(null);
+    setStatusMessage(null);
     try {
-      const request = buildUserToggleRequest(user);
-      await requestAdminProxy(request.path.replace("/api/proxy/", ""), request.init);
+      if (user.active) {
+        await adminClient.deactivateUser(user.id);
+      } else {
+        await adminClient.activateUser(user.id);
+      }
       await load(page);
+      setStatusMessage(`User ${actionLabel}d.`);
     } catch (actionError) {
-      setError(actionError instanceof Error ? actionError.message : "Unable to update user status.");
+      setError(toActionErrorMessage(actionError, "Unable to update user status."));
     } finally {
       setSubmittingId(null);
     }
@@ -80,7 +88,15 @@ export default function UsersPage() {
     <div className="stack">
       <PageFrame title="Users" description="Monitor rider and driver accounts and state transitions." />
 
-      {error ? <p className="error-text">{error}</p> : null}
+      {error ? (
+        <div className="row-actions">
+          <p className="error-text">{error}</p>
+          <button className="secondary-button" type="button" onClick={() => void load(page)}>
+            Retry
+          </button>
+        </div>
+      ) : null}
+      {statusMessage ? <p className="helper">{statusMessage}</p> : null}
       {loading ? <p className="helper">Loading users...</p> : null}
 
       {!loading ? (

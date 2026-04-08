@@ -2,7 +2,7 @@
 
 import { requestAdminProxy } from "./http";
 
-type ApiPage<T> = {
+export type ApiPage<T> = {
   content: T[];
   number: number;
   totalPages: number;
@@ -73,8 +73,33 @@ export type PromoCode = {
   code: string;
   discountType: string;
   discountValue: number | string;
+  maxUses?: number | null;
+  currentUses?: number | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  minRideFare?: number | string | null;
   active: boolean;
   description?: string | null;
+};
+
+export type UserAccount = {
+  id: number;
+  firstName?: string;
+  lastName?: string;
+  email: string;
+  active?: boolean;
+};
+
+export type PromoCodeMutation = {
+  code?: string;
+  discountType?: string;
+  discountValue?: number;
+  maxUses?: number;
+  startDate?: string;
+  endDate?: string;
+  minRideFare?: number;
+  active?: boolean;
+  description?: string;
 };
 
 type PageMeta = {
@@ -248,6 +273,39 @@ export const adminClient = {
     });
   },
 
+  async rejectPayout(id: number, note: string): Promise<PayoutItem> {
+    return requestAdminProxy<PayoutItem>(`api/v1/admin/payouts/${id}/reject`, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: note
+    });
+  },
+
+  async processPayout(id: number): Promise<PayoutItem> {
+    return requestAdminProxy<PayoutItem>(`api/v1/admin/payouts/${id}/process`, {
+      method: "POST"
+    });
+  },
+
+  async getUsers(page = 0, size = 10): Promise<ApiPage<UserAccount>> {
+    const payload = await requestAdminProxy<unknown>(
+      `api/v1/admin/users?page=${page}&size=${size}`
+    );
+    return toPage<UserAccount>(payload);
+  },
+
+  async activateUser(userId: number): Promise<void> {
+    await requestAdminProxy<void>(`api/v1/admin/users/${userId}/activate`, {
+      method: "POST"
+    });
+  },
+
+  async deactivateUser(userId: number): Promise<void> {
+    await requestAdminProxy<void>(`api/v1/admin/users/${userId}/deactivate`, {
+      method: "POST"
+    });
+  },
+
   async getPromoCodes(): Promise<PromoCode[]> {
     const payload = await requestAdminProxy<unknown>("api/v1/admin/promo-codes");
     return toList<PromoCode>(payload);
@@ -256,6 +314,22 @@ export const adminClient = {
   async deactivatePromoCode(id: number): Promise<PromoCode> {
     return requestAdminProxy<PromoCode>(`api/v1/admin/promo-codes/${id}/deactivate`, {
       method: "POST"
+    });
+  },
+
+  async createPromoCode(payload: PromoCodeMutation): Promise<PromoCode> {
+    return requestAdminProxy<PromoCode>("api/v1/admin/promo-codes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+  },
+
+  async updatePromoCode(id: number, payload: PromoCodeMutation): Promise<PromoCode> {
+    return requestAdminProxy<PromoCode>(`api/v1/admin/promo-codes/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
     });
   }
 };

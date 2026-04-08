@@ -56,6 +56,7 @@ export default function RevenuePage() {
   ]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reloadVersion, setReloadVersion] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -63,6 +64,11 @@ export default function RevenuePage() {
     async function load(): Promise<void> {
       setLoading(true);
       setError(null);
+      setMetrics([
+        { label: "Today", value: "N/A", detail: "Waiting for live data" },
+        { label: "This week", value: "N/A", detail: "Waiting for live data" },
+        { label: "This month", value: "N/A", detail: "Waiting for live data" },
+      ]);
 
       try {
         const todayRange = buildDateRange(1);
@@ -115,13 +121,24 @@ export default function RevenuePage() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [reloadVersion]);
 
   return (
     <div className="stack">
       <PageFrame title="Revenue" description="Track daily, weekly, and monthly platform revenue." />
 
-      {error ? <p className="error-text">{error}</p> : null}
+      {error ? (
+        <div className="row-actions">
+          <p className="error-text">{error}</p>
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={() => setReloadVersion((value) => value + 1)}
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
       {loading ? <p className="helper">Loading revenue metrics...</p> : null}
 
       <section className="metric-grid">

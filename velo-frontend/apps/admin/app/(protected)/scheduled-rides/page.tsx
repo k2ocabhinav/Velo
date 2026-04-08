@@ -4,6 +4,12 @@ import { useEffect, useState } from "react";
 import { PageFrame } from "../_components/page-frame";
 import { adminClient, type ScheduledRide } from "../_lib/admin-client";
 import { toCurrency } from "../_lib/http";
+import {
+  normalizePageNumber,
+  normalizeTotalPages,
+  pageFallbackAfterMutation,
+  toActionErrorMessage,
+} from "../_lib/ui-state";
 
 const PAGE_SIZE = 10;
 
@@ -33,17 +39,34 @@ export default function ScheduledRidesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  async function load(targetPage = page): Promise<void> {
+  async function load(targetPage = page, allowFallback = true): Promise<void> {
     setLoading(true);
     setError(null);
 
     try {
       const payload = await adminClient.getScheduledRides(targetPage, PAGE_SIZE);
-      setRows(payload.content);
-      setPage(payload.number);
-      setTotalPages(Math.max(payload.totalPages, 1));
+      const content = payload.content ?? [];
+      const nextPage = normalizePageNumber(payload.number, targetPage);
+      const nextTotalPages = normalizeTotalPages(payload.totalPages);
+      const fallbackPage = allowFallback
+        ? pageFallbackAfterMutation({
+            requestedPage: targetPage,
+            returnedPage: nextPage,
+            totalPages: nextTotalPages,
+            itemCount: content.length,
+          })
+        : null;
+
+      if (fallbackPage !== null && fallbackPage !== targetPage) {
+        await load(fallbackPage, false);
+        return;
+      }
+
+      setRows(content);
+      setPage(nextPage);
+      setTotalPages(nextTotalPages);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Unable to load scheduled rides.");
+      setError(toActionErrorMessage(loadError, "Unable to load scheduled rides."));
     } finally {
       setLoading(false);
     }
@@ -57,7 +80,14 @@ export default function ScheduledRidesPage() {
     <div className="stack">
       <PageFrame title="Scheduled rides" description="Review pre-booked trips and upcoming ride reservations." />
 
-      {error ? <p className="error-text">{error}</p> : null}
+      {error ? (
+        <div className="row-actions">
+          <p className="error-text">{error}</p>
+          <button className="secondary-button" type="button" onClick={() => void load(page)}>
+            Retry
+          </button>
+        </div>
+      ) : null}
       {loading ? <p className="helper">Loading scheduled rides...</p> : null}
 
       <section className="panel metric-card">
