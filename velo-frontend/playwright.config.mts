@@ -3,7 +3,6 @@ import { defineConfig, devices } from "@playwright/test";
 const adminBaseURL = process.env.PLAYWRIGHT_ADMIN_BASE_URL ?? "http://127.0.0.1:3000";
 const riderBaseURL = process.env.PLAYWRIGHT_RIDER_BASE_URL ?? "http://127.0.0.1:3001";
 const driverBaseURL = process.env.PLAYWRIGHT_DRIVER_BASE_URL ?? "http://127.0.0.1:3002";
-const enableRiderProject = process.env.PLAYWRIGHT_ENABLE_RIDER === "true";
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -26,16 +25,12 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
       timeout: 120_000
     },
-    ...(enableRiderProject
-      ? [
-          {
-            command: "npm run dev --workspace @velo/rider",
-            url: riderBaseURL,
-            reuseExistingServer: !process.env.CI,
-            timeout: 120_000
-          }
-        ]
-      : [])
+    {
+      command: "npm run dev --workspace @velo/rider",
+      url: riderBaseURL,
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000
+    }
   ],
   projects: [
     {
@@ -54,17 +49,13 @@ export default defineConfig({
         baseURL: driverBaseURL
       }
     },
-    ...(enableRiderProject
-      ? [
-          {
-            name: "rider-chromium",
-            testMatch: /rider-.*\.spec\.ts/,
-            use: {
-              ...devices["Desktop Chrome"],
-              baseURL: riderBaseURL
-            }
-          }
-        ]
-      : [])
+    {
+      name: "rider-chromium",
+      testMatch: /rider-.*\.spec\.ts/,
+      use: {
+        ...devices["Desktop Chrome"],
+        baseURL: riderBaseURL
+      }
+    }
   ]
 });

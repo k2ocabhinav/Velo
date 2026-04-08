@@ -15,12 +15,6 @@ on:
       - "velo-platform/**"
       - ".github/workflows/integration-e2e.yml"
   workflow_dispatch:
-    inputs:
-      run_rider_e2e:
-        description: "Run rider Playwright smoke suite (requires rider app routes to be fully wired)."
-        required: false
-        type: boolean
-        default: false
 
 concurrency:
   group: integration-e2e-${{ github.ref }}
@@ -100,7 +94,6 @@ jobs:
         run: npm run test:e2e -- --project=driver-chromium
 
   playwright-rider-smoke:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_rider_e2e == true }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     defaults:
@@ -126,8 +119,6 @@ jobs:
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
-      # Promotion gate note:
-      # Keep rider Playwright smoke behind manual workflow_dispatch until rider app page contracts
-      # are complete and stable in CI.
+      # Required gate: rider Playwright smoke runs in CI alongside the other integration checks.
       - name: Run Playwright rider smoke
         run: npm run test:e2e -- --project=rider-chromium

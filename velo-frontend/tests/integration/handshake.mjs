@@ -261,17 +261,11 @@ async function main() {
     body: JSON.stringify({ available: true }),
     redirect: "manual"
   });
-  if (availabilityOn.status >= 500) {
-    console.warn(
-      `Driver availability toggle-on returned ${availabilityOn.status}. ` +
-      "Known backend mutation issue; continuing handshake with non-gating warning."
-    );
-  } else {
-    assert.ok(
-      availabilityOn.status === 200 || availabilityOn.status === 409,
-      `Driver availability toggle-on should return 200/409, got ${availabilityOn.status}`
-    );
-  }
+  assert.equal(
+    availabilityOn.status,
+    200,
+    `Driver availability toggle-on should return 200, got ${availabilityOn.status}`
+  );
 
   const availabilityOff = await fetch(`${BACKEND_BASE_URL}/drivers/availability`, {
     method: "PUT",
@@ -282,17 +276,10 @@ async function main() {
     body: JSON.stringify({ available: false }),
     redirect: "manual"
   });
-  if (availabilityOff.status >= 500) {
-    console.warn(
-      `Driver availability toggle-off returned ${availabilityOff.status}. ` +
-      "Known backend mutation issue; continuing handshake with non-gating warning."
-    );
-  } else {
-    assert.ok(
-      availabilityOff.status === 200 || availabilityOff.status === 409,
-      `Driver availability toggle-off should return 200/409, got ${availabilityOff.status}`
-    );
-  }
+  assert.ok(
+    availabilityOff.status === 200 || availabilityOff.status === 409,
+    `Driver availability toggle-off should return 200/409, got ${availabilityOff.status}`
+  );
 
   console.log("Frontend-backend handshake checks passed.");
 }

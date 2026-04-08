@@ -19,12 +19,29 @@ async function mockUnreadCount(page: Page): Promise<void> {
   });
 }
 
-test.describe("rider smoke", () => {
-  test.skip(
-    process.env.PLAYWRIGHT_ENABLE_RIDER !== "true",
-    "Set PLAYWRIGHT_ENABLE_RIDER=true once rider app wiring is enabled in CI.",
-  );
+async function mockRideHistory(
+  page: Page,
+  getRides: () => Array<Record<string, unknown>>,
+): Promise<void> {
+  await page.route("**/api/backend/riders/getMyRides?pageOffset=0&pageSize=10", async (route) => {
+    const rides = getRides();
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: {
+          content: rides,
+          number: 0,
+          totalPages: 1,
+          totalElements: rides.length,
+          size: 10,
+        },
+      }),
+    });
+  });
+}
 
+test.describe("rider smoke", () => {
   test("rider scheduled flow supports happy-path scheduling", async ({ baseURL, context, page }) => {
     const riderBaseUrl = baseURL ?? "http://127.0.0.1:3001";
     await context.addCookies([
@@ -132,6 +149,99 @@ test.describe("rider smoke", () => {
     await page.getByRole("button", { name: "Request ride" }).click();
     await expect(page.getByText("Ride request created successfully.")).toBeVisible();
     await expect(page.getByText("Request #501")).toBeVisible();
+  });
+
+  test("rider ride history keeps active ride continuity and accepts rating API calls", async ({ baseURL, context, page }) => {
+    const riderBaseUrl = baseURL ?? "http://127.0.0.1:3001";
+    await context.addCookies([
+      {
+        name: "velo_token",
+        value: "e2e-rider-token",
+        url: riderBaseUrl,
+      },
+    ]);
+    await mockUnreadCount(page);
+
+    let cancelledRide = false;
+    let ratingCalled = false;
+
+    await mockRideHistory(page, () => [
+      {
+        id: 55,
+        rideStatus: cancelledRide ? "CANCELLED" : "ONGOING",
+        paymentMethod: "WALLET",
+        createdTime: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
+        startedAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+        endedAt: null,
+        fare: 275,
+      },
+      {
+        id: 77,
+        rideStatus: "ENDED",
+        paymentMethod: "CASH",
+        createdTime: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+        startedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+        endedAt: new Date(Date.now() - 90 * 60 * 1000).toISOString(),
+        fare: 180,
+      },
+    ]);
+
+    await page.route("**/api/backend/riders/cancelRide/55", async (route) => {
+      cancelledRide = true;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: {
+            id: 55,
+            rideStatus: "CANCELLED",
+            paymentMethod: "WALLET",
+          },
+        }),
+      });
+    });
+
+    await page.route("**/api/backend/riders/rateDriver", async (route) => {
+      const payload = route.request().postDataJSON() as { rideId?: number; rating?: number };
+      if (payload.rideId !== 77 || payload.rating !== 5) {
+        await route.fulfill({
+          status: 400,
+          contentType: "application/json",
+          body: JSON.stringify({ error: "Unexpected rating payload." }),
+        });
+        return;
+      }
+
+      ratingCalled = true;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: {
+            id: 9001,
+            rating: 5,
+          },
+        }),
+      });
+    });
+
+    await page.goto("/rides");
+
+    await expect(page.getByRole("heading", { name: "Your ride history" })).toBeVisible();
+    await expect(page.getByText("Ride #55")).toBeVisible();
+    await expect(page.getByText(/^Status: ONGOING$/)).toBeVisible();
+    await expect(page.getByText("Ride #77")).toBeVisible();
+    await expect(page.getByText(/^Status: ENDED$/)).toBeVisible();
+    await expect(page.getByRole("button", { name: "Cancel ride" })).toBeVisible();
+
+    await page.getByRole("button", { name: "Cancel ride" }).first().click();
+    await expect(page.getByText("Ride #55 canceled.")).toBeVisible();
+    await expect(page.getByText(/^Status: CANCELLED$/)).toBeVisible();
+
+    const endedRideCard = page.locator("article.list-item").filter({ hasText: "Ride #77" });
+    await endedRideCard.getByRole("button", { name: "Rate driver" }).click();
+    await expect(page.getByText("Driver rated 5 stars for ride #77.")).toBeVisible();
+    expect(ratingCalled).toBe(true);
   });
 
   test("rider session expiry redirects protected routes to login", async ({ context, page }) => {
