@@ -81,4 +81,13 @@ public class DriverController {
     public ResponseEntity<DriverDto> toggleAvailability(@RequestBody @Valid DriverAvailabilityRequestDto availabilityRequest) {
         return ResponseEntity.ok(driverService.updateDriverAvailability(availabilityRequest.getAvailable()));
     }
+
+    @PutMapping("/location")
+    @PreAuthorize("hasRole('DRIVER')")
+    @Operation(summary = "Publish driver location updates for active ride tracking")
+    public ResponseEntity<DriverLocationDto> updateDriverLocation(
+            @RequestBody @Valid DriverLocationUpdateRequestDto locationUpdateRequest
+    ) {
+        return ResponseEntity.ok(driverService.updateDriverLocation(locationUpdateRequest));
+    }
 }

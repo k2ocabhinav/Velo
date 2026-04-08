@@ -190,4 +190,24 @@ class DriverControllerIntegrationTest {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error.message").value("Cannot go offline with active rides. Please complete or cancel active rides first."));
     }
+
+    @Test
+    @DisplayName("PUT /drivers/location should persist and return location payload")
+    void updateDriverLocation_ShouldReturnLocationPayload() throws Exception {
+        mockMvc.perform(withDriverAuth(put("/drivers/location")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "lat": 12.9716,
+                                  "lng": 77.5946,
+                                  "heading": 45,
+                                  "speedKph": 22.5,
+                                  "accuracyM": 8
+                                }
+                                """)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.lat").value(12.9716))
+                .andExpect(jsonPath("$.data.lng").value(77.5946))
+                .andExpect(jsonPath("$.data.heading").value(45.0));
+    }
 }

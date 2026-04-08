@@ -12,6 +12,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface RideRequestRepository extends JpaRepository<RideRequest, Long> {
@@ -30,4 +31,9 @@ public interface RideRequestRepository extends JpaRepository<RideRequest, Long> 
     List<RideRequest> findDueScheduledRides(
             @Param("status") RideRequestStatus status,
             @Param("dispatchBefore") LocalDateTime dispatchBefore);
+
+    Optional<RideRequest> findTopByRiderAndRideRequestStatusInOrderByRequestedTimeDesc(
+            Rider rider,
+            List<RideRequestStatus> statuses
+    );
 }

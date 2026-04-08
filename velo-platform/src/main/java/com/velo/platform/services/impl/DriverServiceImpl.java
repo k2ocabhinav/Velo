@@ -1,6 +1,9 @@
 package com.velo.platform.services.impl;
 
 import com.velo.platform.dto.DriverDto;
+import com.velo.platform.dto.DriverLocationDto;
+import com.velo.platform.dto.DriverLocationUpdateRequestDto;
+import com.velo.platform.dto.PointDto;
 import com.velo.platform.dto.RideDto;
 import com.velo.platform.dto.RiderDto;
 import com.velo.platform.entities.Driver;
@@ -18,6 +21,7 @@ import com.velo.platform.repositories.DriverRepository;
 import com.velo.platform.repositories.RideRepository;
 import com.velo.platform.security.UserPrincipal;
 import com.velo.platform.services.*;
+import com.velo.platform.utils.GeometryUtil;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.context.ApplicationEventPublisher;
@@ -43,6 +47,7 @@ public class DriverServiceImpl implements DriverService {
     private final RatingService ratingService;
     private final DriverEarningsService driverEarningsService;
     private final ApplicationEventPublisher eventPublisher;
+    private final RideRealtimeService rideRealtimeService;
 
     @Override
     @Transactional
@@ -222,6 +227,45 @@ public class DriverServiceImpl implements DriverService {
     @Transactional
     public Driver createNewDriver(Driver driver) {
         return driverRepository.save(driver);
+    }
+
+    @Override
+    @Transactional
+    public DriverLocationDto updateDriverLocation(DriverLocationUpdateRequestDto locationUpdate) {
+        Driver driver = getCurrentDriver();
+
+        DriverLocationUpdateRequestDto normalizedUpdate = normalizeLocationUpdate(locationUpdate);
+        PointDto pointDto = new PointDto(new double[]{normalizedUpdate.getLng(), normalizedUpdate.getLat()});
+        driver.setCurrentLocation(GeometryUtil.createPoint(pointDto));
+        driverRepository.save(driver);
+
+        rideRepository
+                .findTopByDriverAndRideStatusInOrderByCreatedTimeDesc(
+                        driver,
+                        List.of(RideStatus.CONFIRMED, RideStatus.ONGOING)
+                )
+                .ifPresent(ride -> rideRealtimeService.publishDriverLocation(ride, normalizedUpdate));
+
+        return new DriverLocationDto(
+                normalizedUpdate.getLat(),
+                normalizedUpdate.getLng(),
+                normalizedUpdate.getHeading(),
+                normalizedUpdate.getSpeedKph(),
+                normalizedUpdate.getAccuracyM(),
+                normalizedUpdate.getCapturedAt(),
+                LocalDateTime.now()
+        );
+    }
+
+    private DriverLocationUpdateRequestDto normalizeLocationUpdate(DriverLocationUpdateRequestDto locationUpdate) {
+        DriverLocationUpdateRequestDto update = new DriverLocationUpdateRequestDto();
+        update.setLat(locationUpdate.getLat());
+        update.setLng(locationUpdate.getLng());
+        update.setHeading(locationUpdate.getHeading());
+        update.setSpeedKph(locationUpdate.getSpeedKph());
+        update.setAccuracyM(locationUpdate.getAccuracyM());
+        update.setCapturedAt(locationUpdate.getCapturedAt() == null ? LocalDateTime.now() : locationUpdate.getCapturedAt());
+        return update;
     }
 
 }

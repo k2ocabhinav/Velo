@@ -162,4 +162,14 @@ class RiderControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.rideStatus").value("CANCELLED"));
     }
+
+    @Test
+    @DisplayName("GET /riders/active-ride should return tracking payload for active ride")
+    void getActiveRide_ShouldReturnTrackingPayload() throws Exception {
+        mockMvc.perform(withRiderAuth(get("/riders/active-ride")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.rideId").value(confirmedRide.getId()))
+                .andExpect(jsonPath("$.data.status").value("CONFIRMED"))
+                .andExpect(jsonPath("$.data.canCancel").value(true));
+    }
 }

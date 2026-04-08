@@ -3,6 +3,7 @@ package com.velo.platform.services;
 import com.velo.platform.dto.DriverDto;
 import com.velo.platform.dto.RideDto;
 import com.velo.platform.dto.RideRequestDto;
+import com.velo.platform.dto.RideTrackingDto;
 import com.velo.platform.dto.RiderDto;
 import com.velo.platform.entities.Rider;
 import com.velo.platform.entities.User;
@@ -22,6 +23,8 @@ public interface RiderService {
     RiderDto getMyProfile();
 
     Page<RideDto> getAllMyRides(PageRequest pageRequest);
+
+    RideTrackingDto getActiveRideTracking();
 
     Rider createNewRider(User user);
 

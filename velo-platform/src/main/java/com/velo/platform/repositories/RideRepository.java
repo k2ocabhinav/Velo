@@ -14,6 +14,7 @@ import org.springframework.stereotype.Repository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface RideRepository extends JpaRepository<Ride, Long> {
@@ -22,6 +23,10 @@ public interface RideRepository extends JpaRepository<Ride, Long> {
     Page<Ride> findByDriver(Driver driver, Pageable pageRequest);
 
     List<Ride> findByDriverAndRideStatusIn(Driver driver, List<RideStatus> rideStatuses);
+
+    Optional<Ride> findTopByRiderAndRideStatusInOrderByCreatedTimeDesc(Rider rider, List<RideStatus> rideStatuses);
+
+    Optional<Ride> findTopByDriverAndRideStatusInOrderByCreatedTimeDesc(Driver driver, List<RideStatus> rideStatuses);
 
     long countByRideStatus(RideStatus rideStatus);
 

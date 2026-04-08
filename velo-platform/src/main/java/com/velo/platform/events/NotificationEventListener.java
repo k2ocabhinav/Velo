@@ -4,6 +4,7 @@ import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.Rider;
 import com.velo.platform.entities.enums.NotificationType;
 import com.velo.platform.services.NotificationService;
+import com.velo.platform.services.RideRealtimeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Component;
 public class NotificationEventListener {
 
     private final NotificationService notificationService;
+    private final RideRealtimeService rideRealtimeService;
 
     @EventListener
     public void handleRideRequested(RideRequestedEvent event) {
@@ -40,6 +42,7 @@ public class NotificationEventListener {
 
             log.debug("Notifications created for scheduled dispatch: {}, matchedDrivers={}",
                     event.getRideRequest().getId(), event.getMatchedDrivers().size());
+            rideRealtimeService.publishRideRequestPending(event.getRideRequest());
             return;
         }
 
@@ -63,6 +66,7 @@ public class NotificationEventListener {
 
         log.debug("Notifications created for ride request: {}, matchedDrivers={}",
                 event.getRideRequest().getId(), event.getMatchedDrivers().size());
+        rideRealtimeService.publishRideRequestPending(event.getRideRequest());
     }
 
     @EventListener
@@ -89,6 +93,7 @@ public class NotificationEventListener {
         );
         
         log.debug("Notifications created for ride accepted: {}", event.getRide().getId());
+        rideRealtimeService.publishRideStatus(event.getRide(), event.getRide().getRideStatus());
     }
 
     @EventListener
@@ -115,6 +120,7 @@ public class NotificationEventListener {
         );
         
         log.debug("Notifications created for ride started: {}", event.getRide().getId());
+        rideRealtimeService.publishRideStatus(event.getRide(), event.getRide().getRideStatus());
     }
 
     @EventListener
@@ -141,6 +147,7 @@ public class NotificationEventListener {
         );
         
         log.debug("Notifications created for ride ended: {}", event.getRide().getId());
+        rideRealtimeService.publishRideStatus(event.getRide(), event.getRide().getRideStatus());
     }
 
     @EventListener
@@ -169,6 +176,7 @@ public class NotificationEventListener {
         }
         
         log.debug("Notifications created for ride cancelled: {}", event.getRide().getId());
+        rideRealtimeService.publishRideStatus(event.getRide(), event.getRide().getRideStatus());
     }
 
     @EventListener

@@ -1,6 +1,8 @@
 package com.velo.platform.services;
 
 import com.velo.platform.dto.DriverDto;
+import com.velo.platform.dto.DriverLocationDto;
+import com.velo.platform.dto.DriverLocationUpdateRequestDto;
 import com.velo.platform.dto.RideDto;
 import com.velo.platform.dto.RiderDto;
 import com.velo.platform.entities.Driver;
@@ -30,6 +32,8 @@ public interface DriverService {
     DriverDto updateDriverAvailability(boolean available);
 
     DriverDto updateDriverAvailability(Driver driver, boolean available);
+
+    DriverLocationDto updateDriverLocation(DriverLocationUpdateRequestDto locationUpdate);
 
     Driver createNewDriver(Driver driver);
 }

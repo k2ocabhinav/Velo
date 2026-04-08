@@ -1,8 +1,12 @@
 package com.velo.platform.services.impl;
 
 import com.velo.platform.dto.DriverDto;
+import com.velo.platform.dto.PointDto;
 import com.velo.platform.dto.RideDto;
+import com.velo.platform.dto.RideLocationDto;
 import com.velo.platform.dto.RideRequestDto;
+import com.velo.platform.dto.RideTrackingDriverDto;
+import com.velo.platform.dto.RideTrackingDto;
 import com.velo.platform.dto.RiderDto;
 import com.velo.platform.entities.*;
 import com.velo.platform.entities.Driver;
@@ -12,6 +16,7 @@ import com.velo.platform.events.RideCancelledEvent;
 import com.velo.platform.events.RideRequestedEvent;
 import com.velo.platform.exceptions.ResourceNotFoundException;
 import com.velo.platform.repositories.RideRequestRepository;
+import com.velo.platform.repositories.RideRepository;
 import com.velo.platform.repositories.RiderRepository;
 import com.velo.platform.security.UserPrincipal;
 import com.velo.platform.services.DriverService;
@@ -31,6 +36,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -41,6 +47,7 @@ public class RiderServiceImpl implements RiderService {
     private final ModelMapper modelMapper;
     private final RideStrategyManager rideStrategyManager;
     private final RideRequestRepository rideRequestRepository;
+    private final RideRepository rideRepository;
     private final RiderRepository riderRepository;
     private final RideService rideService;
     private final DriverService driverService;
@@ -137,6 +144,28 @@ public class RiderServiceImpl implements RiderService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public RideTrackingDto getActiveRideTracking() {
+        Rider currentRider = getCurrentRider();
+
+        RideTrackingDto activeRideTracking = rideRepository
+                .findTopByRiderAndRideStatusInOrderByCreatedTimeDesc(currentRider, List.of(RideStatus.CONFIRMED, RideStatus.ONGOING))
+                .map(this::toRideTrackingDto)
+                .orElse(null);
+        if (activeRideTracking != null) {
+            return activeRideTracking;
+        }
+
+        return rideRequestRepository
+                .findTopByRiderAndRideRequestStatusInOrderByRequestedTimeDesc(
+                        currentRider,
+                        List.of(RideRequestStatus.PENDING, RideRequestStatus.CONFIRMED, RideRequestStatus.SCHEDULED)
+                )
+                .map(this::toPendingRideTrackingDto)
+                .orElse(null);
+    }
+
+    @Override
     @Transactional
     public Rider createNewRider(User user) {
         Rider rider = Rider
@@ -155,5 +184,69 @@ public class RiderServiceImpl implements RiderService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Rider not found for user id " + principal.getUserId()
                 ));
+    }
+
+    private RideTrackingDto toRideTrackingDto(Ride ride) {
+        RideTrackingDto trackingDto = new RideTrackingDto();
+        trackingDto.setRideId(ride.getId());
+        trackingDto.setStatus(ride.getRideStatus() == null ? null : ride.getRideStatus().name());
+        trackingDto.setPickupLocation(toPointDto(ride.getPickupLocation()));
+        trackingDto.setDropOffLocation(toPointDto(ride.getDropOffLocation()));
+        trackingDto.setUpdatedAt(resolveRideUpdatedAt(ride));
+        trackingDto.setCanCancel(ride.getRideStatus() == RideStatus.CONFIRMED);
+
+        if (ride.getDriver() != null) {
+            Driver driver = ride.getDriver();
+            trackingDto.setDriver(new RideTrackingDriverDto(
+                    driver.getId(),
+                    driver.getUser() == null ? null : driver.getUser().getFirstName(),
+                    driver.getVehicleId(),
+                    driver.getRating()
+            ));
+
+            if (driver.getCurrentLocation() != null) {
+                trackingDto.setLastDriverLocation(new RideLocationDto(
+                        driver.getCurrentLocation().getY(),
+                        driver.getCurrentLocation().getX(),
+                        null,
+                        null,
+                        null,
+                        resolveRideUpdatedAt(ride)
+                ));
+            }
+        }
+
+        return trackingDto;
+    }
+
+    private RideTrackingDto toPendingRideTrackingDto(RideRequest rideRequest) {
+        RideTrackingDto trackingDto = new RideTrackingDto();
+        trackingDto.setRideRequestId(rideRequest.getId());
+        trackingDto.setStatus(rideRequest.getRideRequestStatus() == null ? null : rideRequest.getRideRequestStatus().name());
+        trackingDto.setPickupLocation(toPointDto(rideRequest.getPickupLocation()));
+        trackingDto.setDropOffLocation(toPointDto(rideRequest.getDropOffLocation()));
+        trackingDto.setUpdatedAt(rideRequest.getRequestedTime() == null ? LocalDateTime.now() : rideRequest.getRequestedTime());
+        trackingDto.setCanCancel(true);
+        return trackingDto;
+    }
+
+    private PointDto toPointDto(org.locationtech.jts.geom.Point point) {
+        if (point == null) {
+            return null;
+        }
+        return new PointDto(new double[]{point.getX(), point.getY()});
+    }
+
+    private LocalDateTime resolveRideUpdatedAt(Ride ride) {
+        if (ride.getEndedAt() != null) {
+            return ride.getEndedAt();
+        }
+        if (ride.getStartedAt() != null) {
+            return ride.getStartedAt();
+        }
+        if (ride.getCreatedTime() != null) {
+            return ride.getCreatedTime();
+        }
+        return LocalDateTime.now();
     }
 }

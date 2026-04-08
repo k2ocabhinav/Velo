@@ -67,6 +67,12 @@ public class RiderController {
         return ResponseEntity.ok(riderService.getAllMyRides(pageRequest));
     }
 
+    @GetMapping("/active-ride")
+    @Operation(summary = "Get current active ride tracking data for the rider")
+    public ResponseEntity<RideTrackingDto> getActiveRide() {
+        return ResponseEntity.ok(riderService.getActiveRideTracking());
+    }
+
     @PostMapping("/rateDriver/{rideId}/{rating}")
     @Operation(summary = "Rate a driver using path variables")
     public ResponseEntity<DriverDto> rateDriver(@PathVariable Long rideId, @PathVariable Integer rating) {

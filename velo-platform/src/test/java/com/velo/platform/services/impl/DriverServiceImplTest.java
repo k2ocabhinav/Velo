@@ -1,6 +1,8 @@
 package com.velo.platform.services.impl;
 
 import com.velo.platform.dto.DriverDto;
+import com.velo.platform.dto.DriverLocationDto;
+import com.velo.platform.dto.DriverLocationUpdateRequestDto;
 import com.velo.platform.dto.RideDto;
 import com.velo.platform.dto.RiderDto;
 import com.velo.platform.entities.Driver;
@@ -16,12 +18,14 @@ import com.velo.platform.security.UserPrincipal;
 import com.velo.platform.services.PaymentService;
 import com.velo.platform.services.RatingService;
 import com.velo.platform.services.RideRequestService;
+import com.velo.platform.services.RideRealtimeService;
 import com.velo.platform.services.RideService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.modelmapper.ModelMapper;
@@ -83,6 +87,9 @@ class DriverServiceImplTest {
     @Mock
     private ApplicationEventPublisher eventPublisher;
 
+    @Mock
+    private RideRealtimeService rideRealtimeService;
+
     private DriverServiceImpl driverService;
 
     private Driver testDriver;
@@ -92,7 +99,16 @@ class DriverServiceImplTest {
     @BeforeEach
     void setUp() {
         driverService = new DriverServiceImpl(
-                rideRequestService, driverRepository, rideRepository, rideService, modelMapper, paymentService, ratingService, driverEarningsService, eventPublisher);
+                rideRequestService,
+                driverRepository,
+                rideRepository,
+                rideService,
+                modelMapper,
+                paymentService,
+                ratingService,
+                driverEarningsService,
+                eventPublisher,
+                rideRealtimeService);
 
         testDriver = Driver.builder()
                 .id(1L)
@@ -438,5 +454,61 @@ class DriverServiceImplTest {
         Driver result = driverService.createNewDriver(testDriver);
 
         assertThat(result).isEqualTo(testDriver);
+    }
+
+    @Test
+    @DisplayName("Update driver location should persist coordinates and publish active ride updates")
+    void updateDriverLocation_WithActiveRide_ShouldPublishRealtimeUpdate() {
+        mockAuthenticatedDriver();
+        DriverLocationUpdateRequestDto request = new DriverLocationUpdateRequestDto();
+        request.setLat(12.9716);
+        request.setLng(77.5946);
+        request.setHeading(90.0);
+        request.setSpeedKph(24.5);
+        request.setAccuracyM(10.0);
+
+        Ride activeRide = Ride.builder()
+                .id(55L)
+                .driver(testDriver)
+                .rideStatus(RideStatus.CONFIRMED)
+                .build();
+        when(driverRepository.save(any(Driver.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(rideRepository.findTopByDriverAndRideStatusInOrderByCreatedTimeDesc(
+                testDriver,
+                List.of(RideStatus.CONFIRMED, RideStatus.ONGOING)
+        )).thenReturn(Optional.of(activeRide));
+
+        DriverLocationDto response = driverService.updateDriverLocation(request);
+
+        assertThat(response.getLat()).isEqualTo(12.9716);
+        assertThat(response.getLng()).isEqualTo(77.5946);
+        assertThat(response.getCapturedAt()).isNotNull();
+
+        ArgumentCaptor<DriverLocationUpdateRequestDto> updateCaptor = ArgumentCaptor.forClass(DriverLocationUpdateRequestDto.class);
+        verify(rideRealtimeService).publishDriverLocation(eq(activeRide), updateCaptor.capture());
+        assertThat(updateCaptor.getValue().getCapturedAt()).isNotNull();
+        verify(driverRepository).save(testDriver);
+    }
+
+    @Test
+    @DisplayName("Update driver location should not publish when there is no active ride")
+    void updateDriverLocation_WithoutActiveRide_ShouldNotPublishRealtimeUpdate() {
+        mockAuthenticatedDriver();
+        DriverLocationUpdateRequestDto request = new DriverLocationUpdateRequestDto();
+        request.setLat(12.9610);
+        request.setLng(77.6011);
+        request.setCapturedAt(LocalDateTime.now());
+
+        when(driverRepository.save(any(Driver.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(rideRepository.findTopByDriverAndRideStatusInOrderByCreatedTimeDesc(
+                testDriver,
+                List.of(RideStatus.CONFIRMED, RideStatus.ONGOING)
+        )).thenReturn(Optional.empty());
+
+        DriverLocationDto response = driverService.updateDriverLocation(request);
+
+        assertThat(response.getLat()).isEqualTo(12.9610);
+        assertThat(response.getLng()).isEqualTo(77.6011);
+        verify(rideRealtimeService, never()).publishDriverLocation(any(), any());
     }
 }

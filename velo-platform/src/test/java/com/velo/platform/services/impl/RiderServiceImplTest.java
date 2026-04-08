@@ -4,11 +4,13 @@ import com.velo.platform.dto.DriverDto;
 import com.velo.platform.dto.PointDto;
 import com.velo.platform.dto.RideDto;
 import com.velo.platform.dto.RideRequestDto;
+import com.velo.platform.dto.RideTrackingDto;
 import com.velo.platform.dto.RiderDto;
 import com.velo.platform.entities.*;
 import com.velo.platform.entities.enums.RideRequestStatus;
 import com.velo.platform.entities.enums.RideStatus;
 import com.velo.platform.repositories.RideRequestRepository;
+import com.velo.platform.repositories.RideRepository;
 import com.velo.platform.repositories.RiderRepository;
 import com.velo.platform.security.UserPrincipal;
 import com.velo.platform.services.DriverService;
@@ -18,6 +20,7 @@ import com.velo.platform.services.RideService;
 import com.velo.platform.strategies.RideFareCalculationStrategy;
 import com.velo.platform.strategies.DriverMatchingStrategy;
 import com.velo.platform.strategies.RideStrategyManager;
+import com.velo.platform.utils.GeometryUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -35,6 +38,7 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -54,6 +58,9 @@ class RiderServiceImplTest {
 
     @Mock
     private RideRequestRepository rideRequestRepository;
+
+    @Mock
+    private RideRepository rideRepository;
 
     @Mock
     private RiderRepository riderRepository;
@@ -101,6 +108,7 @@ class RiderServiceImplTest {
                 modelMapper,
                 rideStrategyManager,
                 rideRequestRepository,
+                rideRepository,
                 riderRepository,
                 rideService,
                 driverService,
@@ -303,5 +311,76 @@ class RiderServiceImplTest {
         assertThat(result).isNotNull();
         assertThat(result.getRating()).isEqualTo(0.0);
         verify(riderRepository).save(any(Rider.class));
+    }
+
+    @Test
+    @DisplayName("Get active ride tracking should return active ride details when confirmed ride exists")
+    void getActiveRideTracking_WithConfirmedRide_ShouldReturnRideTracking() {
+        mockAuthenticatedRider();
+
+        User driverUser = User.builder().id(100L).firstName("Driver").build();
+        Driver driver = Driver.builder()
+                .id(22L)
+                .user(driverUser)
+                .vehicleId("KA01AB1234")
+                .rating(4.8)
+                .currentLocation(GeometryUtil.createPoint(new PointDto(new double[]{77.5946, 12.9716})))
+                .build();
+        Ride activeRide = Ride.builder()
+                .id(44L)
+                .rider(testRider)
+                .driver(driver)
+                .rideStatus(RideStatus.CONFIRMED)
+                .pickupLocation(GeometryUtil.createPoint(new PointDto(new double[]{77.585, 12.97})))
+                .dropOffLocation(GeometryUtil.createPoint(new PointDto(new double[]{77.62, 12.94})))
+                .createdTime(LocalDateTime.now().minusMinutes(5))
+                .build();
+
+        when(rideRepository.findTopByRiderAndRideStatusInOrderByCreatedTimeDesc(
+                testRider,
+                List.of(RideStatus.CONFIRMED, RideStatus.ONGOING)
+        )).thenReturn(Optional.of(activeRide));
+
+        RideTrackingDto trackingDto = riderService.getActiveRideTracking();
+
+        assertThat(trackingDto).isNotNull();
+        assertThat(trackingDto.getRideId()).isEqualTo(44L);
+        assertThat(trackingDto.getStatus()).isEqualTo("CONFIRMED");
+        assertThat(trackingDto.getDriver()).isNotNull();
+        assertThat(trackingDto.getDriver().getVehicleId()).isEqualTo("KA01AB1234");
+        assertThat(trackingDto.getLastDriverLocation()).isNotNull();
+        assertThat(trackingDto.getCanCancel()).isTrue();
+    }
+
+    @Test
+    @DisplayName("Get active ride tracking should return pending ride request when active ride is unavailable")
+    void getActiveRideTracking_WithoutActiveRide_ShouldReturnPendingRequestTracking() {
+        mockAuthenticatedRider();
+
+        RideRequest pendingRequest = RideRequest.builder()
+                .id(91L)
+                .rider(testRider)
+                .rideRequestStatus(RideRequestStatus.PENDING)
+                .pickupLocation(GeometryUtil.createPoint(new PointDto(new double[]{77.6, 12.96})))
+                .dropOffLocation(GeometryUtil.createPoint(new PointDto(new double[]{77.62, 12.99})))
+                .requestedTime(LocalDateTime.now().minusMinutes(2))
+                .build();
+
+        when(rideRepository.findTopByRiderAndRideStatusInOrderByCreatedTimeDesc(
+                testRider,
+                List.of(RideStatus.CONFIRMED, RideStatus.ONGOING)
+        )).thenReturn(Optional.empty());
+        when(rideRequestRepository.findTopByRiderAndRideRequestStatusInOrderByRequestedTimeDesc(
+                testRider,
+                List.of(RideRequestStatus.PENDING, RideRequestStatus.CONFIRMED, RideRequestStatus.SCHEDULED)
+        )).thenReturn(Optional.of(pendingRequest));
+
+        RideTrackingDto trackingDto = riderService.getActiveRideTracking();
+
+        assertThat(trackingDto).isNotNull();
+        assertThat(trackingDto.getRideId()).isNull();
+        assertThat(trackingDto.getRideRequestId()).isEqualTo(91L);
+        assertThat(trackingDto.getStatus()).isEqualTo("PENDING");
+        assertThat(trackingDto.getCanCancel()).isTrue();
     }
 }

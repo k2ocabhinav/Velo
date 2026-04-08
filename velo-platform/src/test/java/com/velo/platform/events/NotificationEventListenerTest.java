@@ -1,11 +1,15 @@
 package com.velo.platform.events;
 
 import com.velo.platform.entities.Driver;
+import com.velo.platform.entities.Ride;
 import com.velo.platform.entities.RideRequest;
 import com.velo.platform.entities.Rider;
 import com.velo.platform.entities.User;
 import com.velo.platform.entities.enums.NotificationType;
+import com.velo.platform.entities.enums.RideRequestStatus;
+import com.velo.platform.entities.enums.RideStatus;
 import com.velo.platform.services.NotificationService;
+import com.velo.platform.services.RideRealtimeService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,6 +32,9 @@ class NotificationEventListenerTest {
 
     @Mock
     private NotificationService notificationService;
+
+    @Mock
+    private RideRealtimeService rideRealtimeService;
 
     @InjectMocks
     private NotificationEventListener notificationEventListener;
@@ -53,6 +60,7 @@ class NotificationEventListenerTest {
         rideRequest = RideRequest.builder()
                 .id(101L)
                 .rider(rider)
+                .rideRequestStatus(RideRequestStatus.PENDING)
                 .scheduledTime(LocalDateTime.of(2026, 4, 8, 9, 30))
                 .build();
     }
@@ -88,6 +96,7 @@ class NotificationEventListenerTest {
                 NotificationType.RIDE_REQUESTED,
                 NotificationType.RIDE_REQUESTED
         );
+        verify(rideRealtimeService).publishRideRequestPending(event.getRideRequest());
         verifyNoMoreInteractions(notificationService);
     }
 
@@ -120,7 +129,34 @@ class NotificationEventListenerTest {
                 NotificationType.RIDE_DISPATCHED,
                 NotificationType.RIDE_DISPATCHED
         );
+        verify(rideRealtimeService).publishRideRequestPending(event.getRideRequest());
         verifyNoMoreInteractions(notificationService);
+    }
+
+    @Test
+    @DisplayName("Ride status events should also publish realtime ride updates")
+    void rideStatusEvents_ShouldPublishRealtimeUpdates() {
+        Ride ride = Ride.builder()
+                .id(500L)
+                .rider(rider)
+                .driver(driverOne)
+                .rideStatus(RideStatus.CONFIRMED)
+                .build();
+
+        notificationEventListener.handleRideAccepted(new RideAcceptedEvent(this, ride, driverOne));
+        verify(rideRealtimeService).publishRideStatus(ride, RideStatus.CONFIRMED);
+
+        ride.setRideStatus(RideStatus.ONGOING);
+        notificationEventListener.handleRideStarted(new RideStartedEvent(this, ride));
+        verify(rideRealtimeService).publishRideStatus(ride, RideStatus.ONGOING);
+
+        ride.setRideStatus(RideStatus.ENDED);
+        notificationEventListener.handleRideEnded(new RideEndedEvent(this, ride));
+        verify(rideRealtimeService).publishRideStatus(ride, RideStatus.ENDED);
+
+        ride.setRideStatus(RideStatus.CANCELLED);
+        notificationEventListener.handleRideCancelled(new RideCancelledEvent(this, ride));
+        verify(rideRealtimeService).publishRideStatus(ride, RideStatus.CANCELLED);
     }
 
     @Test
