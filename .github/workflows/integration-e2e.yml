@@ -32,6 +32,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Ensure clean compose state
+        run: docker compose --project-directory . -f velo-frontend/docker-compose.e2e.yml down -v --remove-orphans || true
+
       - name: Start compose stack and run handshake checks
         run: docker compose --project-directory . -f velo-frontend/docker-compose.e2e.yml up --build --abort-on-container-exit --exit-code-from smoke
 

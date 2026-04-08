@@ -85,8 +85,6 @@ services:
       - "3000:3000"
 
   frontend-rider:
-    profiles:
-      - full
     image: node:22-alpine
     working_dir: /workspace/velo-frontend
     environment:
@@ -106,8 +104,6 @@ services:
       - "3001:3001"
 
   frontend-driver:
-    profiles:
-      - full
     image: node:22-alpine
     working_dir: /workspace/velo-frontend
     environment:
@@ -132,6 +128,9 @@ services:
     environment:
       VELO_BACKEND_BASE_URL: http://backend:8080
       VELO_FRONTEND_BASE_URL: http://frontend-admin:3000
+      VELO_ADMIN_FRONTEND_BASE_URL: http://frontend-admin:3000
+      VELO_RIDER_FRONTEND_BASE_URL: http://frontend-rider:3001
+      VELO_DRIVER_FRONTEND_BASE_URL: http://frontend-driver:3002
       VELO_E2E_ADMIN_EMAIL: admin@velo-platform.com
       VELO_E2E_ADMIN_PASSWORD: password123
       VELO_E2E_RIDER_EMAIL: alice@example.com
@@ -143,6 +142,8 @@ services:
       - .:/workspace
     depends_on:
       - frontend-admin
+      - frontend-rider
+      - frontend-driver
 
 volumes:
   postgres_data:
