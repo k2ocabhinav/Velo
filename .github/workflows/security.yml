@@ -53,6 +53,9 @@ jobs:
   backend-dependency-check:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+      ODC_DATA_DIR: ${{ runner.temp }}/dependency-check-data
 
     steps:
       - name: Checkout
@@ -65,6 +68,30 @@ jobs:
           java-version: 22
           cache: maven
 
-      - name: Run OWASP dependency check
+      - name: Require NVD API key for fast and reliable updates
+        run: |
+          if [ -z "$NVD_API_KEY" ]; then
+            echo "NVD_API_KEY secret is missing. Configure repository secret NVD_API_KEY."
+            exit 1
+          fi
+
+      - name: Compute dependency-check cache key
+        id: odc-cache-key
+        shell: bash
+        run: echo "week=$(date +%G-%V)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache dependency-check data
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.ODC_DATA_DIR }}
+          key: ${{ runner.os }}-odc-data-v1-${{ steps.odc-cache-key.outputs.week }}
+          restore-keys: |
+            ${{ runner.os }}-odc-data-v1-
+
+      - name: Warm OWASP NVD cache
         working-directory: velo-platform
-        run: ./mvnw -q dependency-check:check
+        run: ./mvnw -q -DdataDirectory="$ODC_DATA_DIR" dependency-check:update-only
+
+      - name: Run OWASP dependency check (no update)
+        working-directory: velo-platform
+        run: ./mvnw -q -DdataDirectory="$ODC_DATA_DIR" -DautoUpdate=false dependency-check:check

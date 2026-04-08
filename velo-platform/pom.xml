@@ -141,9 +141,13 @@
 			<plugin>
 				<groupId>org.owasp</groupId>
 				<artifactId>dependency-check-maven</artifactId>
-				<version>10.0.4</version>
+				<version>12.2.0</version>
 				<configuration>
+					<failOnError>true</failOnError>
 					<failBuildOnCVSS>7</failBuildOnCVSS>
+					<nvdApiKeyEnvironmentVariable>NVD_API_KEY</nvdApiKeyEnvironmentVariable>
+					<nvdMaxRetryCount>10</nvdMaxRetryCount>
+					<nvdValidForHours>24</nvdValidForHours>
 					<skipProvidedScope>true</skipProvidedScope>
 				</configuration>
 			</plugin>
