@@ -38,8 +38,8 @@ services:
       SPRING_DATASOURCE_PASSWORD: user
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: "6379"
-      SPRING_JPA_HIBERNATE_DDL_AUTO: create-drop
-      SPRING_SQL_INIT_MODE: always
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      SPRING_FLYWAY_ENABLED: "true"
     command: sh -lc "chmod +x ./mvnw && ./mvnw -q spring-boot:run"
     volumes:
       - .:/workspace
