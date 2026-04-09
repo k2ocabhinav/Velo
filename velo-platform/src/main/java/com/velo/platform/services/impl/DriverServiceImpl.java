@@ -55,12 +55,12 @@ public class DriverServiceImpl implements DriverService {
         RideRequest rideRequest = rideRequestService.findRideRequestById(rideRequestId);
 
         if(!rideRequest.getRideRequestStatus().equals(RideRequestStatus.PENDING)) {
-            throw new RuntimeException("RideRequest cannot be accepted, status is "+ rideRequest.getRideRequestStatus());
+            throw new RuntimeConflictException("RideRequest cannot be accepted, status is "+ rideRequest.getRideRequestStatus());
         }
 
         Driver currentDriver = getCurrentDriver();
         if(!currentDriver.getAvailable()) {
-            throw new RuntimeException("Driver cannot accept ride due to unavailability");
+            throw new RuntimeConflictException("Driver cannot accept ride due to unavailability");
         }
 
         currentDriver.setAvailable(false);
@@ -80,11 +80,11 @@ public class DriverServiceImpl implements DriverService {
 
         Driver driver = getCurrentDriver();
         if(!driver.equals(ride.getDriver())) {
-            throw new RuntimeException("Driver cannot start a ride as he has not accepted it earlier");
+            throw new RuntimeConflictException("Driver cannot start a ride as he has not accepted it earlier");
         }
 
         if(!ride.getRideStatus().equals(RideStatus.CONFIRMED)) {
-            throw new RuntimeException("Ride cannot be cancelled, invalid status: "+ride.getRideStatus());
+            throw new RuntimeConflictException("Ride cannot be cancelled, invalid status: "+ride.getRideStatus());
         }
 
         rideService.updateRideStatus(ride, RideStatus.CANCELLED);
@@ -102,15 +102,15 @@ public class DriverServiceImpl implements DriverService {
         Driver driver = getCurrentDriver();
 
         if(!driver.equals(ride.getDriver())) {
-            throw new RuntimeException("Driver cannot start a ride as he has not accepted it earlier");
+            throw new RuntimeConflictException("Driver cannot start a ride as he has not accepted it earlier");
         }
 
         if(!ride.getRideStatus().equals(RideStatus.CONFIRMED)) {
-            throw new RuntimeException("Ride status is not CONFIRMED hence cannot be started, status: "+ride.getRideStatus());
+            throw new RuntimeConflictException("Ride status is not CONFIRMED hence cannot be started, status: "+ride.getRideStatus());
         }
 
         if(!otp.equals(ride.getOtp())) {
-            throw new RuntimeException("Otp is not valid, otp: "+otp);
+            throw new RuntimeConflictException("Otp is not valid, otp: "+otp);
         }
 
         ride.setStartedAt(LocalDateTime.now());
@@ -131,11 +131,11 @@ public class DriverServiceImpl implements DriverService {
         Driver driver = getCurrentDriver();
 
         if(!driver.equals(ride.getDriver())) {
-            throw new RuntimeException("Driver cannot start a ride as he has not accepted it earlier");
+            throw new RuntimeConflictException("Driver cannot start a ride as he has not accepted it earlier");
         }
 
         if(!ride.getRideStatus().equals(RideStatus.ONGOING)) {
-            throw new RuntimeException("Ride status is not ONGOING hence cannot be ended, status: "+ride.getRideStatus());
+            throw new RuntimeConflictException("Ride status is not ONGOING hence cannot be ended, status: "+ride.getRideStatus());
         }
 
         ride.setEndedAt(LocalDateTime.now());
@@ -159,11 +159,11 @@ public class DriverServiceImpl implements DriverService {
         Driver driver = getCurrentDriver();
 
         if(!driver.equals(ride.getDriver())) {
-            throw new RuntimeException("Driver is not the owner of this Ride");
+            throw new RuntimeConflictException("Driver is not the owner of this Ride");
         }
 
         if(!ride.getRideStatus().equals(RideStatus.ENDED)) {
-            throw new RuntimeException("Ride status is not Ended hence cannot start rating, status: "+ride.getRideStatus());
+            throw new RuntimeConflictException("Ride status is not Ended hence cannot start rating, status: "+ride.getRideStatus());
         }
 
         return ratingService.rateRider(ride, rating);

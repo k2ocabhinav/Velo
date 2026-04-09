@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { createCookieAuthMiddleware } from "@velo/app-core/auth-middleware";
 
 const cookieAuthMiddleware = createCookieAuthMiddleware({
-  publicPaths: ["/login"],
+  publicPaths: ["/login", "/register"],
   protectedPaths: ["/", "/ride", "/rides", "/earnings", "/notifications"],
   redirectAuthenticatedPublicTo: "/",
   requiredRoleHint: "DRIVER"

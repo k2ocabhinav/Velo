@@ -306,6 +306,22 @@ export const adminClient = {
     });
   },
 
+  async createUser(payload: { firstName: string; lastName: string; email: string; password: string }): Promise<UserAccount> {
+    return requestAdminProxy<UserAccount>("auth/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+  },
+
+  async onboardDriver(userId: number, vehicleId: string): Promise<void> {
+    await requestAdminProxy<void>(`auth/onBoardNewDriver/${userId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ vehicleId })
+    });
+  },
+
   async getPromoCodes(): Promise<PromoCode[]> {
     const payload = await requestAdminProxy<unknown>("api/v1/admin/promo-codes");
     return toList<PromoCode>(payload);

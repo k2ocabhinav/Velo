@@ -29,10 +29,10 @@ export default function RiderScheduledPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  const [pickupLat, setPickupLat] = useState("12.9716");
-  const [pickupLng, setPickupLng] = useState("77.5946");
-  const [dropLat, setDropLat] = useState("12.9352");
-  const [dropLng, setDropLng] = useState("77.6245");
+  const [pickupLat, setPickupLat] = useState("");
+  const [pickupLng, setPickupLng] = useState("");
+  const [dropLat, setDropLat] = useState("");
+  const [dropLng, setDropLng] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("WALLET");
   const [scheduledTime, setScheduledTime] = useState("");
   const [rescheduleTime, setRescheduleTime] = useState("");

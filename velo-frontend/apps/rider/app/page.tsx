@@ -79,10 +79,10 @@ const INITIAL_TRIP_LANE: RiderHomeTripLane = {
 export default function RiderHomePage() {
   useActiveRideRedirect("/");
 
-  const [pickupLat, setPickupLat] = useState("12.9716");
-  const [pickupLng, setPickupLng] = useState("77.5946");
-  const [dropLat, setDropLat] = useState("12.9352");
-  const [dropLng, setDropLng] = useState("77.6245");
+  const [pickupLat, setPickupLat] = useState("");
+  const [pickupLng, setPickupLng] = useState("");
+  const [dropLat, setDropLat] = useState("");
+  const [dropLng, setDropLng] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("WALLET");
   const [promoCode, setPromoCode] = useState("");
   const [estimating, setEstimating] = useState(false);
@@ -445,37 +445,6 @@ export default function RiderHomePage() {
       </section>
 
       <section className="card stack">
-        <strong>Select on map</strong>
-        <p className="helper">
-          Tap the map to place a marker. Drag markers to fine-tune.
-          {loadingRoute ? " Calculating route..." : routePath && routePath.points.length > 1 ? " Route preview shown." : null}
-        </p>
-        <div className="booking-map-controls">
-          <button
-            className={activeTarget === "pickup" ? "primary-button" : "secondary-button"}
-            type="button"
-            onClick={() => setActiveTarget("pickup")}
-          >
-            Set pickup
-          </button>
-          <button
-            className={activeTarget === "dropoff" ? "primary-button" : "secondary-button"}
-            type="button"
-            onClick={() => setActiveTarget("dropoff")}
-          >
-            Set drop-off
-          </button>
-        </div>
-        <BookingMapLoader
-          pickup={pickupPoint}
-          dropOff={dropOffPoint}
-          routePoints={routePath?.points ?? []}
-          activeTarget={activeTarget}
-          onPointSelected={handleMapPointSelected}
-        />
-      </section>
-
-      <section className="card stack">
         <strong>Trip details</strong>
         <div className="grid grid-2">
           <label className="field">
@@ -542,6 +511,37 @@ export default function RiderHomePage() {
             {failedAction === "estimate" ? "Retry fare estimate" : "Retry ride request"}
           </button>
         ) : null}
+      </section>
+
+      <section className="card stack">
+        <strong>Select on map</strong>
+        <p className="helper">
+          Tap the map to place a marker. Drag markers to fine-tune.
+          {loadingRoute ? " Calculating route..." : routePath && routePath.points.length > 1 ? " Route preview shown." : null}
+        </p>
+        <div className="booking-map-controls">
+          <button
+            className={activeTarget === "pickup" ? "primary-button" : "secondary-button"}
+            type="button"
+            onClick={() => setActiveTarget("pickup")}
+          >
+            Set pickup
+          </button>
+          <button
+            className={activeTarget === "dropoff" ? "primary-button" : "secondary-button"}
+            type="button"
+            onClick={() => setActiveTarget("dropoff")}
+          >
+            Set drop-off
+          </button>
+        </div>
+        <BookingMapLoader
+          pickup={pickupPoint}
+          dropOff={dropOffPoint}
+          routePoints={routePath?.points ?? []}
+          activeTarget={activeTarget}
+          onPointSelected={handleMapPointSelected}
+        />
       </section>
 
       <section className="card stack">

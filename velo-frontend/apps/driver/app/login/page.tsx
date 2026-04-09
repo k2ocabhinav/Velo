@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Suspense } from "react";
 import { LoginForm } from "./_components/login-form";
 
@@ -16,6 +17,7 @@ export default function DriverLoginPage() {
           <Suspense fallback={<p className="helper">Loading sign-in form...</p>}>
             <LoginForm />
           </Suspense>
+          <p className="helper">Don't have an account? <Link href="/register">Register</Link></p>
         </div>
       </section>
     </main>

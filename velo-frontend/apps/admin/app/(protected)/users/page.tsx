@@ -24,6 +24,9 @@ export default function UsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [pendingActions, setPendingActions] = useState<Record<string, boolean>>({});
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [createForm, setCreateForm] = useState({ firstName: "", lastName: "", email: "", password: "" });
+  const [creating, setCreating] = useState(false);
 
   async function load(targetPage = page, allowFallback = true): Promise<void> {
     setLoading(true);
@@ -90,9 +93,42 @@ export default function UsersPage() {
     }
   }
 
+  async function handleCreateUser(e: React.FormEvent): Promise<void> {
+    e.preventDefault();
+    setCreating(true);
+    setError(null);
+    setStatusMessage(null);
+    try {
+      await adminClient.createUser(createForm);
+      setStatusMessage("User created successfully.");
+      setCreateForm({ firstName: "", lastName: "", email: "", password: "" });
+      setShowCreateForm(false);
+      await load(page);
+    } catch (err) {
+      setError(toActionErrorMessage(err, "Unable to create user."));
+    } finally {
+      setCreating(false);
+    }
+  }
+
   return (
     <div className="stack">
       <PageFrame title="Users" description="Monitor rider and driver accounts and state transitions." />
+
+      <button className="secondary-button" type="button" onClick={() => setShowCreateForm(!showCreateForm)}>
+        {showCreateForm ? "Cancel" : "+ Create user"}
+      </button>
+      {showCreateForm ? (
+        <form className="stack" onSubmit={handleCreateUser} style={{ border: "1px solid var(--border)", padding: "16px", borderRadius: "8px" }}>
+          <div className="grid grid-2">
+            <label className="field"><span>First name</span><input value={createForm.firstName} onChange={e => setCreateForm(f => ({...f, firstName: e.target.value}))} required /></label>
+            <label className="field"><span>Last name</span><input value={createForm.lastName} onChange={e => setCreateForm(f => ({...f, lastName: e.target.value}))} required /></label>
+          </div>
+          <label className="field"><span>Email</span><input type="email" value={createForm.email} onChange={e => setCreateForm(f => ({...f, email: e.target.value}))} required /></label>
+          <label className="field"><span>Password</span><input type="password" value={createForm.password} onChange={e => setCreateForm(f => ({...f, password: e.target.value}))} required minLength={8} /></label>
+          <button className="primary-button" type="submit" disabled={creating}>{creating ? "Creating..." : "Create user"}</button>
+        </form>
+      ) : null}
 
       {error ? (
         <div className="row-actions">
@@ -128,6 +164,30 @@ export default function UsersPage() {
                       onClick={() => void toggleUser(user)}
                     >
                       {user.active ? "Deactivate" : "Activate"}
+                    </button>
+                    <button
+                      className="secondary-button"
+                      type="button"
+                      disabled={isActionPending(pendingActions, `onboard:${user.id}`)}
+                      onClick={async () => {
+                        const vehicleId = window.prompt("Enter vehicle ID for this driver:");
+                        if (!vehicleId || !vehicleId.trim()) return;
+                        const key = `onboard:${user.id}`;
+                        setPendingActions((current) => setActionPending(current, key, true));
+                        setError(null);
+                        setStatusMessage(null);
+                        try {
+                          await adminClient.onboardDriver(user.id, vehicleId.trim());
+                          setStatusMessage("Driver onboarded successfully.");
+                          await load(page);
+                        } catch (err) {
+                          setError(toActionErrorMessage(err, "Unable to onboard driver."));
+                        } finally {
+                          setPendingActions((current) => setActionPending(current, key, false));
+                        }
+                      }}
+                    >
+                      {isActionPending(pendingActions, `onboard:${user.id}`) ? "Onboarding..." : "Onboard as driver"}
                     </button>
                   </div>
                 </div>

@@ -100,6 +100,7 @@
 - [x] Promo codes page — `76093c7`
 - [x] Revenue reports page — `76093c7`
 - [x] Scheduled rides page — `76093c7`
+- [x] Admin user creation form + onboard-as-driver action — `6a97fc3`
 - [ ] Admin action E2E tests (approve/reject/process flows)
 - [ ] Loading skeletons for all data pages
 - [ ] Error states with retry for all API-backed pages
@@ -121,14 +122,15 @@
 
 ### Driver App
 - [x] Starter shell — `9765ba6`
-- [ ] Login + BFF auth route
-- [ ] Availability toggle (online/offline)
-- [ ] Incoming ride request popup (WebSocket)
-- [ ] Active ride flow (OTP verify → map → end ride)
-- [ ] Earnings dashboard
-- [ ] Payout request page
-- [ ] Ride history page
-- [ ] Notifications page
+- [x] Login + BFF auth route
+- [x] Driver registration page (two-step: signup → onboard as driver) — `6a97fc3`
+- [x] Availability toggle (online/offline)
+- [x] Incoming ride request popup (WebSocket)
+- [x] Active ride flow (OTP verify → map → end ride)
+- [x] Earnings dashboard
+- [x] Payout request page
+- [x] Ride history page
+- [x] Notifications page
 
 ### Design & UX
 - [ ] Implement design system tokens from DESIGN_SYSTEM.md
@@ -244,6 +246,29 @@
   4. Logout from each app -> protected route redirects back to login.
 - Known constraint:
   - map/live GPS visualization remains deferred in this phase.
+
+## Implementation Status Update (2026-04-09 — Core Prototype Gap Fixes)
+
+### Backend exception type fixes
+- DriverServiceImpl: 10 RuntimeException → RuntimeConflictException (acceptRide, cancelRide, startRide, endRide, rateRider) — HTTP 500 → 409 for frontend mapApiError() to handle correctly
+- RiderServiceImpl: 4 RuntimeException → RuntimeConflictException (cancelRide, rateDriver) — same pattern
+- All 35 service tests pass (DriverServiceImplTest 23, RiderServiceImplTest 12)
+
+### Driver registration flow
+- New /register page at apps/driver/app/register/ — collects name, email, password, vehicleId
+- Two-step BFF at apps/driver/app/api/auth/register/route.ts: POST /auth/signup → POST /auth/onBoardNewDriver/{userId}
+- /register added to driver middleware publicPaths
+- "Don't have an account? Register" link added to driver login page
+
+### Admin user & driver management
+- Admin users page now has "+ Create user" collapsible form (firstName, lastName, email, password)
+- Admin users page now has per-row "Onboard as driver" button with vehicleId prompt
+- admin-client.ts: createUser() and onboardDriver() methods added
+
+### Rider booking UX cleanup
+- Rider booking page: hardcoded Bangalore coordinates removed (empty strings on init)
+- Booking page sections reordered: map-first (Select on map → Trip details → Latest estimate → Latest ride request)
+- Scheduled rides page: same coordinate cleanup
 
 ## Implementation Status Update (2026-04-09 — Rider Core Completion + Cross-App Reliability)
 
