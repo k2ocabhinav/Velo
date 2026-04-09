@@ -4,7 +4,7 @@
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",
-    "start": "PORT=3000 HOSTNAME=0.0.0.0 node .next/standalone/apps/admin/server.js",
+    "start": "node ../../scripts/start-standalone.mjs admin 3000",
     "lint": "eslint .",
     "test:unit": "vitest run --config vitest.config.mts",
     "typecheck": "tsc --noEmit"
