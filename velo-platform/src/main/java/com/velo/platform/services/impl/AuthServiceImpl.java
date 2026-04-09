@@ -10,6 +10,7 @@ import com.velo.platform.dto.UserDto;
 import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.PasswordResetToken;
 import com.velo.platform.entities.User;
+import com.velo.platform.entities.enums.DriverOnboardingStatus;
 import com.velo.platform.entities.enums.Role;
 import com.velo.platform.exceptions.ResourceNotFoundException;
 import com.velo.platform.exceptions.RuntimeConflictException;
@@ -126,7 +127,8 @@ public class AuthServiceImpl implements AuthService {
                 .user(user)
                 .rating(0.0)
                 .vehicleId(vehicleId)
-                .available(true)
+                .available(false)
+                .onboardingStatus(DriverOnboardingStatus.PENDING)
                 .build();
 user.getRoles().add(DRIVER);
     userRepository.save(user);

@@ -6,6 +6,7 @@ import com.velo.platform.dto.admin.PendingDriverDto;
 import com.velo.platform.dto.admin.RevenueReportDto;
 import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.User;
+import com.velo.platform.entities.enums.DriverOnboardingStatus;
 import com.velo.platform.entities.enums.PaymentStatus;
 import com.velo.platform.entities.enums.RideRequestStatus;
 import com.velo.platform.entities.enums.RideStatus;
@@ -39,7 +40,6 @@ public class AdminServiceImpl implements AdminService {
     private final CacheService cacheService;
 
     private static final BigDecimal PLATFORM_COMMISSION = BigDecimal.valueOf(0.30);
-    private static final double PENDING_DRIVER_APPROVAL_THRESHOLD = 1.0;
 
     @Override
     @Transactional(readOnly = true)
@@ -89,7 +89,7 @@ public class AdminServiceImpl implements AdminService {
         BigDecimal platformCommission = dailyRideStats.totalRevenue().multiply(PLATFORM_COMMISSION);
         long totalUsers = userRepository.count();
         long newUsers = userRepository.countByCreatedTimeAfterAndCreatedTimeBefore(startOfDay, endOfDay);
-        long pendingDriverApprovals = rideRequestRepository.countByRideRequestStatus(RideRequestStatus.PENDING);
+        long pendingDriverApprovals = countPendingDriverApprovals();
 
         return AdminStatsDto.builder()
                 .date(date)
@@ -126,7 +126,7 @@ public class AdminServiceImpl implements AdminService {
     @Override
     @Transactional(readOnly = true)
     public Page<PendingDriverDto> getPendingDrivers(Pageable pageable) {
-        return driverRepository.findPendingDriverApprovals(PENDING_DRIVER_APPROVAL_THRESHOLD, pageable)
+        return driverRepository.findByOnboardingStatusOrderByCreatedAtDesc(DriverOnboardingStatus.PENDING, pageable)
                 .map(driver -> {
                     User user = driver.getUser();
                     return PendingDriverDto.builder()
@@ -137,6 +137,7 @@ public class AdminServiceImpl implements AdminService {
                             .phone(user != null ? user.getPhoneNumber() : "Unknown")
                             .rating(driver.getRating())
                             .vehicleId(driver.getVehicleId())
+                            .onboardingStatus(driver.getOnboardingStatus() == null ? null : driver.getOnboardingStatus().name())
                             .appliedAt(driver.getCreatedAt())
                             .build();
                 });
@@ -147,6 +148,7 @@ public class AdminServiceImpl implements AdminService {
     public void approveDriver(Long driverId) {
         Driver driver = driverRepository.findById(driverId)
                 .orElseThrow(() -> new RuntimeConflictException("Driver not found"));
+        driver.setOnboardingStatus(DriverOnboardingStatus.APPROVED);
         driver.setAvailable(true);
         driverRepository.save(driver);
         cacheService.evictAvailableDriversCache();
@@ -158,6 +160,7 @@ public class AdminServiceImpl implements AdminService {
     public void rejectDriver(Long driverId, String reason) {
         Driver driver = driverRepository.findById(driverId)
                 .orElseThrow(() -> new RuntimeConflictException("Driver not found"));
+        driver.setOnboardingStatus(DriverOnboardingStatus.REJECTED);
         driver.setAvailable(false);
         driverRepository.save(driver);
         cacheService.evictDashboardCache();
@@ -200,7 +203,7 @@ public class AdminServiceImpl implements AdminService {
     }
 
     private long countPendingDriverApprovals() {
-        return driverRepository.countPendingDriverApprovals(PENDING_DRIVER_APPROVAL_THRESHOLD);
+        return driverRepository.countByOnboardingStatus(DriverOnboardingStatus.PENDING);
     }
 
     private DailyRideStats getDailyRideStats(LocalDateTime startOfDay, LocalDateTime endOfDay) {

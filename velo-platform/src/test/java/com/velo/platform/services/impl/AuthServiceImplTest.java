@@ -6,6 +6,7 @@ import com.velo.platform.dto.SignupDto;
 import com.velo.platform.dto.UserDto;
 import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.User;
+import com.velo.platform.entities.enums.DriverOnboardingStatus;
 import com.velo.platform.entities.enums.Role;
 import com.velo.platform.exceptions.ResourceNotFoundException;
 import com.velo.platform.exceptions.RuntimeConflictException;
@@ -178,7 +179,8 @@ class AuthServiceImplTest {
                 .user(user)
                 .rating(0.0)
                 .vehicleId(vehicleId)
-                .available(true)
+                .available(false)
+                .onboardingStatus(DriverOnboardingStatus.PENDING)
                 .build();
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));

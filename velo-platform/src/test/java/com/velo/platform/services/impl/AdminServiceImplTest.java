@@ -6,6 +6,7 @@ import com.velo.platform.dto.admin.PendingDriverDto;
 import com.velo.platform.dto.admin.RevenueReportDto;
 import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.User;
+import com.velo.platform.entities.enums.DriverOnboardingStatus;
 import com.velo.platform.entities.enums.PaymentStatus;
 import com.velo.platform.entities.enums.Role;
 import com.velo.platform.entities.enums.RideStatus;
@@ -69,7 +70,7 @@ class AdminServiceImplTest {
         when(paymentRepository.sumAmountByPaymentStatus(PaymentStatus.CONFIRMED))
                 .thenReturn(BigDecimal.valueOf(410.75));
         when(rideRepository.countByRideStatus(RideStatus.ONGOING)).thenReturn(3L);
-        when(driverRepository.countPendingDriverApprovals(1.0)).thenReturn(2L);
+        when(driverRepository.countByOnboardingStatus(DriverOnboardingStatus.PENDING)).thenReturn(2L);
 
         DashboardDto dashboard = adminService.getDashboard();
 
@@ -102,7 +103,7 @@ class AdminServiceImplTest {
         when(rideRepository.sumFareByCreatedTimeAfterAndCreatedTimeBefore(start, end)).thenReturn(BigDecimal.valueOf(560.00));
         when(userRepository.count()).thenReturn(42L);
         when(userRepository.countByCreatedTimeAfterAndCreatedTimeBefore(start, end)).thenReturn(4L);
-        when(rideRequestRepository.countByRideRequestStatus(any())).thenReturn(6L);
+        when(driverRepository.countByOnboardingStatus(DriverOnboardingStatus.PENDING)).thenReturn(6L);
 
         AdminStatsDto stats = adminService.getDailyStats(date);
 
@@ -137,7 +138,7 @@ class AdminServiceImplTest {
         when(rideRepository.sumFareByCreatedTimeAfterAndCreatedTimeBefore(start, end)).thenReturn(BigDecimal.valueOf(120.00));
         when(userRepository.count()).thenReturn(20L);
         when(userRepository.countByCreatedTimeAfterAndCreatedTimeBefore(start, end)).thenReturn(2L);
-        when(rideRequestRepository.countByRideRequestStatus(any())).thenReturn(4L);
+        when(driverRepository.countByOnboardingStatus(DriverOnboardingStatus.PENDING)).thenReturn(4L);
 
         AdminStatsDto stats = adminService.getDailyStats(date);
 
@@ -208,7 +209,9 @@ class AdminServiceImplTest {
         driver.setVehicleId("KA01AB1234");
 
         PageRequest pageRequest = PageRequest.of(0, 10);
-        when(driverRepository.findPendingDriverApprovals(1.0, pageRequest))
+        driver.setOnboardingStatus(DriverOnboardingStatus.PENDING);
+
+        when(driverRepository.findByOnboardingStatusOrderByCreatedAtDesc(DriverOnboardingStatus.PENDING, pageRequest))
                 .thenReturn(new PageImpl<>(List.of(driver), pageRequest, 1));
 
         Page<PendingDriverDto> result = adminService.getPendingDrivers(pageRequest);
@@ -220,8 +223,9 @@ class AdminServiceImplTest {
             assertThat(dto.getEmail()).isEqualTo("asha@example.com");
             assertThat(dto.getPhone()).isEqualTo("9999999999");
             assertThat(dto.getVehicleId()).isEqualTo("KA01AB1234");
+            assertThat(dto.getOnboardingStatus()).isEqualTo("PENDING");
         });
-        verify(driverRepository).findPendingDriverApprovals(1.0, pageRequest);
+        verify(driverRepository).findByOnboardingStatusOrderByCreatedAtDesc(DriverOnboardingStatus.PENDING, pageRequest);
         verify(driverRepository, never()).findAll(pageRequest);
     }
 

@@ -33,11 +33,11 @@ INSERT INTO rider (id, user_id, rating, version) VALUES
 (5, 6, 4.2, 0),
 (6, 8, 4.6, 0);
 
-INSERT INTO driver (id, user_id, vehicle_id, rating, available, current_location, created_at, version) VALUES
-(1, 2, 'KA01AB1234', 4.8, true, ST_GeomFromText('POINT(77.5946 12.9716)', 4326), '2026-04-01 08:15:00', 0),
-(2, 3, 'KA01CD5678', 4.6, true, ST_GeomFromText('POINT(77.6090 12.9800)', 4326), '2026-04-01 08:20:00', 0),
-(3, 5, 'KA02EF9012', 0.4, false, ST_GeomFromText('POINT(77.6200 12.9850)', 4326), '2026-04-06 08:05:00', 0),
-(4, 7, 'KA03GH3456', null, false, ST_GeomFromText('POINT(77.6300 12.9750)', 4326), '2026-04-06 08:25:00', 0);
+INSERT INTO driver (id, user_id, vehicle_id, rating, available, onboarding_status, current_location, created_at, version) VALUES
+(1, 2, 'KA01AB1234', 4.8, true, 'APPROVED', ST_GeomFromText('POINT(77.5946 12.9716)', 4326), '2026-04-01 08:15:00', 0),
+(2, 3, 'KA01CD5678', 4.6, true, 'APPROVED', ST_GeomFromText('POINT(77.6090 12.9800)', 4326), '2026-04-01 08:20:00', 0),
+(3, 5, 'KA02EF9012', 0.4, false, 'PENDING', ST_GeomFromText('POINT(77.6200 12.9850)', 4326), '2026-04-06 08:05:00', 0),
+(4, 7, 'KA03GH3456', null, false, 'REJECTED', ST_GeomFromText('POINT(77.6300 12.9750)', 4326), '2026-04-06 08:25:00', 0);
 
 INSERT INTO wallet (id, user_id, balance, version) VALUES
 (1, 1, 850.00, 0),

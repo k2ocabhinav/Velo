@@ -1,5 +1,6 @@
 package com.velo.platform.entities;
 
+import com.velo.platform.entities.enums.DriverOnboardingStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -17,7 +18,8 @@ import java.time.LocalDateTime;
 @Table(indexes = {
         @Index(name = "idx_driver_vehicle_id", columnList = "vehicleId"),
         @Index(name = "idx_driver_available", columnList = "available"),
-        @Index(name = "idx_driver_rating", columnList = "rating")
+        @Index(name = "idx_driver_rating", columnList = "rating"),
+        @Index(name = "idx_driver_onboarding_status", columnList = "onboardingStatus")
 })
 public class Driver {
     @Id
@@ -32,6 +34,10 @@ public class Driver {
     private String vehicleId;
     private Double rating;
     private Boolean available;
+
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private DriverOnboardingStatus onboardingStatus = DriverOnboardingStatus.PENDING;
 
     @Column(columnDefinition = "Geometry(Point, 4326)")
     private Point currentLocation;

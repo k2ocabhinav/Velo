@@ -18,5 +18,6 @@ public class PendingDriverDto {
     private String phone;
     private Double rating;
     private String vehicleId;
+    private String onboardingStatus;
     private LocalDateTime appliedAt;
 }

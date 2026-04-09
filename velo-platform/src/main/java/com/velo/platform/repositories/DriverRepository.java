@@ -1,6 +1,7 @@
 package com.velo.platform.repositories;
 
 import com.velo.platform.entities.Driver;
+import com.velo.platform.entities.enums.DriverOnboardingStatus;
 import org.locationtech.jts.geom.Point;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -21,18 +22,16 @@ public interface DriverRepository extends JpaRepository<Driver, Long> {
 
     long countByAvailableTrue();
 
-    @Query("select count(d) from Driver d where d.rating is null or d.rating < :approvalThreshold")
-    long countPendingDriverApprovals(@Param("approvalThreshold") Double approvalThreshold);
+    long countByOnboardingStatus(DriverOnboardingStatus onboardingStatus);
 
-    @Query("select d from Driver d where d.rating is null or d.rating < :approvalThreshold")
-    Page<Driver> findPendingDriverApprovals(@Param("approvalThreshold") Double approvalThreshold, Pageable pageable);
+    Page<Driver> findByOnboardingStatusOrderByCreatedAtDesc(DriverOnboardingStatus onboardingStatus, Pageable pageable);
 
     /*
      * Use geography so SRID 4326 distances are measured in meters.
      * */
     @Query(value = "SELECT d.*, ST_Distance(CAST(d.current_location AS geography), CAST(:pickupLocation AS geography)) AS distance " +
             "FROM driver AS d " +
-            "WHERE d.available = true AND d.current_location IS NOT NULL " +
+            "WHERE d.available = true AND d.onboarding_status = 'APPROVED' AND d.current_location IS NOT NULL " +
             "AND ST_DWithin(CAST(d.current_location AS geography), CAST(:pickupLocation AS geography), 10000) " +
             "ORDER BY distance " +
             "LIMIT 10",
@@ -42,7 +41,7 @@ public interface DriverRepository extends JpaRepository<Driver, Long> {
 
     @Query(value = "SELECT d.* " +
             "FROM driver d " +
-            "WHERE d.available = true AND d.current_location IS NOT NULL " +
+            "WHERE d.available = true AND d.onboarding_status = 'APPROVED' AND d.current_location IS NOT NULL " +
             "AND ST_DWithin(CAST(d.current_location AS geography), CAST(:pickupLocation AS geography), 15000) " +
             "ORDER BY d.rating DESC, ST_Distance(CAST(d.current_location AS geography), CAST(:pickupLocation AS geography)) " +
             "LIMIT 10", nativeQuery = true)
