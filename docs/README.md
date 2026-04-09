@@ -44,3 +44,8 @@ Single source of truth for the Velo project.
 
 - Rider core continuity now includes dedicated active-trip lifecycle tracking (`/ride/active`) with live ride updates and driver location publishing support.
 - Frontend and backend reliability gates include backend-connected rider active-ride and driver location assertions in compose smoke.
+
+### Update (2026-04-09, Runtime Stabilization)
+
+- Admin/Driver/Rider docker runtime startup now consistently serves client assets and sign-in forms (host binding fix in standalone start script).
+- Driver registration flow is now contract-safe end-to-end for signup + driver onboarding from the frontend BFF path.

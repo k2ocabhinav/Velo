@@ -234,6 +234,10 @@ test.describe("rider smoke", () => {
     await expect(page.getByRole("button", { name: "Set drop-off" })).toBeVisible();
 
     // Manual inputs still work as fallback
+    await page.getByLabel("Pickup latitude").fill("12.9716");
+    await page.getByLabel("Pickup longitude").fill("77.5946");
+    await page.getByLabel("Drop-off latitude").fill("12.9352");
+    await page.getByLabel("Drop-off longitude").fill("77.6245");
     await page.getByRole("button", { name: "Estimate fare" }).click();
     await expect(page.getByText("$210.00")).toBeVisible();
 

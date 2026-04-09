@@ -290,3 +290,24 @@
 - Compose integration handshake green from clean state (`down -v` before run), including assertions for:
   - rider active-ride endpoint through frontend proxy
   - driver location update mutation through frontend proxy.
+
+## Implementation Status Update (2026-04-09 — Runtime + Registration Stabilization)
+
+### Core fixes delivered
+- Fixed standalone frontend runtime host binding regression by forcing `HOSTNAME=0.0.0.0` in `start-standalone.mjs`, resolving Admin/Driver/Rider login pages getting stuck on "Loading sign-in form...".
+- Fixed driver register BFF contract mismatch:
+  - signup payload now uses `name` (backend `SignupDto` contract),
+  - onboarding `userId` is resolved via login fallback when signup response omits id.
+- Kept backend security alignment for public driver onboarding path (`/auth/onBoardNewDriver/**`) in security config.
+
+### Verification status
+- Frontend quality gates passed:
+  - `npm run lint`
+  - `npm run typecheck`
+  - `npm run test:unit`
+  - `npm run test:contracts`
+  - `npm run build`
+- Playwright smoke passed for all three apps: **19/19**.
+- Compose frontend-backend handshake passed from clean docker state (`down -v` then up).
+- Backend package build passed with tests skipped (`./mvnw -q -DskipTests package` in container).
+- Full backend `./mvnw -q test` is currently red in this environment due existing integration-fixture FK integrity issues outside this patch scope; no new failures from the frontend runtime/register fixes.

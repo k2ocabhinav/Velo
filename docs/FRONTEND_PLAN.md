@@ -478,3 +478,12 @@ The frontend only needs to: call the right endpoint, display the response, and l
   - `GET /riders/active-ride`.
 - Rider/admin/driver Playwright smoke remains green with rider active lifecycle assertions.
 - Compose integration handshake now enforces active-ride and location update backend-connected assertions.
+
+## Implementation Status Update (2026-04-09, Runtime + Session Entry Stabilization)
+
+- Fixed standalone startup host binding behavior so Admin/Driver/Rider sign-in forms render reliably in docker/local runtime.
+- Driver register BFF now follows backend auth contracts (`name` for signup) and resolves onboarding `userId` through login fallback when needed.
+- Current QA snapshot for this stabilization pass:
+  - Frontend gates: `lint`, `typecheck`, `test:unit`, `test:contracts`, `build` all passing.
+  - Playwright smoke: admin + driver + rider all passing (19/19).
+  - Compose handshake: passing from clean state.
