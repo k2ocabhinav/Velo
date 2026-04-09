@@ -16,6 +16,21 @@ function displayName(user: UserAccount): string {
   return fullName || user.email;
 }
 
+function normalizeRoles(user: UserAccount): string[] {
+  if (!Array.isArray(user.roles)) {
+    return [];
+  }
+
+  return user.roles
+    .map((role) => String(role).toUpperCase())
+    .filter((role) => role.length > 0);
+}
+
+function isRiderOnlyAccount(user: UserAccount): boolean {
+  const roles = new Set(normalizeRoles(user));
+  return roles.has("RIDER") && !roles.has("DRIVER") && !roles.has("ADMIN");
+}
+
 export default function UsersPage() {
   const [users, setUsers] = useState<UserAccount[]>([]);
   const [page, setPage] = useState(0);
@@ -116,7 +131,7 @@ export default function UsersPage() {
       <PageFrame title="Users" description="Monitor rider and driver accounts and state transitions." />
 
       <button className="secondary-button" type="button" onClick={() => setShowCreateForm(!showCreateForm)}>
-        {showCreateForm ? "Cancel" : "+ Create user"}
+        {showCreateForm ? "Cancel" : "+ Create rider"}
       </button>
       {showCreateForm ? (
         <form className="stack" onSubmit={handleCreateUser} style={{ border: "1px solid var(--border)", padding: "16px", borderRadius: "8px" }}>
@@ -126,7 +141,7 @@ export default function UsersPage() {
           </div>
           <label className="field"><span>Email</span><input type="email" value={createForm.email} onChange={e => setCreateForm(f => ({...f, email: e.target.value}))} required /></label>
           <label className="field"><span>Password</span><input type="password" value={createForm.password} onChange={e => setCreateForm(f => ({...f, password: e.target.value}))} required minLength={8} /></label>
-          <button className="primary-button" type="submit" disabled={creating}>{creating ? "Creating..." : "Create user"}</button>
+          <button className="primary-button" type="submit" disabled={creating}>{creating ? "Creating..." : "Create rider"}</button>
         </form>
       ) : null}
 
@@ -152,6 +167,7 @@ export default function UsersPage() {
                   <div>
                     <strong>{displayName(user)}</strong>
                     <p>{user.email}</p>
+                    <p className="helper">Roles: {normalizeRoles(user).join(", ") || "—"}</p>
                   </div>
                   <div className="row-actions">
                     <span className="badge" data-tone={user.active ? "success" : "warning"}>
@@ -189,6 +205,33 @@ export default function UsersPage() {
                     >
                       {isActionPending(pendingActions, `onboard:${user.id}`) ? "Onboarding..." : "Onboard as driver"}
                     </button>
+                    {isRiderOnlyAccount(user) ? (
+                      <button
+                        className="danger-button"
+                        type="button"
+                        disabled={!user.active || isActionPending(pendingActions, `delete-rider:${user.id}`)}
+                        onClick={async () => {
+                          if (!window.confirm("Delete this rider from active operations? This performs a soft delete by deactivating access.")) {
+                            return;
+                          }
+                          const key = `delete-rider:${user.id}`;
+                          setPendingActions((current) => setActionPending(current, key, true));
+                          setError(null);
+                          setStatusMessage(null);
+                          try {
+                            await adminClient.deleteRider(user.id);
+                            setStatusMessage("Rider deleted (deactivated).");
+                            await load(page);
+                          } catch (deleteError) {
+                            setError(toActionErrorMessage(deleteError, "Unable to delete rider."));
+                          } finally {
+                            setPendingActions((current) => setActionPending(current, key, false));
+                          }
+                        }}
+                      >
+                        {isActionPending(pendingActions, `delete-rider:${user.id}`) ? "Deleting..." : user.active ? "Delete rider" : "Deleted"}
+                      </button>
+                    ) : null}
                   </div>
                 </div>
               ))}

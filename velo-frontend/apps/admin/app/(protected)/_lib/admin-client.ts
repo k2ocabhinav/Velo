@@ -88,6 +88,7 @@ export type UserAccount = {
   lastName?: string;
   email: string;
   active?: boolean;
+  roles?: string[];
 };
 
 export type PromoCodeMutation = {
@@ -100,6 +101,13 @@ export type PromoCodeMutation = {
   minRideFare?: number;
   active?: boolean;
   description?: string;
+};
+
+export type CreateRiderInput = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
 };
 
 type PageMeta = {
@@ -212,6 +220,19 @@ function toList<T>(payload: unknown): T[] {
   return [];
 }
 
+export function buildAdminCreateRiderPayload(payload: CreateRiderInput): {
+  name: string;
+  email: string;
+  password: string;
+} {
+  const name = `${payload.firstName ?? ""} ${payload.lastName ?? ""}`.trim();
+  return {
+    name: name || payload.email,
+    email: payload.email,
+    password: payload.password,
+  };
+}
+
 export const adminClient = {
   async getDashboardStats(): Promise<DashboardStats> {
     return requestAdminProxy<DashboardStats>("api/v1/admin/stats/dashboard");
@@ -306,11 +327,17 @@ export const adminClient = {
     });
   },
 
-  async createUser(payload: { firstName: string; lastName: string; email: string; password: string }): Promise<UserAccount> {
+  async createUser(payload: CreateRiderInput): Promise<UserAccount> {
     return requestAdminProxy<UserAccount>("auth/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(buildAdminCreateRiderPayload(payload))
+    });
+  },
+
+  async deleteRider(userId: number): Promise<void> {
+    await requestAdminProxy<void>(`api/v1/admin/users/${userId}/deactivate`, {
+      method: "POST"
     });
   },
 
