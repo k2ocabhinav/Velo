@@ -12,6 +12,7 @@ import com.velo.platform.entities.*;
 import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.enums.RideRequestStatus;
 import com.velo.platform.entities.enums.RideStatus;
+import com.velo.platform.entities.enums.NotificationType;
 import com.velo.platform.events.RideCancelledEvent;
 import com.velo.platform.events.RideRequestedEvent;
 import com.velo.platform.exceptions.ResourceNotFoundException;
@@ -21,8 +22,10 @@ import com.velo.platform.repositories.RideRepository;
 import com.velo.platform.repositories.RiderRepository;
 import com.velo.platform.security.UserPrincipal;
 import com.velo.platform.services.DriverService;
+import com.velo.platform.services.NotificationService;
 import com.velo.platform.services.PromoCodeService;
 import com.velo.platform.services.RatingService;
+import com.velo.platform.services.RideOfferService;
 import com.velo.platform.services.RideService;
 import com.velo.platform.services.RiderService;
 import com.velo.platform.strategies.RideStrategyManager;
@@ -45,6 +48,8 @@ import java.util.List;
 @Slf4j
 public class RiderServiceImpl implements RiderService {
 
+    private static final long DRIVER_OFFER_TTL_SECONDS = 45L;
+
     private final ModelMapper modelMapper;
     private final RideStrategyManager rideStrategyManager;
     private final RideRequestRepository rideRequestRepository;
@@ -54,6 +59,8 @@ public class RiderServiceImpl implements RiderService {
     private final DriverService driverService;
     private final RatingService ratingService;
     private final PromoCodeService promoCodeService;
+    private final RideOfferService rideOfferService;
+    private final NotificationService notificationService;
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
@@ -84,6 +91,20 @@ public class RiderServiceImpl implements RiderService {
         List<Driver> matchedDrivers = rideStrategyManager
                 .driverMatchingStrategy(rider.getRating())
                 .findMatchingDrivers(savedRideRequest);
+
+        rideOfferService.createOffers(savedRideRequest, matchedDrivers, DRIVER_OFFER_TTL_SECONDS);
+        if (matchedDrivers.isEmpty()) {
+            savedRideRequest.setRideRequestStatus(RideRequestStatus.EXPIRED);
+            RideRequest expiredRequest = rideRequestRepository.save(savedRideRequest);
+            notificationService.createNotification(
+                    rider.getUser(),
+                    "No drivers available",
+                    "No nearby drivers were available for this request. Please try again shortly.",
+                    NotificationType.RIDE_EXPIRED,
+                    expiredRequest.getId()
+            );
+            return modelMapper.map(expiredRequest, RideRequestDto.class);
+        }
 
         eventPublisher.publishEvent(new RideRequestedEvent(this, savedRideRequest, matchedDrivers, false));
 

@@ -7,7 +7,9 @@ import com.velo.platform.dto.RideDto;
 import com.velo.platform.dto.RiderDto;
 import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.Ride;
+import com.velo.platform.entities.RideOffer;
 import com.velo.platform.entities.RideRequest;
+import com.velo.platform.entities.enums.RideOfferStatus;
 import com.velo.platform.entities.enums.PaymentMethod;
 import com.velo.platform.entities.enums.RideRequestStatus;
 import com.velo.platform.entities.enums.RideStatus;
@@ -19,6 +21,7 @@ import com.velo.platform.services.PaymentService;
 import com.velo.platform.services.RatingService;
 import com.velo.platform.services.RideRequestService;
 import com.velo.platform.services.RideRealtimeService;
+import com.velo.platform.services.RideOfferService;
 import com.velo.platform.services.RideService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -90,6 +93,9 @@ class DriverServiceImplTest {
     @Mock
     private RideRealtimeService rideRealtimeService;
 
+    @Mock
+    private RideOfferService rideOfferService;
+
     private DriverServiceImpl driverService;
 
     private Driver testDriver;
@@ -108,7 +114,8 @@ class DriverServiceImplTest {
                 ratingService,
                 driverEarningsService,
                 eventPublisher,
-                rideRealtimeService);
+                rideRealtimeService,
+                rideOfferService);
 
         testDriver = Driver.builder()
                 .id(1L)
@@ -144,6 +151,7 @@ class DriverServiceImplTest {
         when(userPrincipal.getUserId()).thenReturn(101L);
         when(driverRepository.findByUserId(101L)).thenReturn(Optional.of(testDriver));
         lenient().when(driverRepository.save(any(Driver.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        lenient().when(rideOfferService.hasAnyOffer(anyLong())).thenReturn(false);
         SecurityContextHolder.setContext(securityContext);
     }
 
@@ -164,8 +172,33 @@ class DriverServiceImplTest {
     }
 
     @Test
+    @DisplayName("Accept ride with offer lifecycle should mark accepted and revoke competing offers")
+    void acceptRide_WithOfferLifecycle_ShouldResolveOfferStates() {
+        mockAuthenticatedDriver();
+        RideOffer offer = RideOffer.builder()
+                .id(11L)
+                .rideRequest(testRideRequest)
+                .driver(testDriver)
+                .status(RideOfferStatus.OFFERED)
+                .build();
+
+        when(rideRequestService.findRideRequestById(1L)).thenReturn(testRideRequest);
+        when(rideOfferService.hasAnyOffer(1L)).thenReturn(true);
+        when(rideOfferService.findAcceptableOffer(1L, testDriver.getId())).thenReturn(Optional.of(offer));
+        when(rideService.createNewRide(testRideRequest, testDriver)).thenReturn(testRide);
+        when(modelMapper.map(testRide, RideDto.class)).thenReturn(new RideDto());
+
+        RideDto result = driverService.acceptRide(1L);
+
+        assertThat(result).isNotNull();
+        verify(rideOfferService).markAccepted(offer);
+        verify(rideOfferService).revokeCompetingOffers(1L, testDriver.getId(), "Ride accepted by another driver.");
+    }
+
+    @Test
     @DisplayName("Accept ride with non-pending status should throw exception")
     void acceptRide_WithNonPendingStatus_ShouldThrowException() {
+        mockAuthenticatedDriver();
         testRideRequest.setRideRequestStatus(RideRequestStatus.CANCELLED);
 
         when(rideRequestService.findRideRequestById(1L)).thenReturn(testRideRequest);

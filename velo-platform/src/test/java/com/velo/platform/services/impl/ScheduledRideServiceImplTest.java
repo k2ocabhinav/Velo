@@ -16,6 +16,8 @@ import com.velo.platform.events.ScheduledRideRescheduledEvent;
 import com.velo.platform.exceptions.ResourceNotFoundException;
 import com.velo.platform.exceptions.RuntimeConflictException;
 import com.velo.platform.repositories.RideRequestRepository;
+import com.velo.platform.services.NotificationService;
+import com.velo.platform.services.RideOfferService;
 import com.velo.platform.services.RiderService;
 import com.velo.platform.strategies.RideFareCalculationStrategy;
 import com.velo.platform.strategies.DriverMatchingStrategy;
@@ -41,6 +43,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -53,6 +56,8 @@ class ScheduledRideServiceImplTest {
     @Mock private RideFareCalculationStrategy fareCalculationStrategy;
     @Mock private DriverMatchingStrategy driverMatchingStrategy;
     @Mock private ModelMapper modelMapper;
+    @Mock private RideOfferService rideOfferService;
+    @Mock private NotificationService notificationService;
     @Mock private ApplicationEventPublisher eventPublisher;
 
     private ScheduledRideConfig scheduledRideConfig;
@@ -71,7 +76,7 @@ class ScheduledRideServiceImplTest {
 
         scheduledRideService = new ScheduledRideServiceImpl(
                 rideRequestRepository, riderService, rideStrategyManager,
-                scheduledRideConfig, modelMapper, eventPublisher);
+                scheduledRideConfig, modelMapper, rideOfferService, notificationService, eventPublisher);
 
         testUser = User.builder().id(1L).email("rider@test.com").build();
         testRider = Rider.builder().id(1L).user(testUser).rating(4.5).build();
@@ -230,6 +235,7 @@ class ScheduledRideServiceImplTest {
             when(rideRequestRepository.save(any(RideRequest.class))).thenReturn(testRideRequest);
             when(rideStrategyManager.driverMatchingStrategy(anyDouble())).thenReturn(driverMatchingStrategy);
             when(driverMatchingStrategy.findMatchingDrivers(any())).thenReturn(List.of(matchedDriver));
+            when(rideOfferService.createOffers(eq(testRideRequest), anyList(), eq(45L))).thenReturn(List.of());
 
             int dispatched = scheduledRideService.dispatchScheduledRides();
 
@@ -242,6 +248,7 @@ class ScheduledRideServiceImplTest {
                             && rideRequestedEvent.isScheduledDispatch()
                             && rideRequestedEvent.getMatchedDrivers().contains(matchedDriver)
                             && rideRequestedEvent.getRideRequest().getId().equals(testRideRequest.getId())));
+            verify(rideOfferService).createOffers(eq(testRideRequest), anyList(), eq(45L));
         }
 
         @Test
@@ -259,22 +266,21 @@ class ScheduledRideServiceImplTest {
         }
 
         @Test
-        @DisplayName("Should publish dispatch event even when no drivers match")
-        void shouldPublishDispatchEventWhenNoDriversMatch() {
+        @DisplayName("Should mark scheduled dispatch as expired when no drivers match")
+        void shouldMarkDispatchExpiredWhenNoDriversMatch() {
             when(rideRequestRepository.findDueScheduledRides(
                     eq(RideRequestStatus.SCHEDULED), any(LocalDateTime.class)))
                     .thenReturn(List.of(testRideRequest));
             when(rideRequestRepository.save(any(RideRequest.class))).thenReturn(testRideRequest);
             when(rideStrategyManager.driverMatchingStrategy(anyDouble())).thenReturn(driverMatchingStrategy);
             when(driverMatchingStrategy.findMatchingDrivers(any())).thenReturn(Collections.emptyList());
+            when(rideOfferService.createOffers(eq(testRideRequest), anyList(), eq(45L))).thenReturn(List.of());
 
             int dispatched = scheduledRideService.dispatchScheduledRides();
 
-            assertThat(dispatched).isEqualTo(1);
-            verify(eventPublisher).publishEvent(argThat(event ->
-                    event instanceof RideRequestedEvent rideRequestedEvent
-                            && rideRequestedEvent.isScheduledDispatch()
-                            && rideRequestedEvent.getMatchedDrivers().isEmpty()));
+            assertThat(dispatched).isEqualTo(0);
+            verify(eventPublisher, never()).publishEvent(any(RideRequestedEvent.class));
+            assertThat(testRideRequest.getRideRequestStatus()).isEqualTo(RideRequestStatus.EXPIRED);
         }
 
         @Test
@@ -294,11 +300,12 @@ class ScheduledRideServiceImplTest {
             when(rideRequestRepository.save(rideRequest2)).thenReturn(rideRequest2);
             when(rideStrategyManager.driverMatchingStrategy(anyDouble())).thenReturn(driverMatchingStrategy);
             when(driverMatchingStrategy.findMatchingDrivers(any())).thenReturn(Collections.emptyList());
+            when(rideOfferService.createOffers(eq(rideRequest2), anyList(), eq(45L))).thenReturn(List.of());
 
             int dispatched = scheduledRideService.dispatchScheduledRides();
 
-            assertThat(dispatched).isEqualTo(1);
-            verify(eventPublisher, times(1)).publishEvent(any(RideRequestedEvent.class));
+            assertThat(dispatched).isEqualTo(0);
+            verify(eventPublisher, never()).publishEvent(any(RideRequestedEvent.class));
         }
     }
 }

@@ -26,6 +26,9 @@ public interface RideRequestRepository extends JpaRepository<RideRequest, Long> 
     Page<RideRequest> findByRideRequestStatusOrderByScheduledTimeAsc(
             RideRequestStatus status, Pageable pageable);
 
+    Page<RideRequest> findByRideRequestStatusOrderByRequestedTimeDesc(
+            RideRequestStatus status, Pageable pageable);
+
     @Query("SELECT r FROM RideRequest r WHERE r.rideRequestStatus = :status " +
             "AND r.scheduledTime <= :dispatchBefore ORDER BY r.scheduledTime ASC")
     List<RideRequest> findDueScheduledRides(

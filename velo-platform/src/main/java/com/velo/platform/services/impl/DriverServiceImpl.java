@@ -8,6 +8,7 @@ import com.velo.platform.dto.RideDto;
 import com.velo.platform.dto.RiderDto;
 import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.Ride;
+import com.velo.platform.entities.RideOffer;
 import com.velo.platform.entities.RideRequest;
 import com.velo.platform.entities.enums.RideRequestStatus;
 import com.velo.platform.entities.enums.RideStatus;
@@ -27,6 +28,7 @@ import org.modelmapper.ModelMapper;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,17 +50,28 @@ public class DriverServiceImpl implements DriverService {
     private final DriverEarningsService driverEarningsService;
     private final ApplicationEventPublisher eventPublisher;
     private final RideRealtimeService rideRealtimeService;
+    private final RideOfferService rideOfferService;
 
     @Override
     @Transactional
     public RideDto acceptRide(Long rideRequestId) {
+        Driver currentDriver = getCurrentDriver();
         RideRequest rideRequest = rideRequestService.findRideRequestById(rideRequestId);
 
+        RideOffer acceptedOffer = null;
+        if (rideOfferService.hasAnyOffer(rideRequestId)) {
+            acceptedOffer = rideOfferService
+                    .findAcceptableOffer(rideRequestId, currentDriver.getId())
+                    .orElseThrow(() -> new RuntimeConflictException("This ride request is no longer available."));
+        }
+
         if(!rideRequest.getRideRequestStatus().equals(RideRequestStatus.PENDING)) {
+            if (acceptedOffer != null) {
+                rideOfferService.markRevoked(acceptedOffer, "Ride request is no longer pending.");
+            }
             throw new RuntimeConflictException("RideRequest cannot be accepted, status is "+ rideRequest.getRideRequestStatus());
         }
 
-        Driver currentDriver = getCurrentDriver();
         if(!currentDriver.getAvailable()) {
             throw new RuntimeConflictException("Driver cannot accept ride due to unavailability");
         }
@@ -66,11 +79,25 @@ public class DriverServiceImpl implements DriverService {
         currentDriver.setAvailable(false);
         Driver savedDriver = driverRepository.save(currentDriver);
 
-        Ride ride = rideService.createNewRide(rideRequest, savedDriver);
+        try {
+            Ride ride = rideService.createNewRide(rideRequest, savedDriver);
+            if (acceptedOffer != null) {
+                rideOfferService.markAccepted(acceptedOffer);
+                rideOfferService.revokeCompetingOffers(
+                        rideRequestId,
+                        savedDriver.getId(),
+                        "Ride accepted by another driver."
+                );
+            }
 
-        eventPublisher.publishEvent(new RideAcceptedEvent(this, ride, currentDriver));
-
-        return modelMapper.map(ride, RideDto.class);
+            eventPublisher.publishEvent(new RideAcceptedEvent(this, ride, currentDriver));
+            return modelMapper.map(ride, RideDto.class);
+        } catch (ObjectOptimisticLockingFailureException optimisticFailure) {
+            if (acceptedOffer != null) {
+                rideOfferService.markRevoked(acceptedOffer, "Ride accepted by another driver.");
+            }
+            throw new RuntimeConflictException("This ride was already accepted by another driver.");
+        }
     }
 
     @Override

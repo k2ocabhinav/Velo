@@ -14,8 +14,10 @@ import com.velo.platform.repositories.RideRepository;
 import com.velo.platform.repositories.RiderRepository;
 import com.velo.platform.security.UserPrincipal;
 import com.velo.platform.services.DriverService;
+import com.velo.platform.services.NotificationService;
 import com.velo.platform.services.PromoCodeService;
 import com.velo.platform.services.RatingService;
+import com.velo.platform.services.RideOfferService;
 import com.velo.platform.services.RideService;
 import com.velo.platform.strategies.RideFareCalculationStrategy;
 import com.velo.platform.strategies.DriverMatchingStrategy;
@@ -78,6 +80,12 @@ class RiderServiceImplTest {
     private PromoCodeService promoCodeService;
 
     @Mock
+    private RideOfferService rideOfferService;
+
+    @Mock
+    private NotificationService notificationService;
+
+    @Mock
     private ApplicationEventPublisher eventPublisher;
 
     @Mock
@@ -114,6 +122,8 @@ class RiderServiceImplTest {
                 driverService,
                 ratingService,
                 promoCodeService,
+                rideOfferService,
+                notificationService,
                 eventPublisher);
 
         User testUser = User.builder()
@@ -175,7 +185,9 @@ class RiderServiceImplTest {
         when(fareCalculationStrategy.calculateFare(testRideRequest)).thenReturn(BigDecimal.valueOf(150.0));
         when(rideRequestRepository.save(testRideRequest)).thenReturn(testRideRequest);
         when(rideStrategyManager.driverMatchingStrategy(testRider.getRating())).thenReturn(driverMatchingStrategy);
-        when(driverMatchingStrategy.findMatchingDrivers(testRideRequest)).thenReturn(List.of());
+        Driver matchedDriver = Driver.builder().id(10L).build();
+        when(driverMatchingStrategy.findMatchingDrivers(testRideRequest)).thenReturn(List.of(matchedDriver));
+        when(rideOfferService.createOffers(testRideRequest, List.of(matchedDriver), 45L)).thenReturn(List.of());
         when(modelMapper.map(testRideRequest, RideRequestDto.class)).thenReturn(testRideRequestDto);
 
         RideRequestDto result = riderService.requestRide(testRideRequestDto);
@@ -183,6 +195,7 @@ class RiderServiceImplTest {
         assertThat(result).isNotNull();
         verify(rideRequestRepository).save(testRideRequest);
         assertThat(testRideRequest.getFare()).isEqualByComparingTo(BigDecimal.valueOf(150.0));
+        verify(rideOfferService).createOffers(testRideRequest, List.of(matchedDriver), 45L);
         verify(eventPublisher).publishEvent(any());
     }
 

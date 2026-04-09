@@ -6,6 +6,7 @@ import com.velo.platform.dto.ScheduledRideDto;
 import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.RideRequest;
 import com.velo.platform.entities.Rider;
+import com.velo.platform.entities.enums.NotificationType;
 import com.velo.platform.entities.enums.RideRequestStatus;
 import com.velo.platform.events.RideRequestedEvent;
 import com.velo.platform.events.ScheduledRideCancelledEvent;
@@ -15,6 +16,8 @@ import com.velo.platform.exceptions.ResourceNotFoundException;
 import com.velo.platform.exceptions.RuntimeConflictException;
 import com.velo.platform.repositories.RideRequestRepository;
 import com.velo.platform.services.RiderService;
+import com.velo.platform.services.NotificationService;
+import com.velo.platform.services.RideOfferService;
 import com.velo.platform.services.ScheduledRideService;
 import com.velo.platform.strategies.RideStrategyManager;
 import lombok.RequiredArgsConstructor;
@@ -37,12 +40,15 @@ import java.util.List;
 public class ScheduledRideServiceImpl implements ScheduledRideService {
 
     private static final ZoneId UTC = ZoneId.of("UTC");
+    private static final long DRIVER_OFFER_TTL_SECONDS = 45L;
 
     private final RideRequestRepository rideRequestRepository;
     private final RiderService riderService;
     private final RideStrategyManager rideStrategyManager;
     private final ScheduledRideConfig scheduledRideConfig;
     private final ModelMapper modelMapper;
+    private final RideOfferService rideOfferService;
+    private final NotificationService notificationService;
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
@@ -135,6 +141,20 @@ public class ScheduledRideServiceImpl implements ScheduledRideService {
                 List<Driver> matchedDrivers = rideStrategyManager
                         .driverMatchingStrategy(rider.getRating())
                         .findMatchingDrivers(savedRideRequest);
+
+                rideOfferService.createOffers(savedRideRequest, matchedDrivers, DRIVER_OFFER_TTL_SECONDS);
+                if (matchedDrivers.isEmpty()) {
+                    savedRideRequest.setRideRequestStatus(RideRequestStatus.EXPIRED);
+                    rideRequestRepository.save(savedRideRequest);
+                    notificationService.createNotification(
+                            rider.getUser(),
+                            "No drivers available for scheduled ride",
+                            "We could not find available drivers for the scheduled ride dispatch window.",
+                            NotificationType.RIDE_EXPIRED,
+                            savedRideRequest.getId()
+                    );
+                    continue;
+                }
 
                 eventPublisher.publishEvent(new RideRequestedEvent(this, savedRideRequest, matchedDrivers, true));
 
