@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildRideDraftSignature,
+  hasCompleteLocationSelection,
   inputStringsToMapPoint,
   mapPointToInputStrings,
 } from "../app/_lib/booking-map-state";
@@ -56,5 +58,27 @@ describe("booking map state helpers", () => {
       expect(geoJson.point.coordinates).toEqual([77.5946, 12.9716]);
       expect(geoJson.point.type).toBe("Point");
     }
+  });
+
+  it("computes complete location selection only when pickup and drop-off are both set", () => {
+    const pointA = { lat: 12.9716, lng: 77.5946 };
+    const pointB = { lat: 12.9352, lng: 77.6245 };
+    expect(hasCompleteLocationSelection(pointA, pointB)).toBe(true);
+    expect(hasCompleteLocationSelection(pointA, null)).toBe(false);
+    expect(hasCompleteLocationSelection(null, pointB)).toBe(false);
+    expect(hasCompleteLocationSelection(null, null)).toBe(false);
+  });
+
+  it("builds a stable ride draft signature with trimmed and normalized values", () => {
+    const signature = buildRideDraftSignature({
+      pickupLat: " 12.9716 ",
+      pickupLng: "77.5946",
+      dropLat: "12.9352",
+      dropLng: " 77.6245 ",
+      paymentMethod: " wallet ",
+      promoCode: " save10 ",
+    });
+
+    expect(signature).toBe("12.9716|77.5946|12.9352|77.6245|WALLET|SAVE10");
   });
 });

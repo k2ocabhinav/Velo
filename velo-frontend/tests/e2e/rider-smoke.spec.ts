@@ -232,17 +232,25 @@ test.describe("rider smoke", () => {
     await expect(page.locator(".booking-map")).toBeVisible();
     await expect(page.getByRole("button", { name: "Set pickup" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Set drop-off" })).toBeVisible();
+    const mapCanvas = page.locator(".booking-map .leaflet-container");
+    await mapCanvas.click({ position: { x: 120, y: 110 } });
+    await expect(page.getByLabel("Pickup latitude")).not.toHaveValue("");
+    await expect(page.getByLabel("Pickup longitude")).not.toHaveValue("");
+    await mapCanvas.click({ position: { x: 230, y: 170 } });
+    await expect(page.getByLabel("Drop-off latitude")).not.toHaveValue("");
+    await expect(page.getByLabel("Drop-off longitude")).not.toHaveValue("");
 
     // Manual inputs still work as fallback
     await page.getByLabel("Pickup latitude").fill("12.9716");
     await page.getByLabel("Pickup longitude").fill("77.5946");
     await page.getByLabel("Drop-off latitude").fill("12.9352");
     await page.getByLabel("Drop-off longitude").fill("77.6245");
+    await expect(page.getByRole("button", { name: "Estimate to unlock request" })).toBeDisabled();
     await page.getByRole("button", { name: "Estimate fare" }).click();
     await expect(page.getByText("$210.00")).toBeVisible();
 
     await page.getByRole("button", { name: "Request ride" }).click();
-    await expect(page.getByText("Ride request created successfully.")).toBeVisible();
+    await expect(page.getByText("Ride requested. We are now matching you with a nearby driver.")).toBeVisible();
     await expect(page.getByText("Request #501").first()).toBeVisible();
     await expect(page.getByText("Finding a driver")).toBeVisible();
   });

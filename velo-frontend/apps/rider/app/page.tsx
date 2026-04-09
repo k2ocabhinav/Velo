@@ -27,7 +27,13 @@ import {
   type RiderNotificationEvent,
 } from "./_lib/rider-ws";
 import { useActiveRideRedirect } from "./_lib/use-active-ride-redirect";
-import { inputStringsToMapPoint, mapPointToInputStrings, type SelectionTarget } from "./_lib/booking-map-state";
+import {
+  buildRideDraftSignature,
+  hasCompleteLocationSelection,
+  inputStringsToMapPoint,
+  mapPointToInputStrings,
+  type SelectionTarget,
+} from "./_lib/booking-map-state";
 import { fetchRoutePath, type MapPoint, type RoutePath } from "./_lib/map/routing";
 import { BookingMapLoader } from "./_components/booking-map-loader";
 
@@ -49,6 +55,7 @@ type RideRequest = {
 
 const ACTIVE_TRIP_REFRESH_INTERVAL_MS = 10_000;
 const BACKGROUND_REFRESH_INTERVAL_MS = 30_000;
+const GEOLOCATION_TIMEOUT_MS = 8_000;
 const TRIP_LANE_NOTIFICATION_TYPES = new Set([
   "RIDE_REQUESTED",
   "RIDE_ACCEPTED",
@@ -87,6 +94,7 @@ export default function RiderHomePage() {
   const [promoCode, setPromoCode] = useState("");
   const [estimating, setEstimating] = useState(false);
   const [requesting, setRequesting] = useState(false);
+  const [resolvingPickupLocation, setResolvingPickupLocation] = useState(false);
   const [loadingTripLane, setLoadingTripLane] = useState(true);
   const [refreshingTripLane, setRefreshingTripLane] = useState(false);
   const [tripLane, setTripLane] = useState<RiderHomeTripLane>(INITIAL_TRIP_LANE);
@@ -94,6 +102,7 @@ export default function RiderHomePage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [estimate, setEstimate] = useState<FareEstimate | null>(null);
+  const [estimateSignature, setEstimateSignature] = useState<string | null>(null);
   const [lastRequest, setLastRequest] = useState<RideRequest | null>(null);
   const [cancelingRideId, setCancelingRideId] = useState<number | null>(null);
   const [failedAction, setFailedAction] = useState<"estimate" | "request" | null>(null);
@@ -106,6 +115,30 @@ export default function RiderHomePage() {
 
   const pickupPoint = useMemo(() => inputStringsToMapPoint(pickupLat, pickupLng), [pickupLat, pickupLng]);
   const dropOffPoint = useMemo(() => inputStringsToMapPoint(dropLat, dropLng), [dropLat, dropLng]);
+  const hasSelectedLocations = hasCompleteLocationSelection(pickupPoint, dropOffPoint);
+  const currentDraftSignature = useMemo(
+    () =>
+      buildRideDraftSignature({
+        pickupLat,
+        pickupLng,
+        dropLat,
+        dropLng,
+        paymentMethod,
+        promoCode,
+      }),
+    [dropLat, dropLng, paymentMethod, pickupLat, pickupLng, promoCode],
+  );
+  const hasFreshEstimate = Boolean(estimate && estimateSignature && estimateSignature === currentDraftSignature);
+
+  useEffect(() => {
+    if (!estimateSignature) {
+      return;
+    }
+
+    if (estimateSignature !== currentDraftSignature) {
+      setEstimateSignature(null);
+    }
+  }, [currentDraftSignature, estimateSignature]);
 
   useEffect(() => {
     if (routeDebounceRef.current) {
@@ -262,6 +295,59 @@ export default function RiderHomePage() {
     setFailedAction(null);
   }
 
+  async function setPickupToCurrentLocation(): Promise<void> {
+    clearActionFeedback();
+    if (typeof window === "undefined" || !("geolocation" in navigator)) {
+      setError("Geolocation is unavailable in this browser. Set pickup manually on the map.");
+      return;
+    }
+
+    setResolvingPickupLocation(true);
+    await new Promise<void>((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const nextPoint: MapPoint = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          };
+          const strings = mapPointToInputStrings(nextPoint);
+          setPickupLat(strings.lat);
+          setPickupLng(strings.lng);
+          setActiveTarget("dropoff");
+          setMessage("Pickup pinned to your current location. Set drop-off next.");
+          resolve();
+        },
+        (locationError) => {
+          const nextMessage =
+            locationError.code === locationError.PERMISSION_DENIED
+              ? "Location permission was denied. Set pickup manually on the map."
+              : "Unable to read current location right now. Set pickup manually on the map.";
+          setError(nextMessage);
+          resolve();
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 0,
+          timeout: GEOLOCATION_TIMEOUT_MS,
+        },
+      );
+    });
+    setResolvingPickupLocation(false);
+  }
+
+  function clearLocations(): void {
+    setPickupLat("");
+    setPickupLng("");
+    setDropLat("");
+    setDropLng("");
+    setRoutePath(null);
+    setEstimate(null);
+    setEstimateSignature(null);
+    setActiveTarget("pickup");
+    clearActionFeedback();
+    setMessage("Pickup and drop-off have been cleared.");
+  }
+
   async function estimateFare(): Promise<void> {
     setEstimating(true);
     clearActionFeedback();
@@ -274,6 +360,7 @@ export default function RiderHomePage() {
         body: JSON.stringify(payload),
       });
       setEstimate(response);
+      setEstimateSignature(currentDraftSignature);
       setMessage("Fare estimate updated.");
     } catch (estimateError) {
       const nextMessage =
@@ -288,8 +375,17 @@ export default function RiderHomePage() {
   }
 
   async function requestRide(): Promise<void> {
-    setRequesting(true);
     clearActionFeedback();
+    if (!hasSelectedLocations) {
+      setError("Set pickup and drop-off before requesting a ride.");
+      return;
+    }
+    if (!hasFreshEstimate) {
+      setError("Estimate fare with the latest trip details before requesting a ride.");
+      setFailedAction("estimate");
+      return;
+    }
+    setRequesting(true);
 
     try {
       const payload = buildRequestBody();
@@ -303,7 +399,7 @@ export default function RiderHomePage() {
         createdTime: new Date().toISOString(),
       };
       setLastRequest(pendingRequest);
-      setMessage("Ride request created successfully.");
+      setMessage("Ride requested. We are now matching you with a nearby driver.");
       void loadTripLane(true, pendingRequest);
     } catch (requestError) {
       const nextMessage =
@@ -350,9 +446,9 @@ export default function RiderHomePage() {
     }
   }
 
-  const canEstimate = !shouldDisableSubmit(estimating, formInputs);
+  const canEstimate = hasSelectedLocations && !shouldDisableSubmit(estimating, formInputs);
   const hasInFlightTrip = tripLane.mode === "pending" || tripLane.mode === "active";
-  const canRequest = !shouldDisableSubmit(requesting, formInputs) && !hasInFlightTrip;
+  const canRequest = hasSelectedLocations && hasFreshEstimate && !shouldDisableSubmit(requesting, formInputs) && !hasInFlightTrip;
 
   async function retryLastAction(): Promise<void> {
     if (failedAction === "estimate") {
@@ -412,6 +508,11 @@ export default function RiderHomePage() {
                     {cancelingRideId === tripLane.ride.id ? "Canceling..." : "Cancel ride"}
                   </button>
                 ) : null}
+                {tripLane.mode === "active" ? (
+                  <Link className="secondary-button" href="/ride/active">
+                    Open live trip
+                  </Link>
+                ) : null}
                 <Link className="secondary-button" href="/rides">
                   Open rides
                 </Link>
@@ -446,6 +547,7 @@ export default function RiderHomePage() {
 
       <section className="card stack">
         <strong>Trip details</strong>
+        <p className="helper">Step 1: set pickup and drop-off. Step 2: estimate fare. Step 3: request ride.</p>
         <div className="grid grid-2">
           <label className="field">
             <span>Pickup latitude</span>
@@ -485,22 +587,48 @@ export default function RiderHomePage() {
 
         <div className="actions">
           <button
-            className="primary-button"
+            className="secondary-button"
             type="button"
-            disabled={!canEstimate}
-            onClick={() => void estimateFare()}
+            disabled={resolvingPickupLocation || estimating || requesting}
+            onClick={() => void setPickupToCurrentLocation()}
           >
-            {estimating ? "Estimating..." : "Estimate fare"}
+            {resolvingPickupLocation ? "Locating..." : "Use current location"}
           </button>
           <button
-            className="primary-button"
+            className="secondary-button"
             type="button"
-            disabled={!canRequest}
-            onClick={() => void requestRide()}
+            disabled={estimating || requesting}
+            onClick={clearLocations}
           >
-            {requesting ? "Requesting..." : "Request ride"}
+            Clear locations
           </button>
         </div>
+
+        {!hasSelectedLocations ? (
+          <p className="helper">Select pickup and drop-off to unlock fare estimation and ride request.</p>
+        ) : (
+          <div className="actions">
+            <button
+              className="primary-button"
+              type="button"
+              disabled={!canEstimate}
+              onClick={() => void estimateFare()}
+            >
+              {estimating ? "Estimating..." : "Estimate fare"}
+            </button>
+            <button
+              className="primary-button"
+              type="button"
+              disabled={!canRequest}
+              onClick={() => void requestRide()}
+            >
+              {requesting ? "Requesting..." : hasFreshEstimate ? "Request ride" : "Estimate to unlock request"}
+            </button>
+          </div>
+        )}
+        {estimate && !hasFreshEstimate ? (
+          <p className="helper">Trip details changed. Re-estimate fare to refresh price before requesting.</p>
+        ) : null}
         {hasInFlightTrip ? (
           <p className="helper">You already have an active or pending trip. Complete or cancel it before requesting another ride.</p>
         ) : null}
@@ -516,9 +644,10 @@ export default function RiderHomePage() {
       <section className="card stack">
         <strong>Select on map</strong>
         <p className="helper">
-          Tap the map to place a marker. Drag markers to fine-tune.
+          Tap the map to place a marker. Drag markers to fine-tune pickup and drop-off.
           {loadingRoute ? " Calculating route..." : routePath && routePath.points.length > 1 ? " Route preview shown." : null}
         </p>
+        <p className="helper">Active selection: {activeTarget === "pickup" ? "Pickup" : "Drop-off"}.</p>
         <div className="booking-map-controls">
           <button
             className={activeTarget === "pickup" ? "primary-button" : "secondary-button"}

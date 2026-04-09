@@ -8,6 +8,15 @@ export interface BookingMapState {
   activeTarget: SelectionTarget;
 }
 
+export interface RideDraftSignatureInput {
+  pickupLat: string;
+  pickupLng: string;
+  dropLat: string;
+  dropLng: string;
+  paymentMethod: string;
+  promoCode?: string | null;
+}
+
 export function mapPointToInputStrings(point: MapPoint): { lat: string; lng: string } {
   return {
     lat: String(point.lat),
@@ -39,4 +48,26 @@ export function inputStringsToMapPoint(lat: string, lng: string): MapPoint | nul
   }
 
   return { lat: parsedLat, lng: parsedLng };
+}
+
+function normalizeSegment(value: string | null | undefined): string {
+  return (value ?? "").trim();
+}
+
+export function hasCompleteLocationSelection(
+  pickupPoint: MapPoint | null,
+  dropOffPoint: MapPoint | null,
+): boolean {
+  return Boolean(pickupPoint && dropOffPoint);
+}
+
+export function buildRideDraftSignature(input: RideDraftSignatureInput): string {
+  const pickupLat = normalizeSegment(input.pickupLat);
+  const pickupLng = normalizeSegment(input.pickupLng);
+  const dropLat = normalizeSegment(input.dropLat);
+  const dropLng = normalizeSegment(input.dropLng);
+  const paymentMethod = normalizeSegment(input.paymentMethod).toUpperCase();
+  const promoCode = normalizeSegment(input.promoCode ?? "").toUpperCase();
+
+  return `${pickupLat}|${pickupLng}|${dropLat}|${dropLng}|${paymentMethod}|${promoCode}`;
 }
