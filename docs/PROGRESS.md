@@ -114,7 +114,7 @@
 - [x] Wallet page — `95e0014`
 - [x] Promos page — `95e0014`
 - [x] Notifications page — `95e0014`
-- [ ] Map integration (Mapbox GL JS) on booking page
+- [x] Map integration (Leaflet/OSM) on booking page — interactive pickup/drop-off selection with route preview
 - [ ] Real-time ride tracking (WebSocket + map)
 - [ ] "Finding driver" animation/loading state
 - [ ] Rider booking E2E tests

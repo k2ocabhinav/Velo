@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   requestRiderProxy,
@@ -27,6 +27,9 @@ import {
   type RiderNotificationEvent,
 } from "./_lib/rider-ws";
 import { useActiveRideRedirect } from "./_lib/use-active-ride-redirect";
+import { inputStringsToMapPoint, mapPointToInputStrings, type SelectionTarget } from "./_lib/booking-map-state";
+import { fetchRoutePath, type MapPoint, type RoutePath } from "./_lib/map/routing";
+import { BookingMapLoader } from "./_components/booking-map-loader";
 
 type FareEstimate = {
   estimatedFare: DecimalValue;
@@ -95,6 +98,63 @@ export default function RiderHomePage() {
   const [cancelingRideId, setCancelingRideId] = useState<number | null>(null);
   const [failedAction, setFailedAction] = useState<"estimate" | "request" | null>(null);
   const [lastTripLaneSyncAt, setLastTripLaneSyncAt] = useState<string | null>(null);
+
+  const [activeTarget, setActiveTarget] = useState<SelectionTarget>("pickup");
+  const [routePath, setRoutePath] = useState<RoutePath | null>(null);
+  const [loadingRoute, setLoadingRoute] = useState(false);
+  const routeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const pickupPoint = useMemo(() => inputStringsToMapPoint(pickupLat, pickupLng), [pickupLat, pickupLng]);
+  const dropOffPoint = useMemo(() => inputStringsToMapPoint(dropLat, dropLng), [dropLat, dropLng]);
+
+  useEffect(() => {
+    if (routeDebounceRef.current) {
+      clearTimeout(routeDebounceRef.current);
+    }
+
+    if (!pickupPoint || !dropOffPoint) {
+      setRoutePath(null);
+      return;
+    }
+
+    let cancelled = false;
+    setLoadingRoute(true);
+
+    routeDebounceRef.current = setTimeout(() => {
+      void fetchRoutePath(pickupPoint, dropOffPoint)
+        .then((result) => {
+          if (!cancelled) setRoutePath(result);
+        })
+        .finally(() => {
+          if (!cancelled) setLoadingRoute(false);
+        });
+    }, 500);
+
+    return () => {
+      cancelled = true;
+      if (routeDebounceRef.current) {
+        clearTimeout(routeDebounceRef.current);
+      }
+    };
+  }, [pickupPoint, dropOffPoint]);
+
+  const handleMapPointSelected = useCallback(
+    (target: SelectionTarget, point: MapPoint) => {
+      const strings = mapPointToInputStrings(point);
+      if (target === "pickup") {
+        setPickupLat(strings.lat);
+        setPickupLng(strings.lng);
+      } else {
+        setDropLat(strings.lat);
+        setDropLng(strings.lng);
+      }
+      // Auto-advance: after placing pickup, switch to dropoff
+      if (target === "pickup") {
+        setActiveTarget("dropoff");
+      }
+    },
+    [],
+  );
 
   const formInputs = useMemo(
     () => [pickupLat, pickupLng, dropLat, dropLng, paymentMethod],
@@ -382,6 +442,37 @@ export default function RiderHomePage() {
         {!loadingTripLane && !tripLaneError && !tripLane.ride ? (
           tripLane.mode === "pending" ? null : <p className="helper">Your active trip lane is empty for now.</p>
         ) : null}
+      </section>
+
+      <section className="card stack">
+        <strong>Select on map</strong>
+        <p className="helper">
+          Tap the map to place a marker. Drag markers to fine-tune.
+          {loadingRoute ? " Calculating route..." : routePath && routePath.points.length > 1 ? " Route preview shown." : null}
+        </p>
+        <div className="booking-map-controls">
+          <button
+            className={activeTarget === "pickup" ? "primary-button" : "secondary-button"}
+            type="button"
+            onClick={() => setActiveTarget("pickup")}
+          >
+            Set pickup
+          </button>
+          <button
+            className={activeTarget === "dropoff" ? "primary-button" : "secondary-button"}
+            type="button"
+            onClick={() => setActiveTarget("dropoff")}
+          >
+            Set drop-off
+          </button>
+        </div>
+        <BookingMapLoader
+          pickup={pickupPoint}
+          dropOff={dropOffPoint}
+          routePoints={routePath?.points ?? []}
+          activeTarget={activeTarget}
+          onPointSelected={handleMapPointSelected}
+        />
       </section>
 
       <section className="card stack">

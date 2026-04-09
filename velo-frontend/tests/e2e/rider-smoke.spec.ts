@@ -145,7 +145,7 @@ test.describe("rider smoke", () => {
     await expect(page.getByText("Ride #91")).toBeVisible();
   });
 
-  test("rider booking supports fare estimate and request ride", async ({ baseURL, context, page }) => {
+  test("rider booking supports fare estimate and request ride with map visible", async ({ baseURL, context, page }) => {
     const riderBaseUrl = baseURL ?? "http://127.0.0.1:3001";
     await context.addCookies([
       {
@@ -167,6 +167,29 @@ test.describe("rider smoke", () => {
             totalElements: 0,
             size: 10,
           },
+        }),
+      });
+    });
+
+    await page.route("https://router.project-osrm.org/**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          code: "Ok",
+          routes: [
+            {
+              distance: 5200,
+              duration: 960,
+              geometry: {
+                coordinates: [
+                  [77.5946, 12.9716],
+                  [77.61, 12.955],
+                  [77.6245, 12.9352],
+                ],
+              },
+            },
+          ],
         }),
       });
     });
@@ -205,6 +228,12 @@ test.describe("rider smoke", () => {
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Request your next ride" })).toBeVisible();
 
+    // Verify booking map and selection controls are visible
+    await expect(page.locator(".booking-map")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Set pickup" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Set drop-off" })).toBeVisible();
+
+    // Manual inputs still work as fallback
     await page.getByRole("button", { name: "Estimate fare" }).click();
     await expect(page.getByText("$210.00")).toBeVisible();
 

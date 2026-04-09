@@ -222,6 +222,36 @@ a {
   font-size: 14px;
 }
 
+.booking-map {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.booking-map-inner {
+  min-height: 300px;
+  width: 100%;
+}
+
+.booking-map-placeholder {
+  display: grid;
+  place-items: center;
+  background: var(--surface-strong);
+}
+
+.booking-map-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.booking-marker-pickup {
+  filter: hue-rotate(0deg);
+}
+
+.booking-marker-dropoff {
+  filter: hue-rotate(120deg);
+}
+
 .active-ride-map {
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -322,5 +352,9 @@ a {
 
   .timeline {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .booking-map-inner {
+    min-height: 220px;
   }
 }
