@@ -41,6 +41,24 @@ export function validateOtpInput(value: string): ValidationResult<string> {
   return { ok: true, value: otp };
 }
 
+export function validateRatingInput(value: string): ValidationResult<number> {
+  const candidate = value.trim();
+  if (!candidate) {
+    return { ok: false, error: "Rating is required." };
+  }
+
+  const rating = Number(candidate);
+  if (!Number.isInteger(rating)) {
+    return { ok: false, error: "Rating must be a whole number." };
+  }
+
+  if (rating < 1 || rating > 5) {
+    return { ok: false, error: "Rating must be between 1 and 5." };
+  }
+
+  return { ok: true, value: rating };
+}
+
 export function validatePayoutAmount(
   value: string,
   availableBalance: number | null | undefined,
@@ -78,4 +96,17 @@ export function canSubmitEndRide(rideStatus: string | null | undefined, pending:
 
 export function canSubmitCancelRide(rideStatus: string | null | undefined, pending: boolean): boolean {
   return !pending && rideStatus === "CONFIRMED";
+}
+
+export function canSubmitRateRider(
+  rideStatus: string | null | undefined,
+  rating: string,
+  pending: boolean,
+  alreadyRated = false,
+): boolean {
+  if (pending || alreadyRated || rideStatus !== "ENDED") {
+    return false;
+  }
+
+  return validateRatingInput(rating).ok;
 }

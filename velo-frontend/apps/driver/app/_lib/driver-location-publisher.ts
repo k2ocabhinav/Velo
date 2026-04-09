@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { requestDriverProxy } from "./driver-client";
+import type { MapPoint } from "./map/routing";
 
 type DriverLocationPublisherState = {
   mode: "idle" | "publishing" | "degraded";
   message: string;
   lastPublishedAt: string | null;
+  lastPublishedPoint: MapPoint | null;
 };
 
 const ACTIVE_RIDE_STATUSES = new Set(["CONFIRMED", "ONGOING"]);
@@ -68,6 +70,7 @@ export function useDriverLocationPublisher(rideStatus: string | null | undefined
     mode: "idle",
     message: "Location publishing is idle.",
     lastPublishedAt: null,
+    lastPublishedPoint: null,
   });
 
   useEffect(() => {
@@ -76,6 +79,7 @@ export function useDriverLocationPublisher(rideStatus: string | null | undefined
         mode: "idle",
         message: "Location publishing is idle.",
         lastPublishedAt: null,
+        lastPublishedPoint: null,
       });
       return;
     }
@@ -85,6 +89,7 @@ export function useDriverLocationPublisher(rideStatus: string | null | undefined
         mode: "degraded",
         message: "Geolocation is unavailable. Ride status updates continue without live location.",
         lastPublishedAt: null,
+        lastPublishedPoint: null,
       });
       return;
     }
@@ -136,6 +141,10 @@ export function useDriverLocationPublisher(rideStatus: string | null | undefined
                 mode: "publishing",
                 message: "Publishing live location updates.",
                 lastPublishedAt: publishedAt,
+                lastPublishedPoint: {
+                  lat: position.coords.latitude,
+                  lng: position.coords.longitude,
+                },
               }));
               scheduleNext(
                 resolveLocationPublishIntervalMs({

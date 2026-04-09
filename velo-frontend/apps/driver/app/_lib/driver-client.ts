@@ -17,22 +17,41 @@ export interface SpringPage<T> {
   totalPages?: number;
 }
 
+export interface PointDto {
+  coordinates?: [number, number] | number[];
+  type?: string;
+}
+
+export interface DriverUserSummary {
+  name?: string;
+  email?: string;
+  roles?: string[];
+}
+
 export interface DriverProfile {
   id: number;
   rating?: number | null;
   available: boolean;
   vehicleId?: string | null;
-  user?: {
-    name?: string;
-    email?: string;
-    roles?: string[];
-  } | null;
+  user?: DriverUserSummary | null;
+}
+
+export interface DriverRidePerson {
+  id?: number;
+  rating?: number | null;
+  vehicleId?: string | null;
+  user?: DriverUserSummary | null;
 }
 
 export interface DriverRide {
   id: number;
   rideStatus: string;
   paymentMethod: string;
+  pickupLocation?: PointDto | null;
+  dropOffLocation?: PointDto | null;
+  rider?: DriverRidePerson | null;
+  driver?: DriverRidePerson | null;
+  fare?: DecimalValue | null;
   fair?: DecimalValue | null;
   otp?: string | null;
   createdTime?: string | null;
@@ -90,4 +109,3 @@ export async function requestDriverProxy<T>(path: string, init?: RequestInit): P
 }
 
 export { unwrapPageItems, toCurrency, toRelativeTimestamp };
-

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { isActionPending, setActionPending } from "@velo/app-core/async-actions";
 import {
   requestDriverProxy,
+  toCurrency,
   toRelativeTimestamp,
   type DriverNotification,
   type DriverProfile,
@@ -14,13 +15,22 @@ import {
 } from "./_lib/driver-client";
 import { mapApiError } from "./_lib/driver-forms";
 import {
+  getDriverRideFareValue,
+  getDriverRideStatusLabel,
+  getDriverRideTimeLabel,
+  isDriverRideActive,
+  normalizeDriverRidePage,
+  selectCurrentDriverRide,
+} from "./_lib/driver-ride-state";
+import {
   getDriverRealtimeStatusText,
   useDriverNotificationSubscription,
   type DriverNotificationEvent,
 } from "./_lib/driver-ws";
 
 const INCOMING_TYPES = new Set(["RIDE_REQUESTED", "RIDE_DISPATCHED"]);
-const REFRESH_INTERVAL_MS = 30_000;
+const DEFAULT_REFRESH_INTERVAL_MS = 30_000;
+const ACTIVE_RIDE_REFRESH_INTERVAL_MS = 10_000;
 
 function isIncomingRideType(type: string | null | undefined): boolean {
   return Boolean(type && INCOMING_TYPES.has(type));
@@ -60,6 +70,10 @@ export default function DriverHomePage() {
   const [incoming, setIncoming] = useState<DriverNotification[]>([]);
   const [loadingIncoming, setLoadingIncoming] = useState(true);
   const [refreshingIncoming, setRefreshingIncoming] = useState(false);
+  const [activeRide, setActiveRide] = useState<DriverRide | null>(null);
+  const [loadingActiveRide, setLoadingActiveRide] = useState(true);
+  const [refreshingActiveRide, setRefreshingActiveRide] = useState(false);
+  const [activeRideError, setActiveRideError] = useState<string | null>(null);
 
   const [acceptingRequestId, setAcceptingRequestId] = useState<number | null>(null);
   const [markingNotificationId, setMarkingNotificationId] = useState<number | null>(null);
@@ -100,34 +114,74 @@ export default function DriverHomePage() {
     }
   }, []);
 
+  const loadActiveRide = useCallback(async (refresh = false) => {
+    if (refresh) {
+      setRefreshingActiveRide(true);
+    } else {
+      setLoadingActiveRide(true);
+    }
+    setActiveRideError(null);
+
+    try {
+      const page = await requestDriverProxy<SpringPage<DriverRide>>("drivers/getMyRides?pageOffset=0&pageSize=20");
+      const rides = normalizeDriverRidePage(page);
+      setActiveRide(selectCurrentDriverRide(rides));
+    } catch (activeRideLoadError) {
+      setActiveRideError(
+        activeRideLoadError instanceof Error ? activeRideLoadError.message : "Unable to load active ride status.",
+      );
+      setActiveRide(null);
+    } finally {
+      setLoadingActiveRide(false);
+      setRefreshingActiveRide(false);
+    }
+  }, []);
+
   useEffect(() => {
     void loadProfile();
     void loadIncoming();
-  }, [loadProfile, loadIncoming]);
+    void loadActiveRide();
+  }, [loadProfile, loadIncoming, loadActiveRide]);
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
       void loadIncoming(true);
-    }, REFRESH_INTERVAL_MS);
+    }, DEFAULT_REFRESH_INTERVAL_MS);
 
     return () => {
       window.clearInterval(intervalId);
     };
   }, [loadIncoming]);
 
-  const handleIncomingNotification = useCallback((event: DriverNotificationEvent) => {
-    const normalized = toIncomingNotification(event);
-    if (!normalized || normalized.read) {
-      return;
-    }
+  useEffect(() => {
+    const intervalMs = activeRide ? ACTIVE_RIDE_REFRESH_INTERVAL_MS : DEFAULT_REFRESH_INTERVAL_MS;
+    const intervalId = window.setInterval(() => {
+      void loadActiveRide(true);
+    }, intervalMs);
 
-    setIncoming((current) => {
-      if (current.some((item) => item.id === normalized.id)) {
-        return current;
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [activeRide, loadActiveRide]);
+
+  const handleIncomingNotification = useCallback(
+    (event: DriverNotificationEvent) => {
+      const normalized = toIncomingNotification(event);
+      if (normalized && !normalized.read) {
+        setIncoming((current) => {
+          if (current.some((item) => item.id === normalized.id)) {
+            return current;
+          }
+          return [normalized, ...current];
+        });
       }
-      return [normalized, ...current];
-    });
-  }, []);
+
+      if (event.type?.toUpperCase().startsWith("RIDE_")) {
+        void loadActiveRide(true);
+      }
+    },
+    [loadActiveRide],
+  );
 
   const realtime = useDriverNotificationSubscription(true, handleIncomingNotification);
 
@@ -195,6 +249,7 @@ export default function DriverHomePage() {
 
       setIncoming((current) => current.filter((item) => item.id !== notification.id));
       setMessage(`Ride request #${rideRequestId} accepted.`);
+      setActiveRide(ride);
       router.push(`/ride/${ride.id}`);
     } catch (acceptError) {
       setError(
@@ -332,6 +387,50 @@ export default function DriverHomePage() {
               );
             })}
           </div>
+        ) : null}
+      </section>
+
+      <section className="card stack">
+        <div className="split-row">
+          <div className="stack compact">
+            <strong>Current ride lane</strong>
+            <p className="helper">Keep this lane open for active ride continuity.</p>
+          </div>
+          <button
+            className="secondary-button"
+            type="button"
+            disabled={refreshingActiveRide}
+            onClick={() => void loadActiveRide(true)}
+          >
+            {refreshingActiveRide ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
+
+        {loadingActiveRide ? <p className="helper">Loading active ride status...</p> : null}
+        {activeRideError ? <p className="error-text">{activeRideError}</p> : null}
+        {!loadingActiveRide && !activeRideError && !activeRide ? (
+          <p className="helper">No active ride currently. New accepted rides will appear here automatically.</p>
+        ) : null}
+
+        {!loadingActiveRide && !activeRideError && activeRide ? (
+          <article className="list-item">
+            <div className="stack compact">
+              <strong>Ride #{activeRide.id}</strong>
+              <p className="helper">
+                {getDriverRideStatusLabel(activeRide.rideStatus)} • {getDriverRideTimeLabel(activeRide)}
+              </p>
+              <p className="helper">
+                Rider: {activeRide.rider?.user?.name ?? activeRide.rider?.user?.email ?? "Assigned rider"}
+              </p>
+            </div>
+            <div className="stack compact" style={{ justifyItems: "end" }}>
+              <span className="badge">{toCurrency(getDriverRideFareValue(activeRide))}</span>
+              <span className="helper">{isDriverRideActive(activeRide.rideStatus) ? "Action required" : "Recent"}</span>
+              <Link className="primary-button" href={`/ride/${activeRide.id}`}>
+                Open control center
+              </Link>
+            </div>
+          </article>
         ) : null}
       </section>
 
