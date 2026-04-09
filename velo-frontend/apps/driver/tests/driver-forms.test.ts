@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   canSubmitCancelRide,
   canSubmitEndRide,
+  canSubmitRateRider,
   canSubmitStartRide,
   mapApiError,
   validateOtpInput,
+  validateRatingInput,
   validatePayoutAmount,
 } from "../app/_lib/driver-forms";
 
@@ -56,6 +58,31 @@ describe("driver form helpers", () => {
     expect(canSubmitCancelRide("CONFIRMED", false)).toBe(true);
     expect(canSubmitCancelRide("ONGOING", false)).toBe(false);
     expect(canSubmitCancelRide("CONFIRMED", true)).toBe(false);
+
+    expect(canSubmitRateRider("ENDED", "5", false)).toBe(true);
+    expect(canSubmitRateRider("ONGOING", "5", false)).toBe(false);
+    expect(canSubmitRateRider("ENDED", "0", false)).toBe(false);
+    expect(canSubmitRateRider("ENDED", "4", true)).toBe(false);
+    expect(canSubmitRateRider("ENDED", "4", false, true)).toBe(false);
+  });
+
+  it("validates rider rating input", () => {
+    expect(validateRatingInput("")).toEqual({
+      ok: false,
+      error: "Rating is required.",
+    });
+    expect(validateRatingInput("2.5")).toEqual({
+      ok: false,
+      error: "Rating must be a whole number.",
+    });
+    expect(validateRatingInput("7")).toEqual({
+      ok: false,
+      error: "Rating must be between 1 and 5.",
+    });
+    expect(validateRatingInput("4")).toEqual({
+      ok: true,
+      value: 4,
+    });
   });
 
   it("maps API error payloads to deterministic messages", () => {
