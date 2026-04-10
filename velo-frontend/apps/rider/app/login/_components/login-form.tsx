@@ -2,9 +2,8 @@
 
 import type { FormEvent } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { sanitizeNextPath } from "../_lib/redirect";
 
 function extractAuthToken(payload: unknown): string | null {
   if (!payload || typeof payload !== "object") {
@@ -27,10 +26,8 @@ function extractAuthToken(payload: unknown): string | null {
   return null;
 }
 
-export function LoginForm() {
+export function LoginForm({ nextPath }: Readonly<{ nextPath: string }>) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const nextPath = sanitizeNextPath(searchParams.get("next"));
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 

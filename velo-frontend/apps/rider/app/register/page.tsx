@@ -1,7 +1,23 @@
-import { Suspense } from "react";
 import { RegisterForm } from "./_components/register-form";
+import { sanitizeNextPath } from "../login/_lib/redirect";
 
-export default function RegisterPage() {
+type RegisterPageProps = {
+  searchParams?: Promise<{
+    next?: string | string[];
+  }>;
+};
+
+function readNextParam(searchParams: Awaited<RegisterPageProps["searchParams"]>): string | null {
+  const nextValue = searchParams?.next;
+  if (Array.isArray(nextValue)) {
+    return typeof nextValue[0] === "string" ? nextValue[0] : null;
+  }
+  return typeof nextValue === "string" ? nextValue : null;
+}
+
+export default async function RegisterPage({ searchParams }: RegisterPageProps) {
+  const nextPath = sanitizeNextPath(readNextParam(await searchParams));
+
   return (
     <main className="form-shell">
       <section className="card login-card">
@@ -13,9 +29,7 @@ export default function RegisterPage() {
               Register to request rides and manage your trips.
             </p>
           </div>
-          <Suspense fallback={<p className="helper">Loading registration form...</p>}>
-            <RegisterForm />
-          </Suspense>
+          <RegisterForm nextPath={nextPath} />
         </div>
       </section>
     </main>

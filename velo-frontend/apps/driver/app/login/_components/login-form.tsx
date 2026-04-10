@@ -2,13 +2,10 @@
 
 import type { FormEvent } from "react";
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { sanitizeNextPath } from "../_lib/redirect";
+import { useRouter } from "next/navigation";
 
-export function LoginForm() {
+export function LoginForm({ nextPath }: Readonly<{ nextPath: string }>) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const nextPath = sanitizeNextPath(searchParams.get("next"));
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
