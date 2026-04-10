@@ -500,3 +500,12 @@ The frontend only needs to: call the right endpoint, display the response, and l
 - Added contract coverage for admin dispatch + ops-health endpoints in `packages/api`.
 - Added admin dispatch e2e smoke case (offers + assign mutation path) for Chromium.
 - Added WebKit admin project scaffold in Playwright config for Safari-smoke expansion.
+
+## Implementation Status Update (2026-04-10, Admin Ops Merge Hardening)
+
+- Integration handshake now includes dispatch-specific checks (`/dispatch/requests`, `/dispatch/active-rides`, `/dispatch/audit`, `/ops-health`).
+- Compose integration flow now runs in two passes:
+  - mutation pass (writes a known admin dispatch audit marker)
+  - post-restart pass (verifies persisted state/audit marker without wiping volumes).
+- Admin WebKit smoke is now configured as a required integration gate in CI.
+- Demo procedure for these capabilities is documented in `ADMIN_DEMO_SCRIPT.md`.

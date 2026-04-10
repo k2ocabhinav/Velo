@@ -336,3 +336,22 @@
 - Backend package gate passing:
   - `./mvnw -q -DskipTests package`
 - Backend full test suite currently requires local PostgreSQL (`localhost:5432`) in this environment.
+
+## Implementation Status Update (2026-04-10 — Admin Ops Completion Hardening)
+
+### Reliability and verification closure
+- Added backend integration coverage for admin dispatch endpoints:
+  - assign/reassign/force-cancel flows
+  - validation failures (`400`) for missing reason
+  - conflict behavior for unapproved driver assignment
+  - single-winner acceptance race behavior for two drivers.
+- Added Flyway migration verification tests for deterministic baseline creation and seed stability across repeat migrate/clean+migrate cycles.
+- Integration handshake expanded with admin dispatch and persistence verification modes:
+  - mutation pass writes a known dispatch audit marker
+  - restart pass verifies marker/state persistence without volume reset.
+- CI gates hardened:
+  - backend quality workflow now provisions PostGIS-backed PostgreSQL service for `./mvnw -q test`
+  - integration workflow now requires admin WebKit smoke in addition to Chromium suites.
+
+### Demo support
+- Added focused demo runbook: `docs/ADMIN_DEMO_SCRIPT.md`.

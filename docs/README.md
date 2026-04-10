@@ -25,6 +25,7 @@ Single source of truth for the Velo project.
 | [BRANCHING.md](BRANCHING.md) | Branch naming, merge rules, parallel agent work |
 | [PROGRESS.md](PROGRESS.md) | Shared checklist — what's done, what's not |
 | [SECURITY_REMEDIATION.md](SECURITY_REMEDIATION.md) | Dependency vulnerability tracking and remediation policy |
+| [ADMIN_DEMO_SCRIPT.md](ADMIN_DEMO_SCRIPT.md) | Step-by-step demo for dispatch race, persistence, and ops health |
 
 ## How To Use
 
@@ -34,6 +35,7 @@ Single source of truth for the Velo project.
 - **Deploying?** Read `DEPLOYMENT.md`.
 - **Checking progress?** Read `PROGRESS.md`.
 - **Creating a branch?** Read `BRANCHING.md`.
+- **Preparing investor/admin demo?** Read `ADMIN_DEMO_SCRIPT.md`.
 
 ## Current State
 
