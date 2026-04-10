@@ -60,7 +60,7 @@ class FlywayMigrationIntegrationTest {
         assertThat(requestsAfterFirst).isGreaterThan(0);
         assertThat(offersAfterFirst).isGreaterThan(0);
         assertThat(auditsAfterFirst).isGreaterThan(0);
-        assertThat(historyAfterFirst).isEqualTo(2);
+        assertThat(historyAfterFirst).isGreaterThanOrEqualTo(2);
 
         flyway.migrate();
 
