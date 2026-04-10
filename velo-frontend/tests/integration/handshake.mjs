@@ -15,6 +15,9 @@ const DRIVER_PASSWORD = process.env.VELO_E2E_DRIVER_PASSWORD ?? "password123";
 
 const PROFILE_CONTEXT = (process.env.VELO_PROFILE_CONTEXT ?? "local-dev").toLowerCase();
 const EXPECT_OPENAPI_IN_CONTEXT = new Set(["local", "dev", "development", "local-dev"]);
+const HANDSHAKE_MODE = (process.env.VELO_HANDSHAKE_MODE ?? "mutate").toLowerCase();
+const DISPATCH_AUDIT_MARKER =
+  process.env.VELO_DISPATCH_AUDIT_MARKER ?? "integration-handshake-admin-assignment";
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -88,6 +91,13 @@ function extractPageContent(payload) {
   }
 
   return [];
+}
+
+function toObject(value) {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  return value;
 }
 
 function splitCombinedSetCookieHeader(headerValue) {
@@ -254,6 +264,100 @@ async function runAdminFrontendChecks() {
     },
   );
   assert.equal(revertResponse.status, 200, "Admin user mutation revert should succeed via frontend proxy");
+
+  await runAdminDispatchChecks(adminLogin.cookieHeader);
+}
+
+async function fetchDispatchPage(cookieHeader, path) {
+  const response = await requestWithRetry(`${ADMIN_FRONTEND_BASE_URL}${path}`, {
+    headers: { Cookie: cookieHeader },
+  });
+  assert.equal(response.status, 200, `Admin dispatch endpoint ${path} should return 200`);
+  const payload = await readJsonSafe(response);
+  return extractPageContent(payload);
+}
+
+async function runAdminDispatchChecks(cookieHeader) {
+  const pendingRequests = await fetchDispatchPage(cookieHeader, "/api/proxy/api/v1/admin/dispatch/requests?page=0&size=10");
+  await fetchDispatchPage(cookieHeader, "/api/proxy/api/v1/admin/dispatch/active-rides?page=0&size=10");
+  let auditRows = await fetchDispatchPage(cookieHeader, "/api/proxy/api/v1/admin/dispatch/audit?page=0&size=50");
+
+  const opsHealthResponse = await requestWithRetry(`${ADMIN_FRONTEND_BASE_URL}/api/proxy/api/v1/admin/ops-health`, {
+    headers: { Cookie: cookieHeader },
+  });
+  assert.equal(opsHealthResponse.status, 200, "Admin ops-health endpoint should return 200");
+  const opsHealthPayload = toObject(unwrapData(await readJsonSafe(opsHealthResponse)));
+  assert.ok(opsHealthPayload, "Admin ops-health should return a payload");
+  assert.equal(typeof opsHealthPayload.redisAvailable, "boolean", "redisAvailable should be boolean");
+  assert.equal(typeof opsHealthPayload.pendingRideRequests, "number", "pendingRideRequests should be numeric");
+  assert.equal(typeof opsHealthPayload.dispatchQueueDepth, "number", "dispatchQueueDepth should be numeric");
+
+  const auditMarkerRow = auditRows.find((row) => row && row.reason === DISPATCH_AUDIT_MARKER);
+  if (HANDSHAKE_MODE === "verify-persisted") {
+    assert.ok(auditMarkerRow, "Dispatch persistence pass expects audit marker from mutation pass");
+    if (typeof auditMarkerRow.rideRequestId === "number") {
+      assert.ok(
+        !pendingRequests.some((request) => request && request.rideRequestId === auditMarkerRow.rideRequestId),
+        "Previously assigned request should not remain pending after restart",
+      );
+    }
+    return;
+  }
+
+  if (!auditMarkerRow) {
+    const targetRequest = pendingRequests.find(
+      (request) => request && typeof request.rideRequestId === "number",
+    );
+    assert.ok(targetRequest, "Dispatch mutation pass requires at least one pending request");
+
+    const offersResponse = await requestWithRetry(
+      `${ADMIN_FRONTEND_BASE_URL}/api/proxy/api/v1/admin/dispatch/requests/${targetRequest.rideRequestId}/offers`,
+      {
+        headers: { Cookie: cookieHeader },
+      },
+    );
+    assert.equal(offersResponse.status, 200, "Dispatch offers endpoint should return 200");
+    const offersPayload = unwrapData(await readJsonSafe(offersResponse));
+    const offeredDriverIds = Array.isArray(offersPayload)
+      ? offersPayload
+          .map((offer) => offer?.driverId)
+          .filter((driverId) => Number.isInteger(driverId) && driverId > 0)
+      : [];
+
+    assert.ok(offeredDriverIds.length > 0, "Dispatch mutation pass requires at least one offered driver");
+
+    let assigned = false;
+    for (const driverId of offeredDriverIds) {
+      const assignResponse = await requestWithRetry(
+        `${ADMIN_FRONTEND_BASE_URL}/api/proxy/api/v1/admin/dispatch/requests/${targetRequest.rideRequestId}/assign`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Cookie: cookieHeader,
+          },
+          body: JSON.stringify({
+            driverId,
+            reason: DISPATCH_AUDIT_MARKER,
+          }),
+        },
+      );
+
+      if (assignResponse.status === 200) {
+        assigned = true;
+        break;
+      }
+    }
+
+    assert.ok(assigned, "Dispatch mutation pass should complete at least one assign action");
+
+    auditRows = await fetchDispatchPage(cookieHeader, "/api/proxy/api/v1/admin/dispatch/audit?page=0&size=50");
+  }
+
+  assert.ok(
+    auditRows.some((row) => row && row.reason === DISPATCH_AUDIT_MARKER),
+    "Dispatch mutation should append an audit row with the integration marker",
+  );
 }
 
 async function runRiderFrontendChecks() {
@@ -413,7 +517,7 @@ async function main() {
   await runRiderFrontendChecks();
   await runDriverFrontendChecks();
 
-  console.log("Frontend-backend integration handshake checks passed.");
+  console.log(`Frontend-backend integration handshake checks passed (mode=${HANDSHAKE_MODE}).`);
 }
 
 main().catch((error) => {

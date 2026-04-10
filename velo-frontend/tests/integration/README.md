@@ -7,9 +7,17 @@ This folder contains the compose-friendly handshake test used to validate the fu
 - Backend health is reachable
 - OpenAPI exposure follows profile policy (local/dev open, non-local blocked)
 - Admin login BFF + protected shell + proxy mutation path
+- Admin dispatch endpoints + ops-health are reachable via admin proxy
 - Rider login BFF + fare estimate + request ride + trip lane source endpoint
 - Driver login BFF + profile + availability toggle path
 - Auth cookie policy checks (`HttpOnly`, `SameSite=Lax`, `Secure`)
+
+## Handshake modes
+
+- `VELO_HANDSHAKE_MODE=mutate`:
+  performs one deterministic admin dispatch mutation and writes an audit marker.
+- `VELO_HANDSHAKE_MODE=verify-persisted`:
+  verifies that the audit marker/state still exists after service restart.
 
 ## Default credentials
 

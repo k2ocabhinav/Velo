@@ -93,7 +93,7 @@ test("admin logout clears session and re-blocks protected routes", async ({ base
   await expect(page.getByRole("button", { name: "Logout" })).toBeVisible();
   await page.getByRole("button", { name: "Logout" }).click();
 
-  await page.waitForURL("**/login");
+  await page.waitForURL(/\/login(?:\?|$)/);
   await expect(page.getByRole("heading", { name: /sign in/i })).toBeVisible();
 
   await page.goto("/");

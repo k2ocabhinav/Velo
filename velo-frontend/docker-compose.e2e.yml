@@ -126,6 +126,8 @@ services:
     image: node:22-alpine
     working_dir: /workspace
     environment:
+      VELO_HANDSHAKE_MODE: ${VELO_HANDSHAKE_MODE:-mutate}
+      VELO_DISPATCH_AUDIT_MARKER: integration-handshake-admin-assignment
       VELO_BACKEND_BASE_URL: http://backend:8080
       VELO_FRONTEND_BASE_URL: http://frontend-admin:3000
       VELO_ADMIN_FRONTEND_BASE_URL: http://frontend-admin:3000
