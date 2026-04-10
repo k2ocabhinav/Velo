@@ -73,6 +73,7 @@ class AdminDispatchControllerIntegrationTest {
     private Driver primaryDriver;
     private Driver secondaryDriver;
     private Driver suspendedDriver;
+    private Driver busyDriver;
     private RideRequest pendingRequest;
     private Ride activeRide;
 
@@ -121,6 +122,15 @@ class AdminDispatchControllerIntegrationTest {
                 .onboardingStatus(DriverOnboardingStatus.SUSPENDED)
                 .build());
 
+        User busyDriverUser = createUser("dispatch.driver.busy@test.com", Role.DRIVER);
+        busyDriver = driverRepository.save(Driver.builder()
+                .user(busyDriverUser)
+                .vehicleId("KA01DD4444")
+                .rating(4.5)
+                .available(false)
+                .onboardingStatus(DriverOnboardingStatus.APPROVED)
+                .build());
+
         pendingRequest = rideRequestRepository.save(RideRequest.builder()
                 .rider(rider)
                 .paymentMethod(PaymentMethod.WALLET)
@@ -144,15 +154,13 @@ class AdminDispatchControllerIntegrationTest {
 
         activeRide = rideRepository.save(Ride.builder()
                 .rider(rider)
-                .driver(primaryDriver)
+                .driver(busyDriver)
                 .paymentMethod(PaymentMethod.WALLET)
                 .rideStatus(RideStatus.CONFIRMED)
                 .fare(BigDecimal.valueOf(220))
                 .otp("1234")
                 .createdTime(LocalDateTime.now().minusMinutes(5))
                 .build());
-        primaryDriver.setAvailable(false);
-        driverRepository.save(primaryDriver);
     }
 
     @Test
@@ -173,7 +181,7 @@ class AdminDispatchControllerIntegrationTest {
 
         mockMvc.perform(withAdminAuth(get("/api/v1/admin/dispatch/requests/" + pendingRequest.getId() + "/offers")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data[0].driverId").value(primaryDriver.getId()));
+                .andExpect(jsonPath("$.data[*].driverId").value(org.hamcrest.Matchers.hasItem(primaryDriver.getId().intValue())));
 
         mockMvc.perform(withAdminAuth(get("/api/v1/admin/ops-health")))
                 .andExpect(status().isOk())

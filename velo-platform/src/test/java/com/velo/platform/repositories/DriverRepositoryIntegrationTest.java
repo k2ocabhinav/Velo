@@ -3,6 +3,7 @@ package com.velo.platform.repositories;
 import com.velo.platform.dto.PointDto;
 import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.User;
+import com.velo.platform.entities.enums.DriverOnboardingStatus;
 import com.velo.platform.entities.enums.Role;
 import com.velo.platform.utils.GeometryUtil;
 import org.junit.jupiter.api.BeforeEach;
@@ -120,6 +121,7 @@ class DriverRepositoryIntegrationTest {
         driver.setAvailable(available);
         driver.setRating(rating);
         driver.setVehicleId(email.replace("@test.com", "").toUpperCase());
+        driver.setOnboardingStatus(DriverOnboardingStatus.APPROVED);
         driver.setCurrentLocation(GeometryUtil.createPoint(new PointDto(new double[]{
                 PICKUP_LONGITUDE,
                 PICKUP_LATITUDE + latitudeOffset
@@ -142,6 +144,7 @@ class DriverRepositoryIntegrationTest {
         driver.setAvailable(available);
         driver.setRating(rating);
         driver.setVehicleId(email.replace("@test.com", "").toUpperCase());
+        driver.setOnboardingStatus(DriverOnboardingStatus.APPROVED);
         return driverRepository.saveAndFlush(driver);
     }
 

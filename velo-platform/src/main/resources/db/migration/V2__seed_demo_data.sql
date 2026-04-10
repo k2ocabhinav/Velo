@@ -135,19 +135,19 @@ BEGIN
     INSERT INTO admin_dispatch_audit (id, action_type, actor_user_id, ride_request_id, ride_id, previous_driver_id, next_driver_id, reason, created_at)
     VALUES (1, 'ASSIGN_REQUEST', 41, 1, NULL, NULL, 1, 'Initial seeded assignment history entry.', NOW() - INTERVAL '1 hour');
 
-    SELECT setval(pg_get_serial_sequence('app_user', 'id'), (SELECT MAX(id) FROM app_user));
-    SELECT setval(pg_get_serial_sequence('rider', 'id'), (SELECT MAX(id) FROM rider));
-    SELECT setval(pg_get_serial_sequence('driver', 'id'), (SELECT MAX(id) FROM driver));
-    SELECT setval(pg_get_serial_sequence('wallet', 'id'), (SELECT MAX(id) FROM wallet));
-    SELECT setval(pg_get_serial_sequence('ride_request', 'id'), (SELECT MAX(id) FROM ride_request));
-    SELECT setval(pg_get_serial_sequence('ride', 'id'), (SELECT MAX(id) FROM ride));
-    SELECT setval(pg_get_serial_sequence('payment', 'id'), (SELECT MAX(id) FROM payment));
-    SELECT setval(pg_get_serial_sequence('rating', 'id'), (SELECT MAX(id) FROM rating));
-    SELECT setval(pg_get_serial_sequence('wallet_transaction', 'id'), (SELECT MAX(id) FROM wallet_transaction));
-    SELECT setval(pg_get_serial_sequence('payout_request', 'id'), (SELECT MAX(id) FROM payout_request));
-    SELECT setval(pg_get_serial_sequence('promo_code', 'id'), (SELECT MAX(id) FROM promo_code));
-    SELECT setval(pg_get_serial_sequence('ride_offer', 'id'), (SELECT MAX(id) FROM ride_offer));
-    SELECT setval(pg_get_serial_sequence('admin_dispatch_audit', 'id'), (SELECT MAX(id) FROM admin_dispatch_audit));
-    SELECT setval(pg_get_serial_sequence('notification', 'id'), (SELECT MAX(id) FROM notification));
+    PERFORM setval(pg_get_serial_sequence('app_user', 'id'), (SELECT MAX(id) FROM app_user));
+    PERFORM setval(pg_get_serial_sequence('rider', 'id'), (SELECT MAX(id) FROM rider));
+    PERFORM setval(pg_get_serial_sequence('driver', 'id'), (SELECT MAX(id) FROM driver));
+    PERFORM setval(pg_get_serial_sequence('wallet', 'id'), (SELECT MAX(id) FROM wallet));
+    PERFORM setval(pg_get_serial_sequence('ride_request', 'id'), (SELECT MAX(id) FROM ride_request));
+    PERFORM setval(pg_get_serial_sequence('ride', 'id'), (SELECT MAX(id) FROM ride));
+    PERFORM setval(pg_get_serial_sequence('payment', 'id'), (SELECT MAX(id) FROM payment));
+    PERFORM setval(pg_get_serial_sequence('rating', 'id'), (SELECT MAX(id) FROM rating));
+    PERFORM setval(pg_get_serial_sequence('wallet_transaction', 'id'), (SELECT MAX(id) FROM wallet_transaction));
+    PERFORM setval(pg_get_serial_sequence('payout_request', 'id'), (SELECT MAX(id) FROM payout_request));
+    PERFORM setval(pg_get_serial_sequence('promo_code', 'id'), (SELECT MAX(id) FROM promo_code));
+    PERFORM setval(pg_get_serial_sequence('ride_offer', 'id'), (SELECT MAX(id) FROM ride_offer));
+    PERFORM setval(pg_get_serial_sequence('admin_dispatch_audit', 'id'), (SELECT MAX(id) FROM admin_dispatch_audit));
+    PERFORM setval(pg_get_serial_sequence('notification', 'id'), (SELECT MAX(id) FROM notification));
 END
 $$;
