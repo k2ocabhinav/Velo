@@ -346,12 +346,14 @@
   - conflict behavior for unapproved driver assignment
   - single-winner acceptance race behavior for two drivers.
 - Added Flyway migration verification tests for deterministic baseline creation and seed stability across repeat migrate/clean+migrate cycles.
+- Fixed Flyway seed migration runtime issue (`SELECT setval(...)` inside PL/pgSQL block) by using `PERFORM setval(...)`, unblocking clean DB bootstraps.
 - Integration handshake expanded with admin dispatch and persistence verification modes:
   - mutation pass writes a known dispatch audit marker
   - restart pass verifies marker/state persistence without volume reset.
 - CI gates hardened:
   - backend quality workflow now provisions PostGIS-backed PostgreSQL service for `./mvnw -q test`
   - integration workflow now requires admin WebKit smoke in addition to Chromium suites.
+  - compose handshake mutation + restart-persistence passes are verified green end-to-end.
 
 ### Demo support
 - Added focused demo runbook: `docs/ADMIN_DEMO_SCRIPT.md`.
