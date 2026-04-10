@@ -108,6 +108,106 @@ describe("admin endpoints", () => {
     });
     expect("wallet" in (api as Record<string, unknown>)).toBe(false);
   });
+
+  it("maps dispatch control and ops health endpoints", async () => {
+    const pages = createRecordingClient({
+      content: [],
+      number: 0,
+      size: 10,
+      totalElements: 0,
+      totalPages: 1,
+    } satisfies SpringPage<unknown>);
+    const offers = createRecordingClient([]);
+    const rideMutation = createRecordingClient({
+      id: 501,
+      rideStatus: "CONFIRMED",
+      paymentMethod: "WALLET",
+      pickupLocation: { type: "Point", coordinates: [77.5946, 12.9716] },
+      dropOffLocation: { type: "Point", coordinates: [77.6245, 12.9352] },
+    });
+    const requestMutation = createRecordingClient({
+      id: 311,
+      rideRequestStatus: "CANCELLED",
+      paymentMethod: "WALLET",
+      pickupLocation: { type: "Point", coordinates: [77.5946, 12.9716] },
+      dropOffLocation: { type: "Point", coordinates: [77.6245, 12.9352] },
+    });
+    const health = createRecordingClient({
+      redisAvailable: true,
+      cacheHits: 12,
+      cacheMisses: 3,
+      cacheErrors: 0,
+      totalRides: 20,
+      totalDrivers: 4,
+      totalRiders: 8,
+      pendingRideRequests: 2,
+      dispatchQueueDepth: 4,
+      expiredOfferCount: 1,
+    });
+
+    const pageApi = createAdminApi(pages.client);
+    await pageApi.getPendingRideRequests({ page: 1, size: 20 });
+    await pageApi.getActiveRides({ page: 0, size: 5 });
+    await pageApi.getDispatchAudit({ page: 2, size: 15 });
+
+    expect(pages.requests[0]).toMatchObject({
+      method: "GET",
+      url: "/api/v1/admin/dispatch/requests",
+      params: { page: 1, size: 20 },
+    });
+    expect(pages.requests[1]).toMatchObject({
+      method: "GET",
+      url: "/api/v1/admin/dispatch/active-rides",
+      params: { page: 0, size: 5 },
+    });
+    expect(pages.requests[2]).toMatchObject({
+      method: "GET",
+      url: "/api/v1/admin/dispatch/audit",
+      params: { page: 2, size: 15 },
+    });
+
+    const offersApi = createAdminApi(offers.client);
+    await offersApi.getRideRequestOffers(311);
+    expect(offers.requests[0]).toMatchObject({
+      method: "GET",
+      url: "/api/v1/admin/dispatch/requests/311/offers",
+    });
+
+    const rideApi = createAdminApi(rideMutation.client);
+    await rideApi.assignPendingRideRequest(311, 4, "Manual assignment for SLA.");
+    await rideApi.reassignRide(501, 2, "Load balancing override.");
+    await rideApi.cancelRide(501, "Safety escalation.");
+    expect(rideMutation.requests[0]).toMatchObject({
+      method: "POST",
+      url: "/api/v1/admin/dispatch/requests/311/assign",
+      data: { driverId: 4, reason: "Manual assignment for SLA." },
+    });
+    expect(rideMutation.requests[1]).toMatchObject({
+      method: "POST",
+      url: "/api/v1/admin/dispatch/rides/501/reassign",
+      data: { driverId: 2, reason: "Load balancing override." },
+    });
+    expect(rideMutation.requests[2]).toMatchObject({
+      method: "POST",
+      url: "/api/v1/admin/dispatch/rides/501/cancel",
+      data: { reason: "Safety escalation." },
+    });
+
+    const requestApi = createAdminApi(requestMutation.client);
+    await requestApi.cancelPendingRideRequest(311, "Rider requested cancellation.");
+    expect(requestMutation.requests[0]).toMatchObject({
+      method: "POST",
+      url: "/api/v1/admin/dispatch/requests/311/cancel",
+      data: { reason: "Rider requested cancellation." },
+    });
+
+    const healthApi = createAdminApi(health.client);
+    await healthApi.getOpsHealth();
+    expect(health.requests[0]).toMatchObject({
+      method: "GET",
+      url: "/api/v1/admin/ops-health",
+    });
+  });
 });
 
 describe("auth and driver endpoints", () => {

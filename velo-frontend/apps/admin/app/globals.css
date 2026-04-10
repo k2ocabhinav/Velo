@@ -208,6 +208,11 @@ input {
   background: var(--surface);
 }
 
+.list-item-stack {
+  display: grid;
+  align-items: unset;
+}
+
 .list-item strong,
 .list-item p {
   margin: 0;
@@ -331,6 +336,18 @@ input {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dispatch-offer-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--muted);
 }
 
 .pager {
@@ -384,6 +401,10 @@ input {
 
   .metric-grid,
   .cards-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dispatch-offer-row {
     grid-template-columns: 1fr;
   }
 }

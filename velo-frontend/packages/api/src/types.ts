@@ -356,6 +356,7 @@ export interface PendingDriverDto {
   phone: string;
   rating: number;
   vehicleId: string;
+  onboardingStatus?: string | null;
   appliedAt: ISODateTime;
 }
 
@@ -365,4 +366,63 @@ export interface RevenueReportDto {
   platformCommission: DecimalValue;
   driverEarnings: DecimalValue;
   rideCount: number;
+}
+
+export interface AdminPendingRideRequestDto {
+  rideRequestId: number;
+  riderId?: number | null;
+  riderName?: string | null;
+  status?: string | null;
+  fare?: DecimalValue | null;
+  requestedTime?: ISODateTime | null;
+  offeredDriverCount?: number | null;
+}
+
+export interface AdminActiveRideDto {
+  rideId: number;
+  riderId?: number | null;
+  riderName?: string | null;
+  driverId?: number | null;
+  driverName?: string | null;
+  status?: string | null;
+  fare?: DecimalValue | null;
+  createdTime?: ISODateTime | null;
+  startedAt?: ISODateTime | null;
+}
+
+export interface AdminRideOfferDto {
+  offerId: number;
+  driverId?: number | null;
+  driverName?: string | null;
+  status?: string | null;
+  offeredAt?: ISODateTime | null;
+  expiresAt?: ISODateTime | null;
+  resolvedAt?: ISODateTime | null;
+  resolutionReason?: string | null;
+}
+
+export interface AdminDispatchAuditDto {
+  id: number;
+  actionType?: string | null;
+  actorUserId?: number | null;
+  rideRequestId?: number | null;
+  rideId?: number | null;
+  previousDriverId?: number | null;
+  nextDriverId?: number | null;
+  reason?: string | null;
+  createdAt?: ISODateTime | null;
+}
+
+export interface AdminOpsHealthDto {
+  redisAvailable: boolean;
+  cacheHits: number;
+  cacheMisses: number;
+  cacheErrors: number;
+  totalRides: number;
+  totalDrivers: number;
+  totalRiders: number;
+  pendingRideRequests: number;
+  dispatchQueueDepth: number;
+  expiredOfferCount: number;
+  updatedAt?: ISODateTime | null;
 }

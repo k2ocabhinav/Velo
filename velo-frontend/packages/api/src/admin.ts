@@ -1,13 +1,20 @@
 import type { AxiosInstance } from "axios";
 import { createVeloClient, requestData, requestPageData } from "./client";
 import type {
+  AdminActiveRideDto,
+  AdminDispatchAuditDto,
+  AdminOpsHealthDto,
+  AdminPendingRideRequestDto,
   AdminStatsDto,
   AdminUserDto,
+  AdminRideOfferDto,
   DashboardDto,
   PageRequestInput,
   PaginatedResponse,
   PendingDriverDto,
   PayoutRequestDto,
+  RideDto,
+  RideRequestDto,
   RevenueReportDto,
   ScheduledRideDto,
 } from "./types";
@@ -27,6 +34,15 @@ export interface AdminApi {
   rejectPayout(payoutId: number, adminNote: string): Promise<PayoutRequestDto>;
   processPayout(payoutId: number): Promise<PayoutRequestDto>;
   getScheduledRides(params?: PageRequestInput): Promise<PaginatedResponse<ScheduledRideDto>>;
+  getPendingRideRequests(params?: PageRequestInput): Promise<PaginatedResponse<AdminPendingRideRequestDto>>;
+  getActiveRides(params?: PageRequestInput): Promise<PaginatedResponse<AdminActiveRideDto>>;
+  getRideRequestOffers(rideRequestId: number): Promise<AdminRideOfferDto[]>;
+  getDispatchAudit(params?: PageRequestInput): Promise<PaginatedResponse<AdminDispatchAuditDto>>;
+  assignPendingRideRequest(rideRequestId: number, driverId: number, reason: string): Promise<RideDto>;
+  reassignRide(rideId: number, driverId: number, reason: string): Promise<RideDto>;
+  cancelPendingRideRequest(rideRequestId: number, reason: string): Promise<RideRequestDto>;
+  cancelRide(rideId: number, reason: string): Promise<RideDto>;
+  getOpsHealth(): Promise<AdminOpsHealthDto>;
 }
 
 function textBodyHeaders(): Record<string, string> {
@@ -121,6 +137,58 @@ export function createAdminApi(client: AxiosInstance = createVeloClient()): Admi
         method: "GET",
         url: "/api/v1/admin/scheduled-rides",
         params,
+      }),
+    getPendingRideRequests: (params) =>
+      requestPageData<AdminPendingRideRequestDto>(client, {
+        method: "GET",
+        url: "/api/v1/admin/dispatch/requests",
+        params,
+      }),
+    getActiveRides: (params) =>
+      requestPageData<AdminActiveRideDto>(client, {
+        method: "GET",
+        url: "/api/v1/admin/dispatch/active-rides",
+        params,
+      }),
+    getRideRequestOffers: (rideRequestId) =>
+      requestData<AdminRideOfferDto[]>(client, {
+        method: "GET",
+        url: `/api/v1/admin/dispatch/requests/${rideRequestId}/offers`,
+      }),
+    getDispatchAudit: (params) =>
+      requestPageData<AdminDispatchAuditDto>(client, {
+        method: "GET",
+        url: "/api/v1/admin/dispatch/audit",
+        params,
+      }),
+    assignPendingRideRequest: (rideRequestId, driverId, reason) =>
+      requestData<RideDto>(client, {
+        method: "POST",
+        url: `/api/v1/admin/dispatch/requests/${rideRequestId}/assign`,
+        data: { driverId, reason },
+      }),
+    reassignRide: (rideId, driverId, reason) =>
+      requestData<RideDto>(client, {
+        method: "POST",
+        url: `/api/v1/admin/dispatch/rides/${rideId}/reassign`,
+        data: { driverId, reason },
+      }),
+    cancelPendingRideRequest: (rideRequestId, reason) =>
+      requestData<RideRequestDto>(client, {
+        method: "POST",
+        url: `/api/v1/admin/dispatch/requests/${rideRequestId}/cancel`,
+        data: { reason },
+      }),
+    cancelRide: (rideId, reason) =>
+      requestData<RideDto>(client, {
+        method: "POST",
+        url: `/api/v1/admin/dispatch/rides/${rideId}/cancel`,
+        data: { reason },
+      }),
+    getOpsHealth: () =>
+      requestData<AdminOpsHealthDto>(client, {
+        method: "GET",
+        url: "/api/v1/admin/ops-health",
       }),
   };
 }

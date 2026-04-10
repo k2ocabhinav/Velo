@@ -7,6 +7,7 @@ import { performClientLogout } from "@velo/app-core/logout";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard" },
+  { href: "/dispatch", label: "Dispatch" },
   { href: "/drivers", label: "Drivers" },
   { href: "/users", label: "Users" },
   { href: "/payouts", label: "Payouts" },

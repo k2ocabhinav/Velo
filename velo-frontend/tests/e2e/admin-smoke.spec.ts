@@ -334,3 +334,174 @@ test("admin drivers page approves pending applications", async ({ baseURL, conte
   await expect(page.getByText("No pending drivers found.")).toBeVisible();
   expect(approveCount).toBe(1);
 });
+
+test("admin dispatch console supports offer visibility and assign action", async ({ baseURL, context, page }) => {
+  const appBaseUrl = baseURL ?? "http://127.0.0.1:3000";
+  await context.addCookies([
+    {
+      name: "velo_token",
+      value: "e2e-admin-token",
+      url: appBaseUrl,
+    },
+    {
+      name: "velo_role_hint",
+      value: "ADMIN",
+      url: appBaseUrl,
+    },
+  ]);
+
+  let assignCount = 0;
+
+  page.on("dialog", (dialog) => {
+    if (dialog.type() !== "prompt") {
+      dialog.accept();
+      return;
+    }
+
+    if (/driver id/i.test(dialog.message())) {
+      dialog.accept("12");
+      return;
+    }
+    dialog.accept("Manual override from smoke test.");
+  });
+
+  await page.route("**/api/proxy/api/v1/admin/ops-health", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        redisAvailable: true,
+        cacheHits: 12,
+        cacheMisses: 3,
+        cacheErrors: 0,
+        totalRides: 18,
+        totalDrivers: 4,
+        totalRiders: 9,
+        pendingRideRequests: 1,
+        dispatchQueueDepth: 2,
+        expiredOfferCount: 0,
+        updatedAt: new Date().toISOString(),
+      }),
+    });
+  });
+
+  await page.route("**/api/proxy/api/v1/admin/dispatch/requests?page=0&size=10", async (route) => {
+    if (route.request().method() !== "GET") {
+      await route.continue();
+      return;
+    }
+    const content =
+      assignCount === 0
+        ? [
+            {
+              rideRequestId: 311,
+              riderId: 41,
+              riderName: "Rider Demo",
+              status: "PENDING",
+              fare: 180,
+              requestedTime: new Date().toISOString(),
+              offeredDriverCount: 2,
+            },
+          ]
+        : [];
+
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        content,
+        number: 0,
+        totalPages: 1,
+        totalElements: content.length,
+        size: 10,
+      }),
+    });
+  });
+
+  await page.route("**/api/proxy/api/v1/admin/dispatch/active-rides?page=0&size=10", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        content: [
+          {
+            rideId: 501,
+            riderName: "Rider Demo",
+            driverName: "Driver Demo",
+            status: "ONGOING",
+            createdTime: new Date().toISOString(),
+            startedAt: new Date().toISOString(),
+          },
+        ],
+        number: 0,
+        totalPages: 1,
+        totalElements: 1,
+        size: 10,
+      }),
+    });
+  });
+
+  await page.route("**/api/proxy/api/v1/admin/dispatch/audit?page=0&size=10", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        content: [
+          {
+            id: 1,
+            actionType: "ASSIGN_REQUEST",
+            actorUserId: 41,
+            rideRequestId: 311,
+            reason: "Initial seeded assignment history entry.",
+            createdAt: new Date().toISOString(),
+          },
+        ],
+        number: 0,
+        totalPages: 1,
+        totalElements: 1,
+        size: 10,
+      }),
+    });
+  });
+
+  await page.route("**/api/proxy/api/v1/admin/dispatch/requests/311/offers", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify([
+        {
+          offerId: 12,
+          driverId: 2,
+          driverName: "Driver Two",
+          status: "OFFERED",
+          expiresAt: new Date(Date.now() + 30_000).toISOString(),
+        },
+      ]),
+    });
+  });
+
+  await page.route("**/api/proxy/api/v1/admin/dispatch/requests/311/assign", async (route) => {
+    assignCount += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        id: 810,
+        rideStatus: "CONFIRMED",
+        paymentMethod: "WALLET",
+      }),
+    });
+  });
+
+  await page.goto("/dispatch");
+
+  await expect(page.getByRole("heading", { name: "Dispatch Console" })).toBeVisible();
+  await expect(page.locator(".list-item").filter({ hasText: "Request #311" }).first()).toBeVisible();
+
+  await page.getByRole("button", { name: "Show offers" }).click();
+  await expect(page.getByText("#12 · Driver #2 (Driver Two)")).toBeVisible();
+
+  await page.getByRole("button", { name: "Assign", exact: true }).click();
+  await expect(page.getByText("Ride request #311 assigned to driver #12.")).toBeVisible();
+  expect(assignCount).toBe(1);
+});

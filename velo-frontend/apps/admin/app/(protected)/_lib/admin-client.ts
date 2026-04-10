@@ -50,6 +50,7 @@ export type PendingDriver = {
   phone: string;
   rating: number;
   vehicleId: string;
+  onboardingStatus?: string | null;
   appliedAt: string;
 };
 
@@ -101,6 +102,65 @@ export type PromoCodeMutation = {
   minRideFare?: number;
   active?: boolean;
   description?: string;
+};
+
+export type AdminPendingRideRequest = {
+  rideRequestId: number;
+  riderId?: number | null;
+  riderName?: string | null;
+  status?: string | null;
+  fare?: number | string | null;
+  requestedTime?: string | null;
+  offeredDriverCount?: number | null;
+};
+
+export type AdminActiveRide = {
+  rideId: number;
+  riderId?: number | null;
+  riderName?: string | null;
+  driverId?: number | null;
+  driverName?: string | null;
+  status?: string | null;
+  fare?: number | string | null;
+  createdTime?: string | null;
+  startedAt?: string | null;
+};
+
+export type AdminRideOffer = {
+  offerId: number;
+  driverId?: number | null;
+  driverName?: string | null;
+  status?: string | null;
+  offeredAt?: string | null;
+  expiresAt?: string | null;
+  resolvedAt?: string | null;
+  resolutionReason?: string | null;
+};
+
+export type AdminDispatchAudit = {
+  id: number;
+  actionType?: string | null;
+  actorUserId?: number | null;
+  rideRequestId?: number | null;
+  rideId?: number | null;
+  previousDriverId?: number | null;
+  nextDriverId?: number | null;
+  reason?: string | null;
+  createdAt?: string | null;
+};
+
+export type AdminOpsHealth = {
+  redisAvailable: boolean;
+  cacheHits: number;
+  cacheMisses: number;
+  cacheErrors: number;
+  totalRides: number;
+  totalDrivers: number;
+  totalRiders: number;
+  pendingRideRequests: number;
+  dispatchQueueDepth: number;
+  expiredOfferCount: number;
+  updatedAt?: string | null;
 };
 
 export type CreateRiderInput = {
@@ -374,5 +434,67 @@ export const adminClient = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
+  },
+
+  async getPendingRideRequests(page = 0, size = 10): Promise<ApiPage<AdminPendingRideRequest>> {
+    const payload = await requestAdminProxy<unknown>(
+      `api/v1/admin/dispatch/requests?page=${page}&size=${size}`
+    );
+    return toPage<AdminPendingRideRequest>(payload);
+  },
+
+  async getActiveRides(page = 0, size = 10): Promise<ApiPage<AdminActiveRide>> {
+    const payload = await requestAdminProxy<unknown>(
+      `api/v1/admin/dispatch/active-rides?page=${page}&size=${size}`
+    );
+    return toPage<AdminActiveRide>(payload);
+  },
+
+  async getRideRequestOffers(rideRequestId: number): Promise<AdminRideOffer[]> {
+    const payload = await requestAdminProxy<unknown>(`api/v1/admin/dispatch/requests/${rideRequestId}/offers`);
+    return toList<AdminRideOffer>(payload);
+  },
+
+  async getDispatchAudit(page = 0, size = 10): Promise<ApiPage<AdminDispatchAudit>> {
+    const payload = await requestAdminProxy<unknown>(
+      `api/v1/admin/dispatch/audit?page=${page}&size=${size}`
+    );
+    return toPage<AdminDispatchAudit>(payload);
+  },
+
+  async assignPendingRideRequest(rideRequestId: number, driverId: number, reason: string): Promise<void> {
+    await requestAdminProxy<void>(`api/v1/admin/dispatch/requests/${rideRequestId}/assign`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ driverId, reason })
+    });
+  },
+
+  async reassignRide(rideId: number, driverId: number, reason: string): Promise<void> {
+    await requestAdminProxy<void>(`api/v1/admin/dispatch/rides/${rideId}/reassign`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ driverId, reason })
+    });
+  },
+
+  async cancelPendingRideRequest(rideRequestId: number, reason: string): Promise<void> {
+    await requestAdminProxy<void>(`api/v1/admin/dispatch/requests/${rideRequestId}/cancel`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason })
+    });
+  },
+
+  async cancelRide(rideId: number, reason: string): Promise<void> {
+    await requestAdminProxy<void>(`api/v1/admin/dispatch/rides/${rideId}/cancel`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason })
+    });
+  },
+
+  async getOpsHealth(): Promise<AdminOpsHealth> {
+    return requestAdminProxy<AdminOpsHealth>("api/v1/admin/ops-health");
   }
 };

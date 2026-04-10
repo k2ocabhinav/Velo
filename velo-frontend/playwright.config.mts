@@ -3,6 +3,7 @@ import { defineConfig, devices } from "@playwright/test";
 const adminBaseURL = process.env.PLAYWRIGHT_ADMIN_BASE_URL ?? "http://127.0.0.1:3000";
 const riderBaseURL = process.env.PLAYWRIGHT_RIDER_BASE_URL ?? "http://127.0.0.1:3001";
 const driverBaseURL = process.env.PLAYWRIGHT_DRIVER_BASE_URL ?? "http://127.0.0.1:3002";
+const includeAdminWebkit = process.env.PLAYWRIGHT_INCLUDE_WEBKIT === "1";
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -41,6 +42,18 @@ export default defineConfig({
         baseURL: adminBaseURL
       }
     },
+    ...(includeAdminWebkit
+      ? [
+          {
+            name: "admin-webkit",
+            testMatch: /admin-.*\.spec\.ts/,
+            use: {
+              ...devices["Desktop Safari"],
+              baseURL: adminBaseURL
+            }
+          },
+        ]
+      : []),
     {
       name: "driver-chromium",
       testMatch: /driver-.*\.spec\.ts/,

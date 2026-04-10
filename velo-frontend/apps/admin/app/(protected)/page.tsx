@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { MetricCard } from "./_components/metric-card";
 import { PageFrame } from "./_components/page-frame";
-import { adminClient, type DashboardStats } from "./_lib/admin-client";
+import { adminClient, type AdminOpsHealth, type DashboardStats } from "./_lib/admin-client";
 import { toCurrency } from "./_lib/http";
 
 type Metric = {
@@ -51,6 +51,7 @@ function readRevenueForToday(stats: DashboardStats, dateKey: string): number | s
 export default function DashboardPage() {
   const [metrics, setMetrics] = useState<Metric[]>(initialMetrics);
   const [queueItems, setQueueItems] = useState<QueueItem[]>(initialQueue);
+  const [opsHealth, setOpsHealth] = useState<AdminOpsHealth | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadVersion, setReloadVersion] = useState(0);
@@ -68,12 +69,13 @@ export default function DashboardPage() {
       const dateKey = today.toISOString().slice(0, 10);
 
       try {
-        const [dashboard, daily, pendingDrivers, pendingPayouts, promoCodes] = await Promise.all([
+        const [dashboard, daily, pendingDrivers, pendingPayouts, promoCodes, health] = await Promise.all([
           adminClient.getDashboardStats(),
           adminClient.getDailyStats(dateKey),
           adminClient.getPendingDrivers(0, 1),
           adminClient.getPendingPayouts(0, 1),
           adminClient.getPromoCodes(),
+          adminClient.getOpsHealth(),
         ]);
 
         if (!isMounted) {
@@ -84,6 +86,7 @@ export default function DashboardPage() {
         const payoutCount = pendingPayouts.totalElements || 0;
         const inactivePromoCount = promoCodes.filter((promo) => !promo.active).length;
         const todayRevenue = daily.totalRevenue ?? readRevenueForToday(dashboard, dateKey);
+        setOpsHealth(health);
 
         setMetrics([
           {
@@ -212,7 +215,53 @@ export default function DashboardPage() {
                 Done
               </span>
             </div>
+            <div className="list-item">
+              <div>
+                <strong>Dispatch controls</strong>
+                <p>Admin override actions are available in the dispatch console.</p>
+              </div>
+              <span className="badge" data-tone="success">
+                Ready
+              </span>
+            </div>
           </div>
+        </article>
+
+        <article className="panel metric-card">
+          <small>Ops health</small>
+          {opsHealth ? (
+            <div className="list">
+              <div className="list-item">
+                <div>
+                  <strong>Redis</strong>
+                  <p>{opsHealth.redisAvailable ? "Connected" : "Degraded (DB fallback active)"}</p>
+                </div>
+                <span className="badge" data-tone={opsHealth.redisAvailable ? "success" : "warning"}>
+                  {opsHealth.redisAvailable ? "Healthy" : "Fallback"}
+                </span>
+              </div>
+              <div className="list-item">
+                <div>
+                  <strong>Dispatch queue</strong>
+                  <p>{opsHealth.dispatchQueueDepth} open offers · {opsHealth.expiredOfferCount} expired offers</p>
+                </div>
+                <span className="badge" data-tone={opsHealth.dispatchQueueDepth > 0 ? "warning" : "success"}>
+                  {opsHealth.dispatchQueueDepth > 0 ? "Active" : "Clear"}
+                </span>
+              </div>
+              <div className="list-item">
+                <div>
+                  <strong>Cache counters</strong>
+                  <p>{Math.trunc(opsHealth.cacheHits)} hits · {Math.trunc(opsHealth.cacheMisses)} misses · {Math.trunc(opsHealth.cacheErrors)} errors</p>
+                </div>
+                <span className="badge" data-tone={opsHealth.cacheErrors > 0 ? "warning" : "success"}>
+                  {opsHealth.cacheErrors > 0 ? "Investigate" : "Stable"}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <p className="helper">Ops health unavailable.</p>
+          )}
         </article>
       </section>
     </div>
