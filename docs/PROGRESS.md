@@ -311,3 +311,28 @@
 - Compose frontend-backend handshake passed from clean docker state (`down -v` then up).
 - Backend package build passed with tests skipped (`./mvnw -q -DskipTests package` in container).
 - Full backend `./mvnw -q test` is currently red in this environment due existing integration-fixture FK integrity issues outside this patch scope; no new failures from the frontend runtime/register fixes.
+
+## Implementation Status Update (2026-04-10 — Admin Dispatch Console + Sign-In Rendering Fix)
+
+### Core delivery in this pass
+- Added Admin dispatch console at `/dispatch` with API-backed operations:
+  - pending requests queue
+  - active rides queue
+  - per-request offer visibility
+  - assign / reassign / force-cancel actions (reason-required backend contract)
+  - dispatch audit trail feed
+  - ops health snapshot (Redis availability, cache counters, queue depth).
+- Extended admin dashboard with a compact ops-health panel.
+- Fixed Admin/Driver/Rider sign-in rendering freeze by removing client `useSearchParams` dependency from login/register form mount path and resolving `next` on the server page boundary.
+
+### Verification status
+- Frontend gates passing:
+  - `npm run lint`
+  - `npm run typecheck`
+  - `npm run test:unit`
+  - `npm run test:contracts`
+  - `npm run build`
+  - `npm run test:e2e -- --project=admin-chromium`
+- Backend package gate passing:
+  - `./mvnw -q -DskipTests package`
+- Backend full test suite currently requires local PostgreSQL (`localhost:5432`) in this environment.

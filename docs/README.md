@@ -49,3 +49,8 @@ Single source of truth for the Velo project.
 
 - Admin/Driver/Rider docker runtime startup now consistently serves client assets and sign-in forms (host binding fix in standalone start script).
 - Driver registration flow is now contract-safe end-to-end for signup + driver onboarding from the frontend BFF path.
+
+### Update (2026-04-10)
+
+- Admin now includes a dispatch console with override controls, offer visibility, audit trail, and ops-health telemetry.
+- Sign-in form rendering path is stabilized across Admin/Driver/Rider by resolving `next` server-side instead of depending on client query hydration.

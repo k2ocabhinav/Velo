@@ -487,3 +487,16 @@ The frontend only needs to: call the right endpoint, display the response, and l
   - Frontend gates: `lint`, `typecheck`, `test:unit`, `test:contracts`, `build` all passing.
   - Playwright smoke: admin + driver + rider all passing (19/19).
   - Compose handshake: passing from clean state.
+
+## Implementation Status Update (2026-04-10, Admin Ops Completion Slice)
+
+- Admin frontend now includes a dedicated dispatch surface (`/dispatch`) with API-backed pending/active queues, offer inspection, override actions, audit rows, and ops-health visibility.
+- Admin navigation and middleware protection include `/dispatch` route coverage.
+- Session-entry reliability hardened across Admin/Driver/Rider:
+  - login/register pages now sanitize and consume `next` server-side
+  - forms no longer depend on client query hooks to render, removing the observed “Loading sign-in form…” dead state on slower/strict browser paths.
+
+### Testing delta in this pass
+- Added contract coverage for admin dispatch + ops-health endpoints in `packages/api`.
+- Added admin dispatch e2e smoke case (offers + assign mutation path) for Chromium.
+- Added WebKit admin project scaffold in Playwright config for Safari-smoke expansion.
