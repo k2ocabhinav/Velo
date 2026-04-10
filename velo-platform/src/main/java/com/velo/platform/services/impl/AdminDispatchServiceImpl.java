@@ -149,6 +149,8 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
         driverRepository.save(newDriver);
 
         Ride ride = rideService.createNewRide(rideRequest, newDriver);
+        rideOfferService.findAcceptableOffer(rideRequestId, newDriver.getId())
+                .ifPresent(rideOfferService::markAccepted);
         rideOfferService.revokeCompetingOffers(rideRequestId, newDriver.getId(), "Ride assigned by admin.");
         eventPublisher.publishEvent(new RideAcceptedEvent(this, ride, newDriver));
         writeAudit(AdminDispatchActionType.ASSIGN_REQUEST, reason, rideRequest, ride, null, newDriver);
