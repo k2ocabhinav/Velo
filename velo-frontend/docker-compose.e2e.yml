@@ -71,6 +71,7 @@ services:
     environment:
       VELO_API_BASE_URL: http://backend:8080
       NEXT_PUBLIC_API_BASE_URL: http://backend:8080
+      VELO_AUTH_COOKIE_SECURE: "false"
       NODE_ENV: production
     command: sh -lc "npm run build --workspace @velo/admin && npm run start --workspace @velo/admin"
     volumes:
@@ -90,6 +91,7 @@ services:
     environment:
       VELO_API_BASE_URL: http://backend:8080
       NEXT_PUBLIC_API_BASE_URL: http://backend:8080
+      VELO_AUTH_COOKIE_SECURE: "false"
       NODE_ENV: production
     command: sh -lc "npm run build --workspace @velo/rider && npm run start --workspace @velo/rider"
     volumes:
@@ -109,6 +111,7 @@ services:
     environment:
       VELO_API_BASE_URL: http://backend:8080
       NEXT_PUBLIC_API_BASE_URL: http://backend:8080
+      VELO_AUTH_COOKIE_SECURE: "false"
       NODE_ENV: production
     command: sh -lc "npm run build --workspace @velo/driver && npm run start --workspace @velo/driver"
     volumes:
