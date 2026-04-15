@@ -5,10 +5,21 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { performClientLogout } from "@velo/app-core/logout";
+import { DarkModeToggle } from "@velo/ui/theme";
+import { FadeIn } from "@velo/ui/motion";
 import { NotificationsNavIndicator } from "../notifications/_components/nav-indicator";
 import { requestRiderProxy } from "../_lib/rider-client";
 
 const PUBLIC_ROUTES = ["/login", "/register"];
+const NAV_ITEMS = [
+  { href: "/", label: "Book" },
+  { href: "/ride/active", label: "Active Trip" },
+  { href: "/rides", label: "Rides" },
+  { href: "/scheduled", label: "Scheduled" },
+  { href: "/wallet", label: "Wallet" },
+  { href: "/promos", label: "Promos" },
+  { href: "/notifications", label: "Notifications" },
+];
 
 type TenantBrandingResponse = {
   brandName?: string;
@@ -16,6 +27,13 @@ type TenantBrandingResponse = {
 
 function isPublicRoute(pathname: string): boolean {
   return PUBLIC_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`));
+}
+
+function isActiveRoute(pathname: string, href: string): boolean {
+  if (href === "/") {
+    return pathname === "/";
+  }
+  return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -71,20 +89,24 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="app-shell stack">
-      <header className="card">
-        <div className="actions" style={{ justifyContent: "space-between", alignItems: "center" }}>
-          <div className="actions">
-            <strong>{platformBrand}</strong>
-            <Link href="/">Book</Link>
-            <Link href="/ride/active">Active Trip</Link>
-            <Link href="/rides">Rides</Link>
-            <Link href="/scheduled">Scheduled</Link>
-            <Link href="/wallet">Wallet</Link>
-            <Link href="/promos">Promos</Link>
-            <Link href="/notifications">Notifications</Link>
+      <header className="card app-nav">
+        <div className="portal-nav">
+          <div className="portal-nav-links">
+            <strong className="portal-brand">{platformBrand}</strong>
+            {NAV_ITEMS.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="nav-link"
+                data-active={isActiveRoute(pathname, item.href) ? "true" : "false"}
+              >
+                {item.label}
+              </Link>
+            ))}
           </div>
-          <div className="actions" style={{ alignItems: "center" }}>
+          <div className="portal-nav-actions">
             <NotificationsNavIndicator />
+            <DarkModeToggle />
             <button
               className="secondary-button"
               type="button"
@@ -96,7 +118,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </div>
       </header>
-      {children}
+      <FadeIn key={pathname}>{children}</FadeIn>
     </div>
   );
 }

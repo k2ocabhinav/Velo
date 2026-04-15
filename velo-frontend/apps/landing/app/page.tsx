@@ -1,3 +1,12 @@
+import { Navbar } from "./components/Navbar";
+import { Hero } from "./components/Hero";
+import { TaglineBar } from "./components/TaglineBar";
+import { Verticals } from "./components/Verticals";
+import { Stats } from "./components/Stats";
+import { Marquee } from "./components/Marquee";
+import { HowItWorks } from "./components/HowItWorks";
+import { Footer } from "./components/Footer";
+
 type TenantBranding = {
   brandName?: string;
   riderLabel?: string;
@@ -31,49 +40,18 @@ async function fetchBranding(): Promise<TenantBranding | null> {
 
 export default async function LandingPage() {
   const branding = await fetchBranding();
-  const tenantBrandName = branding?.brandName?.trim() || "Velo";
-  const platformBrand = tenantBrandName.toLowerCase() === "velo" ? "VELO" : `VELO | ${tenantBrandName}`;
-  const driverLabel = branding?.driverLabel ?? "Driver";
-  const riderLabel = branding?.riderLabel ?? "Requester";
-  const tripLabel = branding?.tripLabel ?? "Trip";
-  const showRequesterPortal = branding?.riderPortalEnabled ?? true;
+  const brandName = branding?.brandName?.trim() || "Velo";
 
   return (
-    <main className="wrap">
-      <section className="panel">
-        <header className="hero">
-          <h1>{platformBrand}</h1>
-          <p>White-label dispatch infrastructure for rides, shuttles, and delivery operations.</p>
-        </header>
-
-        <section className="cta-grid">
-          <a className="cta" href="http://localhost:4101" target="_blank" rel="noreferrer">
-            <strong>Admin Portal</strong>
-            <span>Operations, analytics, dispatch controls, and branding settings.</span>
-          </a>
-
-          <a className="cta" href="http://localhost:4103" target="_blank" rel="noreferrer">
-            <strong>{driverLabel} Portal</strong>
-            <span>Availability, incoming {tripLabel.toLowerCase()} requests, OTP validation, and trip actions.</span>
-          </a>
-
-          {showRequesterPortal ? (
-            <a className="cta" href="http://localhost:4102" target="_blank" rel="noreferrer">
-              <strong>{riderLabel} Portal</strong>
-              <span>Map-first booking, fare estimate, promo visibility, and live trip tracking.</span>
-            </a>
-          ) : (
-            <article className="cta">
-              <strong>{riderLabel} Portal Disabled</strong>
-              <span>Tenant dispatch mode is configured for merchant-admin dispatch.</span>
-            </article>
-          )}
-        </section>
-
-        <p className="meta">
-          Port map: Landing 4100 • Admin 4101 • Requester 4102 • Driver 4103
-        </p>
-      </section>
-    </main>
+    <>
+      <Navbar brandName={brandName} />
+      <Hero brandName={brandName} />
+      <TaglineBar />
+      <Verticals />
+      <Stats />
+      <Marquee />
+      <HowItWorks />
+      <Footer brandName={brandName} />
+    </>
   );
 }

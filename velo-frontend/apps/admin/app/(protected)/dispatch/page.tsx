@@ -428,7 +428,13 @@ export default function AdminDispatchPage() {
         </div>
       ) : null}
       {statusMessage ? <p className="helper">{statusMessage}</p> : null}
-      {loading ? <p className="helper">Loading dispatch console...</p> : null}
+      {loading ? (
+        <div className="admin-loading" aria-live="polite" aria-label="Loading dispatch console">
+          <div className="admin-skeleton" data-size="lg" />
+          <div className="admin-skeleton" data-size="md" />
+          <div className="admin-skeleton" data-size="sm" />
+        </div>
+      ) : null}
 
       <section className="cards-grid">
         <article className="panel metric-card">

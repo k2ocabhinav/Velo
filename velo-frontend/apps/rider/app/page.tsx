@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
+import { CountdownBadge, LiveStatusPill, MatchingIndicator } from "@velo/ui/feedback";
 import {
   requestRiderProxy,
   toCurrency,
@@ -73,6 +74,7 @@ type TenantBranding = {
 const ACTIVE_TRIP_REFRESH_INTERVAL_MS = 10_000;
 const BACKGROUND_REFRESH_INTERVAL_MS = 30_000;
 const GEOLOCATION_TIMEOUT_MS = 8_000;
+const OFFER_TTL_MS = 45_000;
 const TRIP_LANE_NOTIFICATION_TYPES = new Set([
   "RIDE_REQUESTED",
   "RIDE_ACCEPTED",
@@ -322,11 +324,25 @@ export default function RiderHomePage() {
     if (lastTripLaneSyncAt) {
       const syncedAt = new Date(lastTripLaneSyncAt);
       const syncLabel = Number.isNaN(syncedAt.getTime()) ? "recently" : syncedAt.toLocaleTimeString();
-      return `${base} Last trip sync ${syncLabel}.`;
+      return `Last lane sync ${syncLabel}.`;
     }
 
     return base;
   }, [lastTripLaneSyncAt, realtime.lastError, realtime.reconnectAttempts, realtime.state]);
+
+  const pendingRequestExpiresAtMs = useMemo(() => {
+    const createdTime = lastRequest?.createdTime;
+    if (!createdTime) {
+      return null;
+    }
+
+    const createdMs = new Date(createdTime).getTime();
+    if (!Number.isFinite(createdMs)) {
+      return null;
+    }
+
+    return createdMs + OFFER_TTL_MS;
+  }, [lastRequest?.createdTime]);
 
   function buildRequestBody() {
     const pickup = validatePointInput({ lat: pickupLat, lng: pickupLng }, "Pickup");
@@ -552,10 +568,13 @@ export default function RiderHomePage() {
 
       <section className="card stack">
         <strong>Select on map</strong>
-        <p className="helper">
-          Tap the map to place a marker. Drag markers to fine-tune pickup and drop-off.
-          {loadingRoute ? " Calculating route..." : routePath && routePath.points.length > 1 ? " Route preview shown." : null}
-        </p>
+        <p className="helper">Tap the map to place a marker. Drag markers to fine-tune pickup and drop-off.</p>
+        <div className="lane-status-row">
+          <LiveStatusPill
+            state={loadingRoute ? "connecting" : routePath && routePath.points.length > 1 ? "connected" : "idle"}
+            label={loadingRoute ? "Calculating route" : routePath && routePath.points.length > 1 ? "Route ready" : "Pick locations"}
+          />
+        </div>
         <p className="helper">Active selection: {activeTarget === "pickup" ? "Pickup" : "Drop-off"}.</p>
         <div className="booking-map-controls">
           <button
@@ -587,7 +606,13 @@ export default function RiderHomePage() {
           <div className="stack compact">
             <strong>{tripLane.mode === "active" ? `Active ${tripLabel.toLowerCase()}` : tripLane.title}</strong>
             <p className="helper">{tripLane.description}</p>
-            <p className={realtime.state === "error" ? "error-text" : "helper"}>{tripLaneSyncMessage}</p>
+            <div className="lane-status-row">
+              <LiveStatusPill
+                state={realtime.state}
+                label={realtime.state === "connected" ? "Actively listening" : undefined}
+              />
+              <span className={realtime.state === "error" ? "error-text" : "helper"}>{tripLaneSyncMessage}</span>
+            </div>
           </div>
           <button
             className="secondary-button"
@@ -599,7 +624,13 @@ export default function RiderHomePage() {
           </button>
         </div>
 
-        {loadingTripLane ? <p className="helper">Loading trip lane...</p> : null}
+        {loadingTripLane ? (
+          <div className="lane-loading" aria-live="polite" aria-label="Loading trip lane">
+            <div className="lane-skeleton" data-size="lg" />
+            <div className="lane-skeleton" data-size="md" />
+            <div className="lane-skeleton" data-size="sm" />
+          </div>
+        ) : null}
         {tripLaneError ? <p className="error-text">{tripLaneError}</p> : null}
 
         {!loadingTripLane && !tripLaneError && tripLane.ride ? (
@@ -648,12 +679,11 @@ export default function RiderHomePage() {
               <p className="helper">Updated: {tripLane.timeLabel ?? "--"}</p>
             </div>
             <div className="stack compact" style={{ justifyItems: "end" }}>
-              <p className="finding-driver-indicator">
-                Finding {driverLabel.toLowerCase()}
-                <span className="dot one">.</span>
-                <span className="dot two">.</span>
-                <span className="dot three">.</span>
-              </p>
+              <MatchingIndicator
+                label={`Matching nearby ${driverLabel.toLowerCase()}s`}
+                expiresAtMs={pendingRequestExpiresAtMs}
+              />
+              <CountdownBadge expiresAtMs={pendingRequestExpiresAtMs} prefix="Request expires in" />
               <Link className="secondary-button" href="/rides">
                 Open {tripLabel.toLowerCase()} history
               </Link>

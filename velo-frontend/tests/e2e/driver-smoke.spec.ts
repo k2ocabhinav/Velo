@@ -50,15 +50,15 @@ test("driver app redirects unauthenticated visitors to login", async ({ page }) 
 });
 
 test("driver logout clears ws session token and blocks protected routes", async ({ baseURL, context, page }) => {
-  const appBaseUrl = baseURL ?? "http://127.0.0.1:3002";
+  const appBaseUrl = baseURL ?? "http://127.0.0.1:4103";
   await context.addCookies([
     {
-      name: "velo_token",
+      name: "velo_driver_token",
       value: "e2e-driver-token",
       url: appBaseUrl,
     },
     {
-      name: "velo_role_hint",
+      name: "velo_driver_role_hint",
       value: "DRIVER",
       url: appBaseUrl,
     },
@@ -109,10 +109,10 @@ test("driver logout clears ws session token and blocks protected routes", async 
 });
 
 test("driver home supports availability toggle and ride acceptance flow", async ({ baseURL, context, page }) => {
-  const appBaseUrl = baseURL ?? "http://127.0.0.1:3002";
+  const appBaseUrl = baseURL ?? "http://127.0.0.1:4103";
   await context.addCookies([
     {
-      name: "velo_token",
+      name: "velo_driver_token",
       value: "e2e-driver-token",
       url: appBaseUrl,
     },
@@ -177,6 +177,28 @@ test("driver home supports availability toggle and ride acceptance flow", async 
       status: 200,
       contentType: "application/json",
       body: JSON.stringify(body),
+    });
+  });
+
+  await page.route("**/api/backend/drivers/ride-requests/311", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: {
+          id: 311,
+          rideRequestStatus: "PENDING",
+          paymentMethod: "WALLET",
+          pickupLocation: {
+            type: "Point",
+            coordinates: [77.5946, 12.9716],
+          },
+          dropOffLocation: {
+            type: "Point",
+            coordinates: [77.6401, 12.9352],
+          },
+        },
+      }),
     });
   });
 
@@ -266,7 +288,7 @@ test("driver home supports availability toggle and ride acceptance flow", async 
 
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { name: "Stay available and respond to rides quickly" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Stay available and respond to .* requests quickly/i })).toBeVisible();
   await expect(page.getByText("No active ride currently.")).toBeVisible();
   await page.getByRole("button", { name: "Go online" }).click();
   await expect(page.getByText("You are now online.")).toBeVisible();
@@ -286,10 +308,10 @@ test("driver home supports availability toggle and ride acceptance flow", async 
 });
 
 test("driver home shows availability conflict errors", async ({ baseURL, context, page }) => {
-  const appBaseUrl = baseURL ?? "http://127.0.0.1:3002";
+  const appBaseUrl = baseURL ?? "http://127.0.0.1:4103";
   await context.addCookies([
     {
-      name: "velo_token",
+      name: "velo_driver_token",
       value: "e2e-driver-token",
       url: appBaseUrl,
     },
@@ -345,10 +367,10 @@ test("driver home shows availability conflict errors", async ({ baseURL, context
 });
 
 test("driver earnings and notifications flows show happy and failure states", async ({ baseURL, context, page }) => {
-  const appBaseUrl = baseURL ?? "http://127.0.0.1:3002";
+  const appBaseUrl = baseURL ?? "http://127.0.0.1:4103";
   await context.addCookies([
     {
-      name: "velo_token",
+      name: "velo_driver_token",
       value: "e2e-driver-token",
       url: appBaseUrl,
     },

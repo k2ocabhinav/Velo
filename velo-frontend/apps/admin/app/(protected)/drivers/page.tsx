@@ -178,7 +178,13 @@ export default function DriversPage() {
         </div>
       ) : null}
       {statusMessage ? <p className="helper">{statusMessage}</p> : null}
-      {loading ? <p className="helper">Loading drivers...</p> : null}
+      {loading ? (
+        <div className="admin-loading" aria-live="polite" aria-label="Loading drivers">
+          <div className="admin-skeleton" data-size="lg" />
+          <div className="admin-skeleton" data-size="md" />
+          <div className="admin-skeleton" data-size="sm" />
+        </div>
+      ) : null}
 
       <section className="panel metric-card">
         {!loading && drivers.length === 0 ? (

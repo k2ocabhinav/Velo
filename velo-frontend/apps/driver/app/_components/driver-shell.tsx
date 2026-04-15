@@ -5,6 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { performClientLogout } from "@velo/app-core/logout";
+import { DarkModeToggle } from "@velo/ui/theme";
+import { FadeIn } from "@velo/ui/motion";
 import { DriverNotificationsNavIndicator } from "../notifications/_components/nav-indicator";
 import { requestDriverProxy } from "../_lib/driver-client";
 
@@ -30,6 +32,10 @@ function isActiveRoute(pathname: string, href: string): boolean {
     return pathname === "/";
   }
   return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function isActiveRidePage(pathname: string): boolean {
+  return /^\/ride\/[^/]+$/.test(pathname);
 }
 
 export function DriverShell({ children }: Readonly<{ children: ReactNode }>) {
@@ -83,12 +89,15 @@ export function DriverShell({ children }: Readonly<{ children: ReactNode }>) {
     return <>{children}</>;
   }
 
+  // No Framer Motion on active ride page for low-end device performance (DESIGN_SYSTEM.md)
+  const content = isActiveRidePage(pathname) ? children : <FadeIn key={pathname}>{children}</FadeIn>;
+
   return (
     <div className="app-shell stack">
       <header className="card app-nav">
-        <div className="actions" style={{ justifyContent: "space-between", alignItems: "center" }}>
-          <div className="actions">
-            <strong>{platformBrand}</strong>
+        <div className="portal-nav">
+          <div className="portal-nav-links">
+            <strong className="portal-brand">{platformBrand}</strong>
             {NAV_ITEMS.map((item) => (
               <Link
                 key={item.href}
@@ -100,8 +109,9 @@ export function DriverShell({ children }: Readonly<{ children: ReactNode }>) {
               </Link>
             ))}
           </div>
-          <div className="actions" style={{ alignItems: "center" }}>
+          <div className="portal-nav-actions">
             <DriverNotificationsNavIndicator />
+            <DarkModeToggle />
             <button
               className="secondary-button"
               type="button"
@@ -113,7 +123,7 @@ export function DriverShell({ children }: Readonly<{ children: ReactNode }>) {
           </div>
         </div>
       </header>
-      {children}
+      {content}
     </div>
   );
 }

@@ -25,11 +25,13 @@ Velo powers movement. The UI should feel like it's already in motion — purpose
 
 | Role | Font | Weight | Usage |
 |---|---|---|---|
-| Display | Satoshi | 700, 900 | Page titles, hero numbers, dashboard stats |
-| Body | General Sans | 400, 500, 600 | All body text, labels, table content |
+| Display | Barlow Condensed | 800, 900 | Page titles, hero numbers, dashboard stats, section headings |
+| Body | Inter | 400, 500, 600, 700 | All body text, labels, table content, buttons |
 | Mono | JetBrains Mono | 400 | OTPs, ride codes, transaction IDs |
 
-**Why Satoshi + General Sans:** Both are geometric sans-serifs from Fontshare (free, commercial-use). Satoshi has distinctive character in its rounded terminals — it feels modern without being trendy. General Sans is its natural body companion. Together they read as "designed" without screaming "designer."
+**Why Barlow Condensed + Inter:** Barlow Condensed is a bold condensed sans that creates editorial impact for headlines — uppercase at large sizes, it reads as purposeful infrastructure, not startup playfulness. Inter is the industry-standard UI body font: excellent legibility at all sizes, well-hinted, widely cached by browsers.
+
+**Font loading:** Both fonts are loaded via `next/font/google` in each app's `layout.tsx`. Config constants are in `packages/ui/src/theme/google-fonts.ts` for DRY usage. CSS variables `--font-display` and `--font-body` are set on `<html>` and referenced throughout.
 
 **Tenant override:** Tenants can provide a custom `display` and `body` font URL. If none provided, defaults apply. Mono is never overridden — it's a platform UX decision.
 
@@ -72,9 +74,13 @@ Layer 3: Component  (specific overrides — rare, only when semantic isn't enoug
 --gray-900: 210 20% 10%;
 --gray-950: 210 25% 5%;
 
-/* Brand */
---blue-500: 220 72% 50%;
---blue-600: 220 75% 42%;
+/* Brand — Duotone palette */
+--velo-black: #131313;
+--velo-white: #fefefe;
+--velo-blue: #1A56FF;           /* 226 100% 55% — primary accent */
+--velo-blue-hover: #0037D4;
+--blue-500: 226 100% 55%;
+--blue-600: 226 100% 42%;
 --teal-500: 173 58% 39%;
 --amber-500: 38 92% 50%;
 --red-500: 0 84% 60%;
@@ -126,15 +132,35 @@ Layer 3: Component  (specific overrides — rare, only when semantic isn't enoug
   --radius-full: 9999px;
 }
 
-.dark {
-  --color-background:    var(--gray-950);
-  --color-surface:       var(--gray-900);
-  --color-surface-hover: var(--gray-800);
-  --color-elevated:      var(--gray-800);
-  --color-foreground:    var(--gray-50);
-  --color-muted:         var(--gray-400);
-  --color-border:        var(--gray-700);
+.velo-theme-dark {
+  --color-background:    0 0% 7%;     /* #131313 */
+  --color-surface:       0 0% 10%;
+  --color-foreground:    0 0% 99%;    /* #fefefe */
+  --color-muted:         0 0% 53%;
+  --color-primary:       226 100% 55%; /* #1A56FF */
+  --color-border:        0 0% 100% / 0.10;
 }
+
+/* Per-app dark mode via data-theme attribute */
+html[data-theme="dark"] {
+  /* Each app's globals.css defines dark overrides matching the duotone palette */
+}
+```
+
+### Dark Mode
+
+Dark mode is supported in admin, rider, and driver apps via:
+- `<DarkModeToggle />` component from `@velo/ui/theme`
+- `useDarkMode()` hook for programmatic access
+- Reads `prefers-color-scheme` on mount for initial value
+- Persists user choice to `localStorage` key `velo-theme`
+- Toggles `.velo-theme-dark` class and `data-theme` attribute on `<html>`
+- Landing page is dark-only by design (no toggle needed)
+
+The duotone palette uses:
+- Dark: `#131313` background, `#fefefe` text
+- Light: `#fefefe` background, `#131313` text
+- Accent: `#1A56FF` (velocity blue) across both modes
 ```
 
 ### Tenant Theming Override

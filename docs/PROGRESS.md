@@ -20,7 +20,9 @@
 - [x] Tenant defaulting fallback added at entity persist boundary for legacy/test setup compatibility (`Driver`, `Rider`, `Ride`, `RideRequest`, `RideOffer`, `Wallet`, `PaymentMethodEntity`, `DriverEarning`, `PayoutRequest`)
 - [x] Backend regression suite passing: `197` tests, `0` failures/errors
 - [x] Frontend unit + contract suites passing
-- [ ] Frontend Playwright e2e stabilization pending UI revamp (`17` current failures; selectors/flows need refresh)
+- [x] Frontend Playwright e2e stabilization completed after UI contract alignment (`20/20` passing)
+- [x] Rider/Driver/Admin button alignment + responsive interaction polish pass completed (no layout regressions in smoke flows)
+- [x] Visual status feedback pass completed (live pills, countdown badge, matching indicator, skeleton replacements for text-only loading)
 
 ## Backend (velo-platform/)
 
@@ -88,8 +90,8 @@
 - [x] Motion: page-transition, stagger, fade-in, presence — `ea224fe`
 - [x] Feedback: skeleton, spinner, error-boundary, toast — `ea224fe`
 - [x] Theme: provider, tokens, tenant-resolver, fonts — `ea224fe`
-- [ ] Design system tokens (Satoshi + General Sans fonts, full color system)
-- [ ] Dark mode support
+- [x] Design system tokens (Barlow Condensed + Inter fonts, duotone color system)
+- [x] Dark mode support (toggle + localStorage persistence + prefers-color-scheme)
 - [ ] Skeleton variants for each composed component (.Skeleton exports)
 
 ### packages/ws
@@ -144,15 +146,18 @@
 - [x] Notifications page
 
 ### Design & UX
-- [ ] Implement design system tokens from DESIGN_SYSTEM.md
-- [ ] Satoshi + General Sans font integration
+- [x] Implement design system tokens (duotone palette, fluid type scale, section spacing)
+- [x] Barlow Condensed + Inter font integration (via next/font/google)
 - [ ] Multi-tenant theme loading (middleware → Redis → inline CSS)
-- [ ] Smooth page transitions (Framer Motion)
-- [ ] Staggered list animations
-- [ ] Responsive breakpoints (mobile-first rider/driver, desktop-first admin)
+- [x] Smooth page transitions (Framer Motion FadeIn on all app shells)
+- [x] Staggered list/scroll-reveal animations (landing page sections)
+- [x] Responsive breakpoints (mobile-first rider/driver, desktop-first admin)
 - [ ] WCAG 2.1 AA accessibility audit
-- [ ] prefers-reduced-motion support
+- [x] prefers-reduced-motion support (disables all animations)
 - [ ] Loading/skeleton states for every data component
+- [x] Dark mode support (toggle in admin, rider, driver apps)
+- [x] Landing page rebuild (hero, tagline, verticals accordion, stats, marquee, how-it-works, footer)
+- [x] Lenis smooth scroll on landing page
 
 ---
 

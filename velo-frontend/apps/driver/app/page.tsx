@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { isActionPending, setActionPending } from "@velo/app-core/async-actions";
+import { CountdownBadge, LiveStatusPill, MatchingIndicator } from "@velo/ui/feedback";
 import {
   requestDriverProxy,
   toCurrency,
@@ -32,6 +33,7 @@ import {
 const INCOMING_TYPES = new Set(["RIDE_REQUESTED", "RIDE_DISPATCHED"]);
 const DEFAULT_REFRESH_INTERVAL_MS = 30_000;
 const ACTIVE_RIDE_REFRESH_INTERVAL_MS = 10_000;
+const OFFER_TTL_MS = 45_000;
 
 function isIncomingRideType(type: string | null | undefined): boolean {
   return Boolean(type && INCOMING_TYPES.has(type));
@@ -98,6 +100,19 @@ function buildPickupPreviewUrl(point: { lat: number; lng: number }): string {
   const top = point.lat + delta;
   const bottom = point.lat - delta;
   return `https://www.openstreetmap.org/export/embed.html?bbox=${left}%2C${bottom}%2C${right}%2C${top}&layer=mapnik&marker=${point.lat}%2C${point.lng}`;
+}
+
+function toExpiryMs(createdTime: string | null | undefined): number | null {
+  if (!createdTime) {
+    return null;
+  }
+
+  const createdMs = new Date(createdTime).getTime();
+  if (!Number.isFinite(createdMs)) {
+    return null;
+  }
+
+  return createdMs + OFFER_TTL_MS;
 }
 
 type TenantBranding = {
@@ -269,6 +284,13 @@ export default function DriverHomePage() {
   const realtime = useDriverNotificationSubscription(true, handleIncomingNotification);
 
   const queuedRequestCount = useMemo(() => incoming.length, [incoming]);
+  const incomingRealtimeMessage = useMemo(() => {
+    const base = getDriverRealtimeStatusText(realtime.state, realtime.reconnectAttempts);
+    if (realtime.state === "error" && realtime.lastError) {
+      return `${base} ${realtime.lastError}`;
+    }
+    return base;
+  }, [realtime.lastError, realtime.reconnectAttempts, realtime.state]);
 
   async function toggleAvailability(): Promise<void> {
     if (!profile) {
@@ -387,12 +409,20 @@ export default function DriverHomePage() {
           <div className="stack compact">
             <strong>Status</strong>
             {loadingProfile ? (
-              <p className="helper">Loading profile...</p>
+              <div className="lane-loading" aria-live="polite" aria-label="Loading driver profile">
+                <div className="lane-skeleton" data-size="md" />
+                <div className="lane-skeleton" data-size="sm" />
+              </div>
             ) : (
-              <p className="helper">
-                Driver #{profile?.id ?? "--"} • Vehicle {profile?.vehicleId ?? "--"} •{" "}
-                {profile?.available ? "Online" : "Offline"}
-              </p>
+              <>
+                <p className="helper">
+                  Driver #{profile?.id ?? "--"} • Vehicle {profile?.vehicleId ?? "--"} •{" "}
+                  {profile?.available ? "Online" : "Offline"}
+                </p>
+                <div className="lane-status-row">
+                  <LiveStatusPill state={profile?.available ? "connected" : "idle"} label={profile?.available ? "Online" : "Offline"} />
+                </div>
+              </>
             )}
           </div>
           <button
@@ -416,11 +446,14 @@ export default function DriverHomePage() {
         <div className="split-row">
           <div className="stack compact">
             <strong>Incoming {tripLabel.toLowerCase()} requests</strong>
-            <p className="helper">Unread incoming requests: {queuedRequestCount}</p>
-            <p className={realtime.state === "error" ? "error-text" : "helper"}>
-              {getDriverRealtimeStatusText(realtime.state, realtime.reconnectAttempts)}
-            </p>
-            {realtime.lastError ? <p className="helper">{realtime.lastError}</p> : null}
+            <div className="lane-status-row">
+              <span className="badge">Unread {queuedRequestCount}</span>
+              <LiveStatusPill
+                state={realtime.state}
+                label={realtime.state === "connected" ? "Actively listening" : undefined}
+              />
+              <span className={realtime.state === "error" ? "error-text" : "helper"}>{incomingRealtimeMessage}</span>
+            </div>
           </div>
           <button
             className="primary-button"
@@ -432,7 +465,13 @@ export default function DriverHomePage() {
           </button>
         </div>
 
-        {loadingIncoming ? <p className="helper">Loading incoming requests...</p> : null}
+        {loadingIncoming ? (
+          <div className="lane-loading" aria-live="polite" aria-label="Loading incoming requests">
+            <div className="lane-skeleton" data-size="lg" />
+            <div className="lane-skeleton" data-size="md" />
+            <div className="lane-skeleton" data-size="sm" />
+          </div>
+        ) : null}
         {!loadingIncoming && incoming.length === 0 ? (
           <p className="helper">No incoming {tripLabel.toLowerCase()} requests right now.</p>
         ) : null}
@@ -453,6 +492,13 @@ export default function DriverHomePage() {
                     <p className="helper">
                       Request #{requestId ?? "--"} • {toRelativeTimestamp(notification.createdTime)}
                     </p>
+                    <div className="lane-status-row">
+                      <MatchingIndicator
+                        label={`${tripLabel} request window`}
+                        expiresAtMs={toExpiryMs(notification.createdTime)}
+                      />
+                      <CountdownBadge expiresAtMs={toExpiryMs(notification.createdTime)} prefix="Request expires in" />
+                    </div>
                     {pickup ? (
                       <div className="stack compact">
                         <p className="helper">
@@ -466,7 +512,10 @@ export default function DriverHomePage() {
                         />
                       </div>
                     ) : (
-                      <p className="helper">Pickup preview loading…</p>
+                      <div className="lane-loading" aria-live="polite" aria-label="Loading pickup preview">
+                        <div className="lane-skeleton" data-size="lg" />
+                        <div className="lane-skeleton" data-size="sm" />
+                      </div>
                     )}
                   </div>
                   <div className="actions">
@@ -510,7 +559,13 @@ export default function DriverHomePage() {
           </button>
         </div>
 
-        {loadingActiveRide ? <p className="helper">Loading active ride status...</p> : null}
+        {loadingActiveRide ? (
+          <div className="lane-loading" aria-live="polite" aria-label="Loading active ride lane">
+            <div className="lane-skeleton" data-size="lg" />
+            <div className="lane-skeleton" data-size="md" />
+            <div className="lane-skeleton" data-size="sm" />
+          </div>
+        ) : null}
         {activeRideError ? <p className="error-text">{activeRideError}</p> : null}
         {!loadingActiveRide && !activeRideError && !activeRide ? (
           <p className="helper">No active ride currently. New accepted rides will appear here automatically.</p>

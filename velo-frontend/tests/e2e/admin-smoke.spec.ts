@@ -13,15 +13,15 @@ test("admin app redirects unauthenticated visitors to login", async ({ page }) =
 });
 
 test("admin logout clears session and re-blocks protected routes", async ({ baseURL, context, page }) => {
-  const appBaseUrl = baseURL ?? "http://127.0.0.1:3000";
+  const appBaseUrl = baseURL ?? "http://127.0.0.1:4101";
   await context.addCookies([
     {
-      name: "velo_token",
+      name: "velo_admin_token",
       value: "e2e-admin-token",
       url: appBaseUrl,
     },
     {
-      name: "velo_role_hint",
+      name: "velo_admin_role_hint",
       value: "ADMIN",
       url: appBaseUrl,
     },
@@ -101,10 +101,10 @@ test("admin logout clears session and re-blocks protected routes", async ({ base
 });
 
 test("admin payouts page supports action smoke flow", async ({ baseURL, context, page }) => {
-  const appBaseUrl = baseURL ?? "http://127.0.0.1:3000";
+  const appBaseUrl = baseURL ?? "http://127.0.0.1:4101";
   await context.addCookies([
     {
-      name: "velo_token",
+      name: "velo_admin_token",
       value: "e2e-admin-token",
       url: appBaseUrl
     }
@@ -168,9 +168,9 @@ test("admin payouts page supports action smoke flow", async ({ baseURL, context,
 
   await expect(page.getByRole("heading", { name: "Payouts" })).toBeVisible();
   await expect(page.getByText("Payout #91")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Approve" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Approve", exact: true })).toBeVisible();
 
-  await page.getByRole("button", { name: "Approve" }).click();
+  await page.getByRole("button", { name: "Approve", exact: true }).click();
 
   await expect(page.getByText("Payout approved.")).toBeVisible();
   await expect(page.getByText("No pending payouts found.")).toBeVisible();
@@ -178,10 +178,10 @@ test("admin payouts page supports action smoke flow", async ({ baseURL, context,
 });
 
 test("admin payouts page surfaces readable auth expiry errors", async ({ baseURL, context, page }) => {
-  const appBaseUrl = baseURL ?? "http://127.0.0.1:3000";
+  const appBaseUrl = baseURL ?? "http://127.0.0.1:4101";
   await context.addCookies([
     {
-      name: "velo_token",
+      name: "velo_admin_token",
       value: "expired-admin-token",
       url: appBaseUrl
     }
@@ -203,10 +203,10 @@ test("admin payouts page surfaces readable auth expiry errors", async ({ baseURL
 });
 
 test("admin users page toggles user active status", async ({ baseURL, context, page }) => {
-  const appBaseUrl = baseURL ?? "http://127.0.0.1:3000";
+  const appBaseUrl = baseURL ?? "http://127.0.0.1:4101";
   await context.addCookies([
     {
-      name: "velo_token",
+      name: "velo_admin_token",
       value: "e2e-admin-token",
       url: appBaseUrl
     }
@@ -263,10 +263,10 @@ test("admin users page toggles user active status", async ({ baseURL, context, p
 });
 
 test("admin drivers page approves pending applications", async ({ baseURL, context, page }) => {
-  const appBaseUrl = baseURL ?? "http://127.0.0.1:3000";
+  const appBaseUrl = baseURL ?? "http://127.0.0.1:4101";
   await context.addCookies([
     {
-      name: "velo_token",
+      name: "velo_admin_token",
       value: "e2e-admin-token",
       url: appBaseUrl
     }
@@ -276,7 +276,7 @@ test("admin drivers page approves pending applications", async ({ baseURL, conte
   let approveCount = 0;
   page.on("dialog", (dialog) => dialog.accept());
 
-  await page.route("**/api/proxy/api/v1/admin/drivers/pending?page=0&size=10", async (route) => {
+  await page.route("**/api/proxy/api/v1/admin/drivers?status=PENDING&page=0&size=10", async (route) => {
     if (route.request().method() !== "GET") {
       await route.continue();
       return;
@@ -326,25 +326,25 @@ test("admin drivers page approves pending applications", async ({ baseURL, conte
   await page.goto("/drivers");
 
   await expect(page.getByRole("heading", { name: "Drivers" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Approve" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Approve", exact: true })).toBeVisible();
 
-  await page.getByRole("button", { name: "Approve" }).click();
+  await page.getByRole("button", { name: "Approve", exact: true }).click();
 
   await expect(page.getByText("Driver approved.")).toBeVisible();
-  await expect(page.getByText("No pending drivers found.")).toBeVisible();
+  await expect(page.getByText("No drivers found for this status.")).toBeVisible();
   expect(approveCount).toBe(1);
 });
 
 test("admin dispatch console supports offer visibility and assign action", async ({ baseURL, context, page }) => {
-  const appBaseUrl = baseURL ?? "http://127.0.0.1:3000";
+  const appBaseUrl = baseURL ?? "http://127.0.0.1:4101";
   await context.addCookies([
     {
-      name: "velo_token",
+      name: "velo_admin_token",
       value: "e2e-admin-token",
       url: appBaseUrl,
     },
     {
-      name: "velo_role_hint",
+      name: "velo_admin_role_hint",
       value: "ADMIN",
       url: appBaseUrl,
     },
@@ -381,6 +381,24 @@ test("admin dispatch console supports offer visibility and assign action", async
         dispatchQueueDepth: 2,
         expiredOfferCount: 0,
         updatedAt: new Date().toISOString(),
+      }),
+    });
+  });
+
+  await page.route("**/api/proxy/api/v1/admin/branding", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        tenantId: 1,
+        brandName: "Velo",
+        primaryColor: "#2563eb",
+        logoUrl: null,
+        riderLabel: "Requester",
+        driverLabel: "Driver",
+        tripLabel: "Trip",
+        dispatchMode: "RIDE_HAILING",
+        riderPortalEnabled: true,
       }),
     });
   });
@@ -495,13 +513,13 @@ test("admin dispatch console supports offer visibility and assign action", async
 
   await page.goto("/dispatch");
 
-  await expect(page.getByRole("heading", { name: "Dispatch Console" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Dispatch Console/i })).toBeVisible();
   await expect(page.locator(".list-item").filter({ hasText: "Request #311" }).first()).toBeVisible();
 
   await page.getByRole("button", { name: "Show offers" }).click();
   await expect(page.getByText("#12 · Driver #2 (Driver Two)")).toBeVisible();
 
   await page.getByRole("button", { name: "Assign", exact: true }).click();
-  await expect(page.getByText("Ride request #311 assigned to driver #12.")).toBeVisible();
+  await expect(page.getByText("Trip request #311 assigned to driver #12.")).toBeVisible();
   expect(assignCount).toBe(1);
 });

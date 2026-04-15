@@ -43,15 +43,15 @@ async function mockRideHistory(
 
 test.describe("rider smoke", () => {
   test("rider logout clears ws session token and blocks protected routes", async ({ baseURL, context, page }) => {
-    const riderBaseUrl = baseURL ?? "http://127.0.0.1:3001";
+    const riderBaseUrl = baseURL ?? "http://127.0.0.1:4102";
     await context.addCookies([
       {
-        name: "velo_token",
+        name: "velo_rider_token",
         value: "e2e-rider-token",
         url: riderBaseUrl,
       },
       {
-        name: "velo_role_hint",
+        name: "velo_rider_role_hint",
         value: "RIDER",
         url: riderBaseUrl,
       },
@@ -90,10 +90,10 @@ test.describe("rider smoke", () => {
   });
 
   test("rider scheduled flow supports happy-path scheduling", async ({ baseURL, context, page }) => {
-    const riderBaseUrl = baseURL ?? "http://127.0.0.1:3001";
+    const riderBaseUrl = baseURL ?? "http://127.0.0.1:4102";
     await context.addCookies([
       {
-        name: "velo_token",
+        name: "velo_rider_token",
         value: "e2e-rider-token",
         url: riderBaseUrl,
       },
@@ -146,10 +146,10 @@ test.describe("rider smoke", () => {
   });
 
   test("rider booking supports fare estimate and request ride with map visible", async ({ baseURL, context, page }) => {
-    const riderBaseUrl = baseURL ?? "http://127.0.0.1:3001";
+    const riderBaseUrl = baseURL ?? "http://127.0.0.1:4102";
     await context.addCookies([
       {
-        name: "velo_token",
+        name: "velo_rider_token",
         value: "e2e-rider-token",
         url: riderBaseUrl,
       },
@@ -226,7 +226,7 @@ test.describe("rider smoke", () => {
     });
 
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Request your next ride" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Request your next/i })).toBeVisible();
 
     // Verify booking map and selection controls are visible
     await expect(page.locator(".booking-map")).toBeVisible();
@@ -241,6 +241,7 @@ test.describe("rider smoke", () => {
     await expect(page.getByLabel("Drop-off longitude")).not.toHaveValue("");
 
     // Manual inputs still work as fallback
+    await page.getByText("Advanced coordinates").click();
     await page.getByLabel("Pickup latitude").fill("12.9716");
     await page.getByLabel("Pickup longitude").fill("77.5946");
     await page.getByLabel("Drop-off latitude").fill("12.9352");
@@ -249,17 +250,17 @@ test.describe("rider smoke", () => {
     await page.getByRole("button", { name: "Estimate fare" }).click();
     await expect(page.getByText("$210.00")).toBeVisible();
 
-    await page.getByRole("button", { name: "Request ride" }).click();
-    await expect(page.getByText("Ride requested. We are now matching you with a nearby driver.")).toBeVisible();
+    await page.getByRole("button", { name: /Request (ride|trip)/i }).click();
+    await expect(page.getByText(/requested\. We are now matching you with a nearby/i)).toBeVisible();
     await expect(page.getByText("Request #501").first()).toBeVisible();
-    await expect(page.getByText("Finding a driver")).toBeVisible();
+    await expect(page.getByText(/Matching nearby/i)).toBeVisible();
   });
 
   test("rider ride history keeps active ride continuity and accepts rating API calls", async ({ baseURL, context, page }) => {
-    const riderBaseUrl = baseURL ?? "http://127.0.0.1:3001";
+    const riderBaseUrl = baseURL ?? "http://127.0.0.1:4102";
     await context.addCookies([
       {
-        name: "velo_token",
+        name: "velo_rider_token",
         value: "e2e-rider-token",
         url: riderBaseUrl,
       },
@@ -349,10 +350,10 @@ test.describe("rider smoke", () => {
   });
 
   test("rider active-trip page shows map continuity and rating fallback after completion", async ({ baseURL, context, page }) => {
-    const riderBaseUrl = baseURL ?? "http://127.0.0.1:3001";
+    const riderBaseUrl = baseURL ?? "http://127.0.0.1:4102";
     await context.addCookies([
       {
-        name: "velo_token",
+        name: "velo_rider_token",
         value: "e2e-rider-token",
         url: riderBaseUrl,
       },
@@ -453,7 +454,7 @@ test.describe("rider smoke", () => {
     activeRideVisible = false;
     await page.getByRole("button", { name: "Refresh now" }).click();
     await expect(page.getByText("No active trip right now.")).toBeVisible();
-    await expect(page.getByText("Rate your latest ride")).toBeVisible();
+    await expect(page.getByText("Trip summary and rating")).toBeVisible();
 
     await page.getByRole("button", { name: "Submit rating" }).click();
     await expect(page.getByText("Rated ride #777 with 5 stars.")).toBeVisible();
@@ -465,10 +466,10 @@ test.describe("rider smoke", () => {
     context,
     page,
   }) => {
-    const riderBaseUrl = baseURL ?? "http://127.0.0.1:3001";
+    const riderBaseUrl = baseURL ?? "http://127.0.0.1:4102";
     await context.addCookies([
       {
-        name: "velo_token",
+        name: "velo_rider_token",
         value: "e2e-rider-token",
         url: riderBaseUrl,
       },
@@ -524,10 +525,10 @@ test.describe("rider smoke", () => {
   });
 
   test("rider pages surface readable backend errors", async ({ baseURL, context, page }) => {
-    const riderBaseUrl = baseURL ?? "http://127.0.0.1:3001";
+    const riderBaseUrl = baseURL ?? "http://127.0.0.1:4102";
     await context.addCookies([
       {
-        name: "velo_token",
+        name: "velo_rider_token",
         value: "e2e-rider-token",
         url: riderBaseUrl,
       },

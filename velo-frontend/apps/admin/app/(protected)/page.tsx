@@ -168,7 +168,13 @@ export default function DashboardPage() {
           </button>
         </div>
       ) : null}
-      {loading ? <p className="helper">Loading dashboard data...</p> : null}
+      {loading ? (
+        <div className="admin-loading" aria-live="polite" aria-label="Loading dashboard data">
+          <div className="admin-skeleton" data-size="lg" />
+          <div className="admin-skeleton" data-size="md" />
+          <div className="admin-skeleton" data-size="sm" />
+        </div>
+      ) : null}
 
       <section className="metric-grid">
         {metrics.map((metric) => (

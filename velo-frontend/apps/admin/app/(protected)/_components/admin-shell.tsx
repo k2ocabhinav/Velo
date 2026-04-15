@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { performClientLogout } from "@velo/app-core/logout";
+import { DarkModeToggle } from "@velo/ui/theme";
+import { FadeIn } from "@velo/ui/motion";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard" },
@@ -95,16 +97,21 @@ export function AdminShell({
             <div>
               <p>Phase 1 control center</p>
             </div>
-            <button
-              className="secondary-button"
-              type="button"
-              disabled={loggingOut}
-              onClick={() => void handleLogout()}
-            >
-              {loggingOut ? "Signing out..." : "Logout"}
-            </button>
+            <div className="admin-topbar-actions">
+              <DarkModeToggle />
+              <button
+                className="secondary-button"
+                type="button"
+                disabled={loggingOut}
+                onClick={() => void handleLogout()}
+              >
+                {loggingOut ? "Signing out..." : "Logout"}
+              </button>
+            </div>
           </header>
-          <main className="admin-content">{children}</main>
+          <main className="admin-content">
+            <FadeIn key={pathname}>{children}</FadeIn>
+          </main>
         </div>
       </div>
     </div>
