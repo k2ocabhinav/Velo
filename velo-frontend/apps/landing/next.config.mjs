@@ -4,7 +4,7 @@ import path from "node:path";
 const nextConfig = {
   output: "standalone",
   outputFileTracingRoot: path.join(process.cwd(), "../.."),
-  transpilePackages: ["@velo/ui"],
+  transpilePackages: ["@velo/ui", "motion", "lenis"],
 };
 
 export default nextConfig;
