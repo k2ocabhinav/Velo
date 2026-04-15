@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 
 public interface DriverEarningRepository extends JpaRepository<DriverEarning, Long> {
     Page<DriverEarning> findByDriverOrderByCreatedTimeDesc(Driver driver, Pageable pageable);
+    boolean existsByRide_Id(Long rideId);
 
     @Query("SELECT new com.velo.platform.dto.EarningsSummaryDto(" +
            "SUM(e.grossFare), SUM(e.platformCommission), SUM(e.netEarning), COUNT(e), " +

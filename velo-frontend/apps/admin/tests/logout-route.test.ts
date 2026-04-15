@@ -10,9 +10,9 @@ describe("admin logout route", () => {
     const cookies = response.cookies.getAll();
     expect(cookies).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ name: "velo_token", value: "" }),
-        expect.objectContaining({ name: "velo_user_id", value: "" }),
-        expect.objectContaining({ name: "velo_role_hint", value: "" }),
+        expect.objectContaining({ name: "velo_admin_token", value: "" }),
+        expect.objectContaining({ name: "velo_admin_user_id", value: "" }),
+        expect.objectContaining({ name: "velo_admin_role_hint", value: "" }),
       ]),
     );
   });

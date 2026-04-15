@@ -4,6 +4,7 @@ import com.velo.platform.dto.DriverDto;
 import com.velo.platform.dto.DriverLocationDto;
 import com.velo.platform.dto.DriverLocationUpdateRequestDto;
 import com.velo.platform.dto.RideDto;
+import com.velo.platform.dto.RideRequestDto;
 import com.velo.platform.dto.RiderDto;
 import com.velo.platform.entities.Driver;
 import org.springframework.data.domain.Page;
@@ -14,6 +15,7 @@ import java.util.List;
 public interface DriverService {
 
     RideDto acceptRide(Long rideId);
+    RideRequestDto getRideRequestForAcceptance(Long rideRequestId);
 
     RideDto cancelRide(Long rideId);
 

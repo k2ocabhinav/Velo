@@ -31,12 +31,30 @@ public class RideRequest {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    @Column(name = "tenant_id", nullable = false)
+    @Builder.Default
+    private Long tenantId = 1L;
 
     @Column(columnDefinition = "Geometry(Point, 4326)")
     private Point pickupLocation;
 
     @Column(columnDefinition = "Geometry(Point, 4326)")
     private Point dropOffLocation;
+
+    @Column(name = "customer_name")
+    private String customerName;
+
+    @Column(name = "customer_phone")
+    private String customerPhone;
+
+    @Column(name = "pickup_address")
+    private String pickupAddress;
+
+    @Column(name = "drop_off_address")
+    private String dropOffAddress;
+
+    @Column(name = "external_reference")
+    private String externalReference;
 
     @CreationTimestamp
     private LocalDateTime requestedTime;
@@ -63,6 +81,16 @@ public class RideRequest {
 
     @Version
     private Long version;
+
+    @PrePersist
+    private void applyDefaults() {
+        if (tenantId == null && rider != null && rider.getTenantId() != null) {
+            tenantId = rider.getTenantId();
+        }
+        if (tenantId == null) {
+            tenantId = 1L;
+        }
+    }
 
     @Override
     public boolean equals(Object o) {

@@ -34,7 +34,9 @@ public class PaymentServiceImpl implements PaymentService {
     @Transactional
     public Payment createNewPayment(Ride ride) {
         Payment payment = Payment.builder()
+                .tenantId(ride.getTenantId())
                 .ride(ride)
+                .user(ride.getRider() == null ? null : ride.getRider().getUser())
                 .paymentMethod(ride.getPaymentMethod())
                 .amount(ride.getFare())
                 .paymentStatus(PaymentStatus.PENDING)

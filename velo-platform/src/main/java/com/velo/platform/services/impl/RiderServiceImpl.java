@@ -10,16 +10,20 @@ import com.velo.platform.dto.RideTrackingDto;
 import com.velo.platform.dto.RiderDto;
 import com.velo.platform.entities.*;
 import com.velo.platform.entities.Driver;
+import com.velo.platform.entities.enums.PaymentMethod;
 import com.velo.platform.entities.enums.RideRequestStatus;
 import com.velo.platform.entities.enums.RideStatus;
 import com.velo.platform.entities.enums.NotificationType;
+import com.velo.platform.entities.enums.DispatchMode;
 import com.velo.platform.events.RideCancelledEvent;
+import com.velo.platform.events.RideEndedEvent;
 import com.velo.platform.events.RideRequestedEvent;
 import com.velo.platform.exceptions.ResourceNotFoundException;
 import com.velo.platform.exceptions.RuntimeConflictException;
 import com.velo.platform.repositories.RideRequestRepository;
 import com.velo.platform.repositories.RideRepository;
 import com.velo.platform.repositories.RiderRepository;
+import com.velo.platform.repositories.TenantConfigurationRepository;
 import com.velo.platform.security.UserPrincipal;
 import com.velo.platform.services.DriverService;
 import com.velo.platform.services.NotificationService;
@@ -28,6 +32,9 @@ import com.velo.platform.services.RatingService;
 import com.velo.platform.services.RideOfferService;
 import com.velo.platform.services.RideService;
 import com.velo.platform.services.RiderService;
+import com.velo.platform.services.PaymentService;
+import com.velo.platform.services.DriverEarningsService;
+import com.velo.platform.services.WalletService;
 import com.velo.platform.strategies.RideStrategyManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -61,15 +68,21 @@ public class RiderServiceImpl implements RiderService {
     private final PromoCodeService promoCodeService;
     private final RideOfferService rideOfferService;
     private final NotificationService notificationService;
+    private final TenantConfigurationRepository tenantConfigurationRepository;
+    private final PaymentService paymentService;
+    private final DriverEarningsService driverEarningsService;
+    private final WalletService walletService;
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
     public RideRequestDto requestRide(RideRequestDto rideRequestDto) {
         Rider rider = getCurrentRider();
+        assertRiderPortalEnabled(rider.getTenantId());
         RideRequest rideRequest = modelMapper.map(rideRequestDto, RideRequest.class);
         rideRequest.setRideRequestStatus(RideRequestStatus.PENDING);
         rideRequest.setRider(rider);
+        rideRequest.setTenantId(rider.getTenantId());
 
         BigDecimal fare = rideStrategyManager.rideFareCalculationStrategy().calculateFare(rideRequest);
 
@@ -85,6 +98,12 @@ public class RiderServiceImpl implements RiderService {
         }
 
         rideRequest.setFare(fare);
+        if (rideRequest.getPaymentMethod() == PaymentMethod.WALLET) {
+            java.math.BigDecimal walletBalance = walletService.findByUser(rider.getUser()).getBalance();
+            if (walletBalance.compareTo(fare) < 0) {
+                throw new RuntimeConflictException("Insufficient wallet balance for this trip estimate.");
+            }
+        }
 
         RideRequest savedRideRequest = rideRequestRepository.save(rideRequest);
 
@@ -120,8 +139,11 @@ public class RiderServiceImpl implements RiderService {
         if(!rider.equals(ride.getRider())) {
             throw new RuntimeConflictException(("Rider does not own this ride with id: "+rideId));
         }
+        if (!resolveTenantId(ride.getTenantId()).equals(resolveTenantId(rider.getTenantId()))) {
+            throw new RuntimeConflictException("Cross-tenant ride access is not allowed.");
+        }
 
-        if(!ride.getRideStatus().equals(RideStatus.CONFIRMED)) {
+        if (!(ride.getRideStatus().equals(RideStatus.CONFIRMED) || ride.getRideStatus().equals(RideStatus.ONGOING))) {
             throw new RuntimeConflictException("Ride cannot be cancelled, invalid status: "+ride.getRideStatus());
         }
 
@@ -129,6 +151,32 @@ public class RiderServiceImpl implements RiderService {
         driverService.updateDriverAvailability(ride.getDriver(), true);
 
         eventPublisher.publishEvent(new RideCancelledEvent(this, savedRide));
+
+        return modelMapper.map(savedRide, RideDto.class);
+    }
+
+    @Override
+    @Transactional
+    public RideDto endRide(Long rideId) {
+        Rider rider = getCurrentRider();
+        Ride ride = rideService.getRideById(rideId);
+
+        if (!rider.equals(ride.getRider())) {
+            throw new RuntimeConflictException("Rider does not own this ride with id: " + rideId);
+        }
+        if (!resolveTenantId(ride.getTenantId()).equals(resolveTenantId(rider.getTenantId()))) {
+            throw new RuntimeConflictException("Cross-tenant ride access is not allowed.");
+        }
+        if (!RideStatus.ONGOING.equals(ride.getRideStatus())) {
+            throw new RuntimeConflictException("Ride status is not ONGOING hence cannot be ended, status: " + ride.getRideStatus());
+        }
+
+        ride.setEndedAt(LocalDateTime.now());
+        Ride savedRide = rideService.updateRideStatus(ride, RideStatus.ENDED);
+        driverService.updateDriverAvailability(savedRide.getDriver(), true);
+        paymentService.processPayment(savedRide);
+        driverEarningsService.createEarningRecord(savedRide);
+        eventPublisher.publishEvent(new RideEndedEvent(this, savedRide));
 
         return modelMapper.map(savedRide, RideDto.class);
     }
@@ -181,7 +229,7 @@ public class RiderServiceImpl implements RiderService {
         return rideRequestRepository
                 .findTopByRiderAndRideRequestStatusInOrderByRequestedTimeDesc(
                         currentRider,
-                        List.of(RideRequestStatus.PENDING, RideRequestStatus.CONFIRMED, RideRequestStatus.SCHEDULED)
+                        List.of(RideRequestStatus.PENDING, RideRequestStatus.SCHEDULED)
                 )
                 .map(this::toPendingRideTrackingDto)
                 .orElse(null);
@@ -193,6 +241,7 @@ public class RiderServiceImpl implements RiderService {
         Rider rider = Rider
                 .builder()
                 .user(user)
+                .tenantId(user.getTenantId() == null ? 1L : user.getTenantId())
                 .rating(0.0)
                 .build();
         return riderRepository.save(rider);
@@ -202,7 +251,7 @@ public class RiderServiceImpl implements RiderService {
     @Transactional(readOnly = true)
     public Rider getCurrentRider() {
         UserPrincipal principal = (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        return riderRepository.findByUserId(principal.getUserId())
+        return riderRepository.findByUserIdAndTenantId(principal.getUserId(), principal.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Rider not found for user id " + principal.getUserId()
                 ));
@@ -216,6 +265,7 @@ public class RiderServiceImpl implements RiderService {
         trackingDto.setDropOffLocation(toPointDto(ride.getDropOffLocation()));
         trackingDto.setUpdatedAt(resolveRideUpdatedAt(ride));
         trackingDto.setCanCancel(ride.getRideStatus() == RideStatus.CONFIRMED);
+        trackingDto.setOtp(ride.getRideStatus() == RideStatus.CONFIRMED ? ride.getOtp() : null);
 
         if (ride.getDriver() != null) {
             Driver driver = ride.getDriver();
@@ -252,6 +302,16 @@ public class RiderServiceImpl implements RiderService {
         return trackingDto;
     }
 
+    private void assertRiderPortalEnabled(Long tenantId) {
+        boolean riderPortalEnabled = tenantConfigurationRepository
+                .findByTenant_Id(resolveTenantId(tenantId))
+                .map(config -> config.getDispatchMode() != DispatchMode.DELIVERY_MERCHANT)
+                .orElse(true);
+        if (!riderPortalEnabled) {
+            throw new RuntimeConflictException("Rider portal is disabled for this tenant dispatch mode.");
+        }
+    }
+
     private PointDto toPointDto(org.locationtech.jts.geom.Point point) {
         if (point == null) {
             return null;
@@ -270,5 +330,9 @@ public class RiderServiceImpl implements RiderService {
             return ride.getCreatedTime();
         }
         return LocalDateTime.now();
+    }
+
+    private Long resolveTenantId(Long tenantId) {
+        return tenantId == null ? 1L : tenantId;
     }
 }

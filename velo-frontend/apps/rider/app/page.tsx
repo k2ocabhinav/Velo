@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import {
   requestRiderProxy,
@@ -40,8 +40,15 @@ import { BookingMapLoader } from "./_components/booking-map-loader";
 type FareEstimate = {
   estimatedFare: DecimalValue;
   baseFare: DecimalValue;
+  originalFare?: DecimalValue;
+  discountedFare?: DecimalValue;
+  savings?: DecimalValue;
+  promoApplied?: boolean;
+  promoMessage?: string | null;
   surgeMultiplier: number;
   discountAmount: DecimalValue;
+  walletBalance?: DecimalValue | null;
+  walletSufficient?: boolean | null;
   distanceKm: number;
   durationMinutes: number;
 };
@@ -51,6 +58,16 @@ type RideRequest = {
   rideRequestStatus?: string;
   paymentMethod: string;
   createdTime?: string;
+};
+
+type TenantBranding = {
+  brandName?: string;
+  riderLabel?: string;
+  driverLabel?: string;
+  tripLabel?: string;
+  primaryColor?: string;
+  dispatchMode?: "RIDE_HAILING" | "DELIVERY_MERCHANT" | "FLEET_MANAGED";
+  riderPortalEnabled?: boolean;
 };
 
 const ACTIVE_TRIP_REFRESH_INTERVAL_MS = 10_000;
@@ -107,6 +124,8 @@ export default function RiderHomePage() {
   const [cancelingRideId, setCancelingRideId] = useState<number | null>(null);
   const [failedAction, setFailedAction] = useState<"estimate" | "request" | null>(null);
   const [lastTripLaneSyncAt, setLastTripLaneSyncAt] = useState<string | null>(null);
+  const [branding, setBranding] = useState<TenantBranding | null>(null);
+  const [loadingBranding, setLoadingBranding] = useState(true);
 
   const [activeTarget, setActiveTarget] = useState<SelectionTarget>("pickup");
   const [routePath, setRoutePath] = useState<RoutePath | null>(null);
@@ -115,6 +134,7 @@ export default function RiderHomePage() {
 
   const pickupPoint = useMemo(() => inputStringsToMapPoint(pickupLat, pickupLng), [pickupLat, pickupLng]);
   const dropOffPoint = useMemo(() => inputStringsToMapPoint(dropLat, dropLng), [dropLat, dropLng]);
+  const bookingStep = !pickupPoint ? 1 : !dropOffPoint ? 2 : 3;
   const hasSelectedLocations = hasCompleteLocationSelection(pickupPoint, dropOffPoint);
   const currentDraftSignature = useMemo(
     () =>
@@ -129,6 +149,36 @@ export default function RiderHomePage() {
     [dropLat, dropLng, paymentMethod, pickupLat, pickupLng, promoCode],
   );
   const hasFreshEstimate = Boolean(estimate && estimateSignature && estimateSignature === currentDraftSignature);
+  const riderLabel = branding?.riderLabel ?? "Rider";
+  const driverLabel = branding?.driverLabel ?? "Driver";
+  const tripLabel = branding?.tripLabel ?? "Trip";
+  const riderPortalEnabled = branding?.riderPortalEnabled ?? true;
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoadingBranding(true);
+
+    void requestRiderProxy<TenantBranding>("api/v1/tenant/branding")
+      .then((payload) => {
+        if (!cancelled) {
+          setBranding(payload);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setBranding(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoadingBranding(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!estimateSignature) {
@@ -247,10 +297,18 @@ export default function RiderHomePage() {
         return;
       }
 
+      const eventType = event.type?.toUpperCase();
+      if (eventType === "RIDE_CANCELLED") {
+        setMessage("Your driver cancelled the trip. Please request a new ride.");
+      }
+      if (eventType === "RIDE_ACCEPTED") {
+        setMessage(`Ride accepted — ${driverLabel} is on the way.`);
+      }
+
       setLastTripLaneSyncAt(new Date().toISOString());
       void loadTripLane(true);
     },
-    [loadTripLane],
+    [driverLabel, loadTripLane],
   );
 
   const realtime = useRiderNotificationSubscription(true, handleRealtimeNotification);
@@ -399,7 +457,7 @@ export default function RiderHomePage() {
         createdTime: new Date().toISOString(),
       };
       setLastRequest(pendingRequest);
-      setMessage("Ride requested. We are now matching you with a nearby driver.");
+      setMessage(`${tripLabel} requested. We are now matching you with a nearby ${driverLabel.toLowerCase()}.`);
       void loadTripLane(true, pendingRequest);
     } catch (requestError) {
       const nextMessage =
@@ -433,7 +491,15 @@ export default function RiderHomePage() {
           }
         : null;
       setLastRequest(updatedRequest);
-      setMessage(`Ride #${ride.id} canceled.`);
+      setPickupLat("");
+      setPickupLng("");
+      setDropLat("");
+      setDropLng("");
+      setRoutePath(null);
+      setEstimate(null);
+      setEstimateSignature(null);
+      setActiveTarget("pickup");
+      setMessage(`${tripLabel} #${ride.id} cancelled. Request a new ${tripLabel.toLowerCase()}.`);
       await loadTripLane(true, updatedRequest);
     } catch (cancelError) {
       const nextMessage =
@@ -458,18 +524,68 @@ export default function RiderHomePage() {
     }
   }
 
+  if (!loadingBranding && !riderPortalEnabled) {
+    return (
+      <main
+        className="app-shell stack"
+        style={branding?.primaryColor ? ({ "--accent": branding.primaryColor } as CSSProperties) : undefined}
+      >
+        <section className="hero">
+          <p className="badge">Portal unavailable</p>
+          <h1>{riderLabel} portal is disabled for this tenant</h1>
+          <p>This tenant uses merchant dispatch mode. Please contact your operations admin.</p>
+        </section>
+      </main>
+    );
+  }
+
   return (
-    <main className="app-shell stack">
+    <main
+      className="app-shell stack"
+      style={branding?.primaryColor ? ({ "--accent": branding.primaryColor } as CSSProperties) : undefined}
+    >
       <section className="hero">
         <p className="badge">Booking</p>
-        <h1>Request your next ride</h1>
-        <p>Estimate fares, apply promo codes, and request an immediate ride.</p>
+        <h1>Request your next {tripLabel.toLowerCase()}</h1>
+        <p>Estimate fares, apply promo codes, and request an immediate {tripLabel.toLowerCase()}.</p>
+      </section>
+
+      <section className="card stack">
+        <strong>Select on map</strong>
+        <p className="helper">
+          Tap the map to place a marker. Drag markers to fine-tune pickup and drop-off.
+          {loadingRoute ? " Calculating route..." : routePath && routePath.points.length > 1 ? " Route preview shown." : null}
+        </p>
+        <p className="helper">Active selection: {activeTarget === "pickup" ? "Pickup" : "Drop-off"}.</p>
+        <div className="booking-map-controls">
+          <button
+            className={activeTarget === "pickup" ? "primary-button" : "secondary-button"}
+            type="button"
+            onClick={() => setActiveTarget("pickup")}
+          >
+            Set pickup
+          </button>
+          <button
+            className={activeTarget === "dropoff" ? "primary-button" : "secondary-button"}
+            type="button"
+            onClick={() => setActiveTarget("dropoff")}
+          >
+            Set drop-off
+          </button>
+        </div>
+        <BookingMapLoader
+          pickup={pickupPoint}
+          dropOff={dropOffPoint}
+          routePoints={routePath?.points ?? []}
+          activeTarget={activeTarget}
+          onPointSelected={handleMapPointSelected}
+        />
       </section>
 
       <section className="card stack">
         <div className="split-row">
           <div className="stack compact">
-            <strong>{tripLane.mode === "active" ? "Active trip" : tripLane.title}</strong>
+            <strong>{tripLane.mode === "active" ? `Active ${tripLabel.toLowerCase()}` : tripLane.title}</strong>
             <p className="helper">{tripLane.description}</p>
             <p className={realtime.state === "error" ? "error-text" : "helper"}>{tripLaneSyncMessage}</p>
           </div>
@@ -510,11 +626,11 @@ export default function RiderHomePage() {
                 ) : null}
                 {tripLane.mode === "active" ? (
                   <Link className="secondary-button" href="/ride/active">
-                    Open live trip
+                    Open live {tripLabel.toLowerCase()}
                   </Link>
                 ) : null}
                 <Link className="secondary-button" href="/rides">
-                  Open rides
+                  Open {tripLabel.toLowerCase()} history
                 </Link>
               </div>
             </div>
@@ -532,40 +648,42 @@ export default function RiderHomePage() {
               <p className="helper">Updated: {tripLane.timeLabel ?? "--"}</p>
             </div>
             <div className="stack compact" style={{ justifyItems: "end" }}>
-              <span className="badge">Finding driver</span>
+              <p className="finding-driver-indicator">
+                Finding {driverLabel.toLowerCase()}
+                <span className="dot one">.</span>
+                <span className="dot two">.</span>
+                <span className="dot three">.</span>
+              </p>
               <Link className="secondary-button" href="/rides">
-                Open rides
+                Open {tripLabel.toLowerCase()} history
               </Link>
             </div>
           </div>
         ) : null}
 
         {!loadingTripLane && !tripLaneError && !tripLane.ride ? (
-          tripLane.mode === "pending" ? null : <p className="helper">Your active trip lane is empty for now.</p>
+          tripLane.mode === "pending" ? null : <p className="helper">Your active {tripLabel.toLowerCase()} lane is empty for now.</p>
+        ) : null}
+        {!loadingTripLane && !tripLaneError && tripLane.mode !== "active" && tripLane.mode !== "pending" ? (
+          <div className="actions">
+            <button className="secondary-button" type="button" onClick={clearLocations}>
+              Request new {tripLabel.toLowerCase()}
+            </button>
+          </div>
         ) : null}
       </section>
 
       <section className="card stack">
-        <strong>Trip details</strong>
-        <p className="helper">Step 1: set pickup and drop-off. Step 2: estimate fare. Step 3: request ride.</p>
-        <div className="grid grid-2">
-          <label className="field">
-            <span>Pickup latitude</span>
-            <input value={pickupLat} onChange={(event) => setPickupLat(event.target.value)} />
-          </label>
-          <label className="field">
-            <span>Pickup longitude</span>
-            <input value={pickupLng} onChange={(event) => setPickupLng(event.target.value)} />
-          </label>
-          <label className="field">
-            <span>Drop-off latitude</span>
-            <input value={dropLat} onChange={(event) => setDropLat(event.target.value)} />
-          </label>
-          <label className="field">
-            <span>Drop-off longitude</span>
-            <input value={dropLng} onChange={(event) => setDropLng(event.target.value)} />
-          </label>
-        </div>
+        <strong>{tripLabel} details</strong>
+        <p className="helper">
+          Step {bookingStep} of 3:
+          {" "}
+          {bookingStep === 1
+            ? "Set pickup on the map."
+            : bookingStep === 2
+              ? "Set drop-off on the map."
+              : "Estimate fare and confirm request."}
+        </p>
 
         <div className="grid grid-2">
           <label className="field">
@@ -573,6 +691,8 @@ export default function RiderHomePage() {
             <select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}>
               <option value="WALLET">Wallet</option>
               <option value="CASH">Cash</option>
+              <option value="CARD" disabled>Card (Coming soon)</option>
+              <option value="UPI" disabled>UPI (Coming soon)</option>
             </select>
           </label>
           <label className="field">
@@ -603,9 +723,30 @@ export default function RiderHomePage() {
             Clear locations
           </button>
         </div>
+        <details>
+          <summary>Advanced coordinates</summary>
+          <div className="grid grid-2">
+            <label className="field">
+              <span>Pickup latitude</span>
+              <input value={pickupLat} onChange={(event) => setPickupLat(event.target.value)} />
+            </label>
+            <label className="field">
+              <span>Pickup longitude</span>
+              <input value={pickupLng} onChange={(event) => setPickupLng(event.target.value)} />
+            </label>
+            <label className="field">
+              <span>Drop-off latitude</span>
+              <input value={dropLat} onChange={(event) => setDropLat(event.target.value)} />
+            </label>
+            <label className="field">
+              <span>Drop-off longitude</span>
+              <input value={dropLng} onChange={(event) => setDropLng(event.target.value)} />
+            </label>
+          </div>
+        </details>
 
         {!hasSelectedLocations ? (
-          <p className="helper">Select pickup and drop-off to unlock fare estimation and ride request.</p>
+          <p className="helper">Select pickup and drop-off to unlock fare estimation and {tripLabel.toLowerCase()} request.</p>
         ) : (
           <div className="actions">
             <button
@@ -622,7 +763,7 @@ export default function RiderHomePage() {
               disabled={!canRequest}
               onClick={() => void requestRide()}
             >
-              {requesting ? "Requesting..." : hasFreshEstimate ? "Request ride" : "Estimate to unlock request"}
+              {requesting ? "Requesting..." : hasFreshEstimate ? `Request ${tripLabel.toLowerCase()}` : "Estimate to unlock request"}
             </button>
           </div>
         )}
@@ -630,7 +771,10 @@ export default function RiderHomePage() {
           <p className="helper">Trip details changed. Re-estimate fare to refresh price before requesting.</p>
         ) : null}
         {hasInFlightTrip ? (
-          <p className="helper">You already have an active or pending trip. Complete or cancel it before requesting another ride.</p>
+          <p className="helper">You already have an active or pending {tripLabel.toLowerCase()}. Complete or cancel it before requesting another one.</p>
+        ) : null}
+        {estimate?.walletSufficient === false && paymentMethod === "WALLET" ? (
+          <p className="error-text">Wallet balance is insufficient for this estimated fare. Choose Cash or top up your wallet.</p>
         ) : null}
         {error ? <p className="error-text">{error}</p> : null}
         {message ? <p className="helper">{message}</p> : null}
@@ -639,38 +783,6 @@ export default function RiderHomePage() {
             {failedAction === "estimate" ? "Retry fare estimate" : "Retry ride request"}
           </button>
         ) : null}
-      </section>
-
-      <section className="card stack">
-        <strong>Select on map</strong>
-        <p className="helper">
-          Tap the map to place a marker. Drag markers to fine-tune pickup and drop-off.
-          {loadingRoute ? " Calculating route..." : routePath && routePath.points.length > 1 ? " Route preview shown." : null}
-        </p>
-        <p className="helper">Active selection: {activeTarget === "pickup" ? "Pickup" : "Drop-off"}.</p>
-        <div className="booking-map-controls">
-          <button
-            className={activeTarget === "pickup" ? "primary-button" : "secondary-button"}
-            type="button"
-            onClick={() => setActiveTarget("pickup")}
-          >
-            Set pickup
-          </button>
-          <button
-            className={activeTarget === "dropoff" ? "primary-button" : "secondary-button"}
-            type="button"
-            onClick={() => setActiveTarget("dropoff")}
-          >
-            Set drop-off
-          </button>
-        </div>
-        <BookingMapLoader
-          pickup={pickupPoint}
-          dropOff={dropOffPoint}
-          routePoints={routePath?.points ?? []}
-          activeTarget={activeTarget}
-          onPointSelected={handleMapPointSelected}
-        />
       </section>
 
       <section className="card stack">
@@ -684,7 +796,19 @@ export default function RiderHomePage() {
                 <strong>Total</strong>
                 <p>Distance: {estimate.distanceKm} km • Duration: {estimate.durationMinutes} min</p>
               </div>
-              <span className="badge">{toCurrency(estimate.estimatedFare)}</span>
+              <div className="stack compact" style={{ justifyItems: "end" }}>
+                {estimate.originalFare !== undefined && estimate.discountedFare !== undefined && estimate.promoApplied ? (
+                  <>
+                    <span className="helper" style={{ textDecoration: "line-through" }}>
+                      {toCurrency(estimate.originalFare)}
+                    </span>
+                    <span className="badge">{toCurrency(estimate.discountedFare)}</span>
+                    <span className="helper">You save {toCurrency(estimate.savings ?? estimate.discountAmount)}</span>
+                  </>
+                ) : (
+                  <span className="badge">{toCurrency(estimate.estimatedFare)}</span>
+                )}
+              </div>
             </div>
             <div className="list-item">
               <div>
@@ -700,14 +824,28 @@ export default function RiderHomePage() {
               </div>
               <span className="badge">{toCurrency(estimate.discountAmount)}</span>
             </div>
+            <div className="list-item">
+              <div>
+                <strong>Wallet status</strong>
+                <p>Current balance for wallet payments.</p>
+              </div>
+              <span className="badge">
+                {estimate.walletBalance !== undefined && estimate.walletBalance !== null
+                  ? toCurrency(estimate.walletBalance)
+                  : "—"}
+              </span>
+            </div>
+            {estimate.promoMessage ? (
+              <p className={estimate.promoApplied ? "helper" : "error-text"}>{estimate.promoMessage}</p>
+            ) : null}
           </div>
         )}
       </section>
 
       <section className="card stack">
-        <strong>Latest ride request</strong>
+        <strong>Latest {tripLabel.toLowerCase()} request</strong>
         {!lastRequest ? (
-          <p className="helper">No ride request submitted yet.</p>
+          <p className="helper">No {tripLabel.toLowerCase()} request submitted yet.</p>
         ) : (
           <div className="list-item">
             <div>
@@ -719,7 +857,7 @@ export default function RiderHomePage() {
         )}
         <div className="actions">
           <Link href="/rides" className="primary-button">
-            View ride history
+            View {tripLabel.toLowerCase()} history
           </Link>
           <Link href="/scheduled" className="primary-button">
             Manage scheduled rides

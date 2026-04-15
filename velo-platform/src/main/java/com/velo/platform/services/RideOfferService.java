@@ -25,5 +25,9 @@ public interface RideOfferService {
 
     long countOpenOffers();
 
+    long countOpenOffers(Long tenantId);
+
     long countExpiredOffers();
+
+    long countExpiredOffers(Long tenantId);
 }

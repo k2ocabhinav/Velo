@@ -35,9 +35,9 @@ describe("driver performLoginProxy", () => {
 
     expect(cookies).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ name: "velo_token", value: "token-123" }),
-        expect.objectContaining({ name: "velo_user_id", value: "2" }),
-        expect.objectContaining({ name: "velo_role_hint", value: "DRIVER" }),
+        expect.objectContaining({ name: "velo_driver_token", value: "token-123" }),
+        expect.objectContaining({ name: "velo_driver_user_id", value: "2" }),
+        expect.objectContaining({ name: "velo_driver_role_hint", value: "DRIVER" }),
       ]),
     );
   });

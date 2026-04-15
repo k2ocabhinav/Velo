@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 @Table(indexes = {
         @Index(name = "idx_dispatch_audit_request_created", columnList = "ride_request_id,created_at"),
         @Index(name = "idx_dispatch_audit_ride_created", columnList = "ride_id,created_at"),
+        @Index(name = "idx_dispatch_audit_tenant_created", columnList = "tenant_id,created_at"),
         @Index(name = "idx_dispatch_audit_created", columnList = "created_at")
 })
 public class AdminDispatchAudit {
@@ -30,6 +31,9 @@ public class AdminDispatchAudit {
 
     @Column(name = "actor_user_id", nullable = false)
     private Long actorUserId;
+
+    @Column(name = "tenant_id", nullable = false)
+    private Long tenantId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ride_request_id")

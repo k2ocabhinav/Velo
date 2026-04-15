@@ -12,13 +12,17 @@ import com.velo.platform.entities.enums.RideStatus;
 import com.velo.platform.repositories.RideRequestRepository;
 import com.velo.platform.repositories.RideRepository;
 import com.velo.platform.repositories.RiderRepository;
+import com.velo.platform.repositories.TenantConfigurationRepository;
 import com.velo.platform.security.UserPrincipal;
 import com.velo.platform.services.DriverService;
+import com.velo.platform.services.DriverEarningsService;
 import com.velo.platform.services.NotificationService;
+import com.velo.platform.services.PaymentService;
 import com.velo.platform.services.PromoCodeService;
 import com.velo.platform.services.RatingService;
 import com.velo.platform.services.RideOfferService;
 import com.velo.platform.services.RideService;
+import com.velo.platform.services.WalletService;
 import com.velo.platform.strategies.RideFareCalculationStrategy;
 import com.velo.platform.strategies.DriverMatchingStrategy;
 import com.velo.platform.strategies.RideStrategyManager;
@@ -86,6 +90,18 @@ class RiderServiceImplTest {
     private NotificationService notificationService;
 
     @Mock
+    private TenantConfigurationRepository tenantConfigurationRepository;
+
+    @Mock
+    private PaymentService paymentService;
+
+    @Mock
+    private DriverEarningsService driverEarningsService;
+
+    @Mock
+    private WalletService walletService;
+
+    @Mock
     private ApplicationEventPublisher eventPublisher;
 
     @Mock
@@ -124,7 +140,12 @@ class RiderServiceImplTest {
                 promoCodeService,
                 rideOfferService,
                 notificationService,
+                tenantConfigurationRepository,
+                paymentService,
+                driverEarningsService,
+                walletService,
                 eventPublisher);
+        lenient().when(tenantConfigurationRepository.findByTenant_Id(anyLong())).thenReturn(Optional.empty());
 
         User testUser = User.builder()
                 .id(1L)
@@ -172,7 +193,8 @@ class RiderServiceImplTest {
         when(securityContext.getAuthentication()).thenReturn(authentication);
         when(authentication.getPrincipal()).thenReturn(userPrincipal);
         when(userPrincipal.getUserId()).thenReturn(101L);
-        when(riderRepository.findByUserId(101L)).thenReturn(Optional.of(testRider));
+        when(userPrincipal.getTenantId()).thenReturn(1L);
+        when(riderRepository.findByUserIdAndTenantId(101L, 1L)).thenReturn(Optional.of(testRider));
         SecurityContextHolder.setContext(securityContext);
     }
 
@@ -233,7 +255,7 @@ class RiderServiceImplTest {
     @DisplayName("Cancel ride with invalid status should throw exception")
     void cancelRide_WithInvalidStatus_ShouldThrowException() {
         mockAuthenticatedRider();
-        testRide.setRideStatus(RideStatus.ONGOING);
+        testRide.setRideStatus(RideStatus.ENDED);
 
         when(rideService.getRideById(1L)).thenReturn(testRide);
 
@@ -385,7 +407,7 @@ class RiderServiceImplTest {
         )).thenReturn(Optional.empty());
         when(rideRequestRepository.findTopByRiderAndRideRequestStatusInOrderByRequestedTimeDesc(
                 testRider,
-                List.of(RideRequestStatus.PENDING, RideRequestStatus.CONFIRMED, RideRequestStatus.SCHEDULED)
+                List.of(RideRequestStatus.PENDING, RideRequestStatus.SCHEDULED)
         )).thenReturn(Optional.of(pendingRequest));
 
         RideTrackingDto trackingDto = riderService.getActiveRideTracking();

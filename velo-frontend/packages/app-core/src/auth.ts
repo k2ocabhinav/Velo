@@ -25,9 +25,11 @@ export type AuthExtractionResult = Readonly<{
 }>;
 
 export type LoginProxyOptions = Readonly<{
-  requiredRoleHint?: string | null;
-  roleCookieName?: string;
-  roleGuardMessage?: string;
+  requiredRoleHint?: string | null | undefined;
+  roleCookieName?: string | undefined;
+  roleGuardMessage?: string | undefined;
+  tokenCookieName?: string | undefined;
+  userIdCookieName?: string | undefined;
 }>;
 
 export const LOGIN_COOKIE_NAME = "velo_token";
@@ -158,17 +160,27 @@ function buildClearedCookieOptions() {
   };
 }
 
+type AuthCookieNameOverrides = Readonly<{
+  tokenCookieName?: string | undefined;
+  userIdCookieName?: string | undefined;
+  roleCookieName?: string | undefined;
+}>;
+
 function setLoginCookies(
   response: NextResponse,
   token: string,
   userId: string | number | null,
   roleHint: string | null,
-  roleCookieName = LOGIN_ROLE_COOKIE_NAME
+  cookieNameOverrides: AuthCookieNameOverrides = {}
 ): void {
-  response.cookies.set(LOGIN_COOKIE_NAME, token, buildLoginCookieOptions());
+  const tokenCookieName = cookieNameOverrides.tokenCookieName ?? LOGIN_COOKIE_NAME;
+  const userIdCookieName = cookieNameOverrides.userIdCookieName ?? LOGIN_USER_ID_COOKIE_NAME;
+  const roleCookieName = cookieNameOverrides.roleCookieName ?? LOGIN_ROLE_COOKIE_NAME;
+
+  response.cookies.set(tokenCookieName, token, buildLoginCookieOptions());
 
   if (userId !== null) {
-    response.cookies.set(LOGIN_USER_ID_COOKIE_NAME, String(userId), buildLoginCookieOptions());
+    response.cookies.set(userIdCookieName, String(userId), buildLoginCookieOptions());
   }
 
   if (roleHint) {
@@ -181,11 +193,14 @@ function setLoginCookies(
 
 export function clearLoginCookies(
   response: NextResponse,
-  roleCookieName = LOGIN_ROLE_COOKIE_NAME
+  cookieNameOverrides: AuthCookieNameOverrides = {}
 ): void {
+  const tokenCookieName = cookieNameOverrides.tokenCookieName ?? LOGIN_COOKIE_NAME;
+  const userIdCookieName = cookieNameOverrides.userIdCookieName ?? LOGIN_USER_ID_COOKIE_NAME;
+  const roleCookieName = cookieNameOverrides.roleCookieName ?? LOGIN_ROLE_COOKIE_NAME;
   const cleared = buildClearedCookieOptions();
-  response.cookies.set(LOGIN_COOKIE_NAME, "", cleared);
-  response.cookies.set(LOGIN_USER_ID_COOKIE_NAME, "", cleared);
+  response.cookies.set(tokenCookieName, "", cleared);
+  response.cookies.set(userIdCookieName, "", cleared);
   response.cookies.set(roleCookieName, "", cleared);
 }
 
@@ -289,13 +304,23 @@ export async function performLoginProxy(
 
   const selectedRoleHint = selectRoleHint(roleHints, requiredRoleHint);
   const response = NextResponse.json(payload ?? { ok: true }, { status: 200 });
-  setLoginCookies(response, token, userId, selectedRoleHint, options.roleCookieName);
+  setLoginCookies(response, token, userId, selectedRoleHint, {
+    tokenCookieName: options.tokenCookieName,
+    userIdCookieName: options.userIdCookieName,
+    roleCookieName: options.roleCookieName
+  });
   return response;
 }
 
-export function performLogoutProxy(options: Pick<LoginProxyOptions, "roleCookieName"> = {}): NextResponse {
+export function performLogoutProxy(
+  options: Pick<LoginProxyOptions, "tokenCookieName" | "userIdCookieName" | "roleCookieName"> = {}
+): NextResponse {
   const response = NextResponse.json({ ok: true }, { status: 200 });
-  clearLoginCookies(response, options.roleCookieName ?? LOGIN_ROLE_COOKIE_NAME);
+  clearLoginCookies(response, {
+    tokenCookieName: options.tokenCookieName,
+    userIdCookieName: options.userIdCookieName,
+    roleCookieName: options.roleCookieName
+  });
   return response;
 }
 

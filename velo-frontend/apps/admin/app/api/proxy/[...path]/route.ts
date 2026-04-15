@@ -2,7 +2,8 @@ import type { NextRequest } from "next/server";
 import { proxyBackendRequest, type ProxyRouteContext } from "@velo/app-core/proxy-route";
 
 const PROXY_OPTIONS = {
-  missingPathMessage: "Proxy path is required."
+  missingPathMessage: "Proxy path is required.",
+  tokenCookieName: "velo_admin_token"
 };
 
 function handle(request: NextRequest, context: ProxyRouteContext) {
@@ -28,4 +29,3 @@ export async function PATCH(request: NextRequest, context: ProxyRouteContext) {
 export async function DELETE(request: NextRequest, context: ProxyRouteContext) {
   return handle(request, context);
 }
-

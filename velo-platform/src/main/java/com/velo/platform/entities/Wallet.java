@@ -24,6 +24,9 @@ public class Wallet {
     @ToString.Exclude
     @OneToOne(fetch = FetchType.LAZY, optional = false)
     private User user;
+    @Column(name = "tenant_id", nullable = false)
+    @Builder.Default
+    private Long tenantId = 1L;
 
     @Builder.Default
     @Column(precision = 10, scale = 2)
@@ -35,6 +38,19 @@ public class Wallet {
 
     @Version
     private Long version;
+
+    @PrePersist
+    private void applyDefaults() {
+        if (tenantId == null && user != null && user.getTenantId() != null) {
+            tenantId = user.getTenantId();
+        }
+        if (tenantId == null) {
+            tenantId = 1L;
+        }
+        if (balance == null) {
+            balance = BigDecimal.ZERO;
+        }
+    }
 
     @Override
     public boolean equals(Object o) {

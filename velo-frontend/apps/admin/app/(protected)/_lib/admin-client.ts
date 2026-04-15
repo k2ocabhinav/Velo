@@ -54,6 +54,20 @@ export type PendingDriver = {
   appliedAt: string;
 };
 
+export type DriverStatus = "PENDING" | "APPROVED" | "SUSPENDED" | "REJECTED";
+
+export type BrandingSettings = {
+  tenantId: number;
+  brandName: string;
+  primaryColor: string;
+  logoUrl?: string | null;
+  riderLabel: string;
+  driverLabel: string;
+  tripLabel: string;
+  dispatchMode: "RIDE_HAILING" | "DELIVERY_MERCHANT" | "FLEET_MANAGED";
+  riderPortalEnabled: boolean;
+};
+
 export type ScheduledRide = {
   id: number;
   paymentMethod: string;
@@ -108,6 +122,11 @@ export type AdminPendingRideRequest = {
   rideRequestId: number;
   riderId?: number | null;
   riderName?: string | null;
+  customerName?: string | null;
+  customerPhone?: string | null;
+  pickupAddress?: string | null;
+  dropOffAddress?: string | null;
+  externalReference?: string | null;
   status?: string | null;
   fare?: number | string | null;
   requestedTime?: string | null;
@@ -161,6 +180,19 @@ export type AdminOpsHealth = {
   dispatchQueueDepth: number;
   expiredOfferCount: number;
   updatedAt?: string | null;
+};
+
+export type CreateDispatchRequestInput = {
+  pickupLat: number;
+  pickupLng: number;
+  dropOffLat: number;
+  dropOffLng: number;
+  paymentMethod: "WALLET" | "CASH";
+  customerName?: string;
+  customerPhone?: string;
+  pickupAddress?: string;
+  dropOffAddress?: string;
+  externalReference?: string;
 };
 
 export type CreateRiderInput = {
@@ -312,8 +344,12 @@ export const adminClient = {
   },
 
   async getPendingDrivers(page = 0, size = 10): Promise<ApiPage<PendingDriver>> {
+    return adminClient.getDriversByStatus("PENDING", page, size);
+  },
+
+  async getDriversByStatus(status: DriverStatus, page = 0, size = 10): Promise<ApiPage<PendingDriver>> {
     const payload = await requestAdminProxy<unknown>(
-      `api/v1/admin/drivers/pending?page=${page}&size=${size}`
+      `api/v1/admin/drivers?status=${encodeURIComponent(status)}&page=${page}&size=${size}`
     );
     return toPage<PendingDriver>(payload);
   },
@@ -329,6 +365,18 @@ export const adminClient = {
       method: "POST",
       headers: { "Content-Type": "text/plain" },
       body: reason
+    });
+  },
+
+  async suspendDriver(driverId: number): Promise<void> {
+    await requestAdminProxy<void>(`api/v1/admin/drivers/${driverId}/suspend`, {
+      method: "POST"
+    });
+  },
+
+  async revokeDriver(driverId: number): Promise<void> {
+    await requestAdminProxy<void>(`api/v1/admin/drivers/${driverId}/revoke`, {
+      method: "POST"
     });
   },
 
@@ -443,6 +491,23 @@ export const adminClient = {
     return toPage<AdminPendingRideRequest>(payload);
   },
 
+  async createDispatchRequest(payload: CreateDispatchRequestInput): Promise<void> {
+    await requestAdminProxy<void>("api/v1/admin/dispatch/requests", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        pickupLocation: { coordinates: [payload.pickupLng, payload.pickupLat] },
+        dropOffLocation: { coordinates: [payload.dropOffLng, payload.dropOffLat] },
+        paymentMethod: payload.paymentMethod,
+        customerName: payload.customerName ?? null,
+        customerPhone: payload.customerPhone ?? null,
+        pickupAddress: payload.pickupAddress ?? null,
+        dropOffAddress: payload.dropOffAddress ?? null,
+        externalReference: payload.externalReference ?? null,
+      })
+    });
+  },
+
   async getActiveRides(page = 0, size = 10): Promise<ApiPage<AdminActiveRide>> {
     const payload = await requestAdminProxy<unknown>(
       `api/v1/admin/dispatch/active-rides?page=${page}&size=${size}`
@@ -496,5 +561,17 @@ export const adminClient = {
 
   async getOpsHealth(): Promise<AdminOpsHealth> {
     return requestAdminProxy<AdminOpsHealth>("api/v1/admin/ops-health");
+  },
+
+  async getBranding(): Promise<BrandingSettings> {
+    return requestAdminProxy<BrandingSettings>("api/v1/admin/branding");
+  },
+
+  async updateBranding(payload: Omit<BrandingSettings, "tenantId" | "riderPortalEnabled">): Promise<BrandingSettings> {
+    return requestAdminProxy<BrandingSettings>("api/v1/admin/branding", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
   }
 };

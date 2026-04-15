@@ -134,7 +134,7 @@ class AuthServiceImplTest {
 
         when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
         when(passwordEncoder.matches(password, user.getPassword())).thenReturn(true);
-        when(jwtTokenProvider.generateToken(email, 1L, Role.RIDER.name())).thenReturn("jwt-token");
+        when(jwtTokenProvider.generateToken(email, 1L, Role.RIDER.name(), 1L)).thenReturn("jwt-token");
 
         AuthResponseDto result = authService.login(email, password);
 

@@ -61,6 +61,17 @@ export interface DriverRide {
   discountAmount?: DecimalValue | null;
 }
 
+export interface DriverRideRequestPreview {
+  id: number;
+  rideRequestStatus?: string | null;
+  paymentMethod?: string | null;
+  pickupLocation?: PointDto | null;
+  dropOffLocation?: PointDto | null;
+  fare?: DecimalValue | null;
+  promoCode?: string | null;
+  discountAmount?: DecimalValue | null;
+}
+
 export interface DriverNotification {
   id: number;
   title: string;

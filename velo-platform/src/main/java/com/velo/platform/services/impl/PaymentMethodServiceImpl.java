@@ -28,7 +28,8 @@ public class PaymentMethodServiceImpl implements PaymentMethodService {
     @Override
     @Transactional(readOnly = true)
     public List<PaymentMethodDto> getPaymentMethods() {
-        Long userId = getCurrentUserId();
+        UserPrincipal principal = getCurrentPrincipal();
+        Long userId = principal.getUserId();
         log.info("Getting payment methods for user: {}", userId);
         
         List<PaymentMethodEntity> paymentMethods = paymentMethodRepository.findByUserId(userId);
@@ -40,13 +41,18 @@ public class PaymentMethodServiceImpl implements PaymentMethodService {
     @Override
     @Transactional
     public PaymentMethodDto addPaymentMethod(PaymentMethodDto dto) {
-        Long userId = getCurrentUserId();
+        UserPrincipal principal = getCurrentPrincipal();
+        Long userId = principal.getUserId();
         log.info("Adding payment method for user: {}", userId);
         
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        if (!resolveTenantId(user.getTenantId()).equals(resolveTenantId(principal.getTenantId()))) {
+            throw new ResourceNotFoundException("User not found");
+        }
         
         PaymentMethodEntity paymentMethod = PaymentMethodEntity.builder()
+                .tenantId(user.getTenantId())
                 .type(dto.getType())
                 .lastFourDigits(dto.getLastFourDigits())
                 .expiryDate(dto.getExpiryDate())
@@ -67,7 +73,7 @@ public class PaymentMethodServiceImpl implements PaymentMethodService {
     @Override
     @Transactional
     public void deletePaymentMethod(Long id) {
-        Long userId = getCurrentUserId();
+        Long userId = getCurrentPrincipal().getUserId();
         log.info("Deleting payment method {} for user: {}", id, userId);
         
         PaymentMethodEntity paymentMethod = paymentMethodRepository.findByIdAndUserId(id, userId)
@@ -86,7 +92,7 @@ public class PaymentMethodServiceImpl implements PaymentMethodService {
     @Override
     @Transactional
     public PaymentMethodDto setDefaultPaymentMethod(Long id) {
-        Long userId = getCurrentUserId();
+        Long userId = getCurrentPrincipal().getUserId();
         log.info("Setting default payment method {} for user: {}", id, userId);
         
         PaymentMethodEntity paymentMethod = paymentMethodRepository.findByIdAndUserId(id, userId)
@@ -102,9 +108,8 @@ public class PaymentMethodServiceImpl implements PaymentMethodService {
         return mapToDto(saved);
     }
 
-    private Long getCurrentUserId() {
-        UserPrincipal principal = (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        return principal.getUserId();
+    private UserPrincipal getCurrentPrincipal() {
+        return (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
     }
 
     private void clearDefaultPaymentMethods(Long userId) {
@@ -136,5 +141,9 @@ public class PaymentMethodServiceImpl implements PaymentMethodService {
                 .expiryDate(entity.getExpiryDate())
                 .isDefault(entity.getIsDefault())
                 .build();
+    }
+
+    private Long resolveTenantId(Long tenantId) {
+        return tenantId == null ? 1L : tenantId;
     }
 }

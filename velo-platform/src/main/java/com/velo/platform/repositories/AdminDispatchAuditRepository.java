@@ -10,4 +10,6 @@ import org.springframework.stereotype.Repository;
 public interface AdminDispatchAuditRepository extends JpaRepository<AdminDispatchAudit, Long> {
 
     Page<AdminDispatchAudit> findAllByOrderByCreatedAtDesc(Pageable pageable);
+
+    Page<AdminDispatchAudit> findByTenantIdOrderByCreatedAtDesc(Long tenantId, Pageable pageable);
 }

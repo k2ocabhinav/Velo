@@ -2,9 +2,9 @@
   "name": "@velo/rider",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3001",
+    "dev": "next dev -p 4102",
     "build": "next build",
-    "start": "node ../../scripts/start-standalone.mjs rider 3001",
+    "start": "node ../../scripts/start-standalone.mjs rider 4102",
     "lint": "eslint .",
     "test:unit": "vitest run --config vitest.config.mts",
     "typecheck": "tsc --noEmit"

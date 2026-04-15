@@ -26,11 +26,19 @@ public interface RideRepository extends JpaRepository<Ride, Long> {
 
     Page<Ride> findByRideStatusInOrderByCreatedTimeDesc(List<RideStatus> rideStatuses, Pageable pageable);
 
+    Page<Ride> findByTenantIdAndRideStatusInOrderByCreatedTimeDesc(
+            Long tenantId,
+            List<RideStatus> rideStatuses,
+            Pageable pageable
+    );
+
     Optional<Ride> findTopByRiderAndRideStatusInOrderByCreatedTimeDesc(Rider rider, List<RideStatus> rideStatuses);
 
     Optional<Ride> findTopByDriverAndRideStatusInOrderByCreatedTimeDesc(Driver driver, List<RideStatus> rideStatuses);
 
     long countByRideStatus(RideStatus rideStatus);
+    long countByTenantId(Long tenantId);
+    long countByTenantIdAndRideStatus(Long tenantId, RideStatus rideStatus);
 
     long countByCreatedTimeAfterAndCreatedTimeBefore(LocalDateTime start, LocalDateTime end);
 
@@ -38,7 +46,29 @@ public interface RideRepository extends JpaRepository<Ride, Long> {
                                                                   LocalDateTime end,
                                                                   RideStatus rideStatus);
 
+    long countByTenantIdAndCreatedTimeAfterAndCreatedTimeBefore(Long tenantId, LocalDateTime start, LocalDateTime end);
+
+    long countByTenantIdAndCreatedTimeAfterAndCreatedTimeBeforeAndRideStatus(
+            Long tenantId,
+            LocalDateTime start,
+            LocalDateTime end,
+            RideStatus rideStatus
+    );
+
     @Query("select coalesce(sum(r.fare), 0) from Ride r where r.createdTime > :start and r.createdTime < :end")
     BigDecimal sumFareByCreatedTimeAfterAndCreatedTimeBefore(@Param("start") LocalDateTime start,
                                                              @Param("end") LocalDateTime end);
+
+    @Query("""
+            select coalesce(sum(r.fare), 0)
+            from Ride r
+            where r.tenantId = :tenantId
+              and r.createdTime > :start
+              and r.createdTime < :end
+            """)
+    BigDecimal sumFareByTenantIdAndCreatedTimeAfterAndCreatedTimeBefore(
+            @Param("tenantId") Long tenantId,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
 }

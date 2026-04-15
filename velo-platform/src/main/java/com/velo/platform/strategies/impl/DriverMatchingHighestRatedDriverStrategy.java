@@ -7,16 +7,38 @@ import com.velo.platform.strategies.DriverMatchingStrategy;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 public class DriverMatchingHighestRatedDriverStrategy implements DriverMatchingStrategy {
 
+    private static final int MAX_MATCHED_DRIVERS = 10;
     private final DriverRepository driverRepository;
 
     @Override
     public List<Driver> findMatchingDrivers(RideRequest rideRequest) {
-        return driverRepository.findTenNearbyTopRatedDrivers(rideRequest.getPickupLocation());
+        Long tenantId = rideRequest.getTenantId() == null ? 1L : rideRequest.getTenantId();
+        List<Driver> nearbyTopRated = rideRequest.getPickupLocation() == null
+                ? List.of()
+                : driverRepository.findTenNearbyTopRatedDrivers(rideRequest.getPickupLocation(), tenantId);
+
+        if (nearbyTopRated.size() >= MAX_MATCHED_DRIVERS) {
+            return nearbyTopRated;
+        }
+
+        List<Driver> fallback = driverRepository.findFallbackDrivers(tenantId, MAX_MATCHED_DRIVERS);
+        Map<Long, Driver> merged = new LinkedHashMap<>();
+
+        for (Driver driver : nearbyTopRated) {
+            merged.put(driver.getId(), driver);
+        }
+        for (Driver driver : fallback) {
+            merged.putIfAbsent(driver.getId(), driver);
+        }
+
+        return merged.values().stream().limit(MAX_MATCHED_DRIVERS).toList();
     }
 }

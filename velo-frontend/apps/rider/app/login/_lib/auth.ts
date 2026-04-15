@@ -1,10 +1,7 @@
 import {
   LOGIN_COOKIE_MAX_AGE_SECONDS,
-  LOGIN_COOKIE_NAME,
-  LOGIN_ROLE_COOKIE_NAME,
   LOGIN_REDIRECT_FALLBACK,
   LOGIN_REQUEST_TIMEOUT_MS,
-  LOGIN_USER_ID_COOKIE_NAME,
   type AuthExtractionResult,
   type LoginPayload,
   type RegisterPayload,
@@ -19,11 +16,8 @@ import {
 
 export {
   LOGIN_COOKIE_MAX_AGE_SECONDS,
-  LOGIN_COOKIE_NAME,
-  LOGIN_ROLE_COOKIE_NAME,
   LOGIN_REDIRECT_FALLBACK,
   LOGIN_REQUEST_TIMEOUT_MS,
-  LOGIN_USER_ID_COOKIE_NAME,
   extractAuthValues,
   getApiBaseUrl,
   readResponsePayload,
@@ -32,12 +26,19 @@ export {
 
 export type { AuthExtractionResult, LoginPayload, RegisterPayload };
 
+export const LOGIN_COOKIE_NAME = "velo_rider_token";
+export const LOGIN_USER_ID_COOKIE_NAME = "velo_rider_user_id";
+export const LOGIN_ROLE_COOKIE_NAME = "velo_rider_role_hint";
+
 export async function performLoginProxy(
   body: LoginPayload,
   fetchImpl: typeof fetch = fetch
 ) {
   return performSharedLoginProxy(body, fetchImpl, {
     requiredRoleHint: "RIDER",
+    tokenCookieName: LOGIN_COOKIE_NAME,
+    userIdCookieName: LOGIN_USER_ID_COOKIE_NAME,
+    roleCookieName: LOGIN_ROLE_COOKIE_NAME,
     roleGuardMessage: "This account is not authorized for the rider workspace."
   });
 }
@@ -51,6 +52,8 @@ export async function performRegisterProxy(
 
 export function performLogoutProxy() {
   return performSharedLogoutProxy({
+    tokenCookieName: LOGIN_COOKIE_NAME,
+    userIdCookieName: LOGIN_USER_ID_COOKIE_NAME,
     roleCookieName: LOGIN_ROLE_COOKIE_NAME
   });
 }

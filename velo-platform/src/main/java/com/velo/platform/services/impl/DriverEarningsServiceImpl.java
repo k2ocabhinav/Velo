@@ -17,11 +17,13 @@ import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -38,11 +40,21 @@ public class DriverEarningsServiceImpl implements DriverEarningsService {
     @Override
     @Transactional
     public void createEarningRecord(Ride ride) {
-        BigDecimal grossFare = ride.getFare();
-        BigDecimal platformCommission = grossFare.multiply(BigDecimal.valueOf(platformConfig.getCommissionRate()));
-        BigDecimal netEarning = grossFare.subtract(platformCommission);
+        if (ride == null || ride.getDriver() == null) {
+            return;
+        }
+        if (ride.getId() != null && driverEarningRepository.existsByRide_Id(ride.getId())) {
+            return;
+        }
+
+        BigDecimal grossFare = ride.getFare() == null ? BigDecimal.ZERO : ride.getFare();
+        BigDecimal platformCommission = grossFare
+                .multiply(BigDecimal.valueOf(platformConfig.getCommissionRate()))
+                .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal netEarning = grossFare.subtract(platformCommission).setScale(2, RoundingMode.HALF_UP);
 
         DriverEarning earning = DriverEarning.builder()
+                .tenantId(ride.getTenantId())
                 .driver(ride.getDriver())
                 .ride(ride)
                 .grossFare(grossFare)
@@ -50,7 +62,11 @@ public class DriverEarningsServiceImpl implements DriverEarningsService {
                 .netEarning(netEarning)
                 .build();
 
-        driverEarningRepository.save(earning);
+        try {
+            driverEarningRepository.save(earning);
+        } catch (DataIntegrityViolationException ignored) {
+            // concurrent end-ride calls can race; unique ride_id keeps this idempotent.
+        }
     }
 
     @Override
@@ -132,7 +148,7 @@ public class DriverEarningsServiceImpl implements DriverEarningsService {
 
     private Driver getCurrentDriver() {
         UserPrincipal principal = (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        return driverRepository.findByUserId(principal.getUserId())
+        return driverRepository.findByUserIdAndTenantId(principal.getUserId(), principal.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Driver profile not found"));
     }
 }

@@ -35,6 +35,7 @@ public class NotificationServiceImpl implements NotificationService {
     public NotificationDto createNotification(User user, String title, String message,
                                            NotificationType type, Long referenceId) {
         Notification notification = Notification.builder()
+                .tenantId(user.getTenantId() == null ? 1L : user.getTenantId())
                 .user(user)
                 .title(title)
                 .message(message)
@@ -86,6 +87,9 @@ public class NotificationServiceImpl implements NotificationService {
         if (!notification.getUser().getId().equals(principal.getUserId())) {
             throw new RuntimeConflictException("You do not have permission to modify this notification");
         }
+        if (!resolveTenantId(notification.getTenantId()).equals(resolveTenantId(principal.getTenantId()))) {
+            throw new RuntimeConflictException("Cross-tenant notification access is not allowed.");
+        }
 
         notification.setRead(true);
         Notification saved = notificationRepository.save(notification);
@@ -102,5 +106,9 @@ public class NotificationServiceImpl implements NotificationService {
     @Transactional(readOnly = true)
     public long getUnreadCount(User user) {
         return notificationRepository.countByUserAndReadFalse(user);
+    }
+
+    private Long resolveTenantId(Long tenantId) {
+        return tenantId == null ? 1L : tenantId;
     }
 }

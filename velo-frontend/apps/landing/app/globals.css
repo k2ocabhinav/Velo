@@ -1,0 +1,95 @@
+:root {
+  --bg: #0b1220;
+  --surface: #121b2e;
+  --surface-2: #19253d;
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --accent: #2563eb;
+  --border: #23324f;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: "Satoshi", "Avenir Next", "Segoe UI", sans-serif;
+  background:
+    radial-gradient(circle at 12% 20%, rgba(37, 99, 235, 0.25), transparent 40%),
+    radial-gradient(circle at 88% 0%, rgba(16, 185, 129, 0.15), transparent 35%),
+    var(--bg);
+  color: var(--text);
+}
+
+.wrap {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.panel {
+  width: min(960px, 100%);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: linear-gradient(180deg, var(--surface), var(--surface-2));
+  padding: 28px;
+  display: grid;
+  gap: 22px;
+}
+
+.hero h1 {
+  margin: 0 0 8px;
+  font-size: clamp(2rem, 4vw, 3rem);
+}
+
+.hero p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.cta-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.cta {
+  display: grid;
+  gap: 8px;
+  text-decoration: none;
+  color: inherit;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.cta:hover {
+  border-color: var(--accent);
+}
+
+.cta strong {
+  font-size: 1.05rem;
+}
+
+.cta span {
+  color: var(--muted);
+}
+
+.meta {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 860px) {
+  .cta-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -19,4 +19,10 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
     @Query("select coalesce(sum(p.amount), 0) from Payment p where p.paymentStatus = :paymentStatus")
     BigDecimal sumAmountByPaymentStatus(@Param("paymentStatus") PaymentStatus paymentStatus);
+
+    @Query("select coalesce(sum(p.amount), 0) from Payment p where p.tenantId = :tenantId and p.paymentStatus = :paymentStatus")
+    BigDecimal sumAmountByTenantIdAndPaymentStatus(
+            @Param("tenantId") Long tenantId,
+            @Param("paymentStatus") PaymentStatus paymentStatus
+    );
 }

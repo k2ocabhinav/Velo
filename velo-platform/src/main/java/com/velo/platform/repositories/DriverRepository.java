@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.data.domain.PageRequest;
 
 import java.util.List;
 import java.util.Optional;
@@ -20,32 +21,79 @@ public interface DriverRepository extends JpaRepository<Driver, Long> {
     @Query("select d from Driver d where d.user.id = :userId")
     Optional<Driver> findByUserId(@Param("userId") Long userId);
 
+    @Query("select d from Driver d where d.user.id = :userId and d.tenantId = :tenantId")
+    Optional<Driver> findByUserIdAndTenantId(@Param("userId") Long userId, @Param("tenantId") Long tenantId);
+
     long countByAvailableTrue();
+    long countByTenantId(Long tenantId);
+    long countByTenantIdAndAvailableTrue(Long tenantId);
 
     long countByOnboardingStatus(DriverOnboardingStatus onboardingStatus);
 
-    Page<Driver> findByOnboardingStatusOrderByCreatedAtDesc(DriverOnboardingStatus onboardingStatus, Pageable pageable);
+    Page<Driver> findByTenantIdAndOnboardingStatusOrderByCreatedAtDesc(
+            Long tenantId,
+            DriverOnboardingStatus onboardingStatus,
+            Pageable pageable
+    );
+
+    Page<Driver> findByOnboardingStatusOrderByCreatedAtDesc(
+            DriverOnboardingStatus onboardingStatus,
+            Pageable pageable
+    );
+
+    long countByTenantIdAndOnboardingStatus(Long tenantId, DriverOnboardingStatus onboardingStatus);
 
     /*
      * Use geography so SRID 4326 distances are measured in meters.
      * */
     @Query(value = "SELECT d.*, ST_Distance(CAST(d.current_location AS geography), CAST(:pickupLocation AS geography)) AS distance " +
             "FROM driver AS d " +
-            "WHERE d.available = true AND d.onboarding_status = 'APPROVED' AND d.current_location IS NOT NULL " +
+            "WHERE d.tenant_id = :tenantId " +
+            "AND d.available = true AND d.onboarding_status = 'APPROVED' AND d.current_location IS NOT NULL " +
             "AND ST_DWithin(CAST(d.current_location AS geography), CAST(:pickupLocation AS geography), 10000) " +
             "ORDER BY distance " +
             "LIMIT 10",
             nativeQuery = true
     )
-    List<Driver> findTenNearestDrivers(@Param("pickupLocation") Point pickupLocation);
+    List<Driver> findTenNearestDrivers(@Param("pickupLocation") Point pickupLocation, @Param("tenantId") Long tenantId);
 
     @Query(value = "SELECT d.* " +
             "FROM driver d " +
-            "WHERE d.available = true AND d.onboarding_status = 'APPROVED' AND d.current_location IS NOT NULL " +
+            "WHERE d.tenant_id = :tenantId " +
+            "AND d.available = true AND d.onboarding_status = 'APPROVED' AND d.current_location IS NOT NULL " +
             "AND ST_DWithin(CAST(d.current_location AS geography), CAST(:pickupLocation AS geography), 15000) " +
             "ORDER BY d.rating DESC, ST_Distance(CAST(d.current_location AS geography), CAST(:pickupLocation AS geography)) " +
             "LIMIT 10", nativeQuery = true)
-    List<Driver> findTenNearbyTopRatedDrivers(@Param("pickupLocation") Point pickupLocation);
+    List<Driver> findTenNearbyTopRatedDrivers(@Param("pickupLocation") Point pickupLocation, @Param("tenantId") Long tenantId);
+
+    @Query(
+            "select d from Driver d " +
+            "where d.tenantId = :tenantId " +
+            "and d.available = true " +
+            "and d.onboardingStatus = :onboardingStatus " +
+            "order by d.rating desc, d.createdAt desc"
+    )
+    List<Driver> findAvailableDriversForFallback(
+            @Param("tenantId") Long tenantId,
+            @Param("onboardingStatus") DriverOnboardingStatus onboardingStatus,
+            Pageable pageable
+    );
+
+    default List<Driver> findTenNearestDrivers(Point pickupLocation) {
+        return findTenNearestDrivers(pickupLocation, 1L);
+    }
+
+    default List<Driver> findTenNearbyTopRatedDrivers(Point pickupLocation) {
+        return findTenNearbyTopRatedDrivers(pickupLocation, 1L);
+    }
+
+    default List<Driver> findFallbackDrivers(Long tenantId, int limit) {
+        return findAvailableDriversForFallback(
+                tenantId,
+                DriverOnboardingStatus.APPROVED,
+                PageRequest.of(0, limit)
+        );
+    }
 
     @Modifying(flushAutomatically = true)
     @Query("update Driver d set d.available = :available where d.id = :driverId")

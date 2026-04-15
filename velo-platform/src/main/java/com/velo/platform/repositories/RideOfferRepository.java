@@ -35,4 +35,6 @@ public interface RideOfferRepository extends JpaRepository<RideOffer, Long> {
     long countByRideRequestIdAndStatus(Long rideRequestId, RideOfferStatus status);
 
     long countByStatus(RideOfferStatus status);
+
+    long countByTenantIdAndStatus(Long tenantId, RideOfferStatus status);
 }

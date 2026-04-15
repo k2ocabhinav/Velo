@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { requestRiderProxy, toCurrency, type DecimalValue } from "../../_lib/rider-client";
 import { applyRideUpdateStatus, normalizeRideLifecycleStatus, resolveActiveRidePollingIntervalMs } from "../../_lib/rider-active-ride-state";
 import { fetchRoutePath, type MapPoint, type RoutePath } from "../../_lib/map/routing";
@@ -24,6 +24,7 @@ type RiderTrackingPayload = {
   rideId?: number | null;
   rideRequestId?: number | null;
   status?: string | null;
+  otp?: string | null;
   pickupLocation?: PointDto | null;
   dropOffLocation?: PointDto | null;
   driver?: {
@@ -51,7 +52,15 @@ type RiderRideItem = {
   rideStatus: string;
   fare?: DecimalValue | null;
   fair?: DecimalValue | null;
+  paymentMethod?: string | null;
   endedAt?: string | null;
+};
+
+type TenantBranding = {
+  riderLabel?: string;
+  driverLabel?: string;
+  tripLabel?: string;
+  primaryColor?: string;
 };
 
 function toMapPoint(point: PointDto | null | undefined): MapPoint | null {
@@ -119,8 +128,12 @@ export default function RiderActiveRidePage() {
   const [ratingRide, setRatingRide] = useState<RiderRideItem | null>(null);
   const [submittingRating, setSubmittingRating] = useState(false);
   const [submittingCancel, setSubmittingCancel] = useState(false);
+  const [submittingEndTrip, setSubmittingEndTrip] = useState(false);
+  const [branding, setBranding] = useState<TenantBranding | null>(null);
 
   const lifecycleStatus = normalizeRideLifecycleStatus(tracking?.status);
+  const driverLabel = branding?.driverLabel ?? "Driver";
+  const tripLabel = branding?.tripLabel ?? "Trip";
 
   const pickup = useMemo(() => toMapPoint(tracking?.pickupLocation), [tracking?.pickupLocation]);
   const dropOff = useMemo(() => toMapPoint(tracking?.dropOffLocation), [tracking?.dropOffLocation]);
@@ -167,6 +180,9 @@ export default function RiderActiveRidePage() {
   useEffect(() => {
     void loadTracking();
     void loadRecentEndedRide();
+    void requestRiderProxy<TenantBranding>("api/v1/tenant/branding")
+      .then((payload) => setBranding(payload))
+      .catch(() => setBranding(null));
   }, [loadRecentEndedRide, loadTracking]);
 
   useEffect(() => {
@@ -282,6 +298,31 @@ export default function RiderActiveRidePage() {
     }
   }
 
+  async function endRide(): Promise<void> {
+    if (!tracking?.rideId || lifecycleStatus !== "ONGOING") {
+      return;
+    }
+
+    setSubmittingEndTrip(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      await requestRiderProxy(`riders/endRide/${tracking.rideId}`, { method: "POST" });
+      setMessage(`Ride #${tracking.rideId} completed.`);
+      await loadTracking(true);
+      await loadRecentEndedRide();
+    } catch (endError) {
+      setError(
+        endError instanceof Error
+          ? mapApiError({ error: endError.message }, "Unable to end this trip.")
+          : "Unable to end this trip.",
+      );
+    } finally {
+      setSubmittingEndTrip(false);
+    }
+  }
+
   async function submitRating(): Promise<void> {
     if (!ratingRide) {
       return;
@@ -326,10 +367,13 @@ export default function RiderActiveRidePage() {
   const fareValue = ratingRide?.fare ?? ratingRide?.fair ?? null;
 
   return (
-    <main className="app-shell stack">
+    <main
+      className="app-shell stack"
+      style={branding?.primaryColor ? ({ "--accent": branding.primaryColor } as CSSProperties) : undefined}
+    >
       <section className="hero">
-        <p className="badge">Active Trip</p>
-        <h1>Live trip continuity</h1>
+        <p className="badge">Active {tripLabel}</p>
+        <h1>Live {tripLabel.toLowerCase()} continuity</h1>
         <p>Stay on this screen for real-time updates, fallback refreshes, and completion prompts.</p>
       </section>
 
@@ -370,6 +414,16 @@ export default function RiderActiveRidePage() {
 
         {!loading && tracking ? (
           <>
+            {lifecycleStatus === "CONFIRMED" && tracking.otp ? (
+              <div className="card stack compact">
+                <strong>Trip OTP</strong>
+                <p className="helper">Share this OTP with the {driverLabel.toLowerCase()} to start your {tripLabel.toLowerCase()}.</p>
+                <p className="badge" style={{ fontSize: "1.5rem", letterSpacing: "0.2rem" }}>
+                  {tracking.otp}
+                </p>
+              </div>
+            ) : null}
+
             <div className="timeline">
               {timeline.map((step) => (
                 <div key={step.label} className="timeline-item">
@@ -383,12 +437,17 @@ export default function RiderActiveRidePage() {
               <article className="card stack compact">
                 <strong>Trip details</strong>
                 <p className="helper">Ride #{tracking.rideId ?? "—"} • Request #{tracking.rideRequestId ?? "—"}</p>
-                <p className="helper">Driver: {tracking.driver?.name ?? "Pending assignment"}</p>
+                <p className="helper">{driverLabel}: {tracking.driver?.name ?? "Pending assignment"}</p>
                 <p className="helper">Vehicle: {tracking.driver?.vehicleId ?? "—"}</p>
                 <p className="helper">ETA: {typeof tracking.etaMinutes === "number" ? `${tracking.etaMinutes} min` : "—"}</p>
                 {canCancel ? (
                   <button className="secondary-button" type="button" disabled={submittingCancel} onClick={() => void cancelRide()}>
                     {submittingCancel ? "Cancelling..." : "Cancel trip"}
+                  </button>
+                ) : null}
+                {lifecycleStatus === "ONGOING" ? (
+                  <button className="primary-button" type="button" disabled={submittingEndTrip} onClick={() => void endRide()}>
+                    {submittingEndTrip ? "Ending..." : "End trip"}
                   </button>
                 ) : null}
               </article>
@@ -426,9 +485,13 @@ export default function RiderActiveRidePage() {
 
       {!tracking && ratingRide ? (
         <section className="card stack">
-          <strong>Rate your latest ride</strong>
+          <strong>Trip summary and rating</strong>
           <p className="helper">
-            Ride #{ratingRide.id} ended {formatDateTime(ratingRide.endedAt ?? null)} • {toCurrency(fareValue)}
+            Ride #{ratingRide.id} ended {formatDateTime(ratingRide.endedAt ?? null)}
+            {" "}
+            • Fare {toCurrency(fareValue)}
+            {" "}
+            • Payment {ratingRide.paymentMethod ?? "—"}
           </p>
           <div className="actions">
             <label className="field-inline">

@@ -16,6 +16,7 @@ public class RideTrackingDto {
     private PointDto pickupLocation;
     private PointDto dropOffLocation;
     private RideTrackingDriverDto driver;
+    private String otp;
     private RideLocationDto lastDriverLocation;
     private Integer etaMinutes;
     private String routePolyline;

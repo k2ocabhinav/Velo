@@ -85,11 +85,11 @@ class NotificationEventListenerTest {
         );
 
         assertThat(userCaptor.getAllValues()).containsExactly(riderUser, driverUserOne, driverUserTwo);
-        assertThat(titleCaptor.getAllValues()).containsExactly("Ride Requested", "New Ride Request", "New Ride Request");
+        assertThat(titleCaptor.getAllValues()).containsExactly("Ride Requested", "Ride Request Received", "Ride Request Received");
         assertThat(messageCaptor.getAllValues()).containsExactly(
                 "Your ride request has been submitted. Finding drivers nearby...",
-                "A nearby rider is waiting for pickup.",
-                "A nearby rider is waiting for pickup."
+                "A nearby ride request is waiting for your response.",
+                "A nearby ride request is waiting for your response."
         );
         assertThat(typeCaptor.getAllValues()).containsExactly(
                 NotificationType.RIDE_REQUESTED,
@@ -120,10 +120,10 @@ class NotificationEventListenerTest {
         );
 
         assertThat(userCaptor.getAllValues()).containsExactly(riderUser, driverUserOne);
-        assertThat(titleCaptor.getAllValues()).containsExactly("Scheduled Ride Dispatch Started", "Scheduled Ride Available");
+        assertThat(titleCaptor.getAllValues()).containsExactly("Scheduled Ride Dispatch Started", "Scheduled Request Received");
         assertThat(messageCaptor.getAllValues()).containsExactly(
                 "Your scheduled ride is now being offered to nearby drivers.",
-                "A scheduled ride is ready for pickup consideration."
+                "A scheduled ride request is ready for your response."
         );
         assertThat(typeCaptor.getAllValues()).containsExactly(
                 NotificationType.RIDE_DISPATCHED,

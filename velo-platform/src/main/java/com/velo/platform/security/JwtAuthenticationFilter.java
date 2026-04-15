@@ -32,8 +32,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String email = jwtTokenProvider.getEmailFromToken(token);
             Long userId = jwtTokenProvider.getUserIdFromToken(token);
             String role = jwtTokenProvider.getRoleFromToken(token);
+            Long tenantId = jwtTokenProvider.getTenantIdFromToken(token);
 
-            UserPrincipal userPrincipal = new UserPrincipal(userId, email, role);
+            UserPrincipal userPrincipal = new UserPrincipal(userId, email, role, tenantId);
 
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(

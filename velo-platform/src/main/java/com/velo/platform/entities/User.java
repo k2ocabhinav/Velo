@@ -30,7 +30,11 @@ public class User {
     private String email;
     private String password;
     private String phoneNumber;
-    private Boolean active;
+    @Builder.Default
+    private Boolean active = Boolean.TRUE;
+    @Builder.Default
+    @Column(name = "tenant_id", nullable = false)
+    private Long tenantId = 1L;
 
     @Column(unique = true)
     private String referralCode;
@@ -44,6 +48,16 @@ public class User {
 
     @Version
     private Long version;
+
+    @PrePersist
+    void applyDefaults() {
+        if (active == null) {
+            active = Boolean.TRUE;
+        }
+        if (tenantId == null) {
+            tenantId = 1L;
+        }
+    }
 
     @Override
     public boolean equals(Object o) {

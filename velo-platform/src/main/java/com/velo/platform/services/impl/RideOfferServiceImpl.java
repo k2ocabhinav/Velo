@@ -44,6 +44,7 @@ public class RideOfferServiceImpl implements RideOfferService {
         List<RideOffer> offers = new ArrayList<>(drivers.size());
         for (Driver driver : drivers) {
             offers.add(RideOffer.builder()
+                    .tenantId(rideRequest.getTenantId())
                     .rideRequest(rideRequest)
                     .driver(driver)
                     .status(RideOfferStatus.OFFERED)
@@ -213,7 +214,19 @@ public class RideOfferServiceImpl implements RideOfferService {
 
     @Override
     @Transactional(readOnly = true)
+    public long countOpenOffers(Long tenantId) {
+        return rideOfferRepository.countByTenantIdAndStatus(tenantId, RideOfferStatus.OFFERED);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public long countExpiredOffers() {
         return rideOfferRepository.countByStatus(RideOfferStatus.EXPIRED);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countExpiredOffers(Long tenantId) {
+        return rideOfferRepository.countByTenantIdAndStatus(tenantId, RideOfferStatus.EXPIRED);
     }
 }

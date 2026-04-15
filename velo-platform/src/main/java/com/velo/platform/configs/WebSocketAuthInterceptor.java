@@ -38,7 +38,8 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
                         UserPrincipal userPrincipal = new UserPrincipal(
                                 jwtTokenProvider.getUserIdFromToken(token),
                                 jwtTokenProvider.getEmailFromToken(token),
-                                jwtTokenProvider.getRoleFromToken(token)
+                                jwtTokenProvider.getRoleFromToken(token),
+                                jwtTokenProvider.getTenantIdFromToken(token)
                         );
                         UsernamePasswordAuthenticationToken authentication =
                                 new UsernamePasswordAuthenticationToken(

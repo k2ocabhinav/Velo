@@ -13,4 +13,9 @@ public interface RiderRepository extends JpaRepository<Rider, Long> {
 
     @Query("select r from Rider r where r.user.id = :userId")
     Optional<Rider> findByUserId(@Param("userId") Long userId);
+
+    @Query("select r from Rider r where r.user.id = :userId and r.tenantId = :tenantId")
+    Optional<Rider> findByUserIdAndTenantId(@Param("userId") Long userId, @Param("tenantId") Long tenantId);
+
+    long countByTenantId(Long tenantId);
 }

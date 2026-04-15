@@ -152,13 +152,20 @@ export default function DriverRidePage() {
   }, [loadRide, rideId, status]);
 
   const ratingAlreadySubmitted = ratedRideId === ride?.id;
+  const otpRequired = Boolean(ride?.rider);
+  const riderRatingAvailable = Boolean(ride?.rider);
 
-  const canStart = useMemo(() => canSubmitStartRide(status, otp, pendingAction !== null), [status, otp, pendingAction]);
+  const canStart = useMemo(
+    () => canSubmitStartRide(status, otp, pendingAction !== null, otpRequired),
+    [status, otp, otpRequired, pendingAction],
+  );
   const canEnd = useMemo(() => canSubmitEndRide(status, pendingAction !== null), [status, pendingAction]);
   const canCancel = useMemo(() => canSubmitCancelRide(status, pendingAction !== null), [status, pendingAction]);
   const canRate = useMemo(
-    () => canSubmitRateRider(status, ratingValue, pendingAction !== null || submittingRating, ratingAlreadySubmitted),
-    [pendingAction, ratingAlreadySubmitted, ratingValue, status, submittingRating],
+    () =>
+      riderRatingAvailable &&
+      canSubmitRateRider(status, ratingValue, pendingAction !== null || submittingRating, ratingAlreadySubmitted),
+    [pendingAction, riderRatingAvailable, ratingAlreadySubmitted, ratingValue, status, submittingRating],
   );
 
   async function startRide(): Promise<void> {
@@ -166,7 +173,7 @@ export default function DriverRidePage() {
       return;
     }
 
-    const otpValidation = validateOtpInput(otp);
+    const otpValidation = otpRequired ? validateOtpInput(otp) : { ok: true as const, value: "" };
     if (!otpValidation.ok) {
       setError(otpValidation.error);
       return;
@@ -209,7 +216,7 @@ export default function DriverRidePage() {
         method: "POST",
       });
       setRide(updated);
-      setMessage("Ride ended successfully. Please rate the rider.");
+      setMessage(ride.rider ? "Ride ended successfully. Please rate the rider." : "Ride ended successfully.");
     } catch (actionError) {
       setError(
         actionError instanceof Error
@@ -315,8 +322,8 @@ export default function DriverRidePage() {
             </div>
             <div className="list-item">
               <div className="stack compact">
-                <strong>Rider</strong>
-                <p className="helper">{ride.rider?.user?.name ?? "Assigned rider"}</p>
+                <strong>Requester</strong>
+                <p className="helper">{ride.rider?.user?.name ?? "Dispatch request"}</p>
                 <p className="helper">{ride.rider?.user?.email ?? "--"}</p>
               </div>
               <span className="badge">Ride #{ride.id}</span>
@@ -325,7 +332,6 @@ export default function DriverRidePage() {
               <div className="stack compact">
                 <strong>Fare</strong>
                 <p className="helper">Promo: {ride.promoCode ?? "--"}</p>
-                <p className="helper">OTP: {ride.otp ?? "--"}</p>
               </div>
               <span className="badge">{toCurrency(getDriverRideFareValue(ride))}</span>
             </div>
@@ -385,15 +391,19 @@ export default function DriverRidePage() {
         <strong>Ride actions</strong>
         {ride ? (
           <>
-            <label className="field">
-              <span>Ride OTP</span>
-              <input
-                value={otp}
-                onChange={(event) => setOtp(event.target.value)}
-                placeholder="Enter 4-digit OTP"
-                maxLength={4}
-              />
-            </label>
+            {otpRequired ? (
+              <label className="field">
+                <span>Ride OTP</span>
+                <input
+                  value={otp}
+                  onChange={(event) => setOtp(event.target.value)}
+                  placeholder="Enter 4-digit OTP"
+                  maxLength={4}
+                />
+              </label>
+            ) : (
+              <p className="helper">OTP verification is disabled for admin-created dispatch requests.</p>
+            )}
             <div className="actions">
               <button className="primary-button" type="button" disabled={!canStart} onClick={() => void startRide()}>
                 {pendingAction === "START" ? "Starting..." : "Start ride"}
@@ -406,20 +416,24 @@ export default function DriverRidePage() {
               </button>
             </div>
 
-            <label className="field-inline">
-              <span>Rate rider</span>
-              <select value={ratingValue} onChange={(event) => setRatingValue(event.target.value)}>
-                <option value="5">5</option>
-                <option value="4">4</option>
-                <option value="3">3</option>
-                <option value="2">2</option>
-                <option value="1">1</option>
-              </select>
-              <button className="secondary-button" type="button" disabled={!canRate} onClick={() => void rateRider()}>
-                {submittingRating ? "Submitting..." : ratingAlreadySubmitted ? "Rated" : "Rate rider"}
-              </button>
-            </label>
-            {status !== "ENDED" ? <p className="helper">Rider rating unlocks after the trip is completed.</p> : null}
+            {riderRatingAvailable ? (
+              <>
+                <label className="field-inline">
+                  <span>Rate rider</span>
+                  <select value={ratingValue} onChange={(event) => setRatingValue(event.target.value)}>
+                    <option value="5">5</option>
+                    <option value="4">4</option>
+                    <option value="3">3</option>
+                    <option value="2">2</option>
+                    <option value="1">1</option>
+                  </select>
+                  <button className="secondary-button" type="button" disabled={!canRate} onClick={() => void rateRider()}>
+                    {submittingRating ? "Submitting..." : ratingAlreadySubmitted ? "Rated" : "Rate rider"}
+                  </button>
+                </label>
+                {status !== "ENDED" ? <p className="helper">Rider rating unlocks after the trip is completed.</p> : null}
+              </>
+            ) : null}
           </>
         ) : null}
       </section>

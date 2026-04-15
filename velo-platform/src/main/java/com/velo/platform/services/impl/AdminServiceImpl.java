@@ -14,6 +14,7 @@ import com.velo.platform.exceptions.RuntimeConflictException;
 import com.velo.platform.repositories.*;
 import com.velo.platform.services.AdminService;
 import com.velo.platform.services.CacheService;
+import com.velo.platform.services.TenantScopeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -38,31 +39,29 @@ public class AdminServiceImpl implements AdminService {
     private final PaymentRepository paymentRepository;
     private final RideRequestRepository rideRequestRepository;
     private final CacheService cacheService;
+    private final TenantScopeService tenantScopeService;
 
     private static final BigDecimal PLATFORM_COMMISSION = BigDecimal.valueOf(0.30);
 
     @Override
     @Transactional(readOnly = true)
     public DashboardDto getDashboard() {
-        Object cached = cacheService.getCachedDashboard();
-        if (cached != null) {
-            return (DashboardDto) cached;
-        }
-        
-        long totalUsers = userRepository.count();
-        long totalDrivers = driverRepository.count();
-        long totalRides = rideRepository.count();
+        Long tenantId = currentTenantId();
 
-        BigDecimal totalRevenue = nullToZero(paymentRepository.sumAmountByPaymentStatus(PaymentStatus.CONFIRMED));
-        long activeRides = rideRepository.countByRideStatus(RideStatus.ONGOING);
+        long totalUsers = userRepository.countByTenantId(tenantId);
+        long totalDrivers = driverRepository.countByTenantId(tenantId);
+        long totalRides = rideRepository.countByTenantId(tenantId);
+
+        BigDecimal totalRevenue = nullToZero(paymentRepository.sumAmountByTenantIdAndPaymentStatus(tenantId, PaymentStatus.CONFIRMED));
+        long activeRides = rideRepository.countByTenantIdAndRideStatus(tenantId, RideStatus.ONGOING);
 
         long pendingApprovals = countPendingDriverApprovals();
 
         Map<String, Long> ridesByStatus = new HashMap<>();
-        ridesByStatus.put("COMPLETED", rideRepository.countByRideStatus(RideStatus.ENDED));
-        ridesByStatus.put("CANCELLED", rideRepository.countByRideStatus(RideStatus.CANCELLED));
+        ridesByStatus.put("COMPLETED", rideRepository.countByTenantIdAndRideStatus(tenantId, RideStatus.ENDED));
+        ridesByStatus.put("CANCELLED", rideRepository.countByTenantIdAndRideStatus(tenantId, RideStatus.CANCELLED));
         ridesByStatus.put("ONGOING", activeRides);
-        ridesByStatus.put("CONFIRMED", rideRepository.countByRideStatus(RideStatus.CONFIRMED));
+        ridesByStatus.put("CONFIRMED", rideRepository.countByTenantIdAndRideStatus(tenantId, RideStatus.CONFIRMED));
 
         DashboardDto dashboard = DashboardDto.builder()
                 .totalUsers(totalUsers)
@@ -73,22 +72,22 @@ public class AdminServiceImpl implements AdminService {
                 .pendingApprovals(pendingApprovals)
                 .ridesByStatus(ridesByStatus)
                 .build();
-        
-        cacheService.cacheDashboard(dashboard);
+
         return dashboard;
     }
 
     @Override
     @Transactional(readOnly = true)
     public AdminStatsDto getDailyStats(LocalDate date) {
+        Long tenantId = currentTenantId();
         LocalDateTime startOfDay = date.atStartOfDay();
         LocalDateTime endOfDay = date.plusDays(1).atStartOfDay();
 
         long activeDrivers = getAvailableDriversCount();
-        DailyRideStats dailyRideStats = getDailyRideStats(startOfDay, endOfDay);
+        DailyRideStats dailyRideStats = getDailyRideStats(tenantId, startOfDay, endOfDay);
         BigDecimal platformCommission = dailyRideStats.totalRevenue().multiply(PLATFORM_COMMISSION);
-        long totalUsers = userRepository.count();
-        long newUsers = userRepository.countByCreatedTimeAfterAndCreatedTimeBefore(startOfDay, endOfDay);
+        long totalUsers = userRepository.countByTenantId(tenantId);
+        long newUsers = userRepository.countByTenantIdAndCreatedTimeAfterAndCreatedTimeBefore(tenantId, startOfDay, endOfDay);
         long pendingDriverApprovals = countPendingDriverApprovals();
 
         return AdminStatsDto.builder()
@@ -108,9 +107,10 @@ public class AdminServiceImpl implements AdminService {
     @Override
     @Transactional(readOnly = true)
     public List<RevenueReportDto> getRevenueReport(LocalDate startDate, LocalDate endDate) {
+        Long tenantId = currentTenantId();
         return startDate.datesUntil(endDate.plusDays(1))
                 .map(date -> {
-                    DailyRideStats stats = getDailyRideStats(date.atStartOfDay(), date.plusDays(1).atStartOfDay());
+                    DailyRideStats stats = getDailyRideStats(tenantId, date.atStartOfDay(), date.plusDays(1).atStartOfDay());
                     // Revenue report only needs ride-side aggregates.
                     return RevenueReportDto.builder()
                             .date(date)
@@ -126,28 +126,26 @@ public class AdminServiceImpl implements AdminService {
     @Override
     @Transactional(readOnly = true)
     public Page<PendingDriverDto> getPendingDrivers(Pageable pageable) {
-        return driverRepository.findByOnboardingStatusOrderByCreatedAtDesc(DriverOnboardingStatus.PENDING, pageable)
-                .map(driver -> {
-                    User user = driver.getUser();
-                    return PendingDriverDto.builder()
-                            .driverId(driver.getId())
-                            .userId(user != null ? user.getId() : null)
-                            .name(user != null ? user.getFirstName() + " " + user.getLastName() : "Unknown")
-                            .email(user != null ? user.getEmail() : "Unknown")
-                            .phone(user != null ? user.getPhoneNumber() : "Unknown")
-                            .rating(driver.getRating())
-                            .vehicleId(driver.getVehicleId())
-                            .onboardingStatus(driver.getOnboardingStatus() == null ? null : driver.getOnboardingStatus().name())
-                            .appliedAt(driver.getCreatedAt())
-                            .build();
-                });
+        return getDriversByStatus(DriverOnboardingStatus.PENDING, pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<PendingDriverDto> getDriversByStatus(DriverOnboardingStatus status, Pageable pageable) {
+        Long tenantId = currentTenantId();
+        return driverRepository.findByTenantIdAndOnboardingStatusOrderByCreatedAtDesc(tenantId, status, pageable)
+                .map(this::toPendingDriverDto);
     }
 
     @Override
     @Transactional
     public void approveDriver(Long driverId) {
+        Long tenantId = currentTenantId();
         Driver driver = driverRepository.findById(driverId)
                 .orElseThrow(() -> new RuntimeConflictException("Driver not found"));
+        if (!tenantId.equals(driver.getTenantId())) {
+            throw new RuntimeConflictException("Cross-tenant driver access is not allowed.");
+        }
         driver.setOnboardingStatus(DriverOnboardingStatus.APPROVED);
         driver.setAvailable(true);
         driverRepository.save(driver);
@@ -157,9 +155,29 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     @Transactional
-    public void rejectDriver(Long driverId, String reason) {
+    public void suspendDriver(Long driverId) {
+        Long tenantId = currentTenantId();
         Driver driver = driverRepository.findById(driverId)
                 .orElseThrow(() -> new RuntimeConflictException("Driver not found"));
+        if (!tenantId.equals(driver.getTenantId())) {
+            throw new RuntimeConflictException("Cross-tenant driver access is not allowed.");
+        }
+        driver.setOnboardingStatus(DriverOnboardingStatus.SUSPENDED);
+        driver.setAvailable(false);
+        driverRepository.save(driver);
+        cacheService.evictAvailableDriversCache();
+        cacheService.evictDashboardCache();
+    }
+
+    @Override
+    @Transactional
+    public void rejectDriver(Long driverId, String reason) {
+        Long tenantId = currentTenantId();
+        Driver driver = driverRepository.findById(driverId)
+                .orElseThrow(() -> new RuntimeConflictException("Driver not found"));
+        if (!tenantId.equals(driver.getTenantId())) {
+            throw new RuntimeConflictException("Cross-tenant driver access is not allowed.");
+        }
         driver.setOnboardingStatus(DriverOnboardingStatus.REJECTED);
         driver.setAvailable(false);
         driverRepository.save(driver);
@@ -169,7 +187,8 @@ public class AdminServiceImpl implements AdminService {
     @Override
     @Transactional(readOnly = true)
     public Page<User> getAllUsers(Pageable pageable) {
-        return userRepository.findAll(pageable);
+        Long tenantId = currentTenantId();
+        return userRepository.findByTenantId(tenantId, pageable);
     }
 
     @Override
@@ -191,28 +210,26 @@ public class AdminServiceImpl implements AdminService {
     }
 
     private long getAvailableDriversCount() {
-        Long cachedCount = cacheService.getAvailableDriversCount();
-        if (cachedCount != null) {
-            return cachedCount;
-        }
-
-        // Cache miss falls back to a database count.
-        long activeDrivers = driverRepository.countByAvailableTrue();
-        cacheService.cacheAvailableDriversCount(activeDrivers);
-        return activeDrivers;
+        Long tenantId = currentTenantId();
+        return driverRepository.countByTenantIdAndAvailableTrue(tenantId);
     }
 
     private long countPendingDriverApprovals() {
-        return driverRepository.countByOnboardingStatus(DriverOnboardingStatus.PENDING);
+        Long tenantId = currentTenantId();
+        return driverRepository.countByTenantIdAndOnboardingStatus(tenantId, DriverOnboardingStatus.PENDING);
     }
 
-    private DailyRideStats getDailyRideStats(LocalDateTime startOfDay, LocalDateTime endOfDay) {
-        long totalRides = rideRepository.countByCreatedTimeAfterAndCreatedTimeBefore(startOfDay, endOfDay);
-        long completedRides = rideRepository.countByCreatedTimeAfterAndCreatedTimeBeforeAndRideStatus(
-                startOfDay, endOfDay, RideStatus.ENDED);
-        long cancelledRides = rideRepository.countByCreatedTimeAfterAndCreatedTimeBeforeAndRideStatus(
-                startOfDay, endOfDay, RideStatus.CANCELLED);
-        BigDecimal totalRevenue = nullToZero(rideRepository.sumFareByCreatedTimeAfterAndCreatedTimeBefore(startOfDay, endOfDay));
+    private DailyRideStats getDailyRideStats(Long tenantId, LocalDateTime startOfDay, LocalDateTime endOfDay) {
+        long totalRides = rideRepository.countByTenantIdAndCreatedTimeAfterAndCreatedTimeBefore(tenantId, startOfDay, endOfDay);
+        long completedRides = rideRepository.countByTenantIdAndCreatedTimeAfterAndCreatedTimeBeforeAndRideStatus(
+                tenantId, startOfDay, endOfDay, RideStatus.ENDED);
+        long cancelledRides = rideRepository.countByTenantIdAndCreatedTimeAfterAndCreatedTimeBeforeAndRideStatus(
+                tenantId, startOfDay, endOfDay, RideStatus.CANCELLED);
+        BigDecimal totalRevenue = nullToZero(rideRepository.sumFareByTenantIdAndCreatedTimeAfterAndCreatedTimeBefore(
+                tenantId,
+                startOfDay,
+                endOfDay
+        ));
 
         return new DailyRideStats(totalRides, completedRides, cancelledRides, totalRevenue);
     }
@@ -221,6 +238,34 @@ public class AdminServiceImpl implements AdminService {
         return value != null ? value : BigDecimal.ZERO;
     }
 
+    private Long currentTenantId() {
+        if (tenantScopeService == null) {
+            return 1L;
+        }
+        return tenantScopeService.requireCurrentTenantId();
+    }
+
     private record DailyRideStats(long totalRides, long completedRides, long cancelledRides, BigDecimal totalRevenue) {
+    }
+
+    private PendingDriverDto toPendingDriverDto(Driver driver) {
+        User user = driver.getUser();
+        String name = "Unknown";
+        if (user != null) {
+            String fullName = ((user.getFirstName() == null ? "" : user.getFirstName()) + " " +
+                    (user.getLastName() == null ? "" : user.getLastName())).trim();
+            name = fullName.isEmpty() ? "Unknown" : fullName;
+        }
+        return PendingDriverDto.builder()
+                .driverId(driver.getId())
+                .userId(user != null ? user.getId() : null)
+                .name(name)
+                .email(user != null ? user.getEmail() : "Unknown")
+                .phone(user != null ? user.getPhoneNumber() : "Unknown")
+                .rating(driver.getRating())
+                .vehicleId(driver.getVehicleId())
+                .onboardingStatus(driver.getOnboardingStatus() == null ? null : driver.getOnboardingStatus().name())
+                .appliedAt(driver.getCreatedAt())
+                .build();
     }
 }

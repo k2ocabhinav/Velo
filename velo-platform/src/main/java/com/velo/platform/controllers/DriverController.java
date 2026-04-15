@@ -29,6 +29,12 @@ public class DriverController {
         return ResponseEntity.ok(driverService.acceptRide(rideRequestId));
     }
 
+    @GetMapping("/ride-requests/{rideRequestId}")
+    @Operation(summary = "Get pending ride request details before accepting")
+    public ResponseEntity<RideRequestDto> getRideRequestForAcceptance(@PathVariable Long rideRequestId) {
+        return ResponseEntity.ok(driverService.getRideRequestForAcceptance(rideRequestId));
+    }
+
     @PostMapping("/startRide/{rideRequestId}")
     @Operation(summary = "Start a ride after OTP verification")
     public ResponseEntity<RideDto> startRide(@PathVariable Long rideRequestId,

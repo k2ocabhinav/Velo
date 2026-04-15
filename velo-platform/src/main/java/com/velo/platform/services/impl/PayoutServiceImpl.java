@@ -50,6 +50,7 @@ public class PayoutServiceImpl implements PayoutService {
         Driver driver = getCurrentDriver();
 
         PayoutRequest payoutRequest = PayoutRequest.builder()
+                .tenantId(driver.getTenantId())
                 .driver(driver)
                 .amount(amount)
                 .status(PayoutStatus.PENDING)
@@ -123,7 +124,7 @@ public class PayoutServiceImpl implements PayoutService {
 
     private Driver getCurrentDriver() {
         UserPrincipal principal = (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        return driverRepository.findByUserId(principal.getUserId())
+        return driverRepository.findByUserIdAndTenantId(principal.getUserId(), principal.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Driver profile not found"));
     }
 }

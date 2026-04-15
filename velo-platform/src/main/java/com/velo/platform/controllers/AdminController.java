@@ -3,6 +3,7 @@ package com.velo.platform.controllers;
 import com.velo.platform.dto.admin.AdminStatsDto;
 import com.velo.platform.dto.admin.AdminDispatchActionRequestDto;
 import com.velo.platform.dto.admin.AdminDispatchAuditDto;
+import com.velo.platform.dto.admin.AdminCreateDispatchRequestDto;
 import com.velo.platform.dto.admin.AdminOpsHealthDto;
 import com.velo.platform.dto.admin.AdminPendingRideRequestDto;
 import com.velo.platform.dto.admin.AdminActiveRideDto;
@@ -12,6 +13,7 @@ import com.velo.platform.dto.admin.DashboardDto;
 import com.velo.platform.dto.admin.PendingDriverDto;
 import com.velo.platform.dto.admin.RevenueReportDto;
 import com.velo.platform.entities.User;
+import com.velo.platform.entities.enums.DriverOnboardingStatus;
 import com.velo.platform.services.AdminDispatchService;
 import com.velo.platform.services.AdminService;
 import com.velo.platform.services.PayoutService;
@@ -74,6 +76,17 @@ public class AdminController {
         return ResponseEntity.ok(adminService.getPendingDrivers(pageRequest));
     }
 
+    @GetMapping("/drivers")
+    @Operation(summary = "Get drivers by onboarding status")
+    public ResponseEntity<Page<PendingDriverDto>> getDriversByStatus(
+            @RequestParam(defaultValue = "PENDING") DriverOnboardingStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        return ResponseEntity.ok(adminService.getDriversByStatus(status, pageRequest));
+    }
+
     @PostMapping("/drivers/{id}/approve")
     @Operation(summary = "Approve a driver")
     public ResponseEntity<Void> approveDriver(@PathVariable Long id) {
@@ -81,10 +94,24 @@ public class AdminController {
         return ResponseEntity.ok().build();
     }
 
+    @PostMapping("/drivers/{id}/suspend")
+    @Operation(summary = "Suspend an approved driver")
+    public ResponseEntity<Void> suspendDriver(@PathVariable Long id) {
+        adminService.suspendDriver(id);
+        return ResponseEntity.ok().build();
+    }
+
     @PostMapping("/drivers/{id}/reject")
     @Operation(summary = "Reject a driver")
     public ResponseEntity<Void> rejectDriver(@PathVariable Long id, @RequestBody String reason) {
         adminService.rejectDriver(id, reason);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/drivers/{id}/revoke")
+    @Operation(summary = "Revoke an approved driver (alias of suspend)")
+    public ResponseEntity<Void> revokeDriver(@PathVariable Long id) {
+        adminService.suspendDriver(id);
         return ResponseEntity.ok().build();
     }
 
@@ -156,6 +183,13 @@ public class AdminController {
             @RequestParam(defaultValue = "10") int size) {
         PageRequest pageRequest = PageRequest.of(page, size);
         return ResponseEntity.ok(adminDispatchService.getPendingRideRequests(pageRequest));
+    }
+
+    @PostMapping("/dispatch/requests")
+    @Operation(summary = "Create a new dispatch request (supports DELIVERY_MERCHANT mode)")
+    public ResponseEntity<com.velo.platform.dto.RideRequestDto> createDispatchRequest(
+            @Valid @RequestBody AdminCreateDispatchRequestDto requestDto) {
+        return ResponseEntity.ok(adminDispatchService.createDispatchRequest(requestDto));
     }
 
     @GetMapping("/dispatch/active-rides")

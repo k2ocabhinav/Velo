@@ -20,6 +20,9 @@ public class PaymentMethodEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    @Column(name = "tenant_id", nullable = false)
+    @Builder.Default
+    private Long tenantId = 1L;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -32,6 +35,7 @@ public class PaymentMethodEntity {
     private String expiryDate;
 
     @Column(name = "is_default", nullable = false)
+    @Builder.Default
     private Boolean isDefault = false;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -48,6 +52,19 @@ public class PaymentMethodEntity {
 
     @Version
     private Long version;
+
+    @PrePersist
+    private void applyDefaults() {
+        if (tenantId == null && user != null && user.getTenantId() != null) {
+            tenantId = user.getTenantId();
+        }
+        if (tenantId == null) {
+            tenantId = 1L;
+        }
+        if (isDefault == null) {
+            isDefault = false;
+        }
+    }
 
     @Override
     public boolean equals(Object o) {

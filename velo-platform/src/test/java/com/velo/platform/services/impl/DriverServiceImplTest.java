@@ -15,6 +15,7 @@ import com.velo.platform.entities.enums.RideRequestStatus;
 import com.velo.platform.entities.enums.RideStatus;
 import com.velo.platform.exceptions.RuntimeConflictException;
 import com.velo.platform.repositories.DriverRepository;
+import com.velo.platform.repositories.RideRequestRepository;
 import com.velo.platform.repositories.RideRepository;
 import com.velo.platform.security.UserPrincipal;
 import com.velo.platform.services.PaymentService;
@@ -64,6 +65,9 @@ class DriverServiceImplTest {
     private RideRepository rideRepository;
 
     @Mock
+    private RideRequestRepository rideRequestRepository;
+
+    @Mock
     private RideService rideService;
 
     @Mock
@@ -108,6 +112,7 @@ class DriverServiceImplTest {
                 rideRequestService,
                 driverRepository,
                 rideRepository,
+                rideRequestRepository,
                 rideService,
                 modelMapper,
                 paymentService,
@@ -149,9 +154,11 @@ class DriverServiceImplTest {
         when(securityContext.getAuthentication()).thenReturn(authentication);
         when(authentication.getPrincipal()).thenReturn(userPrincipal);
         when(userPrincipal.getUserId()).thenReturn(101L);
-        when(driverRepository.findByUserId(101L)).thenReturn(Optional.of(testDriver));
+        when(userPrincipal.getTenantId()).thenReturn(1L);
+        when(driverRepository.findByUserIdAndTenantId(101L, 1L)).thenReturn(Optional.of(testDriver));
         lenient().when(driverRepository.save(any(Driver.class))).thenAnswer(invocation -> invocation.getArgument(0));
         lenient().when(rideOfferService.hasAnyOffer(anyLong())).thenReturn(false);
+        lenient().when(rideRequestRepository.compareAndSetStatus(anyLong(), anyLong(), any(), any())).thenReturn(1);
         SecurityContextHolder.setContext(securityContext);
     }
 
@@ -205,7 +212,7 @@ class DriverServiceImplTest {
 
         assertThatThrownBy(() -> driverService.acceptRide(1L))
                 .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("cannot be accepted");
+                .hasMessageContaining("already been assigned or cancelled");
     }
 
     @Test

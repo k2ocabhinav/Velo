@@ -16,11 +16,13 @@ import com.velo.platform.repositories.RideRequestRepository;
 import com.velo.platform.repositories.RideRepository;
 import com.velo.platform.repositories.UserRepository;
 import com.velo.platform.services.CacheService;
+import com.velo.platform.services.TenantScopeService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -57,20 +59,30 @@ class AdminServiceImplTest {
     @Mock
     private CacheService cacheService;
 
+    @Mock
+    private TenantScopeService tenantScopeService;
+
     @InjectMocks
     private AdminServiceImpl adminService;
+
+    @BeforeEach
+    void setUp() {
+        lenient().when(tenantScopeService.requireCurrentTenantId()).thenReturn(1L);
+    }
 
     @Test
     @DisplayName("Dashboard should read all totals from repository aggregates")
     void getDashboard_ShouldUseAggregateQueries() {
-        when(cacheService.getCachedDashboard()).thenReturn(null);
-        when(userRepository.count()).thenReturn(12L);
-        when(driverRepository.count()).thenReturn(5L);
-        when(rideRepository.count()).thenReturn(27L);
-        when(paymentRepository.sumAmountByPaymentStatus(PaymentStatus.CONFIRMED))
+        when(userRepository.countByTenantId(1L)).thenReturn(12L);
+        when(driverRepository.countByTenantId(1L)).thenReturn(5L);
+        when(rideRepository.countByTenantId(1L)).thenReturn(27L);
+        when(paymentRepository.sumAmountByTenantIdAndPaymentStatus(1L, PaymentStatus.CONFIRMED))
                 .thenReturn(BigDecimal.valueOf(410.75));
-        when(rideRepository.countByRideStatus(RideStatus.ONGOING)).thenReturn(3L);
-        when(driverRepository.countByOnboardingStatus(DriverOnboardingStatus.PENDING)).thenReturn(2L);
+        when(rideRepository.countByTenantIdAndRideStatus(1L, RideStatus.ONGOING)).thenReturn(3L);
+        when(driverRepository.countByTenantIdAndOnboardingStatus(1L, DriverOnboardingStatus.PENDING)).thenReturn(2L);
+        when(rideRepository.countByTenantIdAndRideStatus(1L, RideStatus.ENDED)).thenReturn(18L);
+        when(rideRepository.countByTenantIdAndRideStatus(1L, RideStatus.CANCELLED)).thenReturn(6L);
+        when(rideRepository.countByTenantIdAndRideStatus(1L, RideStatus.CONFIRMED)).thenReturn(3L);
 
         DashboardDto dashboard = adminService.getDashboard();
 
@@ -82,8 +94,7 @@ class AdminServiceImplTest {
         assertThat(dashboard.getPendingApprovals()).isEqualTo(2L);
         assertThat(dashboard.getRidesByStatus()).containsEntry("ONGOING", 3L);
 
-        verify(cacheService).cacheDashboard(dashboard);
-        verify(driverRepository, never()).findAll();
+        verifyNoInteractions(cacheService);
     }
 
     @Test
@@ -93,17 +104,16 @@ class AdminServiceImplTest {
         LocalDateTime start = date.atStartOfDay();
         LocalDateTime end = date.plusDays(1).atStartOfDay();
 
-        when(cacheService.getAvailableDriversCount()).thenReturn(null);
-        when(driverRepository.countByAvailableTrue()).thenReturn(8L);
-        when(rideRepository.countByCreatedTimeAfterAndCreatedTimeBefore(start, end)).thenReturn(11L);
-        when(rideRepository.countByCreatedTimeAfterAndCreatedTimeBeforeAndRideStatus(start, end, RideStatus.ENDED))
+        when(driverRepository.countByTenantIdAndAvailableTrue(1L)).thenReturn(8L);
+        when(rideRepository.countByTenantIdAndCreatedTimeAfterAndCreatedTimeBefore(1L, start, end)).thenReturn(11L);
+        when(rideRepository.countByTenantIdAndCreatedTimeAfterAndCreatedTimeBeforeAndRideStatus(1L, start, end, RideStatus.ENDED))
                 .thenReturn(7L);
-        when(rideRepository.countByCreatedTimeAfterAndCreatedTimeBeforeAndRideStatus(start, end, RideStatus.CANCELLED))
+        when(rideRepository.countByTenantIdAndCreatedTimeAfterAndCreatedTimeBeforeAndRideStatus(1L, start, end, RideStatus.CANCELLED))
                 .thenReturn(2L);
-        when(rideRepository.sumFareByCreatedTimeAfterAndCreatedTimeBefore(start, end)).thenReturn(BigDecimal.valueOf(560.00));
-        when(userRepository.count()).thenReturn(42L);
-        when(userRepository.countByCreatedTimeAfterAndCreatedTimeBefore(start, end)).thenReturn(4L);
-        when(driverRepository.countByOnboardingStatus(DriverOnboardingStatus.PENDING)).thenReturn(6L);
+        when(rideRepository.sumFareByTenantIdAndCreatedTimeAfterAndCreatedTimeBefore(1L, start, end)).thenReturn(BigDecimal.valueOf(560.00));
+        when(userRepository.countByTenantId(1L)).thenReturn(42L);
+        when(userRepository.countByTenantIdAndCreatedTimeAfterAndCreatedTimeBefore(1L, start, end)).thenReturn(4L);
+        when(driverRepository.countByTenantIdAndOnboardingStatus(1L, DriverOnboardingStatus.PENDING)).thenReturn(6L);
 
         AdminStatsDto stats = adminService.getDailyStats(date);
 
@@ -118,8 +128,7 @@ class AdminServiceImplTest {
         assertThat(stats.getActiveDrivers()).isEqualTo(8L);
         assertThat(stats.getPendingDriverApprovals()).isEqualTo(6L);
 
-        verify(cacheService).cacheAvailableDriversCount(8L);
-        verify(driverRepository).countByAvailableTrue();
+        verify(driverRepository).countByTenantIdAndAvailableTrue(1L);
     }
 
     @Test
@@ -129,22 +138,21 @@ class AdminServiceImplTest {
         LocalDateTime start = date.atStartOfDay();
         LocalDateTime end = date.plusDays(1).atStartOfDay();
 
-        when(cacheService.getAvailableDriversCount()).thenReturn(9L);
-        when(rideRepository.countByCreatedTimeAfterAndCreatedTimeBefore(start, end)).thenReturn(5L);
-        when(rideRepository.countByCreatedTimeAfterAndCreatedTimeBeforeAndRideStatus(start, end, RideStatus.ENDED))
+        when(driverRepository.countByTenantIdAndAvailableTrue(1L)).thenReturn(9L);
+        when(rideRepository.countByTenantIdAndCreatedTimeAfterAndCreatedTimeBefore(1L, start, end)).thenReturn(5L);
+        when(rideRepository.countByTenantIdAndCreatedTimeAfterAndCreatedTimeBeforeAndRideStatus(1L, start, end, RideStatus.ENDED))
                 .thenReturn(3L);
-        when(rideRepository.countByCreatedTimeAfterAndCreatedTimeBeforeAndRideStatus(start, end, RideStatus.CANCELLED))
+        when(rideRepository.countByTenantIdAndCreatedTimeAfterAndCreatedTimeBeforeAndRideStatus(1L, start, end, RideStatus.CANCELLED))
                 .thenReturn(1L);
-        when(rideRepository.sumFareByCreatedTimeAfterAndCreatedTimeBefore(start, end)).thenReturn(BigDecimal.valueOf(120.00));
-        when(userRepository.count()).thenReturn(20L);
-        when(userRepository.countByCreatedTimeAfterAndCreatedTimeBefore(start, end)).thenReturn(2L);
-        when(driverRepository.countByOnboardingStatus(DriverOnboardingStatus.PENDING)).thenReturn(4L);
+        when(rideRepository.sumFareByTenantIdAndCreatedTimeAfterAndCreatedTimeBefore(1L, start, end)).thenReturn(BigDecimal.valueOf(120.00));
+        when(userRepository.countByTenantId(1L)).thenReturn(20L);
+        when(userRepository.countByTenantIdAndCreatedTimeAfterAndCreatedTimeBefore(1L, start, end)).thenReturn(2L);
+        when(driverRepository.countByTenantIdAndOnboardingStatus(1L, DriverOnboardingStatus.PENDING)).thenReturn(4L);
 
         AdminStatsDto stats = adminService.getDailyStats(date);
 
         assertThat(stats.getActiveDrivers()).isEqualTo(9L);
-        verify(cacheService, never()).cacheAvailableDriversCount(anyLong());
-        verify(driverRepository, never()).countByAvailableTrue();
+        verify(driverRepository).countByTenantIdAndAvailableTrue(1L);
     }
 
     @Test
@@ -158,21 +166,21 @@ class AdminServiceImplTest {
         LocalDateTime dayTwoStart = endDate.atStartOfDay();
         LocalDateTime dayTwoEnd = endDate.plusDays(1).atStartOfDay();
 
-        when(rideRepository.countByCreatedTimeAfterAndCreatedTimeBefore(dayOneStart, dayOneEnd))
+        when(rideRepository.countByTenantIdAndCreatedTimeAfterAndCreatedTimeBefore(1L, dayOneStart, dayOneEnd))
                 .thenReturn(6L);
-        when(rideRepository.countByCreatedTimeAfterAndCreatedTimeBeforeAndRideStatus(dayOneStart, dayOneEnd, RideStatus.ENDED))
+        when(rideRepository.countByTenantIdAndCreatedTimeAfterAndCreatedTimeBeforeAndRideStatus(1L, dayOneStart, dayOneEnd, RideStatus.ENDED))
                 .thenReturn(4L);
-        when(rideRepository.countByCreatedTimeAfterAndCreatedTimeBeforeAndRideStatus(dayOneStart, dayOneEnd, RideStatus.CANCELLED))
+        when(rideRepository.countByTenantIdAndCreatedTimeAfterAndCreatedTimeBeforeAndRideStatus(1L, dayOneStart, dayOneEnd, RideStatus.CANCELLED))
                 .thenReturn(1L);
-        when(rideRepository.sumFareByCreatedTimeAfterAndCreatedTimeBefore(dayOneStart, dayOneEnd)).thenReturn(BigDecimal.valueOf(180.00));
+        when(rideRepository.sumFareByTenantIdAndCreatedTimeAfterAndCreatedTimeBefore(1L, dayOneStart, dayOneEnd)).thenReturn(BigDecimal.valueOf(180.00));
 
-        when(rideRepository.countByCreatedTimeAfterAndCreatedTimeBefore(dayTwoStart, dayTwoEnd))
+        when(rideRepository.countByTenantIdAndCreatedTimeAfterAndCreatedTimeBefore(1L, dayTwoStart, dayTwoEnd))
                 .thenReturn(3L);
-        when(rideRepository.countByCreatedTimeAfterAndCreatedTimeBeforeAndRideStatus(dayTwoStart, dayTwoEnd, RideStatus.ENDED))
+        when(rideRepository.countByTenantIdAndCreatedTimeAfterAndCreatedTimeBeforeAndRideStatus(1L, dayTwoStart, dayTwoEnd, RideStatus.ENDED))
                 .thenReturn(2L);
-        when(rideRepository.countByCreatedTimeAfterAndCreatedTimeBeforeAndRideStatus(dayTwoStart, dayTwoEnd, RideStatus.CANCELLED))
+        when(rideRepository.countByTenantIdAndCreatedTimeAfterAndCreatedTimeBeforeAndRideStatus(1L, dayTwoStart, dayTwoEnd, RideStatus.CANCELLED))
                 .thenReturn(0L);
-        when(rideRepository.sumFareByCreatedTimeAfterAndCreatedTimeBefore(dayTwoStart, dayTwoEnd)).thenReturn(BigDecimal.valueOf(90.00));
+        when(rideRepository.sumFareByTenantIdAndCreatedTimeAfterAndCreatedTimeBefore(1L, dayTwoStart, dayTwoEnd)).thenReturn(BigDecimal.valueOf(90.00));
 
         List<RevenueReportDto> report = adminService.getRevenueReport(startDate, endDate);
 
@@ -211,7 +219,7 @@ class AdminServiceImplTest {
         PageRequest pageRequest = PageRequest.of(0, 10);
         driver.setOnboardingStatus(DriverOnboardingStatus.PENDING);
 
-        when(driverRepository.findByOnboardingStatusOrderByCreatedAtDesc(DriverOnboardingStatus.PENDING, pageRequest))
+        when(driverRepository.findByTenantIdAndOnboardingStatusOrderByCreatedAtDesc(1L, DriverOnboardingStatus.PENDING, pageRequest))
                 .thenReturn(new PageImpl<>(List.of(driver), pageRequest, 1));
 
         Page<PendingDriverDto> result = adminService.getPendingDrivers(pageRequest);
@@ -225,7 +233,7 @@ class AdminServiceImplTest {
             assertThat(dto.getVehicleId()).isEqualTo("KA01AB1234");
             assertThat(dto.getOnboardingStatus()).isEqualTo("PENDING");
         });
-        verify(driverRepository).findByOnboardingStatusOrderByCreatedAtDesc(DriverOnboardingStatus.PENDING, pageRequest);
+        verify(driverRepository).findByTenantIdAndOnboardingStatusOrderByCreatedAtDesc(1L, DriverOnboardingStatus.PENDING, pageRequest);
         verify(driverRepository, never()).findAll(pageRequest);
     }
 

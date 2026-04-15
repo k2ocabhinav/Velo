@@ -2,9 +2,9 @@
   "name": "@velo/admin",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3000",
+    "dev": "next dev -p 4101",
     "build": "next build",
-    "start": "node ../../scripts/start-standalone.mjs admin 3000",
+    "start": "node ../../scripts/start-standalone.mjs admin 4101",
     "lint": "eslint .",
     "test:unit": "vitest run --config vitest.config.mts",
     "typecheck": "tsc --noEmit"

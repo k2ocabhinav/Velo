@@ -11,6 +11,7 @@ public interface PromoCodeService {
     PromoCodeDto createPromoCode(PromoCodeDto promoCodeDto);
     PromoCodeDto updatePromoCode(Long id, PromoCodeDto promoCodeDto);
     PromoCodeDto deactivatePromoCode(Long id);
+    PromoCodeResultDto previewPromo(String code, User user, BigDecimal originalFare);
     PromoCodeResultDto validateAndApplyPromo(String code, User user, BigDecimal originalFare);
     List<PromoCodeDto> getActivePromoCodes();
     List<PromoCodeDto> getAllPromoCodes();

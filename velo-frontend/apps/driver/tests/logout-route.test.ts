@@ -10,9 +10,9 @@ describe("driver logout route", () => {
     const cookies = response.cookies.getAll();
     expect(cookies).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ name: "velo_token", value: "" }),
-        expect.objectContaining({ name: "velo_user_id", value: "" }),
-        expect.objectContaining({ name: "velo_role_hint", value: "" }),
+        expect.objectContaining({ name: "velo_driver_token", value: "" }),
+        expect.objectContaining({ name: "velo_driver_user_id", value: "" }),
+        expect.objectContaining({ name: "velo_driver_role_hint", value: "" }),
       ]),
     );
   });

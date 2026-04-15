@@ -42,6 +42,8 @@ import static com.velo.platform.entities.enums.Role.DRIVER;
 @Slf4j
 public class AuthServiceImpl implements AuthService {
 
+    private static final Long DEFAULT_TENANT_ID = 1L;
+
     private final UserRepository userRepository;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final ModelMapper modelMapper;
@@ -68,13 +70,15 @@ public class AuthServiceImpl implements AuthService {
         } else {
             role = Role.RIDER.name();
         }
-        String token = jwtTokenProvider.generateToken(user.getEmail(), user.getId(), role);
+        Long tenantId = user.getTenantId() == null ? DEFAULT_TENANT_ID : user.getTenantId();
+        String token = jwtTokenProvider.generateToken(user.getEmail(), user.getId(), role, tenantId);
 
         return AuthResponseDto.builder()
                 .token(token)
                 .userId(user.getId())
                 .email(user.getEmail())
                 .role(role)
+                .tenantId(tenantId)
                 .build();
     }
 
@@ -90,6 +94,7 @@ public class AuthServiceImpl implements AuthService {
         mappedUser.setPassword(passwordEncoder.encode(signupDto.getPassword()));
         mappedUser.setActive(true);
         mappedUser.setRoles(Set.of(Role.RIDER));
+        mappedUser.setTenantId(DEFAULT_TENANT_ID);
 
         String referralCode = generateReferralCode(signupDto.getName());
         mappedUser.setReferralCode(referralCode);
@@ -125,6 +130,7 @@ public class AuthServiceImpl implements AuthService {
 
         Driver createDriver = Driver.builder()
                 .user(user)
+                .tenantId(user.getTenantId() == null ? DEFAULT_TENANT_ID : user.getTenantId())
                 .rating(0.0)
                 .vehicleId(vehicleId)
                 .available(false)

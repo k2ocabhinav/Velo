@@ -2,6 +2,7 @@ package com.velo.platform.services;
 
 import com.velo.platform.dto.RideDto;
 import com.velo.platform.dto.RideRequestDto;
+import com.velo.platform.dto.admin.AdminCreateDispatchRequestDto;
 import com.velo.platform.dto.admin.AdminActiveRideDto;
 import com.velo.platform.dto.admin.AdminDispatchAuditDto;
 import com.velo.platform.dto.admin.AdminOpsHealthDto;
@@ -13,6 +14,8 @@ import org.springframework.data.domain.Pageable;
 import java.util.List;
 
 public interface AdminDispatchService {
+
+    RideRequestDto createDispatchRequest(AdminCreateDispatchRequestDto requestDto);
 
     Page<AdminPendingRideRequestDto> getPendingRideRequests(Pageable pageable);
 

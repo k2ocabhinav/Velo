@@ -5,6 +5,7 @@ import com.velo.platform.dto.DriverLocationDto;
 import com.velo.platform.dto.DriverLocationUpdateRequestDto;
 import com.velo.platform.dto.PointDto;
 import com.velo.platform.dto.RideDto;
+import com.velo.platform.dto.RideRequestDto;
 import com.velo.platform.dto.RiderDto;
 import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.Ride;
@@ -19,6 +20,7 @@ import com.velo.platform.events.RideStartedEvent;
 import com.velo.platform.exceptions.ResourceNotFoundException;
 import com.velo.platform.exceptions.RuntimeConflictException;
 import com.velo.platform.repositories.DriverRepository;
+import com.velo.platform.repositories.RideRequestRepository;
 import com.velo.platform.repositories.RideRepository;
 import com.velo.platform.security.UserPrincipal;
 import com.velo.platform.services.*;
@@ -43,6 +45,7 @@ public class DriverServiceImpl implements DriverService {
     private final RideRequestService rideRequestService;
     private final DriverRepository driverRepository;
     private final RideRepository rideRepository;
+    private final RideRequestRepository rideRequestRepository;
     private final RideService rideService;
     private final ModelMapper modelMapper;
     private final PaymentService paymentService;
@@ -57,29 +60,44 @@ public class DriverServiceImpl implements DriverService {
     public RideDto acceptRide(Long rideRequestId) {
         Driver currentDriver = getCurrentDriver();
         RideRequest rideRequest = rideRequestService.findRideRequestById(rideRequestId);
+        if (!resolveTenantId(rideRequest.getTenantId()).equals(resolveTenantId(currentDriver.getTenantId()))) {
+            throw new RuntimeConflictException("Cross-tenant ride request access is not allowed.");
+        }
 
         RideOffer acceptedOffer = null;
         if (rideOfferService.hasAnyOffer(rideRequestId)) {
             acceptedOffer = rideOfferService
                     .findAcceptableOffer(rideRequestId, currentDriver.getId())
-                    .orElseThrow(() -> new RuntimeConflictException("This ride request is no longer available."));
+                    .orElseThrow(() -> new RuntimeConflictException("This ride has already been assigned."));
         }
 
-        if(!rideRequest.getRideRequestStatus().equals(RideRequestStatus.PENDING)) {
+        if(!RideRequestStatus.PENDING.equals(rideRequest.getRideRequestStatus())) {
             if (acceptedOffer != null) {
                 rideOfferService.markRevoked(acceptedOffer, "Ride request is no longer pending.");
             }
-            throw new RuntimeConflictException("RideRequest cannot be accepted, status is "+ rideRequest.getRideRequestStatus());
+            throw new RuntimeConflictException("This ride has already been assigned or cancelled.");
         }
 
         if(!currentDriver.getAvailable()) {
             throw new RuntimeConflictException("Driver cannot accept ride due to unavailability");
         }
 
-        currentDriver.setAvailable(false);
-        Driver savedDriver = driverRepository.save(currentDriver);
-
         try {
+            int claimed = rideRequestRepository.compareAndSetStatus(
+                rideRequestId,
+                resolveTenantId(rideRequest.getTenantId()),
+                RideRequestStatus.PENDING,
+                RideRequestStatus.CONFIRMED
+            );
+            if (claimed == 0) {
+                if (acceptedOffer != null) {
+                    rideOfferService.markRevoked(acceptedOffer, "Ride accepted by another driver.");
+                }
+                throw new RuntimeConflictException("This ride has already been assigned.");
+            }
+
+            currentDriver.setAvailable(false);
+            Driver savedDriver = driverRepository.save(currentDriver);
             Ride ride = rideService.createNewRide(rideRequest, savedDriver);
             if (acceptedOffer != null) {
                 rideOfferService.markAccepted(acceptedOffer);
@@ -96,8 +114,28 @@ public class DriverServiceImpl implements DriverService {
             if (acceptedOffer != null) {
                 rideOfferService.markRevoked(acceptedOffer, "Ride accepted by another driver.");
             }
-            throw new RuntimeConflictException("This ride was already accepted by another driver.");
+            throw new RuntimeConflictException("This ride has already been assigned.");
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public RideRequestDto getRideRequestForAcceptance(Long rideRequestId) {
+        Driver currentDriver = getCurrentDriver();
+        RideRequest rideRequest = rideRequestService.findRideRequestById(rideRequestId);
+
+        if (!resolveTenantId(rideRequest.getTenantId()).equals(resolveTenantId(currentDriver.getTenantId()))) {
+            throw new RuntimeConflictException("Cross-tenant ride request access is not allowed.");
+        }
+        if (!RideRequestStatus.PENDING.equals(rideRequest.getRideRequestStatus())) {
+            throw new RuntimeConflictException("This ride has already been assigned or cancelled.");
+        }
+        if (rideOfferService.hasAnyOffer(rideRequestId) &&
+                rideOfferService.findAcceptableOffer(rideRequestId, currentDriver.getId()).isEmpty()) {
+            throw new RuntimeConflictException("This ride has already been assigned.");
+        }
+
+        return modelMapper.map(rideRequest, RideRequestDto.class);
     }
 
     @Override
@@ -106,6 +144,9 @@ public class DriverServiceImpl implements DriverService {
         Ride ride = rideService.getRideById(rideId);
 
         Driver driver = getCurrentDriver();
+        if (!resolveTenantId(ride.getTenantId()).equals(resolveTenantId(driver.getTenantId()))) {
+            throw new RuntimeConflictException("Cross-tenant ride access is not allowed.");
+        }
         if(!driver.equals(ride.getDriver())) {
             throw new RuntimeConflictException("Driver cannot start a ride as he has not accepted it earlier");
         }
@@ -127,6 +168,9 @@ public class DriverServiceImpl implements DriverService {
     public RideDto startRide(Long rideId, String otp) {
         Ride ride = rideService.getRideById(rideId);
         Driver driver = getCurrentDriver();
+        if (!resolveTenantId(ride.getTenantId()).equals(resolveTenantId(driver.getTenantId()))) {
+            throw new RuntimeConflictException("Cross-tenant ride access is not allowed.");
+        }
 
         if(!driver.equals(ride.getDriver())) {
             throw new RuntimeConflictException("Driver cannot start a ride as he has not accepted it earlier");
@@ -136,8 +180,8 @@ public class DriverServiceImpl implements DriverService {
             throw new RuntimeConflictException("Ride status is not CONFIRMED hence cannot be started, status: "+ride.getRideStatus());
         }
 
-        if(!otp.equals(ride.getOtp())) {
-            throw new RuntimeConflictException("Otp is not valid, otp: "+otp);
+        if (ride.getOtp() != null && !ride.getOtp().equals(otp == null ? null : otp.trim())) {
+            throw new RuntimeConflictException("Otp is not valid.");
         }
 
         ride.setStartedAt(LocalDateTime.now());
@@ -156,6 +200,9 @@ public class DriverServiceImpl implements DriverService {
     public RideDto endRide(Long rideId) {
         Ride ride = rideService.getRideById(rideId);
         Driver driver = getCurrentDriver();
+        if (!resolveTenantId(ride.getTenantId()).equals(resolveTenantId(driver.getTenantId()))) {
+            throw new RuntimeConflictException("Cross-tenant ride access is not allowed.");
+        }
 
         if(!driver.equals(ride.getDriver())) {
             throw new RuntimeConflictException("Driver cannot start a ride as he has not accepted it earlier");
@@ -169,12 +216,12 @@ public class DriverServiceImpl implements DriverService {
         Ride savedRide = rideService.updateRideStatus(ride, RideStatus.ENDED);
         updateDriverAvailability(driver, true);
 
-        paymentService.processPayment(ride);
+        paymentService.processPayment(savedRide);
 
         eventPublisher.publishEvent(new RideEndedEvent(this, savedRide));
 
         // Auto-create earning record for the driver
-        driverEarningsService.createEarningRecord(ride);
+        driverEarningsService.createEarningRecord(savedRide);
 
         return modelMapper.map(savedRide, RideDto.class);
     }
@@ -216,8 +263,11 @@ public class DriverServiceImpl implements DriverService {
     @Transactional(readOnly = true)
     public Driver getCurrentDriver() {
         UserPrincipal principal = (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        return driverRepository.findByUserId(principal.getUserId())
-                .orElseThrow(() -> new ResourceNotFoundException("Driver not found for user id " + principal.getUserId()));
+        return driverRepository.findByUserIdAndTenantId(principal.getUserId(), principal.getTenantId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Driver not found for user id " + principal.getUserId() +
+                        ". Please sign in with a driver account."
+                ));
     }
 
     @Override
@@ -253,6 +303,9 @@ public class DriverServiceImpl implements DriverService {
     @Override
     @Transactional
     public Driver createNewDriver(Driver driver) {
+        if (driver.getTenantId() == null && driver.getUser() != null) {
+            driver.setTenantId(driver.getUser().getTenantId() == null ? 1L : driver.getUser().getTenantId());
+        }
         return driverRepository.save(driver);
     }
 
@@ -293,6 +346,10 @@ public class DriverServiceImpl implements DriverService {
         update.setAccuracyM(locationUpdate.getAccuracyM());
         update.setCapturedAt(locationUpdate.getCapturedAt() == null ? LocalDateTime.now() : locationUpdate.getCapturedAt());
         return update;
+    }
+
+    private Long resolveTenantId(Long tenantId) {
+        return tenantId == null ? 1L : tenantId;
     }
 
 }

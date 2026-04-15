@@ -3,11 +3,16 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { performClientLogout } from "@velo/app-core/logout";
 import { NotificationsNavIndicator } from "../notifications/_components/nav-indicator";
+import { requestRiderProxy } from "../_lib/rider-client";
 
 const PUBLIC_ROUTES = ["/login", "/register"];
+
+type TenantBrandingResponse = {
+  brandName?: string;
+};
 
 function isPublicRoute(pathname: string): boolean {
   return PUBLIC_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`));
@@ -16,6 +21,39 @@ function isPublicRoute(pathname: string): boolean {
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname() ?? "/";
   const [loggingOut, setLoggingOut] = useState(false);
+  const [tenantBrandName, setTenantBrandName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isPublicRoute(pathname)) {
+      return;
+    }
+
+    let cancelled = false;
+    void requestRiderProxy<TenantBrandingResponse>("api/v1/tenant/branding")
+      .then((payload) => {
+        if (cancelled) {
+          return;
+        }
+        setTenantBrandName(typeof payload.brandName === "string" ? payload.brandName : null);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setTenantBrandName(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname]);
+
+  const platformBrand = useMemo(() => {
+    const normalized = tenantBrandName?.trim();
+    if (!normalized || normalized.toLowerCase() === "velo") {
+      return "VELO";
+    }
+    return `VELO | ${normalized}`;
+  }, [tenantBrandName]);
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -36,6 +74,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <header className="card">
         <div className="actions" style={{ justifyContent: "space-between", alignItems: "center" }}>
           <div className="actions">
+            <strong>{platformBrand}</strong>
             <Link href="/">Book</Link>
             <Link href="/ride/active">Active Trip</Link>
             <Link href="/rides">Rides</Link>

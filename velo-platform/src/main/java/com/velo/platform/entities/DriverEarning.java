@@ -22,6 +22,9 @@ public class DriverEarning {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    @Column(name = "tenant_id", nullable = false)
+    @Builder.Default
+    private Long tenantId = 1L;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(nullable = false)
@@ -47,6 +50,19 @@ public class DriverEarning {
 
     @Version
     private Long version;
+
+    @PrePersist
+    private void applyDefaults() {
+        if (tenantId == null && driver != null && driver.getTenantId() != null) {
+            tenantId = driver.getTenantId();
+        }
+        if (tenantId == null && ride != null && ride.getTenantId() != null) {
+            tenantId = ride.getTenantId();
+        }
+        if (tenantId == null) {
+            tenantId = 1L;
+        }
+    }
 
     @Override
     public boolean equals(Object o) {

@@ -5,7 +5,9 @@ const cookieAuthMiddleware = createCookieAuthMiddleware({
   publicPaths: ["/login", "/register"],
   protectedPaths: ["/", "/ride/active", "/rides", "/scheduled", "/wallet", "/promos", "/notifications"],
   redirectAuthenticatedPublicTo: "/",
-  requiredRoleHint: "RIDER"
+  requiredRoleHint: "RIDER",
+  tokenCookieName: "velo_rider_token",
+  roleCookieName: "velo_rider_role_hint"
 });
 
 export function middleware(request: NextRequest) {

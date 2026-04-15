@@ -32,6 +32,7 @@ public class WalletServiceImpl implements WalletService {
         wallet.setBalance(wallet.getBalance().add(amount));
 
         WalletTransaction walletTransaction = WalletTransaction.builder()
+                .tenantId(wallet.getTenantId())
                 .transactionId(transactionId)
                 .ride(ride)
                 .wallet(wallet)
@@ -54,6 +55,7 @@ public class WalletServiceImpl implements WalletService {
         wallet.setBalance(wallet.getBalance().subtract(amount));
 
         WalletTransaction walletTransaction = WalletTransaction.builder()
+                .tenantId(wallet.getTenantId())
                 .transactionId(transactionId)
                 .ride(ride)
                 .wallet(wallet)
@@ -80,6 +82,7 @@ public class WalletServiceImpl implements WalletService {
         wallet.setBalance(BigDecimal.ZERO);
 
         WalletTransaction walletTransaction = WalletTransaction.builder()
+                .tenantId(wallet.getTenantId())
                 .transactionId(java.util.UUID.randomUUID().toString())
                 .wallet(wallet)
                 .transactionType(TransactionType.DEBIT)
@@ -103,6 +106,7 @@ public class WalletServiceImpl implements WalletService {
     public Wallet createNewWallet(User user) {
         Wallet wallet = new Wallet();
         wallet.setUser(user);
+        wallet.setTenantId(user.getTenantId() == null ? 1L : user.getTenantId());
         return walletRepository.save(wallet);
     }
 

@@ -46,6 +46,12 @@ public class RiderController {
         return ResponseEntity.ok(riderService.cancelRide(rideId));
     }
 
+    @PostMapping("/endRide/{rideId}")
+    @Operation(summary = "Manually end an in-progress ride")
+    public ResponseEntity<RideDto> endRide(@PathVariable Long rideId) {
+        return ResponseEntity.ok(riderService.endRide(rideId));
+    }
+
     @PostMapping("/rateDriver")
     @Operation(summary = "Rate a driver after a ride")
     public ResponseEntity<DriverDto> rateDriver(@RequestBody RatingDto ratingDto) {

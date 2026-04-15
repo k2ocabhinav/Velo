@@ -11,6 +11,17 @@
 
 ---
 
+## 2026-04-15 Stabilization Snapshot
+- [x] Driver matching fallback includes online approved drivers without current location metadata (prevents silent no-offer cases in demo traffic)
+- [x] Rider/driver identity lookups hardened to tenant-scoped queries (`findByUserIdAndTenantId`)
+- [x] Service wiring hardened: removed partial constructor injection paths that could pass `null` runtime dependencies
+- [x] Earnings settlement made idempotent per ride and backfilled via Flyway `V5__backfill_missing_driver_earnings.sql`
+- [x] Canonical portal ports documented and aligned (`4100` landing, `4101` admin, `4102` requester, `4103` driver)
+- [x] Tenant defaulting fallback added at entity persist boundary for legacy/test setup compatibility (`Driver`, `Rider`, `Ride`, `RideRequest`, `RideOffer`, `Wallet`, `PaymentMethodEntity`, `DriverEarning`, `PayoutRequest`)
+- [x] Backend regression suite passing: `197` tests, `0` failures/errors
+- [x] Frontend unit + contract suites passing
+- [ ] Frontend Playwright e2e stabilization pending UI revamp (`17` current failures; selectors/flows need refresh)
+
 ## Backend (velo-platform/)
 
 ### Core (complete)

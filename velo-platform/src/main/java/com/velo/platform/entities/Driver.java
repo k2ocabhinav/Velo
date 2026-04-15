@@ -30,6 +30,9 @@ public class Driver {
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;
+    @Column(name = "tenant_id", nullable = false)
+    @Builder.Default
+    private Long tenantId = 1L;
 
     private String vehicleId;
     private Double rating;
@@ -47,6 +50,16 @@ public class Driver {
 
     @Version
     private Long version;
+
+    @PrePersist
+    private void applyDefaults() {
+        if (tenantId == null && user != null && user.getTenantId() != null) {
+            tenantId = user.getTenantId();
+        }
+        if (tenantId == null) {
+            tenantId = 1L;
+        }
+    }
 
     @Override
     public boolean equals(Object o) {

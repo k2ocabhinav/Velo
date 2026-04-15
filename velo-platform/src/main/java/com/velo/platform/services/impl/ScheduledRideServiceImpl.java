@@ -61,6 +61,7 @@ public class ScheduledRideServiceImpl implements ScheduledRideService {
 
         RideRequest rideRequest = modelMapper.map(rideRequestDto, RideRequest.class);
         rideRequest.setRider(rider);
+        rideRequest.setTenantId(rider.getTenantId());
         rideRequest.setRideRequestStatus(RideRequestStatus.SCHEDULED);
         rideRequest.setScheduledTime(scheduledTime);
 
@@ -204,6 +205,9 @@ public class ScheduledRideServiceImpl implements ScheduledRideService {
         if (!rider.equals(rideRequest.getRider())) {
             throw new RuntimeConflictException("You do not own this ride request");
         }
+        if (!resolveTenantId(rider.getTenantId()).equals(resolveTenantId(rideRequest.getTenantId()))) {
+            throw new RuntimeConflictException("Cross-tenant ride request access is not allowed.");
+        }
 
         if (rideRequest.getRideRequestStatus() != RideRequestStatus.SCHEDULED) {
             throw new RuntimeConflictException(
@@ -218,5 +222,9 @@ public class ScheduledRideServiceImpl implements ScheduledRideService {
         ScheduledRideDto dto = modelMapper.map(rideRequest, ScheduledRideDto.class);
         dto.setStatus(rideRequest.getRideRequestStatus());
         return dto;
+    }
+
+    private Long resolveTenantId(Long tenantId) {
+        return tenantId == null ? 1L : tenantId;
     }
 }

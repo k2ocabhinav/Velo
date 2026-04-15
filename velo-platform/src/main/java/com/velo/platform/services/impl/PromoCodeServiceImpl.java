@@ -79,8 +79,18 @@ public class PromoCodeServiceImpl implements PromoCodeService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public PromoCodeResultDto previewPromo(String code, User user, BigDecimal originalFare) {
+        return evaluatePromo(code, user, originalFare, false);
+    }
+
+    @Override
     @Transactional
     public PromoCodeResultDto validateAndApplyPromo(String code, User user, BigDecimal originalFare) {
+        return evaluatePromo(code, user, originalFare, true);
+    }
+
+    private PromoCodeResultDto evaluatePromo(String code, User user, BigDecimal originalFare, boolean persistUsage) {
         if (code == null || code.trim().isEmpty()) {
             return PromoCodeResultDto.builder().valid(false).message("No promo code provided").build();
         }
@@ -128,27 +138,28 @@ public class PromoCodeServiceImpl implements PromoCodeService {
 
         BigDecimal discountedFare = originalFare.subtract(discountAmount);
 
-        // Record usage
-        PromoCodeUsage usage = PromoCodeUsage.builder()
-                .promoCode(promoCode)
-                .user(user)
-                .discountApplied(discountAmount)
-                .usedAt(LocalDateTime.now())
-                .build();
-        promoCodeUsageRepository.save(usage);
+        if (persistUsage) {
+            PromoCodeUsage usage = PromoCodeUsage.builder()
+                    .tenantId(user.getTenantId() == null ? 1L : user.getTenantId())
+                    .promoCode(promoCode)
+                    .user(user)
+                    .discountApplied(discountAmount)
+                    .usedAt(LocalDateTime.now())
+                    .build();
+            promoCodeUsageRepository.save(usage);
 
-        // Increment current uses
-        promoCode.setCurrentUses(promoCode.getCurrentUses() + 1);
-        promoCodeRepository.save(promoCode);
+            promoCode.setCurrentUses(promoCode.getCurrentUses() + 1);
+            promoCodeRepository.save(promoCode);
 
-        log.info("Applied promo code {} for user {}, discount: {}", code, user.getId(), discountAmount);
+            log.info("Applied promo code {} for user {}, discount: {}", code, user.getId(), discountAmount);
+        }
 
         return PromoCodeResultDto.builder()
                 .valid(true)
                 .discountAmount(discountAmount)
                 .originalFare(originalFare)
                 .discountedFare(discountedFare)
-                .message("Promo code applied successfully")
+                .message(persistUsage ? "Promo code applied successfully" : "Promo code is valid")
                 .build();
     }
 

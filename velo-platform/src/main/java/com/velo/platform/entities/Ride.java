@@ -27,6 +27,9 @@ public class Ride{
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    @Column(name = "tenant_id", nullable = false)
+    @Builder.Default
+    private Long tenantId = 1L;
 
     @Column(columnDefinition = "Geometry(Point, 4326)")
     private Point pickupLocation;
@@ -65,6 +68,19 @@ public class Ride{
 
     @Version
     private Long version;
+
+    @PrePersist
+    private void applyDefaults() {
+        if (tenantId == null && rider != null && rider.getTenantId() != null) {
+            tenantId = rider.getTenantId();
+        }
+        if (tenantId == null && driver != null && driver.getTenantId() != null) {
+            tenantId = driver.getTenantId();
+        }
+        if (tenantId == null) {
+            tenantId = 1L;
+        }
+    }
 
     @Override
     public boolean equals(Object o) {

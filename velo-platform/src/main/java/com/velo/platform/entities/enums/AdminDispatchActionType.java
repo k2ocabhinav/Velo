@@ -1,6 +1,7 @@
 package com.velo.platform.entities.enums;
 
 public enum AdminDispatchActionType {
+    CREATE_REQUEST,
     ASSIGN_REQUEST,
     REASSIGN_RIDE,
     FORCE_CANCEL_REQUEST,

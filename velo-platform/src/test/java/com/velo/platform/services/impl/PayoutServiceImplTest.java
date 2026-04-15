@@ -74,7 +74,7 @@ class PayoutServiceImplTest {
         when(securityContext.getAuthentication()).thenReturn(authentication);
         SecurityContextHolder.setContext(securityContext);
 
-        when(driverRepository.findByUserId(101L)).thenReturn(Optional.of(driver));
+        when(driverRepository.findByUserIdAndTenantId(101L, 1L)).thenReturn(Optional.of(driver));
     }
 
     @Test

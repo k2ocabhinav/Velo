@@ -9,19 +9,33 @@ function toNumber(value: string): number | null {
 }
 
 export function mapApiError(payload: unknown, fallback: string): string {
+  const normalizeConflict = (message: string): string => {
+    const lower = message.toLowerCase();
+    if (lower.includes("driver not found for user id")) {
+      return "No driver profile is linked to this session. Please sign out and sign back into the Driver portal.";
+    }
+    if (lower.includes("already been assigned") || lower.includes("already accepted")) {
+      return "This ride has already been assigned to another driver.";
+    }
+    if (lower.includes("cancelled")) {
+      return "This ride request was cancelled.";
+    }
+    return message;
+  };
+
   if (payload && typeof payload === "object") {
     const record = payload as Record<string, unknown>;
     if (typeof record.error === "string" && record.error.trim()) {
-      return record.error;
+      return normalizeConflict(record.error);
     }
     if (record.error && typeof record.error === "object") {
       const nested = record.error as Record<string, unknown>;
       if (typeof nested.message === "string" && nested.message.trim()) {
-        return nested.message;
+        return normalizeConflict(nested.message);
       }
     }
     if (typeof record.message === "string" && record.message.trim()) {
-      return record.message;
+      return normalizeConflict(record.message);
     }
   }
 
@@ -79,12 +93,21 @@ export function validatePayoutAmount(
   return { ok: true, value: amount };
 }
 
-export function canSubmitStartRide(rideStatus: string | null | undefined, otp: string, pending: boolean): boolean {
+export function canSubmitStartRide(
+  rideStatus: string | null | undefined,
+  otp: string,
+  pending: boolean,
+  otpRequired = true,
+): boolean {
   if (pending) {
     return false;
   }
   if (rideStatus !== "CONFIRMED") {
     return false;
+  }
+
+  if (!otpRequired) {
+    return true;
   }
 
   return validateOtpInput(otp).ok;

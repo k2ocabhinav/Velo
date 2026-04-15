@@ -153,6 +153,13 @@ a {
   margin: 0;
 }
 
+.incoming-map-preview {
+  width: 260px;
+  height: 140px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -291,5 +298,9 @@ a {
 
   .driver-ride-map-inner {
     min-height: 240px;
+  }
+
+  .incoming-map-preview {
+    width: 100%;
   }
 }

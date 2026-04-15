@@ -20,34 +20,56 @@ psql -U postgres -c "CREATE EXTENSION IF NOT EXISTS postgis;"
 psql -U postgres -d testpostgres -c "CREATE EXTENSION IF NOT EXISTS postgis;"
 ```
 - User: `postgres`, Password: `user`
-- DDL mode: `create-drop` (schema auto-created on boot)
-- `data.sql` seeds sample data on startup
+- DDL mode: `validate` (Flyway migrations manage schema changes)
+- Seed data: `db/migration/V2__seed_demo_data.sql`
 
 ### Run Backend
 ```bash
 cd velo-platform
+# If needed in this shell:
+# export JAVA_HOME=/Users/<you>/.sdkman/candidates/java/22.0.2-tem
 ./mvnw spring-boot:run
 # API: http://localhost:8080
 # Swagger: http://localhost:8080/swagger-ui/index.html
 # OpenAPI spec: http://localhost:8080/v3/api-docs
 ```
 
+Flyway migrations are applied at startup. Current expected local schema version includes:
+- `V3__tenant_branding_and_isolation.sql`
+- `V4__admin_dispatch_merchant_mode.sql`
+- `V5__backfill_missing_driver_earnings.sql`
+
 ### Run Frontend
 ```bash
 cd velo-frontend
 npm install
 npm run dev
-# Admin: http://localhost:3000
-# Rider: http://localhost:3001
-# Driver: http://localhost:3002
+# Landing: http://localhost:4100
+# Admin: http://localhost:4101
+# Requester: http://localhost:4102
+# Driver: http://localhost:4103
 ```
 
 ### Run Tests
 ```bash
 cd velo-platform
-./mvnw test            # All 158 tests
+./mvnw test
 ./mvnw clean install   # Full build + tests
+
+cd ../velo-frontend
+npm run lint
+npm run typecheck
+npm run test:unit
+npm run test:contracts
+# Optional:
+# npx playwright install --with-deps
+# npm run test:e2e
 ```
+
+Current validation status (April 15, 2026):
+- Backend Maven suite is green (`197` tests passing).
+- Frontend unit + contract suites are green.
+- Frontend Playwright e2e currently reports `17` failures and needs selector/flow refresh alongside active UI revamp work.
 
 ### Docker Compose (Optional)
 For portable local dev without installing PostgreSQL/Redis natively. On Apple Silicon, prefer the repo's `docker/postgis` build to avoid running PostGIS images via amd64 emulation.
@@ -166,9 +188,9 @@ JWT_SECRET_KEY=<from-secrets-manager>
 
 | Setting | Local | Production |
 |---|---|---|
-| `ddl-auto` | `create-drop` | `validate` |
-| `sql.init.mode` | `always` | `never` |
-| `data.sql` | Runs (seeds data) | Skipped |
+| `ddl-auto` | `validate` | `validate` |
+| `sql.init.mode` | `never` | `never` |
+| Flyway migrations | Runs | Runs |
 | Database | localhost:5432 | RDS endpoint |
 | Redis | localhost:6379 | ElastiCache |
 | CORS origins | `http://localhost:*` | `https://*.velo.app` |

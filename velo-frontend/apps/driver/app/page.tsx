@@ -10,6 +10,7 @@ import {
   toRelativeTimestamp,
   type DriverNotification,
   type DriverProfile,
+  type DriverRideRequestPreview,
   type DriverRide,
   type SpringPage,
 } from "./_lib/driver-client";
@@ -60,6 +61,51 @@ function getRideRequestId(notification: DriverNotification): number | null {
   return typeof notification.referenceId === "number" ? notification.referenceId : null;
 }
 
+function getIncomingCardContent(
+  notification: DriverNotification,
+  tripLabel: string,
+): Readonly<{ title: string; message: string }> {
+  const tripNoun = tripLabel.toLowerCase();
+  if (notification.type === "RIDE_DISPATCHED") {
+    return {
+      title: `${tripLabel} Request Received`,
+      message: `A scheduled ${tripNoun} request is ready for your response.`,
+    };
+  }
+
+  return {
+    title: `${tripLabel} Request Received`,
+    message: `A ${tripNoun} request is waiting for your response.`,
+  };
+}
+
+function toMapPoint(point: DriverRideRequestPreview["pickupLocation"]): { lat: number; lng: number } | null {
+  if (!point || !Array.isArray(point.coordinates) || point.coordinates.length < 2) {
+    return null;
+  }
+  const lng = Number(point.coordinates[0]);
+  const lat = Number(point.coordinates[1]);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return null;
+  }
+  return { lat, lng };
+}
+
+function buildPickupPreviewUrl(point: { lat: number; lng: number }): string {
+  const delta = 0.0125;
+  const left = point.lng - delta;
+  const right = point.lng + delta;
+  const top = point.lat + delta;
+  const bottom = point.lat - delta;
+  return `https://www.openstreetmap.org/export/embed.html?bbox=${left}%2C${bottom}%2C${right}%2C${top}&layer=mapnik&marker=${point.lat}%2C${point.lng}`;
+}
+
+type TenantBranding = {
+  riderLabel?: string;
+  driverLabel?: string;
+  tripLabel?: string;
+};
+
 export default function DriverHomePage() {
   const router = useRouter();
 
@@ -68,6 +114,7 @@ export default function DriverHomePage() {
   const [togglingAvailability, setTogglingAvailability] = useState(false);
 
   const [incoming, setIncoming] = useState<DriverNotification[]>([]);
+  const [rideRequestPreviews, setRideRequestPreviews] = useState<Record<number, DriverRideRequestPreview | null>>({});
   const [loadingIncoming, setLoadingIncoming] = useState(true);
   const [refreshingIncoming, setRefreshingIncoming] = useState(false);
   const [activeRide, setActiveRide] = useState<DriverRide | null>(null);
@@ -81,6 +128,11 @@ export default function DriverHomePage() {
 
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [branding, setBranding] = useState<TenantBranding | null>(null);
+
+  const riderLabel = branding?.riderLabel ?? "Rider";
+  const driverLabel = branding?.driverLabel ?? "Driver";
+  const tripLabel = branding?.tripLabel ?? "Trip";
 
   const loadProfile = useCallback(async () => {
     try {
@@ -105,7 +157,27 @@ export default function DriverHomePage() {
       const page = await requestDriverProxy<SpringPage<DriverNotification>>("notifications?page=0&size=25");
       const items = Array.isArray(page.content) ? page.content : [];
       const filtered = items.filter((item) => isIncomingRideType(item.type) && !item.read);
-      setIncoming(filtered);
+      const previewUpdates: Record<number, DriverRideRequestPreview> = {};
+      const actionable: DriverNotification[] = [];
+
+      await Promise.all(
+        filtered.map(async (item) => {
+          const requestId = getRideRequestId(item);
+          if (!requestId) {
+            return;
+          }
+          try {
+            const preview = await requestDriverProxy<DriverRideRequestPreview>(`drivers/ride-requests/${requestId}`);
+            previewUpdates[requestId] = preview;
+            actionable.push(item);
+          } catch {
+            // Ignore non-actionable or stale notifications.
+          }
+        }),
+      );
+
+      setRideRequestPreviews((current) => ({ ...current, ...previewUpdates }));
+      setIncoming(actionable);
     } catch (incomingError) {
       setError(incomingError instanceof Error ? incomingError.message : "Unable to load incoming requests.");
     } finally {
@@ -141,6 +213,9 @@ export default function DriverHomePage() {
     void loadProfile();
     void loadIncoming();
     void loadActiveRide();
+    void requestDriverProxy<TenantBranding>("api/v1/tenant/branding")
+      .then((payload) => setBranding(payload))
+      .catch(() => setBranding(null));
   }, [loadProfile, loadIncoming, loadActiveRide]);
 
   useEffect(() => {
@@ -168,12 +243,20 @@ export default function DriverHomePage() {
     (event: DriverNotificationEvent) => {
       const normalized = toIncomingNotification(event);
       if (normalized && !normalized.read) {
-        setIncoming((current) => {
-          if (current.some((item) => item.id === normalized.id)) {
-            return current;
-          }
-          return [normalized, ...current];
-        });
+        const requestId = getRideRequestId(normalized);
+        if (requestId) {
+          void requestDriverProxy<DriverRideRequestPreview>(`drivers/ride-requests/${requestId}`)
+            .then((preview) => {
+              setRideRequestPreviews((current) => ({ ...current, [requestId]: preview }));
+              setIncoming((current) => {
+                if (current.some((item) => item.id === normalized.id)) {
+                  return current;
+                }
+                return [normalized, ...current];
+              });
+            })
+            .catch(() => undefined);
+        }
       }
 
       if (event.type?.toUpperCase().startsWith("RIDE_")) {
@@ -252,11 +335,14 @@ export default function DriverHomePage() {
       setActiveRide(ride);
       router.push(`/ride/${ride.id}`);
     } catch (acceptError) {
-      setError(
+      const nextMessage =
         acceptError instanceof Error
           ? mapApiError({ error: acceptError.message }, "Unable to accept this ride request.")
-          : "Unable to accept this ride request.",
-      );
+          : "Unable to accept this ride request.";
+      setError(nextMessage);
+      if (nextMessage.toLowerCase().includes("already been assigned") || nextMessage.toLowerCase().includes("cancelled")) {
+        setIncoming((current) => current.filter((item) => item.id !== notification.id));
+      }
     } finally {
       setAcceptingRequestId(null);
       setPendingActions((current) => setActionPending(current, actionKey, false));
@@ -291,9 +377,9 @@ export default function DriverHomePage() {
   return (
     <main className="stack">
       <section className="hero">
-        <p className="badge">Driver Home</p>
-        <h1>Stay available and respond to rides quickly</h1>
-        <p>Use this screen to manage your availability, incoming ride requests, and active ride transitions.</p>
+        <p className="badge">{driverLabel} Home</p>
+        <h1>Stay available and respond to {tripLabel.toLowerCase()} requests quickly</h1>
+        <p>Use this screen to manage availability, incoming requests, and active {tripLabel.toLowerCase()} transitions.</p>
       </section>
 
       <section className="card stack">
@@ -329,7 +415,7 @@ export default function DriverHomePage() {
       <section className="card stack">
         <div className="split-row">
           <div className="stack compact">
-            <strong>Incoming ride requests</strong>
+            <strong>Incoming {tripLabel.toLowerCase()} requests</strong>
             <p className="helper">Unread incoming requests: {queuedRequestCount}</p>
             <p className={realtime.state === "error" ? "error-text" : "helper"}>
               {getDriverRealtimeStatusText(realtime.state, realtime.reconnectAttempts)}
@@ -348,7 +434,7 @@ export default function DriverHomePage() {
 
         {loadingIncoming ? <p className="helper">Loading incoming requests...</p> : null}
         {!loadingIncoming && incoming.length === 0 ? (
-          <p className="helper">No incoming ride requests right now.</p>
+          <p className="helper">No incoming {tripLabel.toLowerCase()} requests right now.</p>
         ) : null}
 
         {!loadingIncoming && incoming.length > 0 ? (
@@ -356,14 +442,32 @@ export default function DriverHomePage() {
             {incoming.map((notification) => {
               const requestId = getRideRequestId(notification);
               const busy = requestId !== null && acceptingRequestId === requestId;
+              const preview = requestId !== null ? rideRequestPreviews[requestId] : null;
+              const pickup = toMapPoint(preview?.pickupLocation);
+              const cardContent = getIncomingCardContent(notification, tripLabel);
               return (
                 <article className="list-item" key={notification.id}>
                   <div className="stack compact">
-                    <strong>{notification.title}</strong>
-                    <p>{notification.message}</p>
+                    <strong>{cardContent.title}</strong>
+                    <p>{cardContent.message}</p>
                     <p className="helper">
                       Request #{requestId ?? "--"} • {toRelativeTimestamp(notification.createdTime)}
                     </p>
+                    {pickup ? (
+                      <div className="stack compact">
+                        <p className="helper">
+                          Pickup: {pickup.lat.toFixed(5)}, {pickup.lng.toFixed(5)}
+                        </p>
+                        <iframe
+                          title={`Pickup map preview ${requestId ?? "unknown"}`}
+                          className="incoming-map-preview"
+                          src={buildPickupPreviewUrl(pickup)}
+                          loading="lazy"
+                        />
+                      </div>
+                    ) : (
+                      <p className="helper">Pickup preview loading…</p>
+                    )}
                   </div>
                   <div className="actions">
                     <button
@@ -420,7 +524,7 @@ export default function DriverHomePage() {
                 {getDriverRideStatusLabel(activeRide.rideStatus)} • {getDriverRideTimeLabel(activeRide)}
               </p>
               <p className="helper">
-                Rider: {activeRide.rider?.user?.name ?? activeRide.rider?.user?.email ?? "Assigned rider"}
+                {riderLabel}: {activeRide.rider?.user?.name ?? activeRide.rider?.user?.email ?? `Assigned ${riderLabel.toLowerCase()}`}
               </p>
             </div>
             <div className="stack compact" style={{ justifyItems: "end" }}>

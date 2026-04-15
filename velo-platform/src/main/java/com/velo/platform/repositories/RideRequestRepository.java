@@ -6,6 +6,7 @@ import com.velo.platform.entities.enums.RideRequestStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -29,6 +30,12 @@ public interface RideRequestRepository extends JpaRepository<RideRequest, Long> 
     Page<RideRequest> findByRideRequestStatusOrderByRequestedTimeDesc(
             RideRequestStatus status, Pageable pageable);
 
+    Page<RideRequest> findByTenantIdAndRideRequestStatusOrderByRequestedTimeDesc(
+            Long tenantId,
+            RideRequestStatus status,
+            Pageable pageable
+    );
+
     @Query("SELECT r FROM RideRequest r WHERE r.rideRequestStatus = :status " +
             "AND r.scheduledTime <= :dispatchBefore ORDER BY r.scheduledTime ASC")
     List<RideRequest> findDueScheduledRides(
@@ -38,5 +45,27 @@ public interface RideRequestRepository extends JpaRepository<RideRequest, Long> 
     Optional<RideRequest> findTopByRiderAndRideRequestStatusInOrderByRequestedTimeDesc(
             Rider rider,
             List<RideRequestStatus> statuses
+    );
+
+    Optional<RideRequest> findTopByRiderAndRideRequestStatusOrderByRequestedTimeDesc(
+            Rider rider,
+            RideRequestStatus status
+    );
+
+    long countByTenantIdAndRideRequestStatus(Long tenantId, RideRequestStatus rideRequestStatus);
+
+    @Modifying(flushAutomatically = true)
+    @Query("""
+            update RideRequest r
+            set r.rideRequestStatus = :nextStatus
+            where r.id = :rideRequestId
+              and r.tenantId = :tenantId
+              and r.rideRequestStatus = :expectedStatus
+            """)
+    int compareAndSetStatus(
+            @Param("rideRequestId") Long rideRequestId,
+            @Param("tenantId") Long tenantId,
+            @Param("expectedStatus") RideRequestStatus expectedStatus,
+            @Param("nextStatus") RideRequestStatus nextStatus
     );
 }
