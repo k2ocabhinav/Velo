@@ -1,100 +1,74 @@
-# Velo Platform
+# Velo
 
-Backend for a white-label dispatch platform built with Spring Boot 3.5.13, Java 22, PostgreSQL/PostGIS, Redis-backed caching, JWT authentication, and OpenAPI documentation.
+> **A full-stack dispatch platform for real-time urban mobility.**
+>
+> Velo brings rider, driver, and operations workflows into one cohesive system with live ride state, geospatial dispatch, and production-style backend architecture.
 
-## Project Layout
+## What It Delivers
 
-- `velo-platform/` - Maven project root and application source
-- `docs/` - internal planning and project history
+- End-to-end ride lifecycle: request, match, accept, start, complete
+- Dedicated product surfaces for Rider, Driver, Admin, and public web
+- Real-time trip updates through WebSocket events
+- Multi-tenant-ready backend with geospatial queries and strategy-based pricing
 
-## Prerequisites
+## Product Surfaces
 
-- Java 22
-- PostgreSQL with PostGIS available
-- Local runtime database: `postgres`
-- Local test database: `testpostgres`
-- Database user: `postgres`
-- Database password: `user`
-- Optional Redis instance on `localhost:6379`
+| Surface | Primary Use |
+|---|---|
+| Landing App | Public product/brand entry point |
+| Rider App | Booking, tracking, wallet, promos, notifications |
+| Driver App | Onboarding, ride acceptance, live trip progress, earnings |
+| Admin App | Dispatch operations, scheduled rides, users/drivers, revenue views |
 
-The application and tests attempt `CREATE EXTENSION IF NOT EXISTS postgis` on startup. If the database user cannot create extensions, install PostGIS ahead of time.
+## System Architecture
 
-## Local Setup
+```mermaid
+graph TD
+    A["Landing App (Next.js :4100)"] --> G["Backend API (Spring Boot :8080)"]
+    B["Admin App (Next.js :4101)"] --> G
+    C["Rider App (Next.js :4102)"] --> G
+    D["Driver App (Next.js :4103)"] --> G
 
-1. Start PostgreSQL and ensure both `postgres` and `testpostgres` exist.
-2. Optionally start Redis:
+    C --> H["Realtime Gateway (STOMP/WebSocket)"]
+    D --> H
+    H --> G
 
-```bash
-cd velo-platform
-docker compose up -d redis
+    G --> E[("PostgreSQL + PostGIS")]
+    G --> F[("Redis Cache")]
 ```
 
-3. Build or run the application:
+## Tech Stack
+
+- Backend: Java 22, Spring Boot, Spring Security, Flyway
+- Frontend: Next.js, TypeScript, Turborepo
+- Data Layer: PostgreSQL + PostGIS, Redis
+- Interface Contracts: REST + OpenAPI (Swagger)
+- Realtime Transport: STOMP/WebSocket
+
+## Repository Layout
+
+- `velo-platform/` - backend services, domain model, API, realtime layer
+- `velo-frontend/` - monorepo with `landing`, `admin`, `rider`, and `driver` apps
+- `docker/` - local infrastructure setup
+- `docs/` - project documentation
+
+## Quick Start
 
 ```bash
+# Backend
 cd velo-platform
-./mvnw clean install
 ./mvnw spring-boot:run
-```
 
-4. Open the API docs:
-   - `http://localhost:8080/swagger-ui/index.html`
-   - `http://localhost:8080/swagger-ui.html`
-
-## Frontend Port Map
-
-- Landing portal: `http://localhost:4100`
-- Admin portal: `http://localhost:4101`
-- Requester portal: `http://localhost:4102`
-- Driver portal: `http://localhost:4103`
-
-## Running Tests
-
-Backend:
-
-```bash
-cd velo-platform
-./mvnw test
-```
-
-Frontend:
-
-```bash
+# Frontend (new terminal)
 cd velo-frontend
-npm run lint
-npm run typecheck
-npm run test:unit
-npm run test:contracts
+npm install
+npm run dev
 ```
 
-Optional E2E:
+Local endpoints:
 
-```bash
-cd velo-frontend
-npx playwright install --with-deps
-npm run test:e2e
-```
-
-Validation snapshot (April 15, 2026):
-- `velo-platform`: `./mvnw test` -> passing (`197` tests, `0` failures/errors).
-- `velo-frontend`: `npm run test:unit` + `npm run test:contracts` -> passing.
-- `velo-frontend`: `npm run test` currently fails in Playwright e2e (`17` failures) while UI flows/selectors are being revamped.
-
-## Latest Reliability Updates (April 15, 2026)
-
-- Enforced full constructor dependency injection for critical services (`RiderServiceImpl`, `DriverServiceImpl`, `FareEstimationServiceImpl`) so runtime does not silently execute degraded `null` dependency paths.
-- Kept ride acceptance race-safe through DB compare-and-set as the single claim path.
-- Made driver earnings settlement idempotent per ride to prevent duplicates under concurrent end-trip calls.
-- Added Flyway migration `V5__backfill_missing_driver_earnings.sql` to restore missing earnings entries for already completed rides.
-- Maintained tenant-scoped rider/driver resolution (`findByUserIdAndTenantId`) for isolation-safe identity lookups.
-
-## Included Capabilities
-
-- Rider, driver, auth, wallet, payment, rating, and ride lifecycle flows
-- JWT-based login and stateless Spring Security
-- Strategy-based fare calculation and driver matching
-- PostGIS-backed geospatial queries for nearby driver selection
-- OSRM distance integration for fare calculation
-- Admin analytics, pending driver approval, and revenue reporting
-- Actuator health indicators and Redis cache support
-- Unit, strategy, service, and controller integration tests
+- Landing: `http://localhost:4100`
+- Admin: `http://localhost:4101`
+- Rider: `http://localhost:4102`
+- Driver: `http://localhost:4103`
+- API + Swagger: `http://localhost:8080/swagger-ui/index.html`
