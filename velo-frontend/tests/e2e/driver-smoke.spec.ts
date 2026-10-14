@@ -47,6 +47,21 @@ test("driver app redirects unauthenticated visitors to login", async ({ page }) 
   expect(currentUrl.pathname).toBe("/login");
   expect(currentUrl.searchParams.get("next")).toBe("/");
   await expect(page.getByRole("heading", { name: /sign in/i })).toBeVisible();
+  await expect(page.getByLabel("Email")).toBeVisible();
+  await expect(page.getByLabel("Password")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
+});
+
+test("driver registration exposes labelled account and vehicle fields", async ({ page }) => {
+  await page.goto("/register");
+
+  await expect(page.getByRole("heading", { name: "Apply to drive" })).toBeVisible();
+  await expect(page.getByLabel("Full name")).toBeVisible();
+  await expect(page.getByLabel("Email")).toBeVisible();
+  await expect(page.getByLabel("Password")).toBeVisible();
+  await expect(page.getByLabel("Vehicle ID")).toBeVisible();
+  await expect(page.getByLabel("Referral code (optional)")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Submit application", exact: true })).toBeVisible();
 });
 
 test("driver logout clears ws session token and blocks protected routes", async ({ baseURL, context, page }) => {

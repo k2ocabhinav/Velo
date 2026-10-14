@@ -2,6 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useState } from "react";
+import { Field, PasswordField } from "@velo/ui/composed";
 import { useRouter } from "next/navigation";
 
 export function LoginForm({ nextPath }: Readonly<{ nextPath: string }>) {
@@ -30,14 +31,14 @@ export function LoginForm({ nextPath }: Readonly<{ nextPath: string }>) {
       const payload = await response.json().catch(() => null);
 
       if (!response.ok) {
-        setError(payload?.error ?? "Unable to sign in.");
+        setError(payload?.error ?? "Couldn't sign in. Check your email and password.");
         return;
       }
 
       router.replace(nextPath);
       router.refresh();
     } catch {
-      setError("Unable to sign in right now.");
+      setError("Couldn't reach the server. Try again in a moment.");
     } finally {
       setPending(false);
     }
@@ -45,15 +46,11 @@ export function LoginForm({ nextPath }: Readonly<{ nextPath: string }>) {
 
   return (
     <form className="stack" onSubmit={handleSubmit}>
-      <label className="field">
-        <span>Email</span>
-        <input name="email" type="email" autoComplete="email" required />
-      </label>
-      <label className="field">
-        <span>Password</span>
-        <input name="password" type="password" autoComplete="current-password" required />
-      </label>
-      {error ? <p className="error-text">{error}</p> : null}
+      <Field label="Email">
+        <input name="email" type="email" autoComplete="email" required className="ui-control" />
+      </Field>
+      <PasswordField name="password" autoComplete="current-password" required />
+      {error ? <p className="error-text" role="alert">{error}</p> : null}
       <button className="primary-button" type="submit" disabled={pending}>
         {pending ? "Signing in..." : "Sign in"}
       </button>
