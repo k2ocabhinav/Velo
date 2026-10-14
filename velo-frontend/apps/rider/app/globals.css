@@ -671,6 +671,59 @@
   width: fit-content;
 }
 
+.wallet-transaction-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wallet-transaction-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-width: 0;
+  padding-block: var(--space-4);
+  border-bottom: 1px solid hsl(var(--color-border));
+}
+
+.wallet-transaction-row:last-child {
+  border-bottom: 0;
+}
+
+.wallet-transaction-details {
+  min-width: 0;
+}
+
+.wallet-transaction-details > strong,
+.wallet-transaction-details > p {
+  display: block;
+  margin: 0;
+}
+
+.wallet-transaction-details .helper {
+  margin-block-start: var(--space-1);
+}
+
+.wallet-transaction-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-block-start: var(--space-4);
+}
+
+@media (max-width: 640px) {
+  .wallet-transaction-row {
+    align-items: flex-start;
+  }
+
+  .wallet-transaction-row > .money {
+    white-space: nowrap;
+  }
+}
+
 .text-link {
   color: hsl(var(--color-primary));
   font-weight: 600;

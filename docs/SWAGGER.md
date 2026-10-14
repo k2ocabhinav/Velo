@@ -4,7 +4,7 @@
 
 - Swagger UI: `http://localhost:8080/swagger-ui/index.html`
 - OpenAPI JSON: `http://localhost:8080/v3/api-docs`
-- Controller inventory: **79 HTTP operations across 9 groups**
+- Controller inventory: **81 HTTP operations across 9 groups**
 
 ## Security
 
@@ -17,11 +17,12 @@
 - `POST /auth/login`, `/auth/signup`, `/auth/onBoardNewDriver/{userId}`, `/auth/forgot-password`, `/auth/reset-password`
 - `PUT /auth/profile`
 
-## Rider (13)
+## Rider (14)
 
 - `POST /riders/fare-estimate`, `/riders/requestRide`, `/riders/cancelRide/{rideId}`, `/riders/endRide/{rideId}`
 - `POST /riders/rateDriver`, `/riders/rateDriver/{rideId}/{rating}`, `/riders/schedule-ride`
 - `GET /riders/getMyProfile`, `/riders/getMyRides`, `/riders/active-ride`, `/riders/scheduled-rides`
+- `GET /riders/wallet?page=0&size=10` — current rider balance and paginated recent transactions
 - `PUT /riders/scheduled-rides/{id}/reschedule`
 - `DELETE /riders/scheduled-rides/{id}`
 
@@ -62,9 +63,10 @@
 - `GET /api/v1/public/tenant/branding`, `/api/v1/tenant/branding`, `/api/v1/admin/branding`
 - `PUT /api/v1/admin/branding`
 
-## Admin (27)
+## Admin (28)
 
 - `GET /api/v1/admin/stats/dashboard`, `/api/v1/admin/stats/daily`, `/api/v1/admin/stats/revenue`
+- `GET /api/v1/admin/stats/revenue/top-drivers?days=30` — top drivers by gross, commission, net earnings, and trips (1–90 days)
 - `GET /api/v1/admin/drivers/pending`, `/api/v1/admin/drivers`, `/api/v1/admin/users`
 - `POST /api/v1/admin/drivers/{id}/approve`, `/api/v1/admin/drivers/{id}/suspend`, `/api/v1/admin/drivers/{id}/reject`, `/api/v1/admin/drivers/{id}/revoke`
 - `POST /api/v1/admin/users/{id}/activate`, `/api/v1/admin/users/{id}/deactivate`

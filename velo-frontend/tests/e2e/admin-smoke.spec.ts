@@ -92,6 +92,52 @@ test("admin payouts show a retryable error when the session expires", async ({ b
   await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
 });
 
+test("admin revenue shows top drivers and changes the date range", async ({ baseURL, context, page }) => {
+  await signInAsAdmin(context, baseURL);
+  await page.route("**/api/proxy/api/v1/admin/branding", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { tenantId: 1, brandName: "Velo", primaryColor: "220 72% 50%", riderLabel: "Rider", driverLabel: "Driver", tripLabel: "Trip", dispatchMode: "RIDE_HAILING", riderPortalEnabled: true } }) });
+  });
+  await page.route("**/api/proxy/api/v1/admin/stats/revenue**", async (route) => {
+    const requestUrl = new URL(route.request().url());
+    if (requestUrl.pathname.endsWith("/top-drivers")) {
+      const days = requestUrl.searchParams.get("days");
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ data: [{ driverId: 5, driverName: days === "7" ? "Recent Driver" : "Revenue Driver", trips: 8, gross: 500, commission: 75, net: 425 }] }),
+      });
+      return;
+    }
+    const startDate = requestUrl.searchParams.get("startDate") ?? new Date().toISOString().slice(0, 10);
+    const endDate = requestUrl.searchParams.get("endDate") ?? startDate;
+    const dailyRows: Array<{ date: string; grossRevenue: number; platformCommission: number; driverEarnings: number; rideCount: number }> = [];
+    const date = new Date(`${startDate}T00:00:00Z`);
+    const lastDate = new Date(`${endDate}T00:00:00Z`);
+    while (date <= lastDate) {
+      dailyRows.push({ date: date.toISOString().slice(0, 10), grossRevenue: 500, platformCommission: 75, driverEarnings: 425, rideCount: 8 });
+      date.setUTCDate(date.getUTCDate() + 1);
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ data: dailyRows }),
+    });
+  });
+
+  await page.goto("/revenue");
+  await expect(page.getByRole("heading", { name: "Revenue", exact: true })).toBeVisible();
+  const driversTable = page.getByRole("table", { name: "Top drivers by net earnings" });
+  await expect(driversTable).toBeVisible();
+  const revenueDriverRow = driversTable.getByRole("row").filter({ hasText: "Revenue Driver" });
+  await expect(revenueDriverRow).toContainText("8");
+  await expect(revenueDriverRow).toContainText("$500.00");
+  await expect(revenueDriverRow).toContainText("$75.00");
+  await expect(revenueDriverRow).toContainText("$425.00");
+
+  await page.getByLabel("Top drivers date range").selectOption("7");
+  await expect(page.getByText("Recent Driver")).toBeVisible();
+});
+
 test("admin users can be deactivated from a row action", async ({ baseURL, context, page }) => {
   await signInAsAdmin(context, baseURL);
   let listCount = 0;

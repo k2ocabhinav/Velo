@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Button,
+  DateTime,
   EmptyState,
   ErrorState,
   Field,
@@ -15,8 +15,7 @@ import {
   Skeleton,
   ConfirmDialog,
 } from "@velo/ui";
-import { requestRiderProxy } from "../_lib/rider-client";
-import { getRememberedWalletBalance } from "../_lib/wallet-balance";
+import { requestRiderProxy, type DecimalValue, type SpringPage } from "../_lib/rider-client";
 
 type PaymentMethod = {
   id: number;
@@ -26,7 +25,35 @@ type PaymentMethod = {
   isDefault?: boolean | null;
 };
 
+type WalletTransaction = {
+  id: number;
+  type: string;
+  amount: DecimalValue;
+  method: string;
+  rideReference?: number | null;
+  timestamp: string;
+};
+
+type WalletSummary = {
+  balance: DecimalValue;
+  currency: string;
+  transactions: SpringPage<WalletTransaction>;
+};
+
 const CARD_LAST4_PATTERN = /^\d{4}$/;
+
+function transactionTypeLabel(type: string): string {
+  if (type === "CREDIT") return "Added to wallet";
+  if (type === "DEBIT") return "Used from wallet";
+  return "Wallet transaction";
+}
+
+function transactionMethodLabel(method: string): string {
+  if (method === "BANKING") return "Bank transfer";
+  if (method === "RIDE") return "Trip payment";
+  if (method === "WALLET") return "Wallet";
+  return "Payment method";
+}
 
 export default function RiderWalletPage() {
   const [methods, setMethods] = useState<PaymentMethod[]>([]);
@@ -41,7 +68,10 @@ export default function RiderWalletPage() {
   const [expiryDate, setExpiryDate] = useState("");
   const [addSheetOpen, setAddSheetOpen] = useState(false);
   const [removeMethodId, setRemoveMethodId] = useState<number | null>(null);
-  const [walletBalance, setWalletBalance] = useState<string | null>(null);
+  const [wallet, setWallet] = useState<WalletSummary | null>(null);
+  const [walletLoading, setWalletLoading] = useState(true);
+  const [walletError, setWalletError] = useState<string | null>(null);
+  const [walletPage, setWalletPage] = useState(0);
 
   const loadMethods = useCallback(async () => {
     setLoading(true);
@@ -56,10 +86,27 @@ export default function RiderWalletPage() {
     }
   }, []);
 
+  const loadWallet = useCallback(async (page: number) => {
+    setWalletLoading(true);
+    setWalletError(null);
+    try {
+      const response = await requestRiderProxy<WalletSummary>(`riders/wallet?page=${page}&size=10`);
+      setWallet(response);
+    } catch (loadError) {
+      setWallet(null);
+      setWalletError(loadError instanceof Error ? loadError.message : "Couldn't load your wallet.");
+    } finally {
+      setWalletLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     void loadMethods();
-    setWalletBalance(getRememberedWalletBalance());
   }, [loadMethods]);
+
+  useEffect(() => {
+    void loadWallet(walletPage);
+  }, [loadWallet, walletPage]);
 
   const defaultMethod = useMemo(() => methods.find((method) => method.isDefault), [methods]);
 
@@ -132,23 +179,72 @@ export default function RiderWalletPage() {
   }
 
   const selectedMethod = methods.find((method) => method.id === removeMethodId);
+  const transactions = wallet?.transactions.content ?? [];
+  const transactionPageCount = wallet?.transactions.totalPages ?? 1;
+  const currentTransactionPage = wallet?.transactions.number ?? walletPage;
 
   return (
     <main className="app-shell rider-page stack">
       <PageHeader
         title="Wallet"
-        description="Manage your balance and saved payment methods."
+        description="Check your balance, transaction history, and saved payment methods."
         actions={<Button onClick={() => { setError(null); setAddSheetOpen(true); }}>Add method</Button>}
       />
 
+      {walletError ? <ErrorState title="Couldn't load wallet" description={walletError} onRetry={() => void loadWallet(walletPage)} /> : null}
+
       <Section title="Available balance" className="wallet-balance-section">
-        <Money amount={walletBalance} emphasis className="wallet-balance-figure" />
-        <p className="helper">
-          {walletBalance === null
-            ? "Your latest wallet balance appears with a fare estimate."
-            : "Balance from your most recent fare estimate."}
-        </p>
-        {walletBalance === null ? <Link className="text-link" href="/">Estimate a fare</Link> : null}
+        {walletLoading ? (
+          <div className="stack" role="status" aria-label="Loading wallet balance" aria-busy="true">
+            <Skeleton className="skeleton-line" />
+            <Skeleton className="skeleton-line skeleton-line-wide" />
+          </div>
+        ) : wallet ? (
+          <>
+            <Money amount={wallet.balance} currency={wallet.currency} emphasis className="wallet-balance-figure" />
+            <p className="helper">Available for your next trip.</p>
+          </>
+        ) : null}
+      </Section>
+
+      <Section title="Recent transactions">
+        {walletLoading ? (
+          <div className="stack" role="status" aria-label="Loading wallet transactions" aria-busy="true">
+            {[0, 1, 2].map((row) => <div className="wallet-transaction-row" key={row}><Skeleton className="skeleton-line skeleton-line-wide" /><Skeleton className="skeleton-line" /></div>)}
+          </div>
+        ) : null}
+        {!walletLoading && !walletError && transactions.length === 0 ? (
+          <EmptyState title="No wallet transactions yet" description="Wallet activity will appear here after a balance change or trip payment." />
+        ) : null}
+        {!walletLoading && !walletError && transactions.length > 0 ? (
+          <>
+            <ul className="wallet-transaction-list">
+              {transactions.map((transaction) => (
+                <li className="wallet-transaction-row" key={transaction.id}>
+                  <div className="wallet-transaction-details">
+                    <strong>{transactionTypeLabel(transaction.type)}</strong>
+                    <p className="helper">
+                      <DateTime value={transaction.timestamp} />
+                      <span aria-hidden="true"> · </span>
+                      {transactionMethodLabel(transaction.method)}
+                      {transaction.rideReference !== null && transaction.rideReference !== undefined ? (
+                        <span className="wallet-ride-reference"> · <span className="mono">Trip #{transaction.rideReference}</span></span>
+                      ) : null}
+                    </p>
+                  </div>
+                  <Money amount={transaction.amount} currency={wallet?.currency} />
+                </li>
+              ))}
+            </ul>
+            {transactionPageCount > 1 ? (
+              <nav className="wallet-transaction-pagination" aria-label="Wallet transaction pages">
+                <Button variant="secondary" size="sm" disabled={currentTransactionPage <= 0} onClick={() => setWalletPage((page) => Math.max(0, page - 1))}>Previous</Button>
+                <span className="helper">Page {currentTransactionPage + 1} of {transactionPageCount}</span>
+                <Button variant="secondary" size="sm" disabled={currentTransactionPage + 1 >= transactionPageCount} onClick={() => setWalletPage((page) => Math.min(transactionPageCount - 1, page + 1))}>Next</Button>
+              </nav>
+            ) : null}
+          </>
+        ) : null}
       </Section>
 
       <Section title="Saved payment methods" actions={

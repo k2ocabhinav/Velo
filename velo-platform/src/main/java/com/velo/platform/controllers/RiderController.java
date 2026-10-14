@@ -2,6 +2,7 @@ package com.velo.platform.controllers;
 
 import com.velo.platform.dto.*;
 import com.velo.platform.services.RiderService;
+import com.velo.platform.services.RiderWalletQueryService;
 import com.velo.platform.services.ScheduledRideService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -15,6 +16,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -22,6 +25,7 @@ import java.time.LocalDateTime;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping(path = "/riders")
+@Validated
 @Tag(name = "Rider", description = "Rider ride management")
 @SecurityRequirement(name = "bearerAuth")
 public class RiderController {
@@ -29,6 +33,7 @@ public class RiderController {
     private final RiderService riderService;
     private final ScheduledRideService scheduledRideService;
     private final com.velo.platform.services.FareEstimationService fareEstimationService;
+    private final RiderWalletQueryService riderWalletQueryService;
 
     @PostMapping("/fare-estimate")
     @Operation(summary = "Get a fare estimate and ETA for a potential ride")
@@ -64,6 +69,15 @@ public class RiderController {
     @Operation(summary = "Get the current rider's profile")
     public ResponseEntity<RiderDto> getMyProfile() {
         return ResponseEntity.ok(riderService.getMyProfile());
+    }
+
+    @GetMapping("/wallet")
+    @PreAuthorize("hasRole('RIDER')")
+    @Operation(summary = "Get the current rider's wallet balance and paginated transactions")
+    public ResponseEntity<RiderWalletDto> getMyWallet(
+            @RequestParam(defaultValue = "0") @Min(0) Integer page,
+            @RequestParam(defaultValue = "10") @Min(1) @Max(100) Integer size) {
+        return ResponseEntity.ok(riderWalletQueryService.getCurrentRiderWallet(PageRequest.of(page, size)));
     }
 
     @GetMapping("/getMyRides")

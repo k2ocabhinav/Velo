@@ -17,12 +17,14 @@ import type {
   RideRequestDto,
   RevenueReportDto,
   ScheduledRideDto,
+  TopDriverRevenueDto,
 } from "./types";
 
 export interface AdminApi {
   getDashboardStats(): Promise<DashboardDto>;
   getDailyStats(date: string): Promise<AdminStatsDto>;
   getRevenueStats(startDate: string, endDate: string): Promise<RevenueReportDto[]>;
+  getTopDriversByRevenue(days?: number): Promise<TopDriverRevenueDto[]>;
   getPendingDrivers(params?: PageRequestInput): Promise<PaginatedResponse<PendingDriverDto>>;
   approveDriver(driverId: number): Promise<void>;
   rejectDriver(driverId: number, reason: string): Promise<void>;
@@ -67,6 +69,12 @@ export function createAdminApi(client: AxiosInstance = createVeloClient()): Admi
         method: "GET",
         url: "/api/v1/admin/stats/revenue",
         params: { startDate, endDate },
+      }),
+    getTopDriversByRevenue: (days = 30) =>
+      requestData<TopDriverRevenueDto[]>(client, {
+        method: "GET",
+        url: "/api/v1/admin/stats/revenue/top-drivers",
+        params: { days },
       }),
     getPendingDrivers: (params) =>
       requestPageData<PendingDriverDto>(client, {
