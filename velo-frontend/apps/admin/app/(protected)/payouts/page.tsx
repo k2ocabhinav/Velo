@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Skeleton } from "@velo/ui/feedback";
 import { PageFrame } from "../_components/page-frame";
 import { adminClient, type PayoutItem } from "../_lib/admin-client";
 import { toCurrency } from "../_lib/http";
@@ -140,7 +141,24 @@ export default function PayoutsPage() {
         </div>
       ) : null}
       {statusMessage ? <p className="helper">{statusMessage}</p> : null}
-      {loading ? <p className="helper">Loading payouts...</p> : null}
+      {loading ? (
+        <section className="panel metric-card" aria-label="Loading payouts" aria-busy="true">
+          <div className="list">
+            {Array.from({ length: 5 }, (_, index) => (
+              <div key={index} className="list-item">
+                <div className="stack compact">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-44" />
+                </div>
+                <div className="stack compact" style={{ justifyItems: "end" }}>
+                  <Skeleton className="h-5 w-20" />
+                  <Skeleton className="h-8 w-24" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {!loading ? (
         <section className="panel metric-card">

@@ -23,6 +23,7 @@ export interface RidesApi {
   rateDriverByRide(rideId: number, rating: number): Promise<DriverDto>;
   getMyProfile(): Promise<RiderDto>;
   getMyRides(params?: OffsetPageRequestInput): Promise<PaginatedResponse<RideDto>>;
+  getCurrentRideRequest(): Promise<RideRequestDto | null>;
   getActiveRide(): Promise<RideTrackingDto | null>;
   scheduleRide(input: RideRequestDto): Promise<ScheduledRideDto>;
   getScheduledRides(params?: PageRequestInput): Promise<PaginatedResponse<ScheduledRideDto>>;
@@ -70,6 +71,11 @@ export function createRidesApi(client: AxiosInstance = createVeloClient()): Ride
         method: "GET",
         url: "/riders/getMyRides",
         params,
+      }),
+    getCurrentRideRequest: () =>
+      requestData<RideRequestDto | null>(client, {
+        method: "GET",
+        url: "/riders/current-request",
       }),
     getActiveRide: () =>
       requestData<RideTrackingDto | null>(client, {

@@ -25,6 +25,8 @@ public interface RiderService {
 
     Page<RideDto> getAllMyRides(PageRequest pageRequest);
 
+    RideRequestDto getCurrentRideRequest();
+
     RideTrackingDto getActiveRideTracking();
 
     Rider createNewRider(User user);

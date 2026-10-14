@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Skeleton } from "@velo/ui/feedback";
 import { isActionPending, setActionPending } from "@velo/app-core/async-actions";
 import { PageFrame } from "../_components/page-frame";
 import { adminClient, type UserAccount } from "../_lib/admin-client";
@@ -154,7 +155,22 @@ export default function UsersPage() {
         </div>
       ) : null}
       {statusMessage ? <p className="helper">{statusMessage}</p> : null}
-      {loading ? <p className="helper">Loading users...</p> : null}
+      {loading ? (
+        <section className="panel metric-card" aria-label="Loading users" aria-busy="true">
+          <div className="list">
+            {Array.from({ length: 6 }, (_, index) => (
+              <div key={index} className="list-item">
+                <div className="stack compact">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-3 w-52" />
+                  <Skeleton className="h-3 w-28" />
+                </div>
+                <Skeleton className="h-8 w-28" />
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {!loading ? (
         <section className="panel metric-card">

@@ -5,13 +5,16 @@ import com.velo.platform.config.TestSecurityConfig;
 import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.Rating;
 import com.velo.platform.entities.Ride;
+import com.velo.platform.entities.RideRequest;
 import com.velo.platform.entities.Rider;
 import com.velo.platform.entities.User;
 import com.velo.platform.entities.enums.PaymentMethod;
+import com.velo.platform.entities.enums.RideRequestStatus;
 import com.velo.platform.entities.enums.Role;
 import com.velo.platform.repositories.DriverRepository;
 import com.velo.platform.repositories.RatingRepository;
 import com.velo.platform.repositories.RideRepository;
+import com.velo.platform.repositories.RideRequestRepository;
 import com.velo.platform.repositories.RiderRepository;
 import com.velo.platform.repositories.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,6 +50,7 @@ class RiderControllerIntegrationTest {
     @Autowired private RiderRepository riderRepository;
     @Autowired private DriverRepository driverRepository;
     @Autowired private RideRepository rideRepository;
+    @Autowired private RideRequestRepository rideRequestRepository;
     @Autowired private RatingRepository ratingRepository;
 
     private Rider testRider;
@@ -56,6 +60,7 @@ class RiderControllerIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        rideRequestRepository.deleteAll();
         ratingRepository.deleteAll();
         rideRepository.deleteAll();
         driverRepository.deleteAll();
@@ -187,5 +192,21 @@ class RiderControllerIntegrationTest {
                 .andExpect(jsonPath("$.data.rideId").value(confirmedRide.getId()))
                 .andExpect(jsonPath("$.data.status").value("CONFIRMED"))
                 .andExpect(jsonPath("$.data.canCancel").value(true));
+    }
+
+    @Test
+    @DisplayName("GET /riders/current-request should restore the rider's pending request")
+    void getCurrentRideRequest_ShouldReturnPendingRequest() throws Exception {
+        RideRequest pendingRequest = rideRequestRepository.save(RideRequest.builder()
+                .tenantId(testRider.getTenantId())
+                .rider(testRider)
+                .paymentMethod(PaymentMethod.WALLET)
+                .rideRequestStatus(RideRequestStatus.PENDING)
+                .build());
+
+        mockMvc.perform(withRiderAuth(get("/riders/current-request")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").value(pendingRequest.getId()))
+                .andExpect(jsonPath("$.data.rideRequestStatus").value("PENDING"));
     }
 }
