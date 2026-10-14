@@ -29,13 +29,13 @@ export function AppShell({ children }: { children: ReactNode }) {
       <BottomNav
         currentPath={pathname === "/ride/active" || pathname === "/scheduled" ? "/rides" : pathname === "/promos" ? "/account" : pathname}
         items={[
-          { href: "/", label: "Book", icon: "⌖" },
-          { href: "/rides", label: "Trips", icon: "↗" },
-          { href: "/wallet", label: "Wallet", icon: "◈" },
-          { href: "/account", label: "Me", icon: "●" },
+          { href: "/", label: "Book", icon: "book" },
+          { href: "/rides", label: "Trips", icon: "trips" },
+          { href: "/wallet", label: "Wallet", icon: "wallet" },
+          { href: "/account", label: "Me", icon: "account" },
         ]}
       />
-      <div className="rider-content">
+      <div className={pathname === "/" ? "rider-content rider-content-booking" : "rider-content"}>
         <FadeIn key={pathname}>{children}</FadeIn>
       </div>
     </div>

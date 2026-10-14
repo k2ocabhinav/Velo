@@ -22,7 +22,6 @@ import {
   selectCurrentDriverRide,
 } from "./_lib/driver-ride-state";
 import {
-  getDriverRealtimeStatusText,
   useDriverNotificationSubscription,
   type DriverNotificationEvent,
 } from "./_lib/driver-ws";
@@ -150,7 +149,6 @@ export default function DriverHomePage() {
   const [message, setMessage] = useState<string | null>(null);
   const [branding, setBranding] = useState<TenantBranding | null>(null);
 
-  const riderLabel = branding?.riderLabel ?? "Rider";
   const tripLabel = branding?.tripLabel ?? "Trip";
 
   const loadProfile = useCallback(async () => {
@@ -289,13 +287,7 @@ export default function DriverHomePage() {
   const realtime = useDriverNotificationSubscription(true, handleIncomingNotification);
 
   const queuedRequestCount = useMemo(() => incoming.length, [incoming]);
-  const incomingRealtimeMessage = useMemo(() => {
-    const base = getDriverRealtimeStatusText(realtime.state, realtime.reconnectAttempts);
-    if (realtime.state === "error" && realtime.lastError) {
-      return `${base} ${realtime.lastError}`;
-    }
-    return base;
-  }, [realtime.lastError, realtime.reconnectAttempts, realtime.state]);
+  const activeRideFare = getDriverRideFareValue(activeRide);
 
   async function toggleAvailability(): Promise<void> {
     if (!profile) {
@@ -442,7 +434,6 @@ export default function DriverHomePage() {
               <strong>{profile.available ? "You're online" : "You're offline"}</strong>
               <p>{profile.available ? "New trip offers can reach you." : "Go online when you're ready to drive."}</p>
               {profile.vehicleId ? <p>Vehicle {profile.vehicleId}</p> : null}
-              <LiveStatusPill state={profile.available ? "connected" : "idle"} label={profile.available ? "Online" : "Offline"} />
             </div>
             <Button
               className="driver-availability-toggle"
@@ -453,7 +444,7 @@ export default function DriverHomePage() {
               disabled={togglingAvailability || isActionPending(pendingActions, "availability")}
               onClick={() => void toggleAvailability()}
             >
-              {togglingAvailability ? "Updating…" : profile.available ? "You're online" : "Go online"}
+              {togglingAvailability ? "Updating…" : profile.available ? "Go offline" : "Go online"}
             </Button>
           </div>
         ) : null}
@@ -468,12 +459,7 @@ export default function DriverHomePage() {
         )}
       >
         {realtime.state === "error" ? (
-          <ErrorState
-            title="Live offers are paused"
-            description={`${incomingRealtimeMessage} You can refresh to check for new offers.`}
-            onRetry={() => void loadIncoming(true)}
-            retryLabel="Refresh offers"
-          />
+          <p className="driver-realtime-notice" role="status">Live offers paused. Showing the latest list; refresh to check again.</p>
         ) : (
           <div className="driver-row-meta">
             <LiveStatusPill state={realtime.state} label={realtime.state === "connected" ? "Listening for offers" : undefined} />
@@ -492,9 +478,9 @@ export default function DriverHomePage() {
           <EmptyState
             title="No trip offers yet"
             description={profile?.available ? "Keep your availability on and new offers will appear here." : "Go online when you're ready to receive trip offers."}
-            action={profile?.available
-              ? <Button variant="secondary" onClick={() => void loadIncoming(true)}>Refresh offers</Button>
-              : <Button onClick={() => void toggleAvailability()} disabled={!profile || togglingAvailability}>Go online</Button>}
+            action={!profile?.available
+              ? <Button onClick={() => void toggleAvailability()} disabled={!profile || togglingAvailability}>Go online</Button>
+              : undefined}
           />
         ) : null}
         {!loadingIncoming && !incomingError && incoming.length > 0 ? (
@@ -585,9 +571,9 @@ export default function DriverHomePage() {
               <DateTime value={activeRide.startedAt ?? activeRide.createdTime} />
             </div>
             <RouteStrip stage={activeRide.rideStatus} />
-            <p>{riderLabel}: {activeRide.rider?.user?.name ?? activeRide.rider?.user?.email ?? `Assigned ${riderLabel.toLowerCase()}`}</p>
+            <p>{activeRide.rider?.user?.name?.trim() || "Rider"}</p>
             <div className="driver-row-meta">
-              <Money amount={getDriverRideFareValue(activeRide)} emphasis />
+              {activeRideFare !== null && activeRideFare !== undefined ? <Money amount={activeRideFare} emphasis /> : null}
               <Link href={`/ride/${activeRide.id}`} className="ui-button" data-variant="primary">
                 {getNextTripActionLabel(activeRide.rideStatus)}
               </Link>

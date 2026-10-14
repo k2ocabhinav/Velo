@@ -701,8 +701,13 @@ export default function RiderHomePage() {
 
       {!bookingOpen ? (
         <button className="booking-sheet-launcher" type="button" onClick={() => setBookingOpen(true)}>
-          <span>{pickupPoint ? (dropOffPoint ? "Trip locations selected" : "Choose a destination") : "Where are you going?"}</span>
-          <span aria-hidden="true">↑</span>
+          <span className="booking-peek-locations">
+            <span className="booking-peek-location"><span>Pickup</span><strong>{pickupPoint ? "Selected" : "Choose location"}</strong></span>
+            <span className="booking-peek-location"><span>Destination</span><strong>{dropOffPoint ? "Selected" : "Where to?"}</strong></span>
+          </span>
+          <span className="booking-peek-chevron" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></svg>
+          </span>
         </button>
       ) : null}
 

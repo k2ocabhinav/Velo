@@ -109,8 +109,7 @@ export default function DashboardPage() {
                   { label: "Inactive promo codes", count: data.inactivePromos, href: "/promo-codes", action: "Review promos" },
                 ].filter((item) => item.count > 0).map((item) => (
                   <div className="needs-attention-item" key={item.label}>
-                    <div><strong>{item.label}</strong><p>{formatCount(item.count, "item")} need review</p></div>
-                    <span className="needs-attention-count" aria-label={`${item.count} items`}>{item.count}</span>
+                    <div><strong>{item.label}</strong><p>{formatCount(item.count, "item")} {item.count === 1 ? "needs" : "need"} review</p></div>
                     <Link className="secondary-button" href={item.href}>{item.action}</Link>
                   </div>
                 ))}

@@ -642,7 +642,7 @@ test("driver earnings and notifications flows show happy and failure states", as
   await payoutSheet.getByLabel("Amount").fill("100");
   await payoutSheet.getByRole("button", { name: "Request payout" }).click();
   await expect(page.getByText("Payout request submitted.")).toBeVisible();
-  await expect(page.getByText("Pending")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Payout history" }).getByText("Pending").first()).toBeVisible();
 
   await page.goto("/notifications");
   await page.getByRole("button", { name: "Mark read" }).first().click();

@@ -268,8 +268,10 @@ test.describe("rider smoke", () => {
 
     // Verify booking map and selection controls are visible
     await expect(page.locator(".booking-map")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Pickup" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Where to?" })).toBeVisible();
+    await expect(page.locator(".booking-sheet-launcher")).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Main navigation" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Pickup", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Where to?", exact: true })).toBeVisible();
     const mapCanvas = page.locator(".booking-map .leaflet-container");
     await mapCanvas.click({ position: { x: 120, y: 110 } });
     await page.getByRole("button", { name: "Choose on map" }).nth(1).click();

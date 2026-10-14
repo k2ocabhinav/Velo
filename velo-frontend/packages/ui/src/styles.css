@@ -1109,6 +1109,19 @@ textarea.ui-control {
   font-weight: 600;
 }
 
+.bottom-nav-icon {
+  display: inline-grid;
+  width: 1.5rem;
+  height: 1.5rem;
+  place-items: center;
+}
+
+.bottom-nav-icon svg {
+  display: block;
+  width: 24px;
+  height: 24px;
+}
+
 .bottom-nav a[aria-current="page"] {
   color: hsl(var(--color-foreground));
 }

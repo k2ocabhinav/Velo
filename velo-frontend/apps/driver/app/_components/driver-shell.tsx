@@ -11,10 +11,10 @@ import { requestDriverProxy } from "../_lib/driver-client";
 import { isPublicDriverRoute } from "../_lib/driver-shell-routes";
 
 const NAV_ITEMS = [
-  { href: "/", label: "Home" },
-  { href: "/rides", label: "Trips" },
-  { href: "/earnings", label: "Earnings" },
-  { href: "/me", label: "Me" },
+  { href: "/", label: "Home", icon: "home" as const },
+  { href: "/rides", label: "Trips", icon: "trips" as const },
+  { href: "/earnings", label: "Earnings", icon: "earnings" as const },
+  { href: "/me", label: "Me", icon: "account" as const },
 ];
 
 type TenantBrandingResponse = {
@@ -102,7 +102,7 @@ export function DriverShell({ children }: Readonly<{ children: ReactNode }>) {
       <BottomNav
         className="driver-bottom-nav"
         currentPath={currentPath}
-        items={NAV_ITEMS.map((item) => ({ ...item, icon: item.label === "Home" ? "⌂" : item.label === "Trips" ? "↗" : item.label === "Earnings" ? "$" : "●" }))}
+        items={NAV_ITEMS}
       />
     </div>
   );

@@ -295,7 +295,7 @@ export default function AdminDispatchPage() {
 
       <Section title="Dispatch audit" actions={<Button size="sm" variant="secondary" onClick={() => void loadAll()}>Refresh</Button>}>
         {loading ? <div aria-label="Loading dispatch audit" aria-busy="true" className="stack">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-10" />)}</div> : (
-          <DataTable data={auditRows} columns={auditColumns} getRowKey={(row) => row.id} ariaLabel="Dispatch audit" emptyState={<EmptyState title="No dispatch actions yet" description="Assignments and cancellations will appear here." action={<Button variant="secondary" onClick={() => setCreateOpen(true)}>Create a trip request</Button>} />} />
+          <DataTable className="dispatch-audit-table" data={auditRows} columns={auditColumns} getRowKey={(row) => row.id} ariaLabel="Dispatch audit" emptyState={<EmptyState title="No dispatch actions yet" description="Assignments and cancellations will appear here." action={<Button variant="secondary" onClick={() => setCreateOpen(true)}>Create a trip request</Button>} />} />
         )}
       </Section>
 

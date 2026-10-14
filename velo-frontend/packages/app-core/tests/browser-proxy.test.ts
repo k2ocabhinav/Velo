@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { requestProxyData, unwrapPageItems } from "../src/browser-proxy";
+import { getErrorMessage } from "../src/http-payload";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -34,6 +35,11 @@ describe("requestProxyData", () => {
         pathPrefix: "/api/backend"
       })
     ).rejects.toThrow("Conflict");
+  });
+
+  it("removes generic server error fragments from friendly copy", () => {
+    expect(getErrorMessage({ error: "Couldn't load offers. An unexpected error occurred." })).toBe("Couldn't load offers.");
+    expect(getErrorMessage({ error: "An unexpected error occurred." })).toBeNull();
   });
 });
 

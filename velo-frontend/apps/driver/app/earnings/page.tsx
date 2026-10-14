@@ -144,7 +144,8 @@ export default function DriverEarningsPage() {
         {!loading && summary ? (
           <div className="stack">
             <div>
-              <p className="helper">Net earnings · {summary.rideCount ?? 0} trips</p>
+              <p className="helper driver-earnings-title">Net earnings</p>
+              <p className="driver-earnings-trip-count">{summary.rideCount ?? 0} trips</p>
               <Money className="driver-key-figure" amount={summary.totalNet} emphasis />
             </div>
             <dl className="driver-money-breakdown">
@@ -185,16 +186,31 @@ export default function DriverEarningsPage() {
           />
         ) : null}
         {!loading && !loadError && payouts.length > 0 ? (
-          <DataTable
-            ariaLabel="Payout history"
-            data={payouts}
-            getRowKey={(payout) => payout.id}
-            columns={[
-              { header: "Requested", cell: (payout) => <DateTime value={payout.requestedAt} /> },
-              { header: "Amount", align: "right", cell: (payout) => <Money amount={payout.amount} /> },
-              { header: "Status", cell: (payout) => <StatusBadge domain="payout" status={payout.status} /> },
-            ]}
-          />
+          <>
+            <div className="driver-desktop-ledger">
+              <DataTable
+                ariaLabel="Payout history"
+                data={payouts}
+                getRowKey={(payout) => payout.id}
+                columns={[
+                  { header: "Requested", cell: (payout) => <DateTime value={payout.requestedAt} /> },
+                  { header: "Amount", align: "right", cell: (payout) => <Money amount={payout.amount} /> },
+                  { header: "Status", cell: (payout) => <StatusBadge domain="payout" status={payout.status} /> },
+                ]}
+              />
+            </div>
+            <div className="driver-mobile-ledger" role="list" aria-label="Payout history">
+              {payouts.map((payout) => (
+                <article className="driver-ledger-row" key={payout.id} role="listitem">
+                  <div className="driver-ledger-row-meta">
+                    <DateTime value={payout.requestedAt} />
+                    <StatusBadge domain="payout" status={payout.status} />
+                  </div>
+                  <Money className="driver-key-figure" amount={payout.amount} emphasis />
+                </article>
+              ))}
+            </div>
+          </>
         ) : null}
       </Section>
 
@@ -212,18 +228,38 @@ export default function DriverEarningsPage() {
           />
         ) : null}
         {!loading && !loadError && earnings.length > 0 ? (
-          <DataTable
-            ariaLabel="Recent trip earnings"
-            data={earnings}
-            getRowKey={(entry) => entry.id}
-            columns={[
-              { header: "Trip", cell: (entry) => entry.rideId ? <code className="driver-reference">Trip {entry.rideId}</code> : "—" },
-              { header: "Date", cell: (entry) => <DateTime value={entry.createdTime} /> },
-              { header: "Gross", align: "right", cell: (entry) => <Money amount={entry.grossFare} /> },
-              { header: "Commission", align: "right", cell: (entry) => <Money amount={entry.platformCommission} /> },
-              { header: "Net", align: "right", cell: (entry) => <Money amount={entry.netEarning} emphasis /> },
-            ]}
-          />
+          <>
+            <div className="driver-desktop-ledger">
+              <DataTable
+                ariaLabel="Recent trip earnings"
+                data={earnings}
+                getRowKey={(entry) => entry.id}
+                columns={[
+                  { header: "Trip", cell: (entry) => entry.rideId ? <code className="driver-reference">Trip {entry.rideId}</code> : "—" },
+                  { header: "Date", cell: (entry) => <DateTime value={entry.createdTime} /> },
+                  { header: "Gross", align: "right", cell: (entry) => <Money amount={entry.grossFare} /> },
+                  { header: "Commission", align: "right", cell: (entry) => <Money amount={entry.platformCommission} /> },
+                  { header: "Net", align: "right", cell: (entry) => <Money amount={entry.netEarning} emphasis /> },
+                ]}
+              />
+            </div>
+            <div className="driver-mobile-ledger" role="list" aria-label="Recent trip earnings">
+              {earnings.map((entry) => (
+                <article className="driver-ledger-row" key={entry.id} role="listitem">
+                  <div className="driver-ledger-row-meta">
+                    <DateTime value={entry.createdTime} />
+                    <StatusBadge domain="ride" status="ENDED" />
+                  </div>
+                  {entry.rideId ? <code className="driver-reference">Trip {entry.rideId}</code> : null}
+                  <Money className="driver-key-figure" amount={entry.netEarning} emphasis />
+                  <div className="driver-ledger-breakdown">
+                    <span>Gross <Money amount={entry.grossFare} /></span>
+                    <span>Commission <Money amount={entry.platformCommission} /></span>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </>
         ) : null}
       </Section>
 

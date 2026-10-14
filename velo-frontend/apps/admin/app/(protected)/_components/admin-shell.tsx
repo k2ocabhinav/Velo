@@ -109,35 +109,37 @@ export function AdminShell({ children }: Readonly<{ children: ReactNode }>) {
     <div className="admin-root">
       <div className="admin-shell">
         <aside className="admin-sidebar">
-          <Link className="admin-brand" href="/" aria-label="Velo dashboard">
-            <strong>{platformBrand}</strong>
-            <span>Admin workspace</span>
-          </Link>
-          <nav className="admin-nav" aria-label="Primary">
-            {NAV_GROUPS.map((group) => (
-              <div className="admin-nav-group" key={group.label}>
-                <h2>{group.label}</h2>
-                {group.items.map((item) => {
-                  const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
-                  const count = "countKey" in item ? counts[item.countKey] : 0;
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      data-active={active ? "true" : "false"}
-                      aria-current={active ? "page" : undefined}
-                    >
-                      <span>{item.label}</span>
-                      {count > 0 ? <span className="admin-nav-count" aria-label={`${count} needs attention`}>{count}</span> : null}
-                    </Link>
-                  );
-                })}
-              </div>
-            ))}
-          </nav>
-          <div className="admin-account">
-            <span>Account</span>
-            <Menu items={accountItems} triggerLabel="Account menu" ariaLabel="Account actions" />
+          <div className="admin-sidebar-sticky">
+            <Link className="admin-brand" href="/" aria-label="Velo dashboard">
+              <strong>{platformBrand}</strong>
+              <span>Admin workspace</span>
+            </Link>
+            <nav className="admin-nav" aria-label="Primary">
+              {NAV_GROUPS.map((group) => (
+                <div className="admin-nav-group" key={group.label}>
+                  <h2>{group.label}</h2>
+                  {group.items.map((item) => {
+                    const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+                    const count = "countKey" in item ? counts[item.countKey] : 0;
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        data-active={active ? "true" : "false"}
+                        aria-current={active ? "page" : undefined}
+                      >
+                        <span>{item.label}</span>
+                        {count > 0 ? <span className="admin-nav-count" aria-label={`${count} needs attention`}>{count}</span> : null}
+                      </Link>
+                    );
+                  })}
+                </div>
+              ))}
+            </nav>
+            <div className="admin-account">
+              <span>Account</span>
+              <Menu items={accountItems} triggerLabel="Account menu" ariaLabel="Account actions" />
+            </div>
           </div>
         </aside>
         <div className="admin-main">

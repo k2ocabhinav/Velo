@@ -12,21 +12,32 @@ export function unwrapData<T>(payload: unknown): T {
   return payload as T;
 }
 
+function cleanErrorMessage(message: string): string | null {
+  const cleaned = message
+    .replace(/(?:^|\s+)(?:an\s+)?unexpected error occurred\.?/gi, " ")
+    .trim()
+    .replace(/^[\s:;,–—-]+/, "")
+    .replace(/[\s:;,]+$/, "")
+    .trim();
+
+  return cleaned || null;
+}
+
 export function getErrorMessage(payload: unknown): string | null {
   if (!isRecordLike(payload)) {
     return null;
   }
 
   if (typeof payload.error === "string" && payload.error.trim()) {
-    return payload.error;
+    return cleanErrorMessage(payload.error);
   }
 
   if (isRecordLike(payload.error) && typeof payload.error.message === "string" && payload.error.message.trim()) {
-    return payload.error.message;
+    return cleanErrorMessage(payload.error.message);
   }
 
   if (typeof payload.message === "string" && payload.message.trim()) {
-    return payload.message;
+    return cleanErrorMessage(payload.message);
   }
 
   return null;
