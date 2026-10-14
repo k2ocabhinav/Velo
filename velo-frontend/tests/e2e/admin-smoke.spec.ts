@@ -107,7 +107,7 @@ test("admin users can be deactivated from a row action", async ({ baseURL, conte
   });
 
   await page.goto("/users");
-  await expect(page.getByRole("heading", { name: "Users" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Users", exact: true })).toBeVisible();
   await expect(page.getByText("Active")).toBeVisible();
   await page.getByRole("button", { name: "Actions for Eve Rider" }).click();
   await page.getByRole("menuitem", { name: "Deactivate" }).click();
@@ -124,6 +124,12 @@ test("admin drivers can approve a pending application", async ({ baseURL, contex
     if (route.request().method() !== "GET") { await route.continue(); return; }
     const content = approveCount === 0 ? [{ driverId: 77, userId: 88, name: "New Driver", email: "new.driver@example.com", phone: "9999999999", rating: 4.8, vehicleId: "KA09ZZ1234", appliedAt: new Date().toISOString() }] : [];
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { content, number: 0, totalPages: 1, totalElements: content.length, size: 10 } }) });
+  });
+  await page.route("**/api/proxy/api/v1/admin/drivers?status=APPROVED*", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { content: [], number: 0, totalPages: 1, totalElements: 0, size: 1 } }) });
+  });
+  await page.route("**/api/proxy/api/v1/admin/drivers?status=SUSPENDED*", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { content: [], number: 0, totalPages: 1, totalElements: 0, size: 1 } }) });
   });
   await page.route("**/api/proxy/api/v1/admin/drivers/77/approve", async (route) => {
     approveCount += 1;
@@ -163,7 +169,7 @@ test("admin dispatch shows offers and assigns a pending request", async ({ baseU
   });
 
   await page.goto("/dispatch");
-  await expect(page.getByRole("heading", { name: "Dispatch" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Dispatch", exact: true })).toBeVisible();
   await expect(page.getByText("Market Street")).toBeVisible();
   await page.getByRole("button", { name: "Actions for Rider Demo" }).first().click();
   await page.getByRole("menuitem", { name: "Show offers" }).click();

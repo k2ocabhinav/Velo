@@ -133,7 +133,7 @@ test("driver logout clears ws session token and blocks protected routes", async 
   });
 
   await page.goto("/");
-  await page.getByRole("link", { name: "Me" }).click();
+  await page.getByRole("link", { name: "Me", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Your account" })).toBeVisible();
   await expect(page.getByRole("button", { name: /Switch to (dark|light) mode/ })).toBeVisible();
   await page.getByRole("button", { name: "Sign out" }).click();
@@ -332,7 +332,9 @@ test("driver home supports availability toggle and ride acceptance flow", async 
   await page.getByRole("button", { name: "Accept trip" }).click();
   await page.waitForURL("**/ride/911");
 
+  await expect(page.getByRole("button", { name: "Start trip" })).toBeDisabled();
   await page.getByLabel("4-digit rider OTP").fill("1234");
+  await expect(page.getByRole("button", { name: "Start trip" })).toBeEnabled();
   await page.getByRole("button", { name: "Start trip" }).click();
   await expect(page.getByText("Trip started.")).toBeVisible();
   await expect(page.getByText("Live map")).toBeVisible();
@@ -633,7 +635,7 @@ test("driver earnings and notifications flows show happy and failure states", as
   });
 
   await page.goto("/earnings");
-  await expect(page.getByRole("heading", { name: "Your earnings" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your earnings", exact: true, level: 1 })).toBeVisible();
 
   await page.getByRole("button", { name: "Request payout" }).first().click();
   const payoutSheet = page.getByRole("dialog", { name: "Request a payout" });

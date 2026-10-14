@@ -119,6 +119,7 @@ export default function DriverRidePage() {
 
   const ratingAlreadySubmitted = ratedRideId === ride?.id;
   const otpRequired = Boolean(ride?.rider);
+  const canEnterStartDetails = status === "CONFIRMED" && pendingAction === null;
   const canStart = canSubmitStartRide(status, otp, pendingAction !== null, otpRequired);
   const canEnd = canSubmitEndRide(status, pendingAction !== null);
   const canCancel = canSubmitCancelRide(status, pendingAction !== null);
@@ -286,7 +287,7 @@ export default function DriverRidePage() {
           </Section>
 
           <Section title="Next action">
-            {canStart && otpRequired ? (
+            {canEnterStartDetails && otpRequired ? (
               <Field label="Rider OTP" hint="Enter the 4-digit code from the rider to start the trip.">
                 <input
                   className="ui-control driver-otp-input"
@@ -300,10 +301,10 @@ export default function DriverRidePage() {
                 />
               </Field>
             ) : null}
-            {canStart && !otpRequired ? <p className="helper">This dispatch trip does not require an OTP.</p> : null}
-            {canStart ? <Button className="driver-action-button" disabled={!canStart} loading={pendingAction === "START"} onClick={() => void startRide()}>Start trip</Button> : null}
+            {canEnterStartDetails && !otpRequired ? <p className="helper">This dispatch trip does not require an OTP.</p> : null}
+            {canEnterStartDetails ? <Button className="driver-action-button" disabled={!canStart} loading={pendingAction === "START"} onClick={() => void startRide()}>Start trip</Button> : null}
             {canEnd ? <Button className="driver-action-button" loading={pendingAction === "END"} onClick={() => void endRide()}>Complete trip</Button> : null}
-            {!canStart && !canEnd ? <p className="helper">No trip action is needed right now.</p> : null}
+            {!canEnterStartDetails && !canEnd ? <p className="helper">No trip action is needed right now.</p> : null}
             {canCancel ? <Button variant="secondary" className="driver-action-button" onClick={() => setCancelDialogOpen(true)}>Cancel trip</Button> : null}
             {ride.rider && status === "ENDED" ? (
               <div className="driver-actions">

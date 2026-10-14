@@ -158,7 +158,7 @@ test.describe("rider smoke", () => {
 
     await page.goto("/scheduled");
 
-    await expect(page.getByRole("heading", { name: "Scheduled trips" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Scheduled trips", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "No scheduled trips yet" })).toBeVisible();
 
     const scheduledTime = formatDateTimeLocal(new Date(Date.now() + 90 * 60 * 1000));
@@ -277,21 +277,21 @@ test.describe("rider smoke", () => {
     await page.getByText("Enter coordinates").click();
     await expect(page.getByLabel("Pickup latitude")).not.toHaveValue("");
     await expect(page.getByLabel("Pickup longitude")).not.toHaveValue("");
-    await expect(page.getByLabel("Drop-off latitude")).not.toHaveValue("");
-    await expect(page.getByLabel("Drop-off longitude")).not.toHaveValue("");
+    await expect(page.getByLabel("Destination latitude")).not.toHaveValue("");
+    await expect(page.getByLabel("Destination longitude")).not.toHaveValue("");
 
     // Manual inputs still work as fallback
     await page.getByLabel("Pickup latitude").fill("12.9716");
     await page.getByLabel("Pickup longitude").fill("77.5946");
-    await page.getByLabel("Drop-off latitude").fill("12.9352");
-    await page.getByLabel("Drop-off longitude").fill("77.6245");
+    await page.getByLabel("Destination latitude").fill("12.9352");
+    await page.getByLabel("Destination longitude").fill("77.6245");
     await expect(page.getByRole("button", { name: "Request trip" })).toBeDisabled();
     await page.getByRole("button", { name: "Estimate fare" }).click();
     await expect(page.getByText("$210.00")).toBeVisible();
 
     await page.getByRole("button", { name: "Request trip" }).click();
     await expect(page.getByText(/requested\. We are now matching you with a nearby/i)).toBeVisible();
-    await expect(page.getByText(/Matching you with a nearby driver/i)).toBeVisible();
+    await expect(page.getByText("Matching you with a nearby driver", { exact: true })).toBeVisible();
     expect(rideRequested).toBe(true);
   });
 
@@ -356,7 +356,7 @@ test.describe("rider smoke", () => {
       });
     });
     await page.goto("/promos");
-    await expect(page.getByRole("heading", { name: "Offers" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Offers", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Copy code" }).click();
     await expect(page.getByText("Offer code copied.")).toBeVisible();
     expect(await page.evaluate(() => window.sessionStorage.getItem("e2e-copied-code"))).toBe("RIDE15");
@@ -581,7 +581,7 @@ test.describe("rider smoke", () => {
     });
 
     await page.goto("/ride/active");
-    await expect(page.getByRole("heading", { name: "Your trip" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Your trip", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Your trip is in progress" })).toBeVisible();
     await expect(page.locator(".active-ride-map")).toBeVisible();
     await page.getByRole("button", { name: "Follow driver" }).click();
@@ -647,7 +647,7 @@ test.describe("rider smoke", () => {
 
     await page.goto("/scheduled");
     await page.waitForURL("**/ride/active");
-    await expect(page.getByRole("heading", { name: "Your trip" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Your trip", exact: true })).toBeVisible();
   });
 
   test("rider session expiry redirects protected routes to login", async ({ context, page }) => {
