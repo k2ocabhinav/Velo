@@ -38,7 +38,7 @@
 - [ ] EP-2 Geocoding proxy + address search in admin New trip and rider booking (in progress)
 - [ ] EP-3 Refresh-token cleanup + grace window for cross-instance refresh; tenant brand in wordmarks (in progress)
 - [ ] EP-4 Docker image build + container smoke test (in progress)
-- [ ] Apply Terraform with a real AWS account (needs owner: account, ACM cert, DNS, secrets)
+- [ ] Apply Terraform — deferred: no AWS account or budget; demos run locally (see research for $0 options)
 
 ### UI/UX improvement round (merged; e2e 32/32)
 - [x] Plan written: `docs/UX_REFINEMENT_PLAN.md`
