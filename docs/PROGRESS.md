@@ -42,7 +42,7 @@
 - [x] EP-6 Recurring trip templates (V10), trip sheet + CSV, unassigned alerts, reason codes (decision 0023)
 - [x] Landing page: researched redesign 'Livery' (light-first, paper/ink/livery green, cartographic 3D hero, day/night), 4 critique rounds; gates green (axe 0, 123 kB first load)
 - [x] E2E determinism: mock API for server-side branding; 48 passed, 0 failed (3 consecutive runs + orchestrator CI run)
-- [ ] Landing polish: odd 'Page position' tag on the time spine (small fleets, pre-booked transfers), pricing hypothesis, contact form; Netlify-free-tier deployable
+- [x] Landing polish: debug-looking labels removed; README screenshots refreshed (day + night) (small fleets, pre-booked transfers), pricing hypothesis, contact form; Netlify-free-tier deployable
 
 ### After program acceptance (parked; depth features)
 - Corporate accounts + contract tariffs + monthly statements; driver/vehicle document readiness + incidents; DPDP features (consent, export/deletion, retention); PWA + web push; OSRM road-based ETA dispatch; Hindi localization
