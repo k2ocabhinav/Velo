@@ -41,6 +41,11 @@
 - [ ] EP-5 Demo readiness: two branded demo tenants, one-command local demo, tunnel guide, README with screenshots (in progress)
 - [ ] EP-7 Corporate accounts + contract tariffs + monthly statement CSV (in progress)
 - [ ] EP-6 Recurring scheduled trips + trip sheet + unassigned alerts (in progress)
+- [ ] EP-8 Driver/vehicle readiness: document expiry, assignment warnings/blocks, incident records (in progress)
+- [ ] Queued: DPDP privacy basics — privacy notice + consent, data export/deletion requests, retention job
+- [ ] Queued: installable PWA + web push for drivers, explicit offline/reconnect states
+- [ ] Queued: road-based ETA dispatch via local OSRM (nearest vs fastest demo)
+- [ ] Queued: Hindi localization (i18n framework + Hindi for rider/driver)
 - [ ] Apply Terraform — deferred: no AWS account or budget; demos run locally (see research for $0 options)
 
 ### UI/UX improvement round (merged; e2e 32/32)
