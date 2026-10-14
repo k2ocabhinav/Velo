@@ -94,11 +94,11 @@ export const landingCopy = {
   },
   verify: {
     title: "What you can verify today.",
-    description: "Check the current test scope and branded demo tenants.",
+    description: "See how the demo is checked, alongside two branded fleets you can explore.",
     groupLabel: "Verification facts",
     backend: "Automated backend test suite",
     backendScope: "Unit + integration",
-    endToEnd: "Chromium landing checks · axe included",
+    endToEnd: "Browser and accessibility checks",
     endToEndScope: "landing checks passed",
     checkedLabel: "checked",
     dateUnavailable: "Run date unavailable",

@@ -11,9 +11,7 @@ export function TimeSpine() {
           <time className={styles.timeSpineTime}>{stop.time}</time>
         </span>
       ))}
-      <span className={styles.timeSpineMarker} aria-hidden="true">
-        <span className={styles.timeSpineMarkerLabel}>Page position</span>
-      </span>
+      <span className={styles.timeSpineMarker} aria-hidden="true" />
     </aside>
   );
 }

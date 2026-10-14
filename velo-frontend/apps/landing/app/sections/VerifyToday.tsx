@@ -34,7 +34,7 @@ export function VerifyToday() {
           <p className={styles.sectionDescription}>{copy.description}</p>
         </div>
         <div className={styles.verifyCertificate}>
-          <span className={styles.verifyStamp} aria-hidden="true">Build checks</span>
+          <span className={styles.verifyStamp} aria-hidden="true">Checks run</span>
           <ul className={styles.verifyFacts} aria-label={copy.groupLabel}>
             {facts.map((fact) => (
               <li key={fact.label}>
