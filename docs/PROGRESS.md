@@ -41,7 +41,7 @@
 - [x] EP-5 Demo readiness: second branded tenant (Saffron Routes), `scripts/demo-up.sh`, README with screenshots, `docs/DEMO_SCRIPT.md`
 - [x] EP-6 Recurring trip templates (V10), trip sheet + CSV, unassigned alerts, reason codes (decision 0023)
 - [x] Landing page: researched redesign 'Livery' (light-first, paper/ink/livery green, cartographic 3D hero, day/night), 4 critique rounds; gates green (axe 0, 123 kB first load)
-- [ ] E2E determinism: tenant-branding specs depend on live backend data; rider logout spec failing (Luna fixing)
+- [x] E2E determinism: mock API for server-side branding; 48 passed, 0 failed (3 consecutive runs + orchestrator CI run)
 - [ ] Landing polish: odd 'Page position' tag on the time spine (small fleets, pre-booked transfers), pricing hypothesis, contact form; Netlify-free-tier deployable
 
 ### After program acceptance (parked; depth features)
