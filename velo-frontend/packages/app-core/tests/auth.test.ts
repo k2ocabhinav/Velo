@@ -1,10 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { NextResponse } from "next/server";
 import {
   LOGIN_ROLE_COOKIE_NAME,
   clearLoginCookies,
   performLoginProxy,
   performLogoutProxy,
+  performWebSocketTicketProxy,
 } from "../src/auth";
 
 function createJsonResponse(body: unknown, status = 200): Response {
@@ -57,6 +58,9 @@ describe("performLoginProxy", () => {
     expect(response.status).toBe(200);
     const roleCookie = response.cookies.get(LOGIN_ROLE_COOKIE_NAME);
     expect(roleCookie?.value).toBe("");
+    await expect(response.json()).resolves.toEqual({
+      data: { userId: 42 },
+    });
   });
 });
 
@@ -86,5 +90,35 @@ describe("logout cookie cleanup", () => {
         expect.objectContaining({ name: LOGIN_ROLE_COOKIE_NAME, value: "" }),
       ]),
     );
+  });
+});
+
+describe("WebSocket ticket BFF", () => {
+  it("uses the httpOnly session token and returns a non-cacheable ticket", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      createJsonResponse({ data: { ticket: "ws-ticket", expiresInSeconds: 60 } })
+    );
+    const response = await performWebSocketTicketProxy("access-cookie-token", fetchMock);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(/\/auth\/ws-ticket$/),
+      expect.objectContaining({
+        method: "POST",
+        cache: "no-store",
+        headers: expect.objectContaining({ Authorization: "Bearer access-cookie-token" })
+      })
+    );
+    expect(response.headers.get("cache-control")).toContain("no-store");
+    await expect(response.json()).resolves.toEqual({
+      data: { ticket: "ws-ticket", expiresInSeconds: 60 }
+    });
+  });
+
+  it("does not call the backend without a session cookie", async () => {
+    const fetchMock = vi.fn<typeof fetch>();
+    const response = await performWebSocketTicketProxy(null, fetchMock);
+
+    expect(response.status).toBe(401);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

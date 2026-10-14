@@ -40,6 +40,10 @@ describe("driver performLoginProxy", () => {
         expect.objectContaining({ name: "velo_driver_role_hint", value: "DRIVER" }),
       ]),
     );
+
+    const body = await response.json();
+    expect(body.data.token).toBeUndefined();
+    expect(body.data.userId).toBe(2);
   });
 
   it("rejects users from a different workspace role", async () => {

@@ -216,6 +216,21 @@ function selectRoleHint(roleHints: string[], requiredRoleHint: string | null): s
   return [...roleHints].sort()[0] ?? null;
 }
 
+function removeAuthToken(payload: unknown): unknown {
+  if (!isRecordLike(payload)) {
+    return payload;
+  }
+
+  const safePayload = { ...payload };
+  delete safePayload.token;
+  if (isRecordLike(safePayload.data)) {
+    const safeData = { ...safePayload.data };
+    delete safeData.token;
+    safePayload.data = safeData;
+  }
+  return safePayload;
+}
+
 function isTimeoutLike(error: unknown): boolean {
   if (error instanceof DOMException) {
     return error.name === "AbortError" || error.name === "TimeoutError";
@@ -303,13 +318,48 @@ export async function performLoginProxy(
   }
 
   const selectedRoleHint = selectRoleHint(roleHints, requiredRoleHint);
-  const response = NextResponse.json(payload ?? { ok: true }, { status: 200 });
+  const response = NextResponse.json(removeAuthToken(payload) ?? { ok: true }, { status: 200 });
   setLoginCookies(response, token, userId, selectedRoleHint, {
     tokenCookieName: options.tokenCookieName,
     userIdCookieName: options.userIdCookieName,
     roleCookieName: options.roleCookieName
   });
   return response;
+}
+
+export async function performWebSocketTicketProxy(
+  accessToken: string | null | undefined,
+  fetchImpl: typeof fetch = fetch
+): Promise<NextResponse> {
+  const headers = { "Cache-Control": "no-store, max-age=0" };
+  if (!accessToken?.trim()) {
+    return NextResponse.json({ error: "Authentication is required." }, { status: 401, headers });
+  }
+
+  try {
+    const upstreamResponse = await fetchImpl(`${getApiBaseUrl()}/auth/ws-ticket`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`
+      },
+      cache: "no-store"
+    });
+    const payload = await readResponsePayload(upstreamResponse);
+    if (!upstreamResponse.ok) {
+      return NextResponse.json(
+        { error: getErrorMessage(payload) ?? "Unable to create WebSocket ticket." },
+        { status: upstreamResponse.status, headers }
+      );
+    }
+
+    return NextResponse.json(payload ?? {}, { status: 200, headers });
+  } catch {
+    return NextResponse.json(
+      { error: "Unable to contact authentication service." },
+      { status: 502, headers }
+    );
+  }
 }
 
 export function performLogoutProxy(

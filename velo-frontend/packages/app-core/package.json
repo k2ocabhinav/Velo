@@ -13,6 +13,7 @@
     "./http-payload": "./src/http-payload.ts",
     "./logout": "./src/logout.ts",
     "./proxy-route": "./src/proxy-route.ts",
+    "./ws-ticket": "./src/ws-ticket.ts",
     "./redirect": "./src/redirect.ts"
   },
   "scripts": {

@@ -8,6 +8,9 @@ import com.velo.platform.dto.ResetPasswordRequestDto;
 import com.velo.platform.dto.SignupDto;
 import com.velo.platform.dto.UpdateProfileRequestDto;
 import com.velo.platform.dto.UserDto;
+import com.velo.platform.dto.WebSocketTicketResponseDto;
+import com.velo.platform.security.JwtTokenProvider;
+import com.velo.platform.security.UserPrincipal;
 import com.velo.platform.services.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -16,6 +19,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -27,6 +32,7 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+    private final JwtTokenProvider jwtTokenProvider;
 
     @PostMapping("/signup")
     @Operation(summary = "Create a new rider account")
@@ -38,6 +44,18 @@ public class AuthController {
     @Operation(summary = "Authenticate a user and return a JWT")
     public ResponseEntity<AuthResponseDto> login(@RequestBody Map<String, String> credentials) {
         return ResponseEntity.ok(authService.login(credentials.get("email"), credentials.get("password")));
+    }
+
+    @PostMapping("/ws-ticket")
+    @Operation(summary = "Issue a short-lived ticket for WebSocket authentication")
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<WebSocketTicketResponseDto> createWebSocketTicket() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
+        String ticket = jwtTokenProvider.generateWebSocketTicket(
+                principal.getEmail(), principal.getUserId(), principal.getRole(), principal.getTenantId());
+        return ResponseEntity.ok(new WebSocketTicketResponseDto(
+                ticket, JwtTokenProvider.WEBSOCKET_TICKET_TTL_SECONDS));
     }
 
     @PostMapping("/onBoardNewDriver/{userId}")

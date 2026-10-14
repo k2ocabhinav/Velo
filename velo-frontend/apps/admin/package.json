@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@velo/app-core": "*",
+    "@velo/config": "*",
     "@velo/ui": "*",
     "motion": "^12.0.0",
     "next": "^15.2.4",

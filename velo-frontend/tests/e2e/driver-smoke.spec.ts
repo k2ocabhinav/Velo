@@ -94,15 +94,10 @@ test("driver logout clears ws session token and blocks protected routes", async 
   });
 
   await page.goto("/");
-  await page.evaluate(() => {
-    window.sessionStorage.setItem("velo_ws_token", "ws-token");
-  });
   await expect(page.getByRole("button", { name: "Logout" })).toBeVisible();
   await page.getByRole("button", { name: "Logout" }).click();
 
   await page.waitForURL("**/login");
-  const wsToken = await page.evaluate(() => window.sessionStorage.getItem("velo_ws_token"));
-  expect(wsToken).toBeNull();
 
   await page.goto("/rides");
   await page.waitForURL("**/login?next=%2Frides");

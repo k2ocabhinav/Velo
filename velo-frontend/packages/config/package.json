@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "files": [
+    "security-headers.d.ts",
+    "security-headers.mjs",
     "tailwind.preset.ts",
     "tsconfig.base.json"
   ],
@@ -11,6 +13,10 @@
     "lint": "eslint ."
   },
   "exports": {
+    "./security-headers": {
+      "types": "./security-headers.d.ts",
+      "default": "./security-headers.mjs"
+    },
     "./tailwind": "./tailwind.preset.ts",
     "./tsconfig": "./tsconfig.base.json"
   }

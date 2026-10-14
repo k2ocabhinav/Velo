@@ -34,18 +34,6 @@ export function LoginForm({ nextPath }: Readonly<{ nextPath: string }>) {
         return;
       }
 
-      if (payload && typeof payload === "object" && typeof payload.token === "string") {
-        window.sessionStorage.setItem("velo_ws_token", payload.token);
-      } else if (
-        payload &&
-        typeof payload === "object" &&
-        payload.data &&
-        typeof payload.data === "object" &&
-        typeof (payload.data as { token?: unknown }).token === "string"
-      ) {
-        window.sessionStorage.setItem("velo_ws_token", String((payload.data as { token: string }).token));
-      }
-
       router.replace(nextPath);
       router.refresh();
     } catch {

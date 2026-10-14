@@ -47,7 +47,7 @@ afterEach(() => {
 describe("performClientLogout", () => {
   it("calls logout route, clears session storage keys, and redirects to login", async () => {
     const { storage, removeItem, assign } = installWindowHarness();
-    storage.set("velo_ws_token", "abc");
+    storage.set("temporary-key", "abc");
     storage.set("other", "123");
 
     global.fetch = vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 })) as typeof fetch;
@@ -55,7 +55,7 @@ describe("performClientLogout", () => {
     await performClientLogout({
       logoutPath: "/api/auth/logout",
       loginPath: "/login",
-      sessionStorageKeysToClear: ["velo_ws_token"],
+      sessionStorageKeysToClear: ["temporary-key"],
     });
 
     expect(global.fetch).toHaveBeenCalledWith(
@@ -64,26 +64,26 @@ describe("performClientLogout", () => {
         method: "POST",
       }),
     );
-    expect(removeItem).toHaveBeenCalledWith("velo_ws_token");
-    expect(storage.get("velo_ws_token")).toBeUndefined();
+    expect(removeItem).toHaveBeenCalledWith("temporary-key");
+    expect(storage.get("temporary-key")).toBeUndefined();
     expect(storage.get("other")).toBe("123");
     expect(assign).toHaveBeenCalledWith("/login");
   });
 
   it("still performs local cleanup when logout request fails", async () => {
     const { storage, assign } = installWindowHarness();
-    storage.set("velo_ws_token", "abc");
+    storage.set("temporary-key", "abc");
 
     global.fetch = vi.fn(async () => {
       throw new Error("network down");
     }) as typeof fetch;
 
     await performClientLogout({
-      sessionStorageKeysToClear: ["velo_ws_token"],
+      sessionStorageKeysToClear: ["temporary-key"],
       loginPath: "/login",
     });
 
-    expect(storage.get("velo_ws_token")).toBeUndefined();
+    expect(storage.get("temporary-key")).toBeUndefined();
     expect(assign).toHaveBeenCalledWith("/login");
   });
 });

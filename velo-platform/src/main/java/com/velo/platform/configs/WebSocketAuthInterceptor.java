@@ -34,7 +34,7 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
             if (authHeader != null && authHeader.startsWith("Bearer ")) {
                 String token = authHeader.substring(7);
                 try {
-                    if (jwtTokenProvider.validateToken(token)) {
+                    if (jwtTokenProvider.validateWebSocketTicket(token)) {
                         UserPrincipal userPrincipal = new UserPrincipal(
                                 jwtTokenProvider.getUserIdFromToken(token),
                                 jwtTokenProvider.getEmailFromToken(token),

@@ -14,6 +14,10 @@ import java.util.Date;
 @Component
 public class JwtTokenProvider {
 
+    public static final long WEBSOCKET_TICKET_TTL_SECONDS = 60;
+    private static final String TOKEN_TYPE_CLAIM = "tokenType";
+    private static final String WEBSOCKET_TICKET_TYPE = "websocket";
+
     private final SecretKey secretKey;
     private final long expirationMs;
 
@@ -33,6 +37,22 @@ public class JwtTokenProvider {
                 .claim("userId", userId)
                 .claim("role", role)
                 .claim("tenantId", tenantId)
+                .issuedAt(now)
+                .expiration(expiryDate)
+                .signWith(secretKey)
+                .compact();
+    }
+
+    public String generateWebSocketTicket(String email, Long userId, String role, Long tenantId) {
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + WEBSOCKET_TICKET_TTL_SECONDS * 1_000);
+
+        return Jwts.builder()
+                .subject(email)
+                .claim("userId", userId)
+                .claim("role", role)
+                .claim("tenantId", tenantId)
+                .claim(TOKEN_TYPE_CLAIM, WEBSOCKET_TICKET_TYPE)
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(secretKey)
@@ -82,11 +102,25 @@ public class JwtTokenProvider {
 
     public boolean validateToken(String token) {
         try {
-            Jwts.parser()
+            Claims claims = Jwts.parser()
                     .verifyWith(secretKey)
                     .build()
-                    .parseSignedClaims(token);
-            return true;
+                    .parseSignedClaims(token)
+                    .getPayload();
+            return !WEBSOCKET_TICKET_TYPE.equals(claims.get(TOKEN_TYPE_CLAIM, String.class));
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    public boolean validateWebSocketTicket(String ticket) {
+        try {
+            Claims claims = Jwts.parser()
+                    .verifyWith(secretKey)
+                    .build()
+                    .parseSignedClaims(ticket)
+                    .getPayload();
+            return WEBSOCKET_TICKET_TYPE.equals(claims.get(TOKEN_TYPE_CLAIM, String.class));
         } catch (JwtException | IllegalArgumentException e) {
             return false;
         }

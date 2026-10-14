@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createStompClient, parseNotificationEventMessage, parseRideUpdateEventMessage, registerStompSubscription } from "@velo/ws";
+import { fetchWebSocketTicket } from "@velo/app-core/ws-ticket";
 import type { IFrame, IMessage } from "@stomp/stompjs";
 import { getRiderRealtimeStatusText, type RiderWsConnectionState } from "./rider-realtime-status";
 
@@ -51,19 +52,6 @@ function getApiBaseUrl(): string {
     "http://localhost:8080";
 
   return configured.replace(/\/$/, "");
-}
-
-function getSessionWsToken(): string | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const token = window.sessionStorage.getItem("velo_ws_token");
-  if (!token || !token.trim()) {
-    return null;
-  }
-
-  return token;
 }
 
 function parseInteger(value: unknown): number | undefined {
@@ -231,43 +219,46 @@ function useRiderStompSubscription(
       return;
     }
 
-    const token = getSessionWsToken();
-    if (!token) {
-      setConnection({
-        state: "idle",
-        reconnectAttempts: 0,
-        lastError: "Realtime updates are unavailable until you sign in again.",
-      });
-      return;
-    }
-
     let disposed = false;
     let hasConnected = false;
     let reconnectAttempts = 0;
 
     const client = createStompClient({
       baseURL: getApiBaseUrl(),
-      token,
       reconnectDelay: 1_000,
       maxReconnectDelay: 30_000,
       heartbeatIncoming: 10_000,
       heartbeatOutgoing: 10_000,
-      beforeConnect: () => {
+      beforeConnect: async (stompClient) => {
         if (disposed) {
           return;
         }
 
         if (!hasConnected) {
           setConnection({ state: "connecting", reconnectAttempts: 0, lastError: null });
-          return;
+        } else {
+          reconnectAttempts += 1;
+          setConnection((current) => ({
+            state: "reconnecting",
+            reconnectAttempts,
+            lastError: current.lastError,
+          }));
         }
-
-        reconnectAttempts += 1;
-        setConnection((current) => ({
-          state: "reconnecting",
-          reconnectAttempts,
-          lastError: current.lastError,
-        }));
+        try {
+          const ticket = await fetchWebSocketTicket();
+          if (!disposed) {
+            stompClient.connectHeaders = { Authorization: `Bearer ${ticket}` };
+          }
+        } catch (error) {
+          if (!disposed) {
+            setConnection((current) => ({
+              state: "error",
+              reconnectAttempts: current.reconnectAttempts,
+              lastError: error instanceof Error ? error.message : "Realtime authentication failed.",
+            }));
+          }
+          throw error;
+        }
       },
       onConnect: () => {
         if (disposed) {
