@@ -1,6 +1,7 @@
 import { expect, test } from "./fixtures";
+import tenantBranding from "./tenant-branding.json";
 
-const tenantBrandName = process.env.PLAYWRIGHT_TENANT_BRAND_NAME ?? "Velo";
+const tenantBrandName = tenantBranding.brandName;
 const tenantWordmark = tenantBrandName === "Velo" ? "VELO" : tenantBrandName;
 
 async function captureBrandScreens(page: import("@playwright/test").Page, name: string): Promise<void> {

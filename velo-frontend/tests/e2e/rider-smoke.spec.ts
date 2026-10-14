@@ -1,6 +1,7 @@
 import { expect, test } from "./fixtures";
+import tenantBranding from "./tenant-branding.json";
 
-const tenantBrandName = process.env.PLAYWRIGHT_TENANT_BRAND_NAME ?? "Velo";
+const tenantBrandName = tenantBranding.brandName;
 import type { Page } from "@playwright/test";
 
 function formatDateTimeLocal(value: Date): string {

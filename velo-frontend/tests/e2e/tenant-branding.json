@@ -1,0 +1,12 @@
+{
+  "brandName": "Velo Business",
+  "primaryColor": "#1A56FF",
+  "primaryHsl": "224.3 100% 55.1%",
+  "tenantId": 9001,
+  "logoUrl": null,
+  "riderLabel": "Passenger",
+  "driverLabel": "Courier",
+  "tripLabel": "Journey",
+  "dispatchMode": "RIDE_HAILING",
+  "riderPortalEnabled": true
+}
