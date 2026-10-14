@@ -18,17 +18,22 @@
     "start": "turbo run start --parallel"
   },
   "devDependencies": {
+    "@eslint/compat": "^2.1.1",
     "@eslint/js": "^10.0.1",
-    "@next/eslint-plugin-next": "^16.2.2",
+    "@next/eslint-plugin-next": "^14.2.35",
     "@playwright/test": "^1.59.1",
-    "@vitest/coverage-v8": "^4.1.3",
+    "@vitest/coverage-v8": "^4.1.11",
     "eslint": "^10.2.0",
-    "turbo": "^2.5.8",
+    "turbo": "^2.9.14",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.58.0",
-    "vitest": "^4.1.3"
+    "vitest": "^4.1.11"
   },
   "engines": {
     "node": ">=22"
+  },
+  "overrides": {
+    "postcss": "^8.5.30",
+    "glob": "^10.5.0"
   }
 }
