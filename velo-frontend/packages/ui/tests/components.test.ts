@@ -2,6 +2,7 @@ import { createElement as h, type ReactElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import {
+  AddressSearch,
   AppTopBar,
   BottomNav,
   ConfirmDialog,
@@ -93,6 +94,26 @@ describe("shared UI foundation", () => {
     expect(markup).toContain('aria-checked="true"');
     expect(markup).toContain("Active");
     expect(markup).toContain(">3</span>");
+  });
+
+  it("renders a closed submit-based address search with a search action", () => {
+    const markup = html(h(AddressSearch, {
+      label: "Pickup",
+      value: "",
+      selected: false,
+      preSearchLabel: "Saved places",
+      preSearchPlaces: [{ label: "Home, Bengaluru", lat: 12.9, lon: 77.5, type: "saved", title: "Home" }],
+      search: vi.fn(async () => []),
+      onValueChange: vi.fn(),
+      onSelect: vi.fn(),
+    }));
+    expect(markup).toContain('role="combobox"');
+    expect(markup).toContain('aria-autocomplete="list"');
+    expect(markup).toContain('aria-expanded="false"');
+    expect(markup).toContain('placeholder="Search an address"');
+    expect(markup).toContain('type="button"');
+    expect(markup).toContain(">Search</button>");
+    expect(markup).not.toContain('role="listbox"');
   });
 
   it("renders a keyboard-enabled overflow menu trigger", () => {

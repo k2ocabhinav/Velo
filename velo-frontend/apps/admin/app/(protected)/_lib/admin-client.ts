@@ -83,6 +83,13 @@ export type PayoutItem = {
   requestedAt: string;
 };
 
+export type AdminRecentAddress = {
+  label: string;
+  lat: number;
+  lon: number;
+  type: string;
+};
+
 export type PromoCode = {
   id: number;
   code: string;
@@ -513,6 +520,11 @@ export const adminClient = {
       `api/v1/admin/dispatch/active-rides?page=${page}&size=${size}`
     );
     return toPage<AdminActiveRide>(payload);
+  },
+
+  async getRecentDispatchAddresses(): Promise<AdminRecentAddress[]> {
+    const payload = await requestAdminProxy<unknown>("api/v1/admin/dispatch/recent-addresses");
+    return toList<AdminRecentAddress>(payload);
   },
 
   async getRideRequestOffers(rideRequestId: number): Promise<AdminRideOffer[]> {

@@ -29,6 +29,9 @@ import jakarta.persistence.EntityManagerFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.PrecisionModel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -171,6 +174,8 @@ class AdminDispatchControllerIntegrationTest {
                 .driver(busyDriver)
                 .paymentMethod(PaymentMethod.WALLET)
                 .rideStatus(RideStatus.CONFIRMED)
+                .pickupLocation(new GeometryFactory(new PrecisionModel(), 4326).createPoint(new Coordinate(77.5, 12.9)))
+                .dropOffLocation(new GeometryFactory(new PrecisionModel(), 4326).createPoint(new Coordinate(77.6, 12.8)))
                 .fare(BigDecimal.valueOf(220))
                 .otp("1234")
                 .createdTime(LocalDateTime.now().minusMinutes(5))
@@ -192,6 +197,12 @@ class AdminDispatchControllerIntegrationTest {
                         .param("size", "10")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content[0].rideId").value(activeRide.getId()));
+
+        mockMvc.perform(withAdminAuth(get("/api/v1/admin/dispatch/recent-addresses")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].type").value("Recent pickup"))
+                .andExpect(jsonPath("$.data[0].lat").value(12.9))
+                .andExpect(jsonPath("$.data[1].type").value("Recent drop-off"));
 
         mockMvc.perform(withAdminAuth(get("/api/v1/admin/dispatch/requests/" + pendingRequest.getId() + "/offers")))
                 .andExpect(status().isOk())

@@ -1,6 +1,7 @@
 package com.velo.platform.controllers;
 
 import com.velo.platform.dto.admin.AdminStatsDto;
+import com.velo.platform.dto.GeocodingResultDto;
 import com.velo.platform.dto.admin.AdminUserDto;
 import com.velo.platform.dto.admin.AdminDispatchActionRequestDto;
 import com.velo.platform.dto.admin.AdminDispatchAuditDto;
@@ -199,6 +200,12 @@ public class AdminController {
             @RequestParam(defaultValue = "10") int size) {
         PageRequest pageRequest = PageRequest.of(page, size);
         return ResponseEntity.ok(adminDispatchService.getActiveRides(pageRequest));
+    }
+
+    @GetMapping("/dispatch/recent-addresses")
+    @Operation(summary = "Get pickup and drop-off locations from the tenant's 20 most recent trips")
+    public ResponseEntity<List<GeocodingResultDto>> getRecentDispatchAddresses() {
+        return ResponseEntity.ok(adminDispatchService.getRecentAddresses());
     }
 
     @GetMapping("/dispatch/requests/{rideRequestId}/offers")

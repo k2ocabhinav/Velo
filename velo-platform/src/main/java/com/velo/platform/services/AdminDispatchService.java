@@ -2,6 +2,7 @@ package com.velo.platform.services;
 
 import com.velo.platform.dto.RideDto;
 import com.velo.platform.dto.RideRequestDto;
+import com.velo.platform.dto.GeocodingResultDto;
 import com.velo.platform.dto.admin.AdminCreateDispatchRequestDto;
 import com.velo.platform.dto.admin.AdminActiveRideDto;
 import com.velo.platform.dto.admin.AdminDispatchAuditDto;
@@ -20,6 +21,8 @@ public interface AdminDispatchService {
     Page<AdminPendingRideRequestDto> getPendingRideRequests(Pageable pageable);
 
     Page<AdminActiveRideDto> getActiveRides(Pageable pageable);
+
+    List<GeocodingResultDto> getRecentAddresses();
 
     List<AdminRideOfferDto> getRideOffers(Long rideRequestId);
 

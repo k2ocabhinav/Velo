@@ -1,16 +1,24 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import dynamic from "next/dynamic";
 import {
-  Button, ConfirmDialog, DataTable, DateTime, DefinitionList, EmptyState, ErrorState, Field, Menu, PageHeader, RouteStrip, Section, Select, Sheet, Skeleton, StatusBadge, Textarea,
+  AddressSearch, Button, ConfirmDialog, DataTable, DateTime, DefinitionList, EmptyState, ErrorState, Field, Menu, PageHeader, RouteStrip, Section, Select, Sheet, Skeleton, StatusBadge, Textarea,
+  type AddressSuggestion,
   type DataTableColumn,
 } from "@velo/ui";
+import type { LocationPoint, LocationTarget } from "@velo/ui/leaflet-map";
 import { isActionPending, setActionPending } from "@velo/app-core/async-actions";
 import { adminClient, type AdminActiveRide, type AdminDispatchAudit, type AdminPendingRideRequest, type AdminRideOffer, type BrandingSettings, type CreateDispatchRequestInput } from "../_lib/admin-client";
+import { requestAdminProxy } from "../_lib/http";
 import { toActionErrorMessage } from "../_lib/ui-state";
 import { executeDispatchOperation } from "../../_lib/dispatch-action";
 
 const PAGE_SIZE = 10;
+const LeafletLocationPicker = dynamic(
+  () => import("@velo/ui/leaflet-map").then((module) => module.LeafletLocationPicker),
+  { ssr: false, loading: () => <div className="geo-map-picker geo-map-loading" role="status" aria-busy="true">Loading map picker…</div> },
+);
 type DispatchForm = Pick<CreateDispatchRequestInput, "paymentMethod"> & {
   pickupLat: string; pickupLng: string; dropOffLat: string; dropOffLng: string;
   customerName: string; customerPhone: string; pickupAddress: string; dropOffAddress: string; externalReference: string;
@@ -24,7 +32,23 @@ const INITIAL_FORM: DispatchForm = {
 };
 
 function safeReason(value: string): string | null { return value.trim() || null; }
-function parseCoordinate(value: string): number | null { const number = Number(value); return Number.isFinite(number) ? number : null; }
+function parseCoordinate(value: string): number | null { if (!value.trim()) return null; const number = Number(value); return Number.isFinite(number) ? number : null; }
+function parsePoint(latitude: string, longitude: string): LocationPoint | null {
+  const lat = parseCoordinate(latitude);
+  const lng = parseCoordinate(longitude);
+  return lat === null || lng === null || lat < -90 || lat > 90 || lng < -180 || lng > 180 ? null : { lat, lng };
+}
+
+function searchDispatchAddresses(query: string, near?: string): Promise<AddressSuggestion[]> {
+  const params = new URLSearchParams({ q: query });
+  if (near) params.set("near", near);
+  return requestAdminProxy<AddressSuggestion[]>(`geo/search?${params.toString()}`);
+}
+
+function reverseDispatchAddress(point: LocationPoint): Promise<AddressSuggestion> {
+  const params = new URLSearchParams({ lat: String(point.lat), lon: String(point.lng) });
+  return requestAdminProxy<AddressSuggestion>(`geo/reverse?${params.toString()}`);
+}
 
 function readableAuditAction(action: string | null | undefined): string {
   const labels: Record<string, string> = {
@@ -44,6 +68,9 @@ export default function AdminDispatchPage() {
   const [auditRows, setAuditRows] = useState<AdminDispatchAudit[]>([]);
   const [offersByRequest, setOffersByRequest] = useState<Record<number, AdminRideOffer[]>>({});
   const [branding, setBranding] = useState<BrandingSettings | null>(null);
+  const [recentAddresses, setRecentAddresses] = useState<AddressSuggestion[]>([]);
+  const [loadingRecentAddresses, setLoadingRecentAddresses] = useState(false);
+  const [recentAddressError, setRecentAddressError] = useState(false);
   const [dispatchForm, setDispatchForm] = useState<DispatchForm>(INITIAL_FORM);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +82,11 @@ export default function AdminDispatchPage() {
   const [cancelTarget, setCancelTarget] = useState<CancelTarget | null>(null);
   const [cancelConfirm, setCancelConfirm] = useState<CancelTarget | null>(null);
   const [gettingLocation, setGettingLocation] = useState(false);
+  const [activeLocationTarget, setActiveLocationTarget] = useState<LocationTarget>("pickup");
+  const [reverseLookupTarget, setReverseLookupTarget] = useState<LocationTarget | null>(null);
+  const reverseRequestId = useRef(0);
+  const pickupPoint = parsePoint(dispatchForm.pickupLat, dispatchForm.pickupLng);
+  const dropoffPoint = parsePoint(dispatchForm.dropOffLat, dispatchForm.dropOffLng);
 
   async function loadAll(): Promise<void> {
     setLoading(true);
@@ -78,6 +110,18 @@ export default function AdminDispatchPage() {
   }
 
   useEffect(() => { void loadAll(); }, []);
+
+  useEffect(() => {
+    if (!createOpen) return;
+    let cancelled = false;
+    setLoadingRecentAddresses(true);
+    setRecentAddressError(false);
+    void adminClient.getRecentDispatchAddresses()
+      .then((addresses) => { if (!cancelled) setRecentAddresses(addresses); })
+      .catch(() => { if (!cancelled) { setRecentAddresses([]); setRecentAddressError(true); } })
+      .finally(() => { if (!cancelled) setLoadingRecentAddresses(false); });
+    return () => { cancelled = true; };
+  }, [createOpen]);
 
   async function runAction(actionKey: string, operation: () => Promise<void>, success: string): Promise<boolean> {
     if (isActionPending(pendingActions, actionKey)) return false;
@@ -159,6 +203,71 @@ export default function AdminDispatchPage() {
     setCancelConfirm(null);
   }
 
+  function changeAddress(target: LocationTarget, value: string): void {
+    reverseRequestId.current += 1;
+    setReverseLookupTarget(null);
+    setDispatchForm((form) => target === "pickup"
+      ? { ...form, pickupAddress: value, pickupLat: "", pickupLng: "" }
+      : { ...form, dropOffAddress: value, dropOffLat: "", dropOffLng: "" });
+  }
+
+  function changeManualCoordinate(target: LocationTarget, axis: "lat" | "lng", value: string): void {
+    reverseRequestId.current += 1;
+    setReverseLookupTarget(null);
+    setDispatchForm((form) => target === "pickup"
+      ? { ...form, pickupAddress: "", ...(axis === "lat" ? { pickupLat: value } : { pickupLng: value }) }
+      : { ...form, dropOffAddress: "", ...(axis === "lat" ? { dropOffLat: value } : { dropOffLng: value }) });
+  }
+
+  function selectAddress(target: LocationTarget, suggestion: AddressSuggestion): void {
+    const requestId = ++reverseRequestId.current;
+    setReverseLookupTarget(null);
+    setDispatchForm((form) => target === "pickup"
+      ? { ...form, pickupAddress: suggestion.label, pickupLat: String(suggestion.lat), pickupLng: String(suggestion.lon) }
+      : { ...form, dropOffAddress: suggestion.label, dropOffLat: String(suggestion.lat), dropOffLng: String(suggestion.lon) });
+    if (!suggestion.type.toLowerCase().startsWith("recent ")) return;
+    const point = { lat: suggestion.lat, lng: suggestion.lon };
+    setReverseLookupTarget(target);
+    void reverseDispatchAddress(point)
+      .then((address) => {
+        if (requestId !== reverseRequestId.current) return;
+        setDispatchForm((form) => target === "pickup"
+          ? { ...form, pickupAddress: address.label }
+          : { ...form, dropOffAddress: address.label });
+      })
+      .catch(() => {
+        if (requestId === reverseRequestId.current) setStatusMessage("Recent trip location selected; its address label is unavailable.");
+      })
+      .finally(() => {
+        if (requestId === reverseRequestId.current) setReverseLookupTarget(null);
+      });
+  }
+
+  function setPointFromMap(target: LocationTarget, point: LocationPoint): void {
+    const requestId = ++reverseRequestId.current;
+    setActiveLocationTarget("dropoff");
+    setReverseLookupTarget(target);
+    setDispatchForm((form) => target === "pickup"
+      ? { ...form, pickupAddress: "", pickupLat: String(point.lat), pickupLng: String(point.lng) }
+      : { ...form, dropOffAddress: "", dropOffLat: String(point.lat), dropOffLng: String(point.lng) });
+    setError(null);
+    void reverseDispatchAddress(point)
+      .then((result) => {
+        if (requestId !== reverseRequestId.current) return;
+        setDispatchForm((form) => target === "pickup"
+          ? { ...form, pickupAddress: result.label }
+          : { ...form, dropOffAddress: result.label });
+      })
+      .catch(() => {
+        if (requestId === reverseRequestId.current) {
+          setStatusMessage("Coordinates saved. An address label is unavailable for this map point.");
+        }
+      })
+      .finally(() => {
+        if (requestId === reverseRequestId.current) setReverseLookupTarget(null);
+      });
+  }
+
   function useCurrentLocation(): void {
     if (!navigator.geolocation) {
       setError("Location is not available in this browser. Enter coordinates to continue.");
@@ -167,9 +276,12 @@ export default function AdminDispatchPage() {
     setGettingLocation(true);
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setDispatchForm((form) => ({ ...form, pickupLat: String(position.coords.latitude), pickupLng: String(position.coords.longitude) }));
+        const point = { lat: position.coords.latitude, lng: position.coords.longitude };
+        setDispatchForm((form) => ({ ...form, pickupAddress: "", pickupLat: String(point.lat), pickupLng: String(point.lng) }));
+        setActiveLocationTarget("dropoff");
+        setPointFromMap("pickup", point);
         setGettingLocation(false);
-        setStatusMessage("Pickup coordinates set from your current location.");
+        setStatusMessage("Pickup set from your current location.");
       },
       () => {
         setGettingLocation(false);
@@ -181,16 +293,14 @@ export default function AdminDispatchPage() {
 
   async function createDispatchRequest(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    const pickupLat = parseCoordinate(dispatchForm.pickupLat);
-    const pickupLng = parseCoordinate(dispatchForm.pickupLng);
-    const dropOffLat = parseCoordinate(dispatchForm.dropOffLat);
-    const dropOffLng = parseCoordinate(dispatchForm.dropOffLng);
-    if (pickupLat === null || pickupLng === null || dropOffLat === null || dropOffLng === null) {
-      setError("Set pickup and drop-off coordinates to create a trip.");
+    const pickup = parsePoint(dispatchForm.pickupLat, dispatchForm.pickupLng);
+    const dropoff = parsePoint(dispatchForm.dropOffLat, dispatchForm.dropOffLng);
+    if (!pickup || !dropoff) {
+      setError("Choose pickup and drop-off addresses, or enter valid coordinates.");
       return;
     }
     const payload: CreateDispatchRequestInput = {
-      pickupLat, pickupLng, dropOffLat, dropOffLng, paymentMethod: dispatchForm.paymentMethod,
+      pickupLat: pickup.lat, pickupLng: pickup.lng, dropOffLat: dropoff.lat, dropOffLng: dropoff.lng, paymentMethod: dispatchForm.paymentMethod,
       customerName: safeReason(dispatchForm.customerName) ?? undefined,
       customerPhone: safeReason(dispatchForm.customerPhone) ?? undefined,
       pickupAddress: safeReason(dispatchForm.pickupAddress) ?? undefined,
@@ -199,6 +309,8 @@ export default function AdminDispatchPage() {
     };
     const created = await runAction("create-dispatch-request", () => adminClient.createDispatchRequest(payload), "Trip request created and offered to nearby drivers.");
     if (created) {
+      reverseRequestId.current += 1;
+      setReverseLookupTarget(null);
       setDispatchForm(INITIAL_FORM);
       setCreateOpen(false);
     }
@@ -299,19 +411,51 @@ export default function AdminDispatchPage() {
         )}
       </Section>
 
-      <Sheet open={createOpen} onOpenChange={setCreateOpen} title="New trip" description="Create a request and offer it to nearby drivers.">
+      <Sheet open={createOpen} onOpenChange={(open) => { setCreateOpen(open); if (!open) { reverseRequestId.current += 1; setReverseLookupTarget(null); } }} title="New trip" description="Create a request and offer it to nearby drivers.">
         <form className="stack" onSubmit={(event) => void createDispatchRequest(event)}>
-          <Field label="Pickup address"><input className="ui-control" value={dispatchForm.pickupAddress} onChange={(event) => setDispatchForm((form) => ({ ...form, pickupAddress: event.target.value }))} placeholder="Street, city" /></Field>
-          <Field label="Drop-off address"><input className="ui-control" value={dispatchForm.dropOffAddress} onChange={(event) => setDispatchForm((form) => ({ ...form, dropOffAddress: event.target.value }))} placeholder="Street, city" /></Field>
+          <AddressSearch
+            label="Pickup address"
+            value={dispatchForm.pickupAddress}
+            selected={pickupPoint !== null}
+            near={dropoffPoint ? `${dropoffPoint.lat},${dropoffPoint.lng}` : undefined}
+            search={searchDispatchAddresses}
+            preSearchLabel="Recent addresses from the last 20 trips"
+            preSearchPlaces={recentAddresses}
+            onValueChange={(value) => changeAddress("pickup", value)}
+            onSelect={(suggestion) => selectAddress("pickup", suggestion)}
+            placeholder="Search a pickup address"
+          />
+          <AddressSearch
+            label="Drop-off address"
+            value={dispatchForm.dropOffAddress}
+            selected={dropoffPoint !== null}
+            near={pickupPoint ? `${pickupPoint.lat},${pickupPoint.lng}` : undefined}
+            search={searchDispatchAddresses}
+            preSearchLabel="Recent addresses from the last 20 trips"
+            preSearchPlaces={recentAddresses}
+            onValueChange={(value) => changeAddress("dropoff", value)}
+            onSelect={(suggestion) => selectAddress("dropoff", suggestion)}
+            placeholder="Search a drop-off address"
+          />
+          {loadingRecentAddresses ? <p className="address-search-status" role="status">Loading recent trip locations…</p> : null}
+          {recentAddressError ? <p className="address-search-error" role="status">Recent trip locations are unavailable.</p> : null}
+          <LeafletLocationPicker
+            pickup={pickupPoint}
+            dropoff={dropoffPoint}
+            activeTarget={activeLocationTarget}
+            onActiveTargetChange={setActiveLocationTarget}
+            onPointSelected={setPointFromMap}
+          />
+          {reverseLookupTarget ? <p className="helper" role="status">Finding the {reverseLookupTarget === "pickup" ? "pickup" : "drop-off"} address…</p> : null}
           <Button type="button" variant="secondary" loading={gettingLocation} onClick={useCurrentLocation}>Use current location for pickup</Button>
-          <p className="helper">Location access sets pickup coordinates. Enter precise coordinates below when available.</p>
+          <p className="helper">Search an address, use your current location, or tap the map. You can enter coordinates manually if needed.</p>
           <details>
             <summary>Enter coordinates</summary>
             <div className="admin-form-grid" style={{ marginTop: "var(--space-3)" }}>
-              <Field label="Pickup latitude"><input className="ui-control" inputMode="decimal" value={dispatchForm.pickupLat} onChange={(event) => setDispatchForm((form) => ({ ...form, pickupLat: event.target.value }))} required /></Field>
-              <Field label="Pickup longitude"><input className="ui-control" inputMode="decimal" value={dispatchForm.pickupLng} onChange={(event) => setDispatchForm((form) => ({ ...form, pickupLng: event.target.value }))} required /></Field>
-              <Field label="Drop-off latitude"><input className="ui-control" inputMode="decimal" value={dispatchForm.dropOffLat} onChange={(event) => setDispatchForm((form) => ({ ...form, dropOffLat: event.target.value }))} required /></Field>
-              <Field label="Drop-off longitude"><input className="ui-control" inputMode="decimal" value={dispatchForm.dropOffLng} onChange={(event) => setDispatchForm((form) => ({ ...form, dropOffLng: event.target.value }))} required /></Field>
+              <Field label="Pickup latitude"><input className="ui-control" inputMode="decimal" value={dispatchForm.pickupLat} onChange={(event) => changeManualCoordinate("pickup", "lat", event.target.value)} /></Field>
+              <Field label="Pickup longitude"><input className="ui-control" inputMode="decimal" value={dispatchForm.pickupLng} onChange={(event) => changeManualCoordinate("pickup", "lng", event.target.value)} /></Field>
+              <Field label="Drop-off latitude"><input className="ui-control" inputMode="decimal" value={dispatchForm.dropOffLat} onChange={(event) => changeManualCoordinate("dropoff", "lat", event.target.value)} /></Field>
+              <Field label="Drop-off longitude"><input className="ui-control" inputMode="decimal" value={dispatchForm.dropOffLng} onChange={(event) => changeManualCoordinate("dropoff", "lng", event.target.value)} /></Field>
             </div>
           </details>
           <div className="admin-form-grid">

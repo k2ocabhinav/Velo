@@ -4,6 +4,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { Barlow_Condensed, Inter } from "next/font/google";
 import { DEFAULT_TENANT_BRANDING, fetchTenantBranding, getDefaultTenantSlug, TENANT_SLUG_HEADER } from "@velo/app-core/tenant";
 import { resolveTenantPrimaryStyle, TenantBrandingProvider } from "@velo/ui/theme";
+import "leaflet/dist/leaflet.css";
 import "@velo/ui/styles.css";
 import "./globals.css";
 

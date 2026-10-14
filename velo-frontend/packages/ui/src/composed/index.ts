@@ -6,3 +6,4 @@ export * from "./interaction";
 export * from "./route-strip";
 export * from "./pagination";
 export * from "./auth";
+export * from "./address-search";

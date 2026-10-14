@@ -42,6 +42,7 @@ import { fetchRoutePath, type MapPoint, type RoutePath } from "./_lib/map/routin
 import { BookingMapLoader } from "./_components/booking-map-loader";
 import { rememberWalletBalance } from "./_lib/wallet-balance";
 import {
+  AddressSearch,
   DefinitionList,
   ErrorState,
   Field,
@@ -52,6 +53,7 @@ import {
   Skeleton,
   StatusBadge,
   ConfirmDialog,
+  type AddressSuggestion,
 } from "@velo/ui";
 import { Button } from "@velo/ui/primitives";
 
@@ -79,6 +81,15 @@ type RideRequest = {
   createdTime?: string;
 };
 
+type SavedPlace = {
+  id: number;
+  name: string;
+  label: string;
+  lat: number;
+  lon: number;
+  type: string;
+};
+
 type TenantBranding = {
   brandName?: string;
   riderLabel?: string;
@@ -101,6 +112,17 @@ const TRIP_LANE_NOTIFICATION_TYPES = new Set([
   "RIDE_CANCELLED",
   "RIDE_DISPATCHED",
 ]);
+
+function searchRiderAddresses(query: string, near?: string): Promise<AddressSuggestion[]> {
+  const params = new URLSearchParams({ q: query });
+  if (near) params.set("near", near);
+  return requestRiderProxy<AddressSuggestion[]>(`geo/search?${params.toString()}`);
+}
+
+function reverseRiderAddress(point: MapPoint): Promise<AddressSuggestion> {
+  const params = new URLSearchParams({ lat: String(point.lat), lon: String(point.lng) });
+  return requestRiderProxy<AddressSuggestion>(`geo/reverse?${params.toString()}`);
+}
 
 function isTripLaneNotification(event: RiderNotificationEvent): boolean {
   if (!event.type) {
@@ -128,8 +150,10 @@ export default function RiderHomePage() {
 
   const [pickupLat, setPickupLat] = useState("");
   const [pickupLng, setPickupLng] = useState("");
+  const [pickupAddress, setPickupAddress] = useState("");
   const [dropLat, setDropLat] = useState("");
   const [dropLng, setDropLng] = useState("");
+  const [dropOffAddress, setDropOffAddress] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("WALLET");
   const [promoCode, setPromoCode] = useState("");
   const [estimating, setEstimating] = useState(false);
@@ -149,11 +173,19 @@ export default function RiderHomePage() {
   const [lastTripLaneSyncAt, setLastTripLaneSyncAt] = useState<string | null>(null);
   const [branding, setBranding] = useState<TenantBranding | null>(null);
   const [loadingBranding, setLoadingBranding] = useState(true);
+  const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
+  const [savedPlacesLoading, setSavedPlacesLoading] = useState(false);
+  const [savedPlacesError, setSavedPlacesError] = useState<string | null>(null);
+  const [savedPlaceName, setSavedPlaceName] = useState("");
+  const [savingSavedPlace, setSavingSavedPlace] = useState(false);
+  const [removingSavedPlaceId, setRemovingSavedPlaceId] = useState<number | null>(null);
 
   const [activeTarget, setActiveTarget] = useState<SelectionTarget>("pickup");
   const [routePath, setRoutePath] = useState<RoutePath | null>(null);
   const [loadingRoute, setLoadingRoute] = useState(false);
   const routeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const geocodeRequestId = useRef(0);
+  const [reverseLookupTarget, setReverseLookupTarget] = useState<SelectionTarget | null>(null);
 
   const pickupPoint = useMemo(() => inputStringsToMapPoint(pickupLat, pickupLng), [pickupLat, pickupLng]);
   const dropOffPoint = useMemo(() => inputStringsToMapPoint(dropLat, dropLng), [dropLat, dropLng]);
@@ -203,6 +235,18 @@ export default function RiderHomePage() {
   }, []);
 
   useEffect(() => {
+    if (!bookingOpen) return;
+    let cancelled = false;
+    setSavedPlacesLoading(true);
+    setSavedPlacesError(null);
+    void requestRiderProxy<SavedPlace[]>("riders/saved-places")
+      .then((places) => { if (!cancelled) setSavedPlaces(places); })
+      .catch(() => { if (!cancelled) setSavedPlacesError("Saved places are unavailable right now."); })
+      .finally(() => { if (!cancelled) setSavedPlacesLoading(false); });
+    return () => { cancelled = true; };
+  }, [bookingOpen]);
+
+  useEffect(() => {
     if (!estimateSignature) {
       return;
     }
@@ -246,13 +290,31 @@ export default function RiderHomePage() {
   const handleMapPointSelected = useCallback(
     (target: SelectionTarget, point: MapPoint) => {
       const strings = mapPointToInputStrings(point);
+      const requestId = ++geocodeRequestId.current;
+      setReverseLookupTarget(target);
       if (target === "pickup") {
         setPickupLat(strings.lat);
         setPickupLng(strings.lng);
+        setPickupAddress("");
       } else {
         setDropLat(strings.lat);
         setDropLng(strings.lng);
+        setDropOffAddress("");
       }
+      void reverseRiderAddress(point)
+        .then((suggestion) => {
+          if (requestId !== geocodeRequestId.current) return;
+          if (target === "pickup") setPickupAddress(suggestion.label);
+          else setDropOffAddress(suggestion.label);
+        })
+        .catch(() => {
+          if (requestId === geocodeRequestId.current) {
+            setMessage("Map point saved. Its address label is unavailable right now.");
+          }
+        })
+        .finally(() => {
+          if (requestId === geocodeRequestId.current) setReverseLookupTarget(null);
+        });
       // Auto-advance: after placing pickup, switch to dropoff
       if (target === "pickup") {
         setActiveTarget("dropoff");
@@ -429,9 +491,7 @@ export default function RiderHomePage() {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
           };
-          const strings = mapPointToInputStrings(nextPoint);
-          setPickupLat(strings.lat);
-          setPickupLng(strings.lng);
+          handleMapPointSelected("pickup", nextPoint);
           setActiveTarget("dropoff");
           setMessage("Pickup pinned to your current location. Set drop-off next.");
           resolve();
@@ -454,11 +514,110 @@ export default function RiderHomePage() {
     setResolvingPickupLocation(false);
   }
 
+  function changeBookingAddress(target: SelectionTarget, value: string): void {
+    geocodeRequestId.current += 1;
+    setReverseLookupTarget(null);
+    if (target === "pickup") {
+      setPickupAddress(value);
+      setPickupLat("");
+      setPickupLng("");
+    } else {
+      setDropOffAddress(value);
+      setDropLat("");
+      setDropLng("");
+    }
+  }
+
+  function selectBookingAddress(target: SelectionTarget, suggestion: AddressSuggestion): void {
+    geocodeRequestId.current += 1;
+    setReverseLookupTarget(null);
+    if (target === "pickup") {
+      setPickupAddress(suggestion.label);
+      setPickupLat(String(suggestion.lat));
+      setPickupLng(String(suggestion.lon));
+    } else {
+      setDropOffAddress(suggestion.label);
+      setDropLat(String(suggestion.lat));
+      setDropLng(String(suggestion.lon));
+    }
+  }
+
+  function useSavedPlace(target: SelectionTarget, place: SavedPlace): void {
+    geocodeRequestId.current += 1;
+    setReverseLookupTarget(null);
+    if (target === "pickup") {
+      setPickupAddress(place.label);
+      setPickupLat(String(place.lat));
+      setPickupLng(String(place.lon));
+    } else {
+      setDropOffAddress(place.label);
+      setDropLat(String(place.lat));
+      setDropLng(String(place.lon));
+    }
+    setActiveTarget(target);
+    setSavedPlacesError(null);
+  }
+
+  async function saveSelectedPlace(target: SelectionTarget): Promise<void> {
+    const point = target === "pickup" ? pickupPoint : dropOffPoint;
+    const address = target === "pickup" ? pickupAddress : dropOffAddress;
+    const name = savedPlaceName.trim();
+    if (!point || !name || savingSavedPlace) return;
+    setSavingSavedPlace(true);
+    setSavedPlacesError(null);
+    try {
+      const savedPlace = await requestRiderProxy<SavedPlace>("riders/saved-places", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, label: address || `${point.lat}, ${point.lng}`, lat: point.lat, lon: point.lng, type: "saved" }),
+      });
+      setSavedPlaces((current) => [savedPlace, ...current]);
+      setSavedPlaceName("");
+      setMessage(`${savedPlace.name} saved to your places.`);
+    } catch (saveError) {
+      setSavedPlacesError(saveError instanceof Error ? saveError.message : "Couldn't save that place.");
+    } finally {
+      setSavingSavedPlace(false);
+    }
+  }
+
+  async function removeSavedPlace(place: SavedPlace): Promise<void> {
+    if (removingSavedPlaceId !== null) return;
+    setRemovingSavedPlaceId(place.id);
+    setSavedPlacesError(null);
+    try {
+      await requestRiderProxy<void>(`riders/saved-places/${place.id}`, { method: "DELETE" });
+      setSavedPlaces((current) => current.filter((savedPlace) => savedPlace.id !== place.id));
+    } catch (removeError) {
+      setSavedPlacesError(removeError instanceof Error ? removeError.message : "Couldn't remove that place.");
+    } finally {
+      setRemovingSavedPlaceId(null);
+    }
+  }
+
+  function changeManualCoordinate(target: SelectionTarget, axis: "lat" | "lng", value: string): void {
+    geocodeRequestId.current += 1;
+    setReverseLookupTarget(null);
+    if (target === "pickup") {
+      setPickupAddress("");
+      if (axis === "lat") setPickupLat(value);
+      else setPickupLng(value);
+    } else {
+      setDropOffAddress("");
+      if (axis === "lat") setDropLat(value);
+      else setDropLng(value);
+    }
+  }
+
   function clearLocations(): void {
+    geocodeRequestId.current += 1;
+    setReverseLookupTarget(null);
     setPickupLat("");
     setPickupLng("");
+    setPickupAddress("");
     setDropLat("");
     setDropLng("");
+    setDropOffAddress("");
     setRoutePath(null);
     setEstimate(null);
     setEstimateSignature(null);
@@ -561,10 +720,14 @@ export default function RiderHomePage() {
           }
         : null;
       setLastRequest(updatedRequest);
+      geocodeRequestId.current += 1;
+      setReverseLookupTarget(null);
       setPickupLat("");
       setPickupLng("");
+      setPickupAddress("");
       setDropLat("");
       setDropLng("");
+      setDropOffAddress("");
       setRoutePath(null);
       setEstimate(null);
       setEstimateSignature(null);
@@ -722,12 +885,49 @@ export default function RiderHomePage() {
         description="Choose locations on the map, then review your fare."
       >
         <div className="stack booking-form">
+          <section className="saved-places-panel" aria-labelledby="saved-places-title">
+            <h3 id="saved-places-title">Saved places</h3>
+            {savedPlacesLoading ? <p className="address-search-status" role="status">Loading saved places…</p> : null}
+            {!savedPlacesLoading && savedPlaces.length === 0 ? <p className="helper">Save a pickup or destination here for next time.</p> : null}
+            {savedPlaces.length > 0 ? (
+              <ul className="saved-place-list">
+                {savedPlaces.map((place) => (
+                  <li key={place.id} className="saved-place-item">
+                    <div className="saved-place-copy"><strong>{place.name}</strong><span>{place.label}</span></div>
+                    <div className="saved-place-actions">
+                      <Button size="sm" variant="secondary" onClick={() => useSavedPlace("pickup", place)}>Use {place.name} for pickup</Button>
+                      <Button size="sm" variant="secondary" onClick={() => useSavedPlace("dropoff", place)}>Use {place.name} for destination</Button>
+                      <Button size="sm" variant="ghost" disabled={removingSavedPlaceId !== null} loading={removingSavedPlaceId === place.id} onClick={() => void removeSavedPlace(place)}>Remove {place.name}</Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            <div className="saved-place-create">
+              <Field label="Name for saved place">
+                <input value={savedPlaceName} maxLength={60} placeholder="Home, work, or another place" onChange={(event) => setSavedPlaceName(event.target.value)} />
+              </Field>
+              <div className="cluster">
+                <Button size="sm" variant="secondary" disabled={!savedPlaceName.trim() || !pickupPoint} loading={savingSavedPlace} onClick={() => void saveSelectedPlace("pickup")}>Save pickup</Button>
+                <Button size="sm" variant="secondary" disabled={!savedPlaceName.trim() || !dropOffPoint} loading={savingSavedPlace} onClick={() => void saveSelectedPlace("dropoff")}>Save destination</Button>
+              </div>
+            </div>
+            {savedPlacesError ? <p className="address-search-error" role="alert">{savedPlacesError}</p> : null}
+          </section>
           <div className="booking-location-row">
             <div className="booking-location-summary">
               <span className="location-dot" aria-hidden="true" />
               <div>
-                <strong>Pickup</strong>
-                <p>{pickupPoint ? "Location selected" : "Choose a point on the map"}</p>
+                <AddressSearch
+                  label="Pickup"
+                  value={pickupAddress}
+                  selected={pickupPoint !== null}
+                  near={dropOffPoint ? `${dropOffPoint.lat},${dropOffPoint.lng}` : undefined}
+                  search={searchRiderAddresses}
+                  onValueChange={(value) => changeBookingAddress("pickup", value)}
+                  onSelect={(suggestion) => selectBookingAddress("pickup", suggestion)}
+                  placeholder="Search pickup address"
+                />
               </div>
               <Button variant="secondary" size="sm" onClick={() => { setActiveTarget("pickup"); setBookingOpen(false); }}>
                 Choose on map
@@ -736,14 +936,23 @@ export default function RiderHomePage() {
             <div className="booking-location-summary">
               <span className="location-dot destination" aria-hidden="true" />
               <div>
-                <strong>Where to?</strong>
-                <p>{dropOffPoint ? "Destination selected" : "Choose a point on the map"}</p>
+                <AddressSearch
+                  label="Where to?"
+                  value={dropOffAddress}
+                  selected={dropOffPoint !== null}
+                  near={pickupPoint ? `${pickupPoint.lat},${pickupPoint.lng}` : undefined}
+                  search={searchRiderAddresses}
+                  onValueChange={(value) => changeBookingAddress("dropoff", value)}
+                  onSelect={(suggestion) => selectBookingAddress("dropoff", suggestion)}
+                  placeholder="Search destination"
+                />
               </div>
               <Button variant="secondary" size="sm" onClick={() => { setActiveTarget("dropoff"); setBookingOpen(false); }}>
                 Choose on map
               </Button>
             </div>
           </div>
+          {reverseLookupTarget ? <p className="helper" role="status">Finding the {reverseLookupTarget === "pickup" ? "pickup" : "destination"} address…</p> : null}
 
           <div className="cluster">
             <Button variant="secondary" loading={resolvingPickupLocation} disabled={estimating || requesting} onClick={() => void setPickupToCurrentLocation()}>
@@ -769,10 +978,10 @@ export default function RiderHomePage() {
           <details className="advanced-fields">
             <summary>Enter coordinates</summary>
             <div className="grid grid-2">
-              <Field label="Pickup latitude"><input value={pickupLat} onChange={(event) => setPickupLat(event.target.value)} /></Field>
-              <Field label="Pickup longitude"><input value={pickupLng} onChange={(event) => setPickupLng(event.target.value)} /></Field>
-              <Field label="Destination latitude"><input value={dropLat} onChange={(event) => setDropLat(event.target.value)} /></Field>
-              <Field label="Destination longitude"><input value={dropLng} onChange={(event) => setDropLng(event.target.value)} /></Field>
+              <Field label="Pickup latitude"><input value={pickupLat} onChange={(event) => changeManualCoordinate("pickup", "lat", event.target.value)} /></Field>
+              <Field label="Pickup longitude"><input value={pickupLng} onChange={(event) => changeManualCoordinate("pickup", "lng", event.target.value)} /></Field>
+              <Field label="Destination latitude"><input value={dropLat} onChange={(event) => changeManualCoordinate("dropoff", "lat", event.target.value)} /></Field>
+              <Field label="Destination longitude"><input value={dropLng} onChange={(event) => changeManualCoordinate("dropoff", "lng", event.target.value)} /></Field>
             </div>
           </details>
 

@@ -59,7 +59,8 @@ public class TestSecurityConfig {
 
                     if (userId != null && email != null && role != null) {
                         UserPrincipal principal = new UserPrincipal(Long.valueOf(userId), email, role);
-                        List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(role));
+                        String authority = role.startsWith("ROLE_") ? role : "ROLE_" + role;
+                        List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(authority));
                         UsernamePasswordAuthenticationToken authentication =
                                 new UsernamePasswordAuthenticationToken(principal, null, authorities);
                         SecurityContextHolder.getContext().setAuthentication(authentication);

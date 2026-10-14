@@ -2,6 +2,7 @@ package com.velo.platform.advices;
 
 import com.velo.platform.exceptions.ResourceNotFoundException;
 import com.velo.platform.exceptions.RuntimeConflictException;
+import com.velo.platform.exceptions.GeocodingUnavailableException;
 import com.velo.platform.exceptions.InvalidRefreshTokenException;
 import com.velo.platform.exceptions.RateLimitExceededException;
 import jakarta.persistence.OptimisticLockException;
@@ -37,6 +38,15 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<?>> handleRuntimeConflictException(RuntimeConflictException exception) {
         ApiError apiError = ApiError.builder()
                 .status(HttpStatus.CONFLICT)
+                .message(exception.getMessage())
+                .build();
+        return buildErrorResponseEntity(apiError);
+    }
+
+    @ExceptionHandler(GeocodingUnavailableException.class)
+    public ResponseEntity<ApiResponse<?>> handleGeocodingUnavailable(GeocodingUnavailableException exception) {
+        ApiError apiError = ApiError.builder()
+                .status(HttpStatus.SERVICE_UNAVAILABLE)
                 .message(exception.getMessage())
                 .build();
         return buildErrorResponseEntity(apiError);
