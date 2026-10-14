@@ -128,118 +128,120 @@ export function DispatchFallback({
       data-dispatch-fallback="true"
     >
       <rect width="640" height="360" fill="var(--dispatch-ground)" />
-      <path d={graticule} fill="none" stroke="var(--dispatch-street)" strokeWidth="0.6" opacity="0.55" />
-      <g fill="none" stroke="var(--dispatch-street)" strokeWidth="10" strokeLinecap="round" opacity="0.9">
-        {coordinates.streets.map((street, index) => (
-          <polyline key={`street-${index}`} points={projectLine(street)} />
-        ))}
-      </g>
-      <g fill="none" stroke="var(--dispatch-lane)" strokeWidth="1.2" strokeDasharray="3 5" opacity="0.8">
-        {coordinates.streets.map((street, index) => (
-          <polyline key={`lane-${index}`} points={projectLine(street)} />
-        ))}
-      </g>
-      <g>
-        {buildingOrder.map((building, index) => {
-          const faces = buildingFaces(building);
-          const landmark = building.kind !== "building";
-          return (
-            <g key={`${building.kind}-${index}`}>
-              {faces.faces.map((face, faceIndex) => (
+      <g className={styles.mobileMapScale}>
+        <path d={graticule} fill="none" stroke="var(--dispatch-street)" strokeWidth="0.6" opacity="0.55" />
+        <g fill="none" stroke="var(--dispatch-street)" strokeWidth="10" strokeLinecap="round" opacity="0.9">
+          {coordinates.streets.map((street, index) => (
+            <polyline key={`street-${index}`} points={projectLine(street)} />
+          ))}
+        </g>
+        <g fill="none" stroke="var(--dispatch-lane)" strokeWidth="1.2" strokeDasharray="3 5" opacity="0.8">
+          {coordinates.streets.map((street, index) => (
+            <polyline key={`lane-${index}`} points={projectLine(street)} />
+          ))}
+        </g>
+        <g>
+          {buildingOrder.map((building, index) => {
+            const faces = buildingFaces(building);
+            const landmark = building.kind !== "building";
+            return (
+              <g key={`${building.kind}-${index}`}>
+                {faces.faces.map((face, faceIndex) => (
+                  <polygon
+                    key={faceIndex}
+                    points={face}
+                    fill={landmark ? "var(--dispatch-roof)" : "var(--dispatch-building)"}
+                    stroke="var(--dispatch-edge)"
+                    strokeWidth="0.5"
+                    strokeLinejoin="round"
+                  />
+                ))}
                 <polygon
-                  key={faceIndex}
-                  points={face}
-                  fill={landmark ? "var(--dispatch-roof)" : "var(--dispatch-building)"}
+                  points={faces.top}
+                  fill="var(--dispatch-roof)"
+                  opacity={landmark ? 1 : 0.85}
                   stroke="var(--dispatch-edge)"
                   strokeWidth="0.5"
                   strokeLinejoin="round"
                 />
-              ))}
-              <polygon
-                points={faces.top}
-                fill="var(--dispatch-roof)"
-                opacity={landmark ? 1 : 0.85}
-                stroke="var(--dispatch-edge)"
-                strokeWidth="0.5"
-                strokeLinejoin="round"
-              />
-              {building.label && (() => {
-                const labelPoint = project(building, building.height + 0.26);
-                return (
-                  <text
-                    key="label"
-                    x={labelPoint.x}
-                    y={labelPoint.y - 4}
-                    textAnchor="middle"
-                    className={styles.mapLabel}
-                  >
-                    {building.label}
-                  </text>
-                );
-              })()}
-            </g>
-          );
-        })}
-      </g>
-      {/* Thin cartographic halo under every route. */}
-      <g className={styles.routeHalo} fill="none" strokeLinecap="round" strokeLinejoin="round">
-        {Object.entries(coordinates.routes).map(([tripId, route]) => {
-          const active = tripId === selectedTripId;
-          return (
-            <polyline
-              key={`halo-${tripId}`}
-              points={projectLine(route)}
-              stroke={active ? "var(--dispatch-route)" : "var(--dispatch-route-alt)"}
-              strokeWidth={active ? 13 : 9}
-            />
-          );
-        })}
-      </g>
-      <g fill="none" strokeLinecap="round" strokeLinejoin="round">
-        {Object.entries(coordinates.routes).map(([tripId, route]) => {
-          const active = tripId === selectedTripId;
-          return (
-            <polyline
-              key={tripId}
-              points={projectLine(route)}
-              stroke={active ? "var(--dispatch-route)" : "var(--dispatch-route-alt)"}
-              strokeWidth={active ? 3.6 : 2.2}
-              opacity={active ? previewPhase === "assign" ? 0.36 : 0.95 : 0.55}
-            />
-          );
-        })}
-      </g>
-      <g>
-        {coordinates.vehicles.map((vehicle, index) => {
-          const point = project(vehicle);
-          const selected = vehicle.tripId === selectedTripId && vehicle.routeProgress < 0.5;
-          if (selected) {
-            return (
-              <g key={`vehicle-${index}`} transform={`translate(${selectedMotion.start.x} ${selectedMotion.start.y})`}>
-                <circle r="5.4" fill="var(--dispatch-route-alt)" stroke="var(--dispatch-ground)" strokeWidth="2">
-                  <animateMotion
-                    ref={motionRef}
-                    path={selectedMotion.path}
-                    begin="indefinite"
-                    dur="2.36s"
-                    fill="freeze"
-                  />
-                </circle>
+                {building.label && (() => {
+                  const labelPoint = project(building, building.height + 0.26);
+                  return (
+                    <text
+                      key="label"
+                      x={labelPoint.x}
+                      y={labelPoint.y - 4}
+                      textAnchor="middle"
+                      className={styles.mapLabel}
+                    >
+                      {building.label}
+                    </text>
+                  );
+                })()}
               </g>
             );
-          }
-          return (
-            <circle
-              key={`vehicle-${index}`}
-              cx={point.x}
-              cy={point.y - 1.5}
-              r={vehicle.tripId === selectedTripId ? 4.4 : 3.2}
-              fill={vehicle.tripId === selectedTripId ? "var(--dispatch-route-alt)" : "var(--dispatch-vehicle)"}
-              stroke="var(--dispatch-ground)"
-              strokeWidth="1.5"
-            />
-          );
-        })}
+          })}
+        </g>
+        {/* Thin cartographic halo under every route. */}
+        <g className={styles.routeHalo} fill="none" strokeLinecap="round" strokeLinejoin="round">
+          {Object.entries(coordinates.routes).map(([tripId, route]) => {
+            const active = tripId === selectedTripId;
+            return (
+              <polyline
+                key={`halo-${tripId}`}
+                points={projectLine(route)}
+                stroke={active ? "var(--dispatch-route)" : "var(--dispatch-route-alt)"}
+                strokeWidth={active ? 13 : 9}
+              />
+            );
+          })}
+        </g>
+        <g fill="none" strokeLinecap="round" strokeLinejoin="round">
+          {Object.entries(coordinates.routes).map(([tripId, route]) => {
+            const active = tripId === selectedTripId;
+            return (
+              <polyline
+                key={tripId}
+                points={projectLine(route)}
+                stroke={active ? "var(--dispatch-route)" : "var(--dispatch-route-alt)"}
+                strokeWidth={active ? 3.6 : 2.2}
+                opacity={active ? previewPhase === "assign" ? 0.36 : 0.95 : 0.55}
+              />
+            );
+          })}
+        </g>
+        <g>
+          {coordinates.vehicles.map((vehicle, index) => {
+            const point = project(vehicle);
+            const selected = vehicle.tripId === selectedTripId && vehicle.routeProgress < 0.5;
+            if (selected) {
+              return (
+                <g key={`vehicle-${index}`} transform={`translate(${selectedMotion.start.x} ${selectedMotion.start.y})`}>
+                  <circle r="5.4" fill="var(--dispatch-route-alt)" stroke="var(--dispatch-ground)" strokeWidth="2">
+                    <animateMotion
+                      ref={motionRef}
+                      path={selectedMotion.path}
+                      begin="indefinite"
+                      dur="2.36s"
+                      fill="freeze"
+                    />
+                  </circle>
+                </g>
+              );
+            }
+            return (
+              <circle
+                key={`vehicle-${index}`}
+                cx={point.x}
+                cy={point.y - 1.5}
+                r={vehicle.tripId === selectedTripId ? 4.4 : 3.2}
+                fill={vehicle.tripId === selectedTripId ? "var(--dispatch-route-alt)" : "var(--dispatch-vehicle)"}
+                stroke="var(--dispatch-ground)"
+                strokeWidth="1.5"
+              />
+            );
+          })}
+        </g>
       </g>
     </svg>
   );

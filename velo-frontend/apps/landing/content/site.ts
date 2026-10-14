@@ -27,7 +27,7 @@ export const verifyFacts = {
 export const landingCopy = {
   hero: {
     title: "A dispatch desk for pre-booked business and hotel transfers.",
-    description: "For fleets of 10 to 50 vehicles, anywhere. Bookings, driver assignments and live trip updates in one web workspace that carries your fleet's name.",
+    description: "For fleets of 10–50 vehicles, anywhere. Manage pre-booked transfers, assign drivers and follow live trips in one branded web workspace.",
     stage: "Pre-launch. Working demo available.",
     bookDemo: "Book a demo",
     watchDemo: "Watch the 2-minute demo",
@@ -89,6 +89,7 @@ export const landingCopy = {
     supportTitle: "What the founder does with you",
     support: ["Set up the operator's name and colours", "Import the first driver and vehicle details together", "Walk through a first live day and collect feedback"],
     link: "Talk through a pilot",
+    exploreLink: "See how it works",
   },
   verify: {
     title: "What you can verify today.",
@@ -97,7 +98,9 @@ export const landingCopy = {
     backend: "Automated backend test suite",
     backendScope: "Unit + integration",
     endToEnd: "Chromium landing checks · axe included",
-    endToEndScope: `${verifyFacts.landingChecksPassed} passed`,
+    endToEndScope: "landing checks passed",
+    checkedLabel: "checked",
+    dateUnavailable: "Run date unavailable",
     tenants: "branded demo tenants",
   },
   pricing: {
@@ -137,7 +140,9 @@ export const landingCopy = {
   contact: {
     eyebrow: "Book a demo",
     title: "Tell us about your fleet.",
+    unavailableTitle: "Demo contact isn’t available yet",
     description: "Share a good time and a little about your operation. The founder will coordinate a working demo with you.",
+    unavailableDescription: "A demo booking contact has not been configured on this site yet.",
     name: "Your name",
     phone: "Phone or WhatsApp",
     fleetSize: "Fleet size",
@@ -147,7 +152,7 @@ export const landingCopy = {
     submit: "Send demo request",
     sending: "Sending request",
     privacy: "We'll use these details to respond to your demo request. Please do not include rider or driver personal data.",
-    noContact: "Demo requests are not connected on this site yet. No details were sent or saved. Please try again when a contact option is available.",
+    noContact: "No contact option is configured. No details were sent or saved.",
     mailto: "Your email app should open with the request addressed to {email}. Send that email to complete your request.",
     sent: "Thanks. Your request was sent. The founder will coordinate a demo time with you.",
     failed: "We couldn't send the request. Try again or use one of the contact options below.",

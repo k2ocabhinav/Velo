@@ -3,9 +3,23 @@ import styles from "./sections.module.css";
 
 export function VerifyToday() {
   const copy = landingCopy.verify;
+  const buildDate = new Date();
+  const checkedOn = Number.isNaN(buildDate.getTime())
+    ? undefined
+    : new Intl.DateTimeFormat("en-GB", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        timeZone: "Asia/Kolkata",
+      }).format(buildDate);
   const facts = [
     { value: copy.backendScope, label: copy.backend },
-    { value: copy.endToEndScope, label: copy.endToEnd },
+    {
+      value: checkedOn
+        ? `${verifyFacts.landingChecksPassed} ${copy.endToEndScope} · ${copy.checkedLabel} ${checkedOn}`
+        : copy.dateUnavailable,
+      label: copy.endToEnd,
+    },
     {
       value: String(verifyFacts.demoTenants.length),
       label: `${copy.tenants}: ${verifyFacts.demoTenants.join(" + ")}`,

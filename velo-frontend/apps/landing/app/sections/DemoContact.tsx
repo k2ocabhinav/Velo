@@ -55,9 +55,13 @@ export function DemoContact() {
         <div className={styles.contactLayout}>
           <div className={styles.contactIntro}>
             <p className={styles.eyebrow}>{copy.eyebrow}</p>
-            <h2 className={styles.sectionTitle} id="contact-title">{copy.title}</h2>
-            <p className={styles.sectionDescription}>{copy.description}</p>
-            <p className={styles.contactNextStep}>{copy.nextStep}</p>
+            <h2 className={styles.sectionTitle} id="contact-title">
+              {siteConfig.demoContactAvailable ? copy.title : copy.unavailableTitle}
+            </h2>
+            <p className={styles.sectionDescription}>
+              {siteConfig.demoContactAvailable ? copy.description : copy.unavailableDescription}
+            </p>
+            {siteConfig.demoContactAvailable && <p className={styles.contactNextStep}>{copy.nextStep}</p>}
             <div className={styles.contactLinks}>
               {whatsapp && <a className={styles.secondaryButton} href={whatsapp} target="_blank" rel="noreferrer">{copy.whatsapp}</a>}
               {siteConfig.contactEmail && <a className={styles.contactEmail} href={`mailto:${siteConfig.contactEmail}`}>{copy.emailLink}</a>}

@@ -29,7 +29,7 @@
 }
 
 .section {
-  padding-block: clamp(56px, 7vw, 104px);
+  padding-block: clamp(48px, 5vw, 80px);
   border-top: 1px solid var(--lp-line);
   background: var(--lp-ground);
   color: var(--lp-ink);
@@ -37,7 +37,7 @@
 
 .sectionIntro {
   max-width: 760px;
-  margin-bottom: clamp(36px, 5vw, 60px);
+  margin-bottom: clamp(28px, 4vw, 44px);
 }
 
 .sectionTitle {
@@ -116,7 +116,7 @@
 /* ---------- 2. A morning of transfers: the trip sheet as data-viz ---------- */
 .morningSection {
   position: relative;
-  padding-block: clamp(72px, 9vw, 128px);
+  padding-block: clamp(56px, 6vw, 88px);
 }
 
 .timeline {
@@ -219,7 +219,7 @@
 /* ---------- 3. Follow one transfer ---------- */
 .followSection {
   border-top: 1px solid var(--lp-line);
-  padding-block: clamp(72px, 9vw, 128px);
+  padding-block: clamp(56px, 6vw, 88px);
 }
 
 .followLayout {
@@ -484,9 +484,11 @@
 
 .brandScreens {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
   gap: clamp(20px, 3vw, 36px);
+  max-width: 960px;
+  margin-inline: auto;
 }
 
 /* ---------- 5. Getting started ---------- */
@@ -1042,6 +1044,11 @@
 .device:hover .deviceTilt,
 .device:focus-within .deviceTilt {
   transform: none;
+}
+
+.brandFigure .deviceTilt {
+  transform: none;
+  transition: none;
 }
 
 .laptopFrame {

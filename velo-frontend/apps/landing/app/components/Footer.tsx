@@ -24,11 +24,13 @@ export function Footer({ home = true }: { home?: boolean }) {
             <a href={sectionLink("faq")}>FAQ</a>
           </nav>
 
-          <div className="footer-links-group">
-            <span className="footer-label">Contact</span>
-            {siteConfig.demoContactAvailable && <a href={sectionLink("contact")}>{landingCopy.hero.bookDemo}</a>}
-            {contactEmail && <a href={`mailto:${contactEmail}`}>{contactEmail}</a>}
-          </div>
+          {siteConfig.demoContactAvailable && (
+            <div className="footer-links-group">
+              <span className="footer-label">Contact</span>
+              <a href={sectionLink("contact")}>{landingCopy.hero.bookDemo}</a>
+              {contactEmail && <a href={`mailto:${contactEmail}`}>{contactEmail}</a>}
+            </div>
+          )}
 
           <nav className="footer-links-group" aria-label="Legal links">
             <span className="footer-label">Policies</span>

@@ -22,21 +22,25 @@ test("primary navigation, mobile menu and demo links have working targets", asyn
   }
   await expect(page.locator("#verify").getByRole("link", { name: "Open" })).toHaveCount(0);
   await expect(page.locator("#verify")).toContainText("Build checks");
-  await expect(page.locator("#verify")).toContainText("6 passed");
+  await expect(page.locator("#verify")).toContainText(/6 landing checks passed · checked \d{1,2} \w{3} \d{4}/);
   await expect(page.locator("#verify")).toContainText("axe included");
   await expect(page.locator("#verify")).toContainText("Velo Business");
   await expect(page.locator("#verify")).toContainText("Saffron Routes");
   await expect(page.locator("#pricing")).toContainText("We’ll confirm the active-vehicle count and monthly minimum with you before a pilot.");
 
   const fullSizeLinks = page.getByRole("link", { name: /View full-size .*dispatch screen/ });
-  await expect(fullSizeLinks).toHaveCount(2);
-  await expect(fullSizeLinks.nth(0)).toHaveAttribute("href", "/screens/velo-business-dispatch.webp");
-  await expect(fullSizeLinks.nth(1)).toHaveAttribute("href", "/screens/saffron-routes-dispatch.webp");
-  expect((await fullSizeLinks.nth(0).boundingBox())?.height).toBeGreaterThanOrEqual(44);
+  await expect(fullSizeLinks).toHaveCount(1);
+  await expect(fullSizeLinks).toHaveAttribute("href", "/screens/velo-business-dispatch.webp");
+  expect((await fullSizeLinks.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+  const saffronChoice = page.getByRole("radio", { name: "Saffron Routes" });
+  await saffronChoice.focus();
+  await page.keyboard.press("Space");
+  await expect(fullSizeLinks).toHaveAttribute("href", "/screens/saffron-routes-dispatch.webp");
+  await expect(page.getByRole("img", { name: "Saffron Routes dispatch console demonstration" })).toBeVisible();
 
   const videoLink = demoVideoUrl
-    ? page.getByRole("link", { name: "Watch the 2-minute demo" })
-    : page.getByRole("link", { name: "See how it works" });
+    ? page.locator("#top").getByRole("link", { name: "Watch the 2-minute demo" })
+    : page.locator("#top").getByRole("link", { name: "See how it works" });
   await expect(videoLink).toHaveAttribute("href", demoVideoUrl || "#how-it-works");
 
   const whatsappLink = page.getByRole("link", { name: "WhatsApp the founder" });
@@ -47,7 +51,7 @@ test("primary navigation, mobile menu and demo links have working targets", asyn
   }
 
   await page.setViewportSize({ width: 390, height: 844 });
-  const secondaryHeroCta = page.getByRole("link", { name: "See how it works" });
+  const secondaryHeroCta = page.locator("#top").getByRole("link", { name: "See how it works" });
   const secondaryHeroCtaBounds = await secondaryHeroCta.boundingBox();
   expect(secondaryHeroCtaBounds?.height).toBeGreaterThanOrEqual(44);
   const menuButton = navigation.getByRole("button", { name: "Open navigation menu" });
@@ -76,6 +80,8 @@ test("contact form appears only when a demo request destination is configured", 
       await expect(page.getByRole("link", { name: "WhatsApp the founder" })).toBeVisible();
     } else {
       await expect(page.locator("#contact")).toContainText("No details were sent or saved");
+      await expect(page.locator("#contact")).toContainText("Demo contact isn’t available yet");
+      await expect(page.locator("footer .footer-links-group").filter({ hasText: "Contact" })).toHaveCount(0);
     }
     return;
   }

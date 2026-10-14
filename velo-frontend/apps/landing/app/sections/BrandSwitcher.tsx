@@ -12,6 +12,15 @@ export function BrandSwitcher() {
   const [brand, setBrand] = useState<BrandId>("velo");
   const copy = landingCopy.brands;
   const selected = copy.tenants.find((tenant) => tenant.id === brand) ?? copy.tenants[0];
+  const screenshot = brand === "velo"
+    ? {
+        src: "/screens/velo-business-dispatch.webp",
+        alt: "Velo Business dispatch console demonstration",
+      }
+    : {
+        src: "/screens/saffron-routes-dispatch.webp",
+        alt: "Saffron Routes dispatch console demonstration",
+      };
   const previewStyle = {
     "--mock-accent": brand === "velo" ? "var(--landing-tenant-a)" : "var(--landing-tenant-b)",
   } as CSSProperties;
@@ -47,17 +56,10 @@ export function BrandSwitcher() {
         <div className={styles.brandScreens}>
           <figure className={styles.brandFigure}>
             <DeviceFrame tilt="gentle">
-              <Image src="/screens/velo-business-dispatch.webp" alt="Velo Business dispatch console demonstration" width={1440} height={900} loading="lazy" sizes="(max-width: 768px) 100vw, 50vw" />
+              <Image src={screenshot.src} alt={screenshot.alt} width={1440} height={900} loading="lazy" sizes="(max-width: 960px) 100vw, 960px" />
             </DeviceFrame>
-            <a className={styles.imageFullSizeLink} href="/screens/velo-business-dispatch.webp" target="_blank" rel="noreferrer" aria-label="View full-size Velo Business dispatch screen (opens in a new tab)">View full-size dispatch screen</a>
-            <figcaption><strong>Velo Business</strong><span>{copy.sampleCaption}</span></figcaption>
-          </figure>
-          <figure className={styles.brandFigure}>
-            <DeviceFrame tilt="gentle">
-              <Image src="/screens/saffron-routes-dispatch.webp" alt="Saffron Routes dispatch console demonstration" width={1440} height={900} loading="lazy" sizes="(max-width: 768px) 100vw, 50vw" />
-            </DeviceFrame>
-            <a className={styles.imageFullSizeLink} href="/screens/saffron-routes-dispatch.webp" target="_blank" rel="noreferrer" aria-label="View full-size Saffron Routes dispatch screen (opens in a new tab)">View full-size dispatch screen</a>
-            <figcaption><strong>Saffron Routes</strong><span>{copy.sampleCaption}</span></figcaption>
+            <a className={styles.imageFullSizeLink} href={screenshot.src} target="_blank" rel="noreferrer" aria-label={`View full-size ${selected.name} dispatch screen (opens in a new tab)`}>View full-size dispatch screen</a>
+            <figcaption><strong>{selected.name}</strong><span>{copy.sampleCaption}</span></figcaption>
           </figure>
         </div>
       </div>
