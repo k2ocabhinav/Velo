@@ -14,7 +14,11 @@ describe("admin next config", () => {
     expect(nextConfig.output).toBe("standalone");
   });
 
-  it.each([nextConfig, riderConfig, driverConfig, landingConfig])(
+  it("builds the landing app as a static export (headers ship via Netlify _headers)", () => {
+    expect(landingConfig.output).toBe("export");
+  });
+
+  it.each([nextConfig, riderConfig, driverConfig])(
     "sets shared security headers for every app",
     async (config) => {
       const rules = await config.headers();
