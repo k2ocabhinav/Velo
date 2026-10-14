@@ -206,17 +206,23 @@ test.describe("rider smoke", () => {
       });
     });
 
-    await page.route("**/api/backend/riders/requestRide", async (route) => {
+    const requestedRide = { id: 501, rideRequestStatus: "PENDING", paymentMethod: "WALLET" };
+    let rideRequested = false;
+
+    await page.route("**/api/backend/riders/current-request", async (route) => {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({
-          data: {
-            id: 501,
-            rideRequestStatus: "PENDING",
-            paymentMethod: "WALLET",
-          },
-        }),
+        body: JSON.stringify({ data: rideRequested ? requestedRide : null }),
+      });
+    });
+
+    await page.route("**/api/backend/riders/requestRide", async (route) => {
+      rideRequested = true;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ data: requestedRide }),
       });
     });
 
