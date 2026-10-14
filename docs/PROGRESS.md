@@ -33,7 +33,14 @@
 - [x] Test infra safe by default (small pool, dedicated Flyway DB), concurrent dispatch race test, PostGIS in local compose, staging deploy fails on missing config, Prometheus metrics behind ADMIN, docs drift fixed (47437d1)
 - [x] Backend suite: 240 tests, 0 failures (was 197 claimed / 196 actual)
 
-### UI/UX improvement round (queued next)
+### Follow-ups found during the 2026-10-14 rounds
+- [ ] Rider wallet balance endpoint (wallet page has no real balance source)
+- [ ] Admin revenue per-driver breakdown endpoint
+- [ ] Geocoding/map picker for admin "New trip"
+- [ ] Refresh-token cleanup job; cross-instance refresh single-flight
+- [ ] Validate Docker images build (Docker daemon was off) and apply Terraform with a real AWS account
+
+### UI/UX improvement round (in progress)
 - [x] Plan written: `docs/UX_REFINEMENT_PLAN.md`
 - [ ] UI-0 shared foundation (styles, components, formatters, RouteStrip)
 - [ ] UI-1 admin pages
@@ -42,19 +49,19 @@
 - [ ] UI-4 auth, landing, cross-app polish and a11y pass
 
 ### Security & production readiness (highest priority)
-- [ ] HTTPS enforcement config for production
-- [ ] Rate limiting on auth endpoints
-- [ ] Dependency-check NVD CVSS v4 parser fix (upstream blocker)
-- [ ] Refresh token mechanism (nice-to-have)
-- [ ] Production Dockerfile for Spring Boot
-- [ ] Production `application-prod.properties` (`ddl-auto=validate`)
-- [ ] Environment variable management (Secrets Manager)
-- [ ] RDS PostgreSQL provisioning
-- [ ] ECS Fargate task definition
-- [ ] S3 + CloudFront setup for frontend
+- [x] HTTPS enforcement config for production (forwarded proto + HSTS)
+- [x] Rate limiting on auth endpoints (Redis + in-memory fallback)
+- [x] Dependency-check NVD CVSS v4 parser fix — bumped to 12.2.1 (verify on next CI run with NVD key)
+- [x] Refresh token mechanism — rotating, hashed, family revocation (decision 0018)
+- [x] Production Dockerfiles (backend + Next standalone)
+- [x] Production `application-prod.properties` (`ddl-auto=validate`)
+- [x] Secrets Manager wiring in Terraform (apply pending: needs AWS account)
+- [x] RDS PostgreSQL/PostGIS in Terraform (apply pending)
+- [x] ECS Fargate services/task definitions in Terraform (apply pending)
+- [ ] Frontend hosting: Terraform runs the Next apps on ECS (SSR/BFF need a server); S3+CloudFront not used — revisit for static assets/CDN
 
 ### Backend
-- [ ] Auth endpoint integration tests for new features (profile, password reset)
+- [x] Auth endpoint integration tests (profile, password reset, refresh, logout, rate limits)
 
 ### Frontend — reliability & UX
 - [ ] `packages/ws`: exponential backoff reconnection strategy

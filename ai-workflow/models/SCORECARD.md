@@ -22,6 +22,7 @@ Quota-killed runs are logged but excluded from quality means (they say nothing a
 |---|---|
 | `qwen/*` (3.8-max-0902 confirmed) | `--effort` takes only `low`, `medium` or `xhigh`; `high` exits immediately |
 | `xiaomi/mimo-v2.6-pro` | No `--effort` support: passing one exits immediately |
+| Codex `exec resume` | Comes back read-only unless `-c sandbox_mode="workspace-write"` is passed again |
 | deepseek / kimi / glm | `--effort high` accepted |
 | CMD plan quota | A 5-hour usage window. A 6-agent fan-out burned about 10M input tokens in 8 minutes and hit it. Budget about 2-3 full-repo reviewers per window and cap `--max-turns` |
 | any model, `-p` mode | Writes and shell need `--yolo` (worktree only, per the project's rules) |

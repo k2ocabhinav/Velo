@@ -11,7 +11,7 @@ Last updated: 2026-10-14
 ## How Codex is driven
 - **Command:** `codex exec --ignore-user-config -m gpt-6-luna -c model_reasoning_effort=xhigh -s <read-only|workspace-write> -C <worktree> --json -o last.md "<task>" < /dev/null`
 - **Sandbox:** a real OS sandbox, so writes need no bypass flag. For Maven and Postgres tests, add `-c sandbox_workspace_write.network_access=true --add-dir ~/.m2`.
-- **Output:** JSONL events (`thread.started` → `thread_id`; `turn.completed` → usage). Follow-up: `codex exec resume <thread_id> "<msg>"`.
+- **Output:** JSONL events (`thread.started` → `thread_id`; `turn.completed` → usage). Follow-up: `codex exec resume <thread_id> "<msg>"`. **Resume does not keep the sandbox**: pass `-c sandbox_mode="workspace-write"` (plus network config) or it comes back read-only.
 - **`--ignore-user-config`** keeps the machine-wide MemPalace hooks in `~/.codex` out of Velo runs. `< /dev/null` stops it waiting on stdin.
 - **Parallel backend work:** one worktree plus one test DB each (`-Dspring.datasource.url=…/testpostgres_wpN`), because tests use `create-drop`.
 
@@ -36,3 +36,4 @@ Last updated: 2026-10-14
 | MemPalace | Not used in Velo | Disputed benchmarks; MCP and security rough edges |
 | claude-mem | Not used | Subscription and crypto-token funnel; overlaps with git, the decision ledger and harness memory |
 | Decision ledger (`docs/decisions/`, MADR-lite) | Used | Records why things were done, including mistakes |
+- **Codex sandbox can't commit in a worktree:** the worktree's git metadata lives in the main repo's `.git/`, outside the writable area. Executors leave changes uncommitted; the orchestrator commits and merges.
