@@ -15,6 +15,7 @@
     "./styles.css": "./src/styles.css",
     "./primitives": "./src/primitives/index.ts",
     "./composed": "./src/composed/index.ts",
+    "./leaflet-map": "./src/composed/leaflet-location-picker.tsx",
     "./feedback": "./src/feedback/index.ts",
     "./motion": "./src/motion/index.ts",
     "./theme": "./src/theme/index.ts",
@@ -32,6 +33,11 @@
     "react-dom": "^19.0.0"
   },
   "dependencies": {
-    "@velo/app-core": "*"
+    "@velo/app-core": "*",
+    "leaflet": "^1.9.4",
+    "react-leaflet": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/leaflet": "^1.9.22"
   }
 }

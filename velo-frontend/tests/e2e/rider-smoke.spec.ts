@@ -274,6 +274,15 @@ test.describe("rider smoke", () => {
     await page.route("**/api/backend/riders/active-ride", async (route) => {
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: null }) });
     });
+    await page.route("**/api/backend/riders/saved-places", async (route) => {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: [] }) });
+    });
+    await page.route("**/api/backend/geo/reverse?**", async (route) => {
+      const url = new URL(route.request().url());
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: {
+        label: "Pinned map point", lat: Number(url.searchParams.get("lat")), lon: Number(url.searchParams.get("lon")), type: "address",
+      } }) });
+    });
     await page.goto("/");
     await expect(page.getByRole("button", { name: "Plan a trip" })).toBeVisible();
 
@@ -285,8 +294,11 @@ test.describe("rider smoke", () => {
     await expect(page.getByRole("button", { name: "Where to?", exact: true })).toBeVisible();
     const mapCanvas = page.locator(".booking-map .leaflet-container");
     await mapCanvas.click({ position: { x: 120, y: 110 } });
+    const bookingSheet = page.getByRole("dialog", { name: "Plan a trip" });
+    await expect(bookingSheet.getByRole("combobox", { name: "Pickup" })).toHaveValue("Pinned map point");
     await page.getByRole("button", { name: "Choose on map" }).nth(1).click();
     await mapCanvas.click({ position: { x: 230, y: 170 } });
+    await expect(page.getByRole("dialog", { name: "Plan a trip" }).getByRole("combobox", { name: "Where to?" })).toHaveValue("Pinned map point");
     await page.getByText("Enter coordinates").click();
     await expect(page.getByLabel("Pickup latitude")).not.toHaveValue("");
     await expect(page.getByLabel("Pickup longitude")).not.toHaveValue("");
@@ -306,6 +318,72 @@ test.describe("rider smoke", () => {
     await expect(page.getByText(/requested\. We are now matching you with a nearby/i)).toBeVisible();
     await expect(page.getByText("Matching you with a nearby driver", { exact: true })).toBeVisible();
     expect(rideRequested).toBe(true);
+  });
+
+  test("rider booking searches and selects a destination address", async ({ baseURL, context, page }) => {
+    const riderBaseUrl = baseURL ?? "http://127.0.0.1:4102";
+    await context.addCookies([{ name: "velo_rider_token", value: "e2e-rider-token", url: riderBaseUrl }]);
+    await mockUnreadCount(page);
+    await page.route("**/api/backend/riders/getMyRides?pageOffset=0&pageSize=10", async (route) => {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { content: [], totalPages: 1 } }) });
+    });
+    await page.route("**/api/backend/riders/current-request", async (route) => {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: null }) });
+    });
+    await page.route("**/api/backend/riders/active-ride", async (route) => {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: null }) });
+    });
+    const savedPlaces = [{ id: 1, name: "Home", label: "Home, Bengaluru", lat: 12.9716, lon: 77.5946, type: "saved" }];
+    let removedPlaceCount = 0;
+    await page.route("**/api/backend/riders/saved-places", async (route) => {
+      if (route.request().method() === "GET") {
+        await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: savedPlaces }) });
+        return;
+      }
+      const payload = route.request().postDataJSON() as { name: string; label: string; lat: number; lon: number; type: string };
+      const created = { ...payload, id: 2 };
+      savedPlaces.unshift(created);
+      await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ data: created }) });
+    });
+    await page.route("**/api/backend/riders/saved-places/*", async (route) => {
+      removedPlaceCount += 1;
+      await route.fulfill({ status: 204, body: "" });
+    });
+    let searchCount = 0;
+    await page.route("**/api/backend/geo/search?**", async (route) => {
+      searchCount += 1;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ data: [{ label: "Central Station, Bengaluru", lat: 12.9352, lon: 77.6245, type: "station" }] }),
+      });
+    });
+
+    await page.goto("/");
+    await page.getByRole("button", { name: "Plan a trip" }).click();
+    const sheet = page.getByRole("dialog", { name: "Plan a trip" });
+    await expect(sheet.getByRole("heading", { name: "Saved places" })).toBeVisible();
+    await sheet.getByRole("button", { name: "Use Home for pickup" }).click();
+    const pickup = sheet.getByRole("combobox", { name: "Pickup" });
+    await expect(pickup).toHaveValue("Home, Bengaluru");
+    const destination = sheet.getByRole("combobox", { name: "Where to?" });
+    await destination.fill("Central Station");
+    expect(searchCount).toBe(0);
+    await destination.press("Enter");
+    const options = sheet.getByRole("listbox", { name: "Where to? places" });
+    await expect(options).toBeVisible();
+    await destination.press("ArrowDown");
+    await destination.press("Enter");
+    expect(searchCount).toBe(1);
+    await expect(destination).toHaveValue("Central Station, Bengaluru");
+    await sheet.getByText("Enter coordinates").click();
+    await expect(sheet.getByLabel("Destination latitude")).toHaveValue("12.9352");
+    await expect(sheet.getByLabel("Destination longitude")).toHaveValue("77.6245");
+    await sheet.getByLabel("Name for saved place").fill("Work");
+    await sheet.getByRole("button", { name: "Save destination", exact: true }).click();
+    await expect(sheet.getByRole("button", { name: "Use Work for pickup" })).toBeVisible();
+    await sheet.getByRole("button", { name: "Remove Work" }).click();
+    expect(removedPlaceCount).toBe(1);
   });
 
   test("rider home hides the in-progress banner after a completed trip", async ({ baseURL, context, page }) => {

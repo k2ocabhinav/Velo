@@ -35,13 +35,15 @@
 
 ### Follow-ups found during the 2026-10-14 rounds
 - [x] EP-1 Rider wallet balance/transactions endpoint + admin revenue per driver
-- [ ] EP-2 Geocoding proxy + address search in admin New trip and rider booking (in progress)
+- [x] EP-2 Geocoding proxy (decision 0021) + search-on-submit address search + rider saved places (V9)
 - [x] EP-3 Refresh-token cleanup + grace window (decision 0022); tenant brand in wordmarks
-- [ ] EP-4 Docker image build + container smoke test (in progress)
-- [ ] EP-5 Demo readiness: two branded demo tenants, one-command local demo, tunnel guide, README with screenshots (in progress)
-- [ ] Geocoding must be search-on-submit + saved locations (provider usage policy) — correction to EP-2
-- [ ] Next: corporate accounts + contract tariffs + monthly statement CSV (niche: small fleets with pre-booked business transfers)
-- [ ] Next: recurring scheduled trips + tomorrow's trip sheet + overdue/unassigned alerts
+- [x] EP-4 Docker images build (backend 143 MiB, frontends ~72 MiB), readiness without Redis, scripts/docker-smoke.sh
+- [x] EP-5 Demo readiness: second branded tenant (Saffron Routes), `scripts/demo-up.sh`, README with screenshots, `docs/DEMO_SCRIPT.md`
+- [ ] EP-6 Recurring scheduled trips + trip sheet + unassigned alerts (in progress)
+- [ ] LP Landing page rewritten for the niche (in progress) (small fleets, pre-booked transfers), pricing hypothesis, contact form; Netlify-free-tier deployable
+
+### After program acceptance (parked; depth features)
+- Corporate accounts + contract tariffs + monthly statements; driver/vehicle document readiness + incidents; DPDP features (consent, export/deletion, retention); PWA + web push; OSRM road-based ETA dispatch; Hindi localization
 - [ ] Apply Terraform — deferred: no AWS account or budget; demos run locally (see research for $0 options)
 
 ### UI/UX improvement round (merged; e2e 32/32)

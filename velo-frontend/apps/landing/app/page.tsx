@@ -1,57 +1,35 @@
-import { Navbar } from "./components/Navbar";
-import { Hero } from "./components/Hero";
-import { TaglineBar } from "./components/TaglineBar";
-import { Verticals } from "./components/Verticals";
-import { Stats } from "./components/Stats";
-import { Marquee } from "./components/Marquee";
-import { HowItWorks } from "./components/HowItWorks";
+import { ContactForm } from "./components/ContactForm";
 import { Footer } from "./components/Footer";
+import { Hero } from "./components/Hero";
+import { HowItWorks } from "./components/HowItWorks";
+import { Navbar } from "./components/Navbar";
+import { Pricing } from "./components/Pricing";
+import { ProductScreens } from "./components/ProductScreens";
+import { ProblemSolution } from "./components/ProblemSolution";
 
-type TenantBranding = {
-  brandName?: string;
-  riderLabel?: string;
-  driverLabel?: string;
-  tripLabel?: string;
-  dispatchMode?: "RIDE_HAILING" | "DELIVERY_MERCHANT" | "FLEET_MANAGED";
-  riderPortalEnabled?: boolean;
-};
-
-function getApiBaseUrl(): string {
-  const configured =
-    process.env.NEXT_PUBLIC_API_BASE_URL ??
-    process.env.VELO_API_BASE_URL ??
-    "http://localhost:8080";
-  return configured.replace(/\/$/, "");
-}
-
-async function fetchBranding(): Promise<TenantBranding | null> {
-  try {
-    const response = await fetch(`${getApiBaseUrl()}/api/v1/public/tenant/branding?tenant=default`, {
-      cache: "no-store",
-    });
-    if (!response.ok) {
-      return null;
-    }
-    return (await response.json()) as TenantBranding;
-  } catch {
-    return null;
-  }
-}
-
-export default async function LandingPage() {
-  const branding = await fetchBranding();
-  const brandName = branding?.brandName?.trim() || "Velo";
-
+export default function LandingPage() {
   return (
     <>
-      <Navbar brandName={brandName} />
-      <Hero brandName={brandName} />
-      <TaglineBar />
-      <Verticals />
-      <Stats />
-      <Marquee />
-      <HowItWorks />
-      <Footer brandName={brandName} />
+      <a className="skip-link" href="#main">Skip to content</a>
+      <Navbar />
+      <main id="main">
+        <Hero />
+        <ProblemSolution />
+        <ProductScreens />
+        <HowItWorks />
+        <Pricing />
+        <section className="contact-section section-dark" id="contact" aria-labelledby="contact-title">
+          <div className="container contact-layout">
+            <div className="contact-intro">
+              <p className="section-kicker">Talk to the team</p>
+              <h2 className="section-heading" id="contact-title">Tell us about your fleet.</h2>
+              <p className="section-copy">Share how you handle pre-booked transfers today. We’ll arrange a walkthrough around your dispatch workflow.</p>
+            </div>
+            <ContactForm />
+          </div>
+        </section>
+      </main>
+      <Footer />
     </>
   );
 }

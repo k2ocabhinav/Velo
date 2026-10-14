@@ -48,5 +48,6 @@ describe("admin next config", () => {
     expect(createSecurityHeaders({ environment: "development" })).not.toContainEqual(
       expect.objectContaining({ key: "Strict-Transport-Security" })
     );
+    expect(csp).not.toContain("nominatim");
   });
 });

@@ -1,100 +1,83 @@
-# Velo Platform
+# Velo
 
-Backend for a white-label dispatch platform built with Spring Boot 3.5.13, Java 22, PostgreSQL/PostGIS, Redis-backed caching, JWT authentication, and OpenAPI documentation.
+Velo is a branded dispatch desk for small fleets running pre-booked business and hotel transfers. It is an India-first, white-label platform: each fleet gets its own name, color, and operating labels while using the same rider, driver, and dispatch workflows.
 
-## Project Layout
+## Demo screenshots
 
-- `velo-platform/` - Maven project root and application source
-- `docs/` - internal planning and project history
+These screens are captured from the local demo at their native viewport sizes.
 
-## Prerequisites
+| Dispatch desk | Rider booking | Driver home |
+|---|---|---|
+| ![Velo Business dispatch](docs/images/velo-business-admin-dispatch.jpg) | ![Rider booking](docs/images/rider-booking.jpg) | ![Driver home](docs/images/driver-home.jpg) |
 
-- Java 22
-- PostgreSQL with PostGIS available
-- Local runtime database: `postgres`
-- Local test database: `testpostgres`
-- Database user: `postgres`
-- Database password: `user`
-- Optional Redis instance on `localhost:6379`
+| Second tenant dispatch | Second tenant branding settings |
+|---|---|
+| ![Saffron Routes dispatch](docs/images/saffron-routes-admin-dispatch.jpg) | ![Saffron Routes branding and labels](docs/images/saffron-routes-branding.jpg) |
 
-The application and tests attempt `CREATE EXTENSION IF NOT EXISTS postgis` on startup. If the database user cannot create extensions, install PostGIS ahead of time.
+| Landing page at 390 × 844 | Landing page at 1440 × 900 |
+|---|---|
+| ![Landing page on mobile](docs/images/landing-mobile-390x844.jpg) | ![Landing page on desktop](docs/images/landing-desktop-1440x900.jpg) |
 
-## Local Setup
+## What works today
 
-1. Start PostgreSQL and ensure both `postgres` and `testpostgres` exist.
-2. Optionally start Redis:
+- Separate tenant data and branded workspaces with custom colors and rider, driver, and trip labels.
+- Rider booking, fare estimates, scheduled trips, wallet, payment methods, and trip history.
+- Driver availability, ride offers, pickup OTP, active-trip tracking, earnings, and payout requests.
+- Admin dispatch and audit history, driver approvals, payouts, scheduled trips, promos, and revenue views.
+- PostGIS-backed nearby-driver matching, live ride updates, and cookie-based BFF authentication.
+
+## Architecture at a glance
+
+- `velo-platform/`: Spring Boot API, PostgreSQL + PostGIS, Flyway schema and local demo data.
+- `velo-frontend/`: Next.js landing, admin, rider, and driver apps with shared Turborepo packages.
+- Tenant branding resolves from `default.localhost` or a tenant subdomain such as `saffron-routes.localhost`.
+- Local services use ports 4100–4103; the API uses port 8080.
+
+## Quick start
+
+Requirements: Java 21+, Node.js 22+, npm, Python 3, and either local PostgreSQL with PostGIS or Docker.
+
+```bash
+./scripts/demo-up.sh
+```
+
+On its first run, the script installs frontend dependencies if needed. It starts PostGIS through the existing Compose file only when PostgreSQL is not already reachable, then starts the API and all four web apps. It defaults to ports 4100–4103 and 8080; if those are occupied, it uses 5700–5703 and the next available API port. It prints tenant URLs and demo logins. Stop only the services it started with:
+
+```bash
+./scripts/demo-down.sh
+```
+
+All demo accounts use `password123`.
+
+| Tenant | Admin | Rider | Driver |
+|---|---|---|---|
+| Velo Business | `admin@velo-platform.com` | `henry@example.com` | `bob.driver@example.com` |
+| Saffron Routes | `owner@saffronroutes.demo` | `guest@saffronroutes.demo` | `chauffeur1@saffronroutes.demo` |
+
+Use `http://default.localhost:<port>` for Velo Business and `http://saffron-routes.localhost:<port>` for Saffron Routes. The landing page at `http://localhost:4100` uses the default tenant.
+
+See [the two-minute demo storyboard](docs/DEMO_SCRIPT.md) for the click path and optional remote demo notes.
+
+## Tests
+
+Backend suite:
 
 ```bash
 cd velo-platform
-docker compose up -d redis
+./mvnw -B clean test -Dspring.datasource.url=jdbc:postgresql://localhost:5432/testpostgres_ep5 -Dvelo.test.flyway.url=jdbc:postgresql://localhost:5432/testpostgres_flyway_ep5 -Dspring.datasource.hikari.maximum-pool-size=2
 ```
 
-3. Build or run the application:
-
-```bash
-cd velo-platform
-./mvnw clean install
-./mvnw spring-boot:run
-```
-
-4. Open the API docs:
-   - `http://localhost:8080/swagger-ui/index.html`
-   - `http://localhost:8080/swagger-ui.html`
-
-## Frontend Port Map
-
-- Landing portal: `http://localhost:4100`
-- Admin portal: `http://localhost:4101`
-- Requester portal: `http://localhost:4102`
-- Driver portal: `http://localhost:4103`
-
-## Running Tests
-
-Backend:
-
-```bash
-cd velo-platform
-./mvnw test
-```
-
-Frontend:
+Frontend checks run separately:
 
 ```bash
 cd velo-frontend
-npm run lint
-npm run typecheck
-npm run test:unit
-npm run test:contracts
+npm ci
+npx turbo lint --cache-dir=.turbo-local
+npx turbo typecheck --cache-dir=.turbo-local
+npx turbo test:unit --cache-dir=.turbo-local
+npx turbo test:contracts --cache-dir=.turbo-local
+npx turbo build --cache-dir=.turbo-local
+PLAYWRIGHT_ADMIN_BASE_URL=http://127.0.0.1:4101 PLAYWRIGHT_RIDER_BASE_URL=http://127.0.0.1:4102 PLAYWRIGHT_DRIVER_BASE_URL=http://127.0.0.1:4103 npx playwright test
 ```
 
-Optional E2E:
-
-```bash
-cd velo-frontend
-npx playwright install --with-deps
-npm run test:e2e
-```
-
-Validation snapshot (April 15, 2026):
-- `velo-platform`: `./mvnw test` -> passing (`197` tests, `0` failures/errors).
-- `velo-frontend`: `npm run test:unit` + `npm run test:contracts` -> passing.
-- `velo-frontend`: `npm run test` currently fails in Playwright e2e (`17` failures) while UI flows/selectors are being revamped.
-
-## Latest Reliability Updates (April 15, 2026)
-
-- Enforced full constructor dependency injection for critical services (`RiderServiceImpl`, `DriverServiceImpl`, `FareEstimationServiceImpl`) so runtime does not silently execute degraded `null` dependency paths.
-- Kept ride acceptance race-safe through DB compare-and-set as the single claim path.
-- Made driver earnings settlement idempotent per ride to prevent duplicates under concurrent end-trip calls.
-- Added Flyway migration `V5__backfill_missing_driver_earnings.sql` to restore missing earnings entries for already completed rides.
-- Maintained tenant-scoped rider/driver resolution (`findByUserIdAndTenantId`) for isolation-safe identity lookups.
-
-## Included Capabilities
-
-- Rider, driver, auth, wallet, payment, rating, and ride lifecycle flows
-- JWT-based login and stateless Spring Security
-- Strategy-based fare calculation and driver matching
-- PostGIS-backed geospatial queries for nearby driver selection
-- OSRM distance integration for fare calculation
-- Admin analytics, pending driver approval, and revenue reporting
-- Actuator health indicators and Redis cache support
-- Unit, strategy, service, and controller integration tests
+Remove `.turbo-local` after running the checks. More detail is in the [docs index](docs/README.md), [architecture](docs/ARCHITECTURE.md), and [deployment guide](docs/DEPLOYMENT.md).

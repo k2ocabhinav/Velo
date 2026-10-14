@@ -413,6 +413,58 @@
   gap: var(--space-4);
 }
 
+.saved-places-panel {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid hsl(var(--color-border));
+  border-radius: var(--radius-md);
+  background: hsl(var(--color-surface));
+}
+
+.saved-places-panel h3,
+.saved-places-panel p {
+  margin: 0;
+}
+
+.saved-place-list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.saved-place-item {
+  display: grid;
+  gap: var(--space-2);
+  padding-block: var(--space-2);
+  border-bottom: 1px solid hsl(var(--color-border));
+}
+
+.saved-place-copy {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.saved-place-copy span {
+  color: hsl(var(--color-muted));
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.saved-place-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.saved-place-create {
+  display: grid;
+  gap: var(--space-2);
+}
+
 .booking-location-row {
   display: grid;
   gap: 0;
@@ -426,6 +478,10 @@
   min-height: 4rem;
   padding-block: var(--space-2);
   border-bottom: 1px solid hsl(var(--color-border));
+}
+
+.booking-location-summary .address-search {
+  min-width: 0;
 }
 
 .booking-location-summary > div > strong,
@@ -930,6 +986,20 @@
 }
 
 @media (max-width: 480px) {
+  .booking-location-summary {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .booking-location-summary > button {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .booking-location-summary > .location-dot {
+    grid-row: 1 / span 2;
+    align-self: center;
+  }
+
   .booking-map-toolbar {
     align-items: flex-start;
   }

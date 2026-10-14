@@ -16,6 +16,7 @@ Single source of truth for the Velo project.
 | Document | Purpose |
 |---|---|
 | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) | Visual language, theming architecture, animations, loading states, accessibility |
+| [LANDING_PLAN.md](LANDING_PLAN.md) | Landing page concept, tokens, sections, 3D hero, build split |
 | [UX_REFINEMENT_PLAN.md](UX_REFINEMENT_PLAN.md) | Per-page UX refinement plan and shared UI foundation (in progress) |
 | [FRONTEND_PLAN.md](FRONTEND_PLAN.md) | Tech stack, monorepo structure, build phases, auth flow, WebSocket |
 
@@ -26,7 +27,7 @@ Single source of truth for the Velo project.
 | [BRANCHING.md](BRANCHING.md) | Branch naming, merge rules, parallel work |
 | [PROGRESS.md](PROGRESS.md) | Shared checklist — what's done, what's not |
 | [SECURITY_REMEDIATION.md](SECURITY_REMEDIATION.md) | Dependency vulnerability tracking and remediation policy |
-| [ADMIN_DEMO_SCRIPT.md](ADMIN_DEMO_SCRIPT.md) | Step-by-step demo for dispatch race, persistence, and ops health |
+| [DEMO_SCRIPT.md](DEMO_SCRIPT.md) | Two-minute founder demo across both tenant brands and rider/driver/dispatch flows |
 
 ## Decisions
 
@@ -43,7 +44,7 @@ Single source of truth for the Velo project.
 - **Checking progress?** Read `PROGRESS.md`.
 - **Asking "why is it built this way?"** Read `decisions/`.
 - **Creating a branch?** Read `BRANCHING.md`.
-- **Preparing an admin demo?** Read `ADMIN_DEMO_SCRIPT.md`.
+- **Preparing a founder demo?** Read `DEMO_SCRIPT.md`.
 
 ## Current State
 

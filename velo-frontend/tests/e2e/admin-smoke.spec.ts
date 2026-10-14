@@ -230,6 +230,51 @@ test("admin dispatch shows offers and assigns a pending request", async ({ baseU
   expect(assignCount).toBe(1);
 });
 
+test("admin new trip selects address suggestions with the keyboard", async ({ baseURL, context, page }) => {
+  await signInAsAdmin(context, baseURL);
+  await page.route("**/api/proxy/api/v1/admin/branding", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { tenantId: 1, brandName: "Velo", riderLabel: "Rider", driverLabel: "Driver", tripLabel: "Trip", riderPortalEnabled: true } }) });
+  });
+  await page.route("**/api/proxy/api/v1/admin/dispatch/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    const data = path.endsWith("/recent-addresses")
+      ? [{ label: "12.95000,77.60000", lat: 12.95, lon: 77.6, type: "Recent pickup" }]
+      : { content: [], number: 0, totalPages: 1, totalElements: 0, size: 10 };
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data }) });
+  });
+  let searchCount = 0;
+  await page.route("**/api/proxy/geo/search?**", async (route) => {
+    searchCount += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ data: [{ label: "City Library, Bengaluru", lat: 12.9716, lon: 77.5946, type: "library" }] }),
+    });
+  });
+  await page.route("https://*.tile.openstreetmap.org/**", async (route) => {
+    await route.fulfill({ status: 200, contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/H1sAAAAASUVORK5CYII=", "base64") });
+  });
+
+  await page.goto("/dispatch");
+  await page.getByRole("button", { name: "New trip" }).click();
+  const sheet = page.getByRole("dialog", { name: "New trip" });
+  const pickupInput = sheet.getByRole("combobox", { name: "Pickup address" });
+  await pickupInput.focus();
+  const recentPlaces = sheet.getByRole("listbox", { name: "Pickup address places" });
+  await expect(recentPlaces).toContainText("Recent pickup");
+  await pickupInput.fill("City Library");
+  expect(searchCount).toBe(0);
+  await sheet.locator(".address-search").first().getByRole("button", { name: "Search" }).click();
+  const options = sheet.getByRole("listbox", { name: "Pickup address places" });
+  await expect(options).toBeVisible();
+  await pickupInput.press("ArrowDown");
+  await pickupInput.press("Enter");
+  await expect(pickupInput).toHaveValue("City Library, Bengaluru");
+  await sheet.getByText("Enter coordinates", { exact: true }).click();
+  await expect(sheet.getByLabel("Pickup latitude")).toHaveValue("12.9716");
+  expect(searchCount).toBe(1);
+});
+
 test("admin rejects a driver application with a recorded reason", async ({ baseURL, context, page }) => {
   await signInAsAdmin(context, baseURL);
   let rejected = false;

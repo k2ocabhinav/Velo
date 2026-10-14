@@ -19,6 +19,8 @@ import java.util.Optional;
 
 @Repository
 public interface RideRepository extends JpaRepository<Ride, Long> {
+    List<Ride> findTop20ByTenantIdOrderByCreatedTimeDesc(Long tenantId);
+
     Page<Ride> findByRider(Rider rider, Pageable pageRequest);
 
     Page<Ride> findByDriver(Driver driver, Pageable pageRequest);
