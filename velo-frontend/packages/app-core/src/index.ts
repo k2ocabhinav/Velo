@@ -10,3 +10,4 @@ export * from "./map-viewport";
 export * from "./proxy-route";
 export * from "./redirect";
 export * from "./ws-ticket";
+export * from "./tenant";

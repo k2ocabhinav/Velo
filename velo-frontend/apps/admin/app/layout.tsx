@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
-import type { ReactNode } from "react";
+import { headers } from "next/headers";
+import type { CSSProperties, ReactNode } from "react";
 import { Barlow_Condensed, Inter } from "next/font/google";
+import { DEFAULT_TENANT_BRANDING, fetchTenantBranding, getDefaultTenantSlug, TENANT_SLUG_HEADER } from "@velo/app-core/tenant";
+import { resolveTenantPrimaryStyle, TenantBrandingProvider } from "@velo/ui/theme";
 import "@velo/ui/styles.css";
 import "./globals.css";
 
@@ -23,14 +26,29 @@ export const metadata: Metadata = {
   description: "Admin workspace for Velo operations",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: ReactNode;
 }>) {
+  const requestHeaders = await headers();
+  const tenantSlug = requestHeaders.get(TENANT_SLUG_HEADER) ?? getDefaultTenantSlug();
+  const branding = await fetchTenantBranding(tenantSlug) ?? DEFAULT_TENANT_BRANDING;
+
   return (
-    <html lang="en" className={`${barlowCondensed.variable} ${inter.variable}`}>
-      <body>{children}</body>
+    <html
+      lang="en"
+      className={`${barlowCondensed.variable} ${inter.variable}`}
+      style={resolveTenantPrimaryStyle(branding.primaryColor) as CSSProperties}
+      data-tenant-slug={tenantSlug}
+      data-tenant-brand-name={branding.brandName}
+      data-tenant-rider-label={branding.riderLabel}
+      data-tenant-driver-label={branding.driverLabel}
+      data-tenant-trip-label={branding.tripLabel}
+    >
+      <body>
+        <TenantBrandingProvider branding={branding}>{children}</TenantBrandingProvider>
+      </body>
     </html>
   );
 }

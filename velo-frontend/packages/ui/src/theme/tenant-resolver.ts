@@ -55,6 +55,83 @@ export interface TenantThemeInput {
   darkMode?: boolean;
 }
 
+const DEFAULT_PRIMARY = "220 75% 42%";
+const DEFAULT_PRIMARY_HOVER = "220 72% 50%";
+const PRIMARY_FG = "0 0% 100%";
+
+function srgbToLinear(value: number): number {
+  const channel = value / 255;
+  return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+}
+
+function whiteContrastRatio(red: number, green: number, blue: number): number {
+  const luminance = 0.2126 * srgbToLinear(red) + 0.7152 * srgbToLinear(green) + 0.0722 * srgbToLinear(blue);
+  return 1.05 / (luminance + 0.05);
+}
+
+function rgbToHsl(red: number, green: number, blue: number): string {
+  const r = red / 255;
+  const g = green / 255;
+  const b = blue / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const delta = max - min;
+  let hue = 0;
+  let saturation = 0;
+  const lightness = (max + min) / 2;
+
+  if (delta !== 0) {
+    saturation = delta / (1 - Math.abs(2 * lightness - 1));
+    switch (max) {
+      case r: hue = ((g - b) / delta) % 6; break;
+      case g: hue = (b - r) / delta + 2; break;
+      default: hue = (r - g) / delta + 4; break;
+    }
+    hue *= 60;
+    if (hue < 0) hue += 360;
+  }
+
+  const rounded = (value: number) => Math.round(value * 10) / 10;
+  return `${rounded(hue)} ${rounded(saturation * 100)}% ${rounded(lightness * 100)}%`;
+}
+
+/** Emits only the three supported tenant color variables, with white-text AA contrast. */
+export function resolveTenantPrimaryStyle(primaryColor: string | null | undefined): Record<string, string> {
+  const match = typeof primaryColor === "string" ? /^#([\da-f]{6})$/i.exec(primaryColor.trim()) : null;
+  if (!match) {
+    return {
+      "--color-primary": DEFAULT_PRIMARY,
+      "--color-primary-hover": DEFAULT_PRIMARY_HOVER,
+      "--color-primary-fg": PRIMARY_FG,
+    };
+  }
+
+  const value = match?.[1];
+  if (!value) {
+    return {
+      "--color-primary": DEFAULT_PRIMARY,
+      "--color-primary-hover": DEFAULT_PRIMARY_HOVER,
+      "--color-primary-fg": PRIMARY_FG,
+    };
+  }
+  const red = Number.parseInt(value.slice(0, 2), 16);
+  const green = Number.parseInt(value.slice(2, 4), 16);
+  const blue = Number.parseInt(value.slice(4, 6), 16);
+  if (whiteContrastRatio(red, green, blue) < 4.5) {
+    return {
+      "--color-primary": DEFAULT_PRIMARY,
+      "--color-primary-hover": DEFAULT_PRIMARY_HOVER,
+      "--color-primary-fg": PRIMARY_FG,
+    };
+  }
+
+  return {
+    "--color-primary": rgbToHsl(red, green, blue),
+    "--color-primary-hover": rgbToHsl(Math.round(red * 0.88), Math.round(green * 0.88), Math.round(blue * 0.88)),
+    "--color-primary-fg": PRIMARY_FG,
+  };
+}
+
 export const defaultThemeTokens: ThemeTokens = {
   colors: {
     background: "210 20% 98%",

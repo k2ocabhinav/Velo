@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
-import type { ReactNode } from "react";
+import { headers } from "next/headers";
+import type { CSSProperties, ReactNode } from "react";
 import { Barlow_Condensed, Inter } from "next/font/google";
+import { DEFAULT_TENANT_BRANDING, fetchTenantBranding, getDefaultTenantSlug, TENANT_SLUG_HEADER } from "@velo/app-core/tenant";
+import { resolveTenantPrimaryStyle, TenantBrandingProvider } from "@velo/ui/theme";
 import { DriverShell } from "./_components/driver-shell";
 import "leaflet/dist/leaflet.css";
 import "@velo/ui/styles.css";
@@ -25,15 +28,30 @@ export const metadata: Metadata = {
   description: "Driver workspace shell for Velo",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: ReactNode;
 }>) {
+  const requestHeaders = await headers();
+  const tenantSlug = requestHeaders.get(TENANT_SLUG_HEADER) ?? getDefaultTenantSlug();
+  const branding = await fetchTenantBranding(tenantSlug) ?? DEFAULT_TENANT_BRANDING;
+
   return (
-    <html lang="en" className={`${barlowCondensed.variable} ${inter.variable}`}>
+    <html
+      lang="en"
+      className={`${barlowCondensed.variable} ${inter.variable}`}
+      style={resolveTenantPrimaryStyle(branding.primaryColor) as CSSProperties}
+      data-tenant-slug={tenantSlug}
+      data-tenant-brand-name={branding.brandName}
+      data-tenant-rider-label={branding.riderLabel}
+      data-tenant-driver-label={branding.driverLabel}
+      data-tenant-trip-label={branding.tripLabel}
+    >
       <body>
-        <DriverShell>{children}</DriverShell>
+        <TenantBrandingProvider branding={branding}>
+          <DriverShell>{children}</DriverShell>
+        </TenantBrandingProvider>
       </body>
     </html>
   );
