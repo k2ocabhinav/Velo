@@ -509,4 +509,4 @@ The frontend only needs to: call the right endpoint, display the response, and l
   - post-restart pass (verifies persisted state/audit marker without wiping volumes).
 - Admin WebKit smoke is now configured as a required integration gate in CI.
 - Flyway seed migration adjusted for PostgreSQL PL/pgSQL execution (`PERFORM setval(...)`) to keep bootstrap deterministic on clean environments.
-- Demo procedure for these capabilities is documented in `ADMIN_DEMO_SCRIPT.md`.
+- Demo procedure for these capabilities is documented in `DEMO_SCRIPT.md`.

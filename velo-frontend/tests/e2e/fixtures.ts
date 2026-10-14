@@ -25,7 +25,12 @@ export const test = base.extend({
         } catch (error) {
           // A user-triggered navigation can replace the document while axe is
           // evaluating it. The destination's load event schedules its own audit.
-          if (page.isClosed() || page.url() !== visitedUrl) return [];
+          const message = error instanceof Error ? error.message : String(error);
+          if (
+            page.isClosed()
+            || page.url() !== visitedUrl
+            || /execution context was destroyed|frame was detached/i.test(message)
+          ) return [];
           throw error;
         }
         return results.violations
