@@ -27,11 +27,18 @@
 
 .admin-brand {
   display: grid;
+  min-width: 0;
   gap: var(--space-1);
   padding-inline: var(--space-2);
 }
 
 .admin-brand strong {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: hsl(var(--color-foreground));
   font-family: var(--font-display), system-ui, sans-serif;
   font-size: var(--text-2xl);

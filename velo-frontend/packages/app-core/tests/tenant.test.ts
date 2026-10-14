@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { DEFAULT_TENANT_BRANDING, fetchTenantBranding, resolveTenantSlug } from "../src/tenant";
+import { DEFAULT_TENANT_BRANDING, fetchTenantBranding, getTenantWordmark, resolveTenantSlug } from "../src/tenant";
 
 describe("tenant resolution", () => {
   it("uses a tenant subdomain and leaves platform hosts on the development default", () => {
@@ -17,6 +17,12 @@ describe("tenant resolution", () => {
 });
 
 describe("tenant branding fetch", () => {
+  it("uses the tenant brand as a display wordmark and preserves the default VELO mark", () => {
+    expect(getTenantWordmark(" Northstar Mobility ")).toBe("Northstar Mobility");
+    expect(getTenantWordmark("Velo")).toBe("VELO");
+    expect(getTenantWordmark(" ")).toBe("VELO");
+  });
+
   it("loads the public envelope using the Next fetch revalidation cache", async () => {
     const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       data: {

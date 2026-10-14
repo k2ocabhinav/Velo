@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.Duration;
 import java.util.Set;
 
 @Service
@@ -37,13 +38,31 @@ public class RefreshTokenStore {
     public RotationResult rotate(String tokenHash,
                                  String newTokenHash,
                                  LocalDateTime now,
-                                 LocalDateTime nextExpiry) {
+                                 LocalDateTime nextExpiry,
+                                 Duration graceWindow) {
         RefreshToken current = refreshTokenRepository.findByTokenHashForUpdate(tokenHash).orElse(null);
         if (current == null) {
             return RotationResult.invalid();
         }
 
         if (current.getConsumedAt() != null) {
+            if (current.getRevokedAt() != null) {
+                return RotationResult.invalid();
+            }
+            if (current.getSuccessorTokenId() != null
+                    && current.getRotationResponseCiphertext() != null
+                    && !current.getConsumedAt().plus(graceWindow).isBefore(now)) {
+                Long tenantId = current.getTenantId();
+                User user = userRepository.findByIdAndTenantId(current.getUser().getId(), tenantId).orElse(null);
+                if (user == null || !Boolean.TRUE.equals(user.getActive())
+                        || !effectiveTenantId(user.getTenantId()).equals(tenantId)) {
+                    refreshTokenRepository.revokeFamily(current.getFamilyId(), tenantId, now);
+                    return RotationResult.invalid();
+                }
+                return RotationResult.replay(
+                        user.getId(), user.getEmail(), selectRole(user.getRoles()), tenantId,
+                        current.getRotationResponseCiphertext());
+            }
             refreshTokenRepository.revokeFamily(current.getFamilyId(), current.getTenantId(), now);
             return RotationResult.reused();
         }
@@ -63,16 +82,23 @@ public class RefreshTokenStore {
         }
 
         current.setConsumedAt(now);
-        refreshTokenRepository.save(current);
-        refreshTokenRepository.save(RefreshToken.builder()
+        RefreshToken successor = refreshTokenRepository.save(RefreshToken.builder()
                 .tokenHash(newTokenHash)
                 .familyId(current.getFamilyId())
                 .user(user)
                 .tenantId(tenantId)
                 .expiresAt(nextExpiry)
                 .build());
+        current.setSuccessorTokenId(successor.getId());
+        refreshTokenRepository.save(current);
 
-        return RotationResult.rotated(userId, user.getEmail(), selectRole(user.getRoles()), tenantId);
+        return RotationResult.rotated(current.getId(), userId, user.getEmail(),
+                selectRole(user.getRoles()), tenantId);
+    }
+
+    @Transactional
+    public void storeRotationResponse(Long predecessorId, Long tenantId, String encryptedResponse) {
+        refreshTokenRepository.storeRotationResponse(predecessorId, effectiveTenantId(tenantId), encryptedResponse);
     }
 
     @Transactional
@@ -102,19 +128,24 @@ public class RefreshTokenStore {
         return tenantId == null ? DEFAULT_TENANT_ID : tenantId;
     }
 
-    public record RotationResult(Status status, Long userId, String email, String role, Long tenantId) {
-        public enum Status { ROTATED, INVALID, REUSED }
+    public record RotationResult(Status status, Long predecessorId, Long userId, String email,
+                                 String role, Long tenantId, String replayCiphertext) {
+        public enum Status { ROTATED, REPLAY, INVALID, REUSED }
 
-        public static RotationResult rotated(Long userId, String email, String role, Long tenantId) {
-            return new RotationResult(Status.ROTATED, userId, email, role, tenantId);
+        public static RotationResult rotated(Long predecessorId, Long userId, String email, String role, Long tenantId) {
+            return new RotationResult(Status.ROTATED, predecessorId, userId, email, role, tenantId, null);
+        }
+
+        public static RotationResult replay(Long userId, String email, String role, Long tenantId, String replayCiphertext) {
+            return new RotationResult(Status.REPLAY, null, userId, email, role, tenantId, replayCiphertext);
         }
 
         public static RotationResult invalid() {
-            return new RotationResult(Status.INVALID, null, null, null, null);
+            return new RotationResult(Status.INVALID, null, null, null, null, null, null);
         }
 
         public static RotationResult reused() {
-            return new RotationResult(Status.REUSED, null, null, null, null);
+            return new RotationResult(Status.REUSED, null, null, null, null, null, null);
         }
     }
 }
