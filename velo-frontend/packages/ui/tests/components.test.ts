@@ -16,11 +16,13 @@ import {
   PageHeader,
   Pagination,
   RouteStrip,
+  ReconnectingIndicator,
   Section,
   SegmentedControl,
   Select,
   Sheet,
   StatusBadge,
+  StatCard,
   Textarea,
 } from "../src";
 
@@ -41,6 +43,22 @@ describe("shared UI foundation", () => {
     expect(markup).toContain("aria-labelledby");
     expect(markup).toContain("Section content");
     expect(markup).toContain("Edit");
+  });
+
+  it("provides composed skeleton variants for data tables, statistics, and sections", () => {
+    expect(html(h(DataTable.Skeleton, { rows: 2, columns: 3 }))).toContain('aria-label="Loading results"');
+    expect(html(h(StatCard.Skeleton, {}))).toContain('aria-label="Loading statistic"');
+    expect(html(h(Section.Skeleton, { rows: 2 }))).toContain('aria-label="Loading section"');
+  });
+
+  it("renders a shared reconnecting notice with an optional retry action", () => {
+    const markup = html(h(ReconnectingIndicator, {
+      state: "reconnecting",
+      attempts: 2,
+      onRetry: vi.fn(),
+    }));
+    expect(markup).toContain("Reconnecting… Attempt 2.");
+    expect(markup).toContain(">Retry</button>");
   });
 
   it("wires field hint and error text to an invalid control", () => {

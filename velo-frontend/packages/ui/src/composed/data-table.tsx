@@ -1,5 +1,6 @@
 import type { Key, ReactNode } from "react";
 import { cn } from "../lib/cn";
+import { Skeleton as GenericSkeleton } from "../feedback/skeleton";
 import { Menu, type MenuItem } from "./interaction";
 
 export interface DataTableColumn<T> {
@@ -24,7 +25,7 @@ export interface DataTableProps<T> {
 }
 
 /** Responsive data table with optional overflow actions on each row. */
-export function DataTable<T>({
+export const DataTable = Object.assign(function DataTable<T>({
   caption,
   className,
   columns,
@@ -99,6 +100,21 @@ export function DataTable<T>({
               </tr>
             ))
           )}
+        </tbody>
+      </table>
+    </div>
+  );
+}, { Skeleton: DataTableSkeleton });
+
+function DataTableSkeleton({ rows = 5, columns = 4, label = "Loading results" }: { rows?: number; columns?: number; label?: string }) {
+  return (
+    <div className="data-table-wrap data-table-skeleton" role="status" aria-label={label} aria-busy="true">
+      <table aria-hidden="true">
+        <thead><tr>{Array.from({ length: columns }, (_, index) => <th key={index}><GenericSkeleton className="data-table-skeleton-cell" /></th>)}</tr></thead>
+        <tbody>
+          {Array.from({ length: rows }, (_, row) => (
+            <tr key={row}>{Array.from({ length: columns }, (_, column) => <td key={column}><GenericSkeleton className="data-table-skeleton-cell" /></td>)}</tr>
+          ))}
         </tbody>
       </table>
     </div>

@@ -29,6 +29,10 @@ export type RiderHomeTripLane = Readonly<{
   count: number;
 }>;
 
+export function shouldShowTripBanner(lane: RiderHomeTripLane): boolean {
+  return lane.mode === "active" || lane.mode === "pending";
+}
+
 const ACTIVE_STATUSES = new Set(["CONFIRMED", "ONGOING"]);
 const CANCELLABLE_STATUSES = new Set(["CONFIRMED"]);
 const PENDING_REQUEST_STATUSES = new Set(["PENDING", "CONFIRMED", "SCHEDULED"]);

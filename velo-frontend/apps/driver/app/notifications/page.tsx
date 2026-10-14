@@ -4,14 +4,13 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@velo/ui/primitives";
 import { DateTime, EmptyState, ErrorState, PageHeader, Section } from "@velo/ui/composed";
-import { Skeleton } from "@velo/ui/feedback";
+import { ReconnectingIndicator, Skeleton } from "@velo/ui/feedback";
 import {
   requestDriverProxy,
   type DriverNotification,
   type SpringPage,
 } from "../_lib/driver-client";
 import {
-  getDriverRealtimeStatusText,
   useDriverNotificationSubscription,
   type DriverNotificationEvent,
 } from "../_lib/driver-ws";
@@ -139,14 +138,14 @@ export default function DriverNotificationsPage() {
           </div>
         )}
       >
-        {realtime.state === "error" ? (
-          <ErrorState
-            title="Live notifications are paused"
-            description={`${getDriverRealtimeStatusText(realtime.state, realtime.reconnectAttempts)} Refresh to check for updates.`}
-            onRetry={() => void loadNotifications()}
-            retryLabel="Refresh notifications"
-          />
-        ) : null}
+        <ReconnectingIndicator
+          state={realtime.state}
+          attempts={realtime.reconnectAttempts}
+          message="Live notifications paused. New items refresh automatically."
+          onRetry={() => void loadNotifications()}
+          retryLabel="Refresh notifications"
+          retrying={loading}
+        />
         {loading ? (
           <div className="driver-notification-list" role="status" aria-label="Loading notifications" aria-busy="true">
             {[0, 1, 2].map((item) => <Skeleton key={item} className="h-20 w-full" />)}

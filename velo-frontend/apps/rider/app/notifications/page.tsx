@@ -8,6 +8,7 @@ import {
   EmptyState,
   ErrorState,
   PageHeader,
+  ReconnectingIndicator,
   Section,
   Skeleton,
 } from "@velo/ui";
@@ -135,8 +136,6 @@ export default function RiderNotificationsPage() {
     }
   }
 
-  const degraded = !error && realtime.state === "error";
-
   return (
     <main className="app-shell rider-page stack">
       <PageHeader title="Notifications" description="Ride updates and account activity, all in one place." />
@@ -161,11 +160,12 @@ export default function RiderNotificationsPage() {
             onRetry={() => void loadNotifications(true)}
           />
         ) : null}
-        {degraded ? (
-          <ErrorState
-            title="Live updates paused"
-            description="We’ll keep checking for new notifications in the background."
-            retryLabel={refreshing ? "Refreshing…" : "Retry"}
+        {!error ? (
+          <ReconnectingIndicator
+            state={realtime.state}
+            attempts={realtime.reconnectAttempts}
+            message="Live updates paused. New notifications refresh automatically."
+            retrying={refreshing}
             onRetry={() => void loadNotifications(true)}
           />
         ) : null}
@@ -199,7 +199,7 @@ export default function RiderNotificationsPage() {
             ))}
           </div>
         ) : null}
-        {lastSyncAt && !degraded ? <p className="helper notification-sync-note">Updated <DateTime value={lastSyncAt} /></p> : null}
+        {lastSyncAt && realtime.state !== "error" && realtime.state !== "reconnecting" ? <p className="helper notification-sync-note">Updated <DateTime value={lastSyncAt} /></p> : null}
       </Section>
     </main>
   );

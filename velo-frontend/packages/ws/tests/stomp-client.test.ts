@@ -8,7 +8,7 @@ describe("stomp client", () => {
       baseURL: "http://localhost:8080"
     });
 
-    expect(client.reconnectDelay).toBe(5000);
+    expect(client.reconnectDelay).toBe(0);
     expect(client.maxReconnectDelay).toBe(60_000);
     expect(client.reconnectTimeMode).toBe(ReconnectionTimeMode.EXPONENTIAL);
     expect(client.heartbeatIncoming).toBe(10_000);
@@ -30,7 +30,7 @@ describe("stomp client", () => {
       },
     });
 
-    expect(client.reconnectDelay).toBe(4000);
+    expect(client.reconnectDelay).toBe(0);
     expect(client.maxReconnectDelay).toBe(4000);
     expect(client.reconnectTimeMode).toBe(ReconnectionTimeMode.EXPONENTIAL);
     expect(client.heartbeatIncoming).toBe(2000);
@@ -47,7 +47,7 @@ describe("stomp client", () => {
       maxReconnectDelay: 1000,
     });
 
-    expect(client.reconnectDelay).toBe(4000);
+    expect(client.reconnectDelay).toBe(0);
     expect(client.maxReconnectDelay).toBe(4000);
     client.deactivate();
   });

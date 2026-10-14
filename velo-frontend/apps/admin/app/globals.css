@@ -202,7 +202,7 @@
 .admin-content .error-state h2,
 .admin-content .error-state p,
 .admin-content .error-text {
-  color: hsl(var(--color-danger));
+  color: hsl(var(--color-foreground));
 }
 
 .dashboard-kpis {

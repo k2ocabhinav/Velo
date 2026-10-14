@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "./fixtures";
+import type { Page } from "@playwright/test";
 
 async function mockUnreadCount(page: Page): Promise<void> {
   await page.route("**/api/backend/notifications/unread-count", async (route) => {
@@ -461,6 +462,8 @@ test("driver trip history filters active and past trips", async ({ baseURL, cont
 test("driver confirms trip cancellation before the existing cancel action runs", async ({ baseURL, context, page }) => {
   const appBaseUrl = baseURL ?? "http://127.0.0.1:4103";
   await context.addCookies([{ name: "velo_driver_token", value: "e2e-driver-token", url: appBaseUrl }]);
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 12.9716, longitude: 77.5946 });
   await mockUnreadCount(page);
 
   let cancelled = false;
@@ -471,8 +474,16 @@ test("driver confirms trip cancellation before the existing cancel action runs",
     cancelled = true;
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { ...buildRideResponse("CONFIRMED"), rideStatus: "CANCELLED" } }) });
   });
+  await page.route("**/api/backend/drivers/location", async (route) => {
+    await route.fulfill({ status: 200, body: "" });
+  });
 
   await page.goto("/ride/911");
+  const followButton = page.getByRole("button", { name: "Follow driver" });
+  await expect(followButton).toBeEnabled();
+  await expect(followButton).toHaveCSS("min-height", "44px");
+  await followButton.click();
+  await expect(page.getByRole("button", { name: "Stop following" })).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "Cancel trip" }).click();
   const confirmation = page.getByRole("dialog", { name: "Cancel this trip?" });
   await expect(confirmation).toBeVisible();

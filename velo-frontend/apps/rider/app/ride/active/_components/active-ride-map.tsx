@@ -73,7 +73,8 @@ export function ActiveRideMap({ pickup, dropOff, driver, routePoints }: ActiveRi
   return (
     <div className="active-ride-map">
       <button
-        className="secondary-button"
+        className="ui-button map-follow-control"
+        data-variant="secondary"
         type="button"
         aria-pressed={followDriver}
         disabled={!driver}

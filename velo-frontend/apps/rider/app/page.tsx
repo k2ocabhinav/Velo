@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { CountdownBadge, MatchingIndicator } from "@velo/ui/feedback";
+import { CountdownBadge, MatchingIndicator, ReconnectingIndicator } from "@velo/ui/feedback";
 import { formatDateTime } from "@velo/app-core/formatters";
 import {
   requestRiderProxy,
@@ -20,6 +20,7 @@ import {
   normalizeCurrentRideRequest,
   normalizeRidePage,
   hasInFlightRideRequest,
+  shouldShowTripBanner,
   selectTripLaneRide,
   type RiderHomeRide,
   type RiderHomeTripLane,
@@ -660,17 +661,22 @@ export default function RiderHomePage() {
             description="Refresh to check for a trip in progress."
             onRetry={() => void loadTripLane(true)}
           />
-        ) : tripLane.ride || tripLane.mode === "pending" ? (
-          <section className="trip-banner" aria-label="Trip in progress">
+        ) : shouldShowTripBanner(tripLane) ? (
+          <section className="trip-banner" aria-label="Trip status">
             <div className="trip-banner-copy">
               <StatusBadge
                 domain={tripLane.ride ? "ride" : "request"}
                 status={tripLane.ride?.rideStatus ?? lastRequest?.rideRequestStatus ?? "PENDING"}
               />
               <strong>{tripLane.ride ? "Your trip is underway" : "Finding a driver nearby"}</strong>
-              <p className={realtime.state === "error" ? "error-text" : undefined}>
-                {realtime.state === "error" ? "Live updates paused. Checking for updates in the background." : tripLaneSyncMessage}
-              </p>
+              {realtime.state !== "error" && realtime.state !== "reconnecting" ? <p>{tripLaneSyncMessage}</p> : null}
+              <ReconnectingIndicator
+                state={realtime.state}
+                attempts={realtime.reconnectAttempts}
+                onRetry={() => void loadTripLane(true)}
+                retrying={refreshingTripLane}
+                className="trip-banner-realtime"
+              />
               {tripLane.ride ? <Money className="trip-banner-fare" amount={getRideFareValue(tripLane.ride)} /> : null}
               {tripLane.ride ? (
                 <RouteStrip stage={tripLane.ride.rideStatus} variant="static" />
@@ -682,9 +688,6 @@ export default function RiderHomePage() {
               )}
             </div>
             <div className="trip-banner-actions">
-              {realtime.state === "error" ? (
-                <Button variant="ghost" loading={refreshingTripLane} onClick={() => void loadTripLane(true)}>Retry</Button>
-              ) : null}
               <Link className="ui-button" data-variant="secondary" href={tripLane.ride ? "/ride/active" : "/rides"}>
                 View trip
               </Link>

@@ -73,13 +73,14 @@ export function DriverRideMap({ pickup, dropOff, driver, routePoints }: DriverRi
   return (
     <div className="driver-ride-map">
       <button
-        className="secondary-button"
+        className="ui-button map-follow-control"
+        data-variant="secondary"
         type="button"
         aria-pressed={followDriver}
         disabled={!driver}
         onClick={() => setFollowDriver((following) => !following)}
       >
-        {followDriver ? "Stop following" : "Follow my location"}
+        {followDriver ? "Stop following" : "Follow driver"}
       </button>
       <MapContainer center={toLatLng(center)} zoom={13} scrollWheelZoom className="driver-ride-map-inner">
         <TileLayer
