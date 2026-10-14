@@ -164,6 +164,21 @@ class DriverControllerIntegrationTest {
     }
 
     @Test
+    @DisplayName("POST /drivers/startRide/{rideId} uses the accepted ride ID path contract")
+    void startRide_usesRideIdPathVariable() throws Exception {
+        mockMvc.perform(withDriverAuth(post("/drivers/startRide/" + confirmedRide.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "otp": "1234"
+                                }
+                                """)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").value(confirmedRide.getId()))
+                .andExpect(jsonPath("$.data.rideStatus").value("ONGOING"));
+    }
+
+    @Test
     @DisplayName("PUT /drivers/availability should return current profile for no-op transitions")
     void toggleAvailability_WithNoStateChange_ShouldReturnOk() throws Exception {
         mockMvc.perform(withDriverAuth(put("/drivers/availability")

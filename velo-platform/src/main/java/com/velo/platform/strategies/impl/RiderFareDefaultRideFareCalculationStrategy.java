@@ -23,6 +23,7 @@ public class RiderFareDefaultRideFareCalculationStrategy implements RideFareCalc
                 .calculateDistance(
                         rideRequest.getPickupLocation(),
                         rideRequest.getDropOffLocation());
-        return BigDecimal.valueOf(distance).multiply(BigDecimal.valueOf(fareConfig.getPerKmRate()));
+        return BigDecimal.valueOf(fareConfig.getBaseFare())
+                .add(BigDecimal.valueOf(distance).multiply(BigDecimal.valueOf(fareConfig.getPerKmRate())));
     }
 }

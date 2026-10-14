@@ -28,6 +28,7 @@ class FareCalculationTest {
     @BeforeEach
     void setUp() {
         fareConfig = new FareConfig();
+        fareConfig.setBaseFare(7.5);
         fareConfig.setPerKmRate(10.0);
         fareConfig.setSurgeMultiplier(2.0);
         
@@ -36,7 +37,7 @@ class FareCalculationTest {
     }
 
     @Test
-    @DisplayName("Default fare calculation returns distance * rate")
+    @DisplayName("Default fare calculation adds base fare to distance rate")
     void defaultFareCalculation() {
         RideRequest rideRequest = createMockRideRequest();
         when(distanceService.calculateDistance(rideRequest.getPickupLocation(), rideRequest.getDropOffLocation()))
@@ -45,7 +46,7 @@ class FareCalculationTest {
         BigDecimal fare = defaultStrategy.calculateFare(rideRequest);
         
         assertThat(fare).isGreaterThan(BigDecimal.ZERO);
-        assertThat(fare).isEqualByComparingTo(BigDecimal.valueOf(50.0));
+        assertThat(fare).isEqualByComparingTo(BigDecimal.valueOf(57.5));
     }
 
     @Test
@@ -62,15 +63,15 @@ class FareCalculationTest {
     }
 
     @Test
-    @DisplayName("Zero distance returns zero fare")
-    void zeroDistanceFare() {
+    @DisplayName("Zero distance still charges the base fare")
+    void zeroDistanceChargesBaseFare() {
         RideRequest rideRequest = createMockRideRequest();
         when(distanceService.calculateDistance(rideRequest.getPickupLocation(), rideRequest.getDropOffLocation()))
                 .thenReturn(0.0);
         
         BigDecimal fare = defaultStrategy.calculateFare(rideRequest);
         
-        assertThat(fare).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(fare).isEqualByComparingTo(BigDecimal.valueOf(7.5));
     }
 
     @Test
@@ -83,7 +84,7 @@ class FareCalculationTest {
         BigDecimal defaultFare = defaultStrategy.calculateFare(rideRequest);
         BigDecimal surgeFare = surgeStrategy.calculateFare(rideRequest);
         
-        assertThat(surgeFare).isEqualByComparingTo(BigDecimal.valueOf(200.0));
+        assertThat(surgeFare).isEqualByComparingTo(BigDecimal.valueOf(215.0));
         assertThat(surgeFare).isEqualByComparingTo(defaultFare.multiply(BigDecimal.valueOf(2.0)));
     }
 

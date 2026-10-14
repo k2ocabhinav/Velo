@@ -5,6 +5,7 @@ import com.velo.platform.entities.RideRequest;
 import com.velo.platform.entities.enums.RideRequestStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -30,6 +31,7 @@ public interface RideRequestRepository extends JpaRepository<RideRequest, Long> 
     Page<RideRequest> findByRideRequestStatusOrderByRequestedTimeDesc(
             RideRequestStatus status, Pageable pageable);
 
+    @EntityGraph(attributePaths = {"rider.user"})
     Page<RideRequest> findByTenantIdAndRideRequestStatusOrderByRequestedTimeDesc(
             Long tenantId,
             RideRequestStatus status,

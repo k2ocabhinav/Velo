@@ -21,8 +21,8 @@ public class RideFareSurgePricingFareCalculationStrategy implements RideFareCalc
     public BigDecimal calculateFare(RideRequest rideRequest) {
         double distance = distanceService.calculateDistance(rideRequest.getPickupLocation(),
                 rideRequest.getDropOffLocation());
-        return BigDecimal.valueOf(distance)
-                .multiply(BigDecimal.valueOf(fareConfig.getPerKmRate()))
+        return BigDecimal.valueOf(fareConfig.getBaseFare())
+                .add(BigDecimal.valueOf(distance).multiply(BigDecimal.valueOf(fareConfig.getPerKmRate())))
                 .multiply(BigDecimal.valueOf(fareConfig.getSurgeMultiplier()));
     }
 }

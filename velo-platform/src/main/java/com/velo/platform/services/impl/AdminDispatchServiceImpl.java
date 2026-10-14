@@ -52,6 +52,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -137,8 +139,18 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
     @Transactional(readOnly = true)
     public Page<AdminPendingRideRequestDto> getPendingRideRequests(Pageable pageable) {
         Long tenantId = tenantScopeService.requireCurrentTenantId();
-        return rideRequestRepository
-                .findByTenantIdAndRideRequestStatusOrderByRequestedTimeDesc(tenantId, RideRequestStatus.PENDING, pageable)
+        Page<RideRequest> pendingRequests = rideRequestRepository
+                .findByTenantIdAndRideRequestStatusOrderByRequestedTimeDesc(tenantId, RideRequestStatus.PENDING, pageable);
+        List<Long> requestIds = pendingRequests.getContent().stream().map(RideRequest::getId).toList();
+        Map<Long, Long> offeredCounts = requestIds.isEmpty()
+                ? Map.of()
+                : rideOfferRepository.countOffersByRideRequestIdsAndStatus(requestIds, RideOfferStatus.OFFERED).stream()
+                        .collect(Collectors.toMap(
+                                RideOfferRepository.OfferCountProjection::getRideRequestId,
+                                RideOfferRepository.OfferCountProjection::getOfferCount
+                        ));
+
+        return pendingRequests
                 .map(rideRequest -> AdminPendingRideRequestDto.builder()
                         .rideRequestId(rideRequest.getId())
                         .riderId(rideRequest.getRider() == null ? null : rideRequest.getRider().getId())
@@ -151,7 +163,7 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
                         .status(rideRequest.getRideRequestStatus() == null ? null : rideRequest.getRideRequestStatus().name())
                         .fare(rideRequest.getFare())
                         .requestedTime(rideRequest.getRequestedTime())
-                        .offeredDriverCount(rideOfferRepository.countByRideRequestIdAndStatus(rideRequest.getId(), RideOfferStatus.OFFERED))
+                        .offeredDriverCount(offeredCounts.getOrDefault(rideRequest.getId(), 0L))
                         .build());
     }
 
@@ -178,9 +190,8 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
     @Transactional(readOnly = true)
     public List<AdminRideOfferDto> getRideOffers(Long rideRequestId) {
         Long tenantId = tenantScopeService.requireCurrentTenantId();
-        return rideOfferRepository.findByRideRequestIdOrderByOfferedAtDesc(rideRequestId)
+        return rideOfferRepository.findByRideRequestIdAndTenantIdOrderByOfferedAtDesc(rideRequestId, tenantId)
                 .stream()
-                .filter(offer -> tenantId.equals(offer.getTenantId()))
                 .map(offer -> AdminRideOfferDto.builder()
                         .offerId(offer.getId())
                         .driverId(offer.getDriver() == null ? null : offer.getDriver().getId())
