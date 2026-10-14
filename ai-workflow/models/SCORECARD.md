@@ -4,12 +4,14 @@ Last updated: 2026-10-14. Evidence comes from `runs.jsonl`; see `README.md` for 
 Score = mean `quality` for the role (n = number of rated runs). Untested = no evidence yet.
 
 ## Rankings by role
+Quota-killed runs are logged but excluded from quality means (they say nothing about the model's ability, only its token appetite).
+
 | Role | 1st | 2nd | Notes |
 |---|---|---|---|
-| review-backend | _pending: deepseek-v4-pro vs qwen3.8-max-0902_ | | head-to-head 2026-10-14 |
-| review-security | _pending: glm-5.3 vs deepseek-v4.1-flash_ | | head-to-head 2026-10-14 |
-| review-frontend | _pending: kimi-k3_ | | |
-| test-ops | _pending: mimo-v2.6-pro_ | | |
+| review-backend | deepseek-v4-pro (n=1, q=5, p=0.8, 1.5M in / 27k out, 6 min) | _qwen3.8-max-0902: run cut off by quota_ | Found a real functional P0 (payment.user_id UNIQUE) |
+| review-security | deepseek-v4.1-flash (n=1, q=5, p=0.8, 2.3M in / 19k out, 6 min) | _glm-5.3: 3.5M in after 8 min with no report_ | A flash model matched a pro-tier review; glm-5.3 is very token-hungry |
+| review-frontend | _kimi-k3: run cut off by quota (1.8M in)_ | | |
+| test-ops | _mimo-v2.6-pro: run cut off by quota_ | | |
 | synthesis | untested (candidate: kimi-k3, 1M ctx) | | |
 | research | deepseek-v4-flash (n=1, q=4) | | the default model; fine for web research |
 | implement | untested | | |
@@ -21,6 +23,7 @@ Score = mean `quality` for the role (n = number of rated runs). Untested = no ev
 | `qwen/*` (3.8-max-0902 confirmed) | `--effort` takes only `low`, `medium` or `xhigh`; `high` exits immediately |
 | `xiaomi/mimo-v2.6-pro` | No `--effort` support: passing one exits immediately |
 | deepseek / kimi / glm | `--effort high` accepted |
+| CMD plan quota | A 5-hour usage window. A 6-agent fan-out burned about 10M input tokens in 8 minutes and hit it. Budget about 2-3 full-repo reviewers per window and cap `--max-turns` |
 | any model, `-p` mode | Writes and shell need `--yolo` (worktree only, per the project's rules) |
 
 ## Catalog snapshot (2026-10-14, `cmd --list-models`, 88 models)

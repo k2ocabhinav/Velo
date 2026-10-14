@@ -16,6 +16,13 @@
 
 ## Now / Next
 
+### Critical fixes (found in the 2026-10-14 code review)
+- [ ] Lock down `/auth/onBoardNewDriver/{userId}`: currently public and grants DRIVER to any user
+- [ ] Drop the `payment.user_id` UNIQUE constraint and make `Payment.user` `@ManyToOne` (a rider's second paid ride fails)
+- [ ] Stop serializing password hashes in `GET /admin/users` (return a DTO)
+- [ ] Stop logging password-reset tokens (`AuthServiceImpl`)
+- [ ] Prod must not inherit the dev `jwt.secret` or DB credentials: source them from the environment and fail fast if unset
+
 ### Security & production readiness (highest priority)
 - [ ] HTTPS enforcement config for production
 - [ ] Rate limiting on auth endpoints
