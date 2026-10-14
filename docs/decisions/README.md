@@ -39,6 +39,7 @@ Small, reversible choices do not need a record.
 | [0010](0010-stomp-websocket-notifications.md) | STOMP over SockJS for real-time updates | Accepted (backfilled) | 2026-04-07 |
 | [0011](0011-owasp-dependency-check-gate.md) | Strict dependency-check gate and profile-gated API docs | Accepted (backfilled) | 2026-04-08 |
 | [0012](0012-track-ai-development-process.md) | Track the AI-assisted development process in the repository | Superseded in part by 0015 | 2026-10-14 |
+| [0013](0013-demo-seed-data-isolated-from-production.md) | Demo seed data isolated from production | Accepted | 2026-10-14 |
 | [0015](0015-track-only-process-metrics.md) | Track only process metrics; keep narratives local | Accepted | 2026-10-14 |
 
 `0000-template.md` is the template and is intentionally not indexed.
