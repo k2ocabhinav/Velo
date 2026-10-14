@@ -1,6 +1,7 @@
 package com.velo.platform.services.impl;
 
 import com.velo.platform.dto.admin.AdminStatsDto;
+import com.velo.platform.dto.admin.AdminUserDto;
 import com.velo.platform.dto.admin.DashboardDto;
 import com.velo.platform.dto.admin.PendingDriverDto;
 import com.velo.platform.dto.admin.RevenueReportDto;
@@ -11,6 +12,7 @@ import com.velo.platform.entities.enums.PaymentStatus;
 import com.velo.platform.entities.enums.RideRequestStatus;
 import com.velo.platform.entities.enums.RideStatus;
 import com.velo.platform.exceptions.RuntimeConflictException;
+import com.velo.platform.exceptions.ResourceNotFoundException;
 import com.velo.platform.repositories.*;
 import com.velo.platform.services.AdminService;
 import com.velo.platform.services.CacheService;
@@ -186,16 +188,16 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<User> getAllUsers(Pageable pageable) {
+    public Page<AdminUserDto> getAllUsers(Pageable pageable) {
         Long tenantId = currentTenantId();
-        return userRepository.findByTenantId(tenantId, pageable);
+        return userRepository.findByTenantId(tenantId, pageable).map(this::toAdminUserDto);
     }
 
     @Override
     @Transactional
     public void deactivateUser(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeConflictException("User not found"));
+        User user = userRepository.findByIdAndTenantId(userId, currentTenantId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         user.setActive(false);
         userRepository.save(user);
     }
@@ -203,8 +205,8 @@ public class AdminServiceImpl implements AdminService {
     @Override
     @Transactional
     public void activateUser(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeConflictException("User not found"));
+        User user = userRepository.findByIdAndTenantId(userId, currentTenantId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         user.setActive(true);
         userRepository.save(user);
     }
@@ -266,6 +268,21 @@ public class AdminServiceImpl implements AdminService {
                 .vehicleId(driver.getVehicleId())
                 .onboardingStatus(driver.getOnboardingStatus() == null ? null : driver.getOnboardingStatus().name())
                 .appliedAt(driver.getCreatedAt())
+                .build();
+    }
+
+    private AdminUserDto toAdminUserDto(User user) {
+        return AdminUserDto.builder()
+                .id(user.getId())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .email(user.getEmail())
+                .phoneNumber(user.getPhoneNumber())
+                .active(user.getActive())
+                .tenantId(user.getTenantId())
+                .referralCode(user.getReferralCode())
+                .createdTime(user.getCreatedTime())
+                .roles(user.getRoles())
                 .build();
     }
 }

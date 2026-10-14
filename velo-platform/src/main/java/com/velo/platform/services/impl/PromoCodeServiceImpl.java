@@ -11,10 +11,12 @@ import com.velo.platform.exceptions.RuntimeConflictException;
 import com.velo.platform.repositories.PromoCodeRepository;
 import com.velo.platform.repositories.PromoCodeUsageRepository;
 import com.velo.platform.services.PromoCodeService;
+import com.velo.platform.services.TenantScopeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -32,15 +34,19 @@ public class PromoCodeServiceImpl implements PromoCodeService {
     private final PromoCodeRepository promoCodeRepository;
     private final PromoCodeUsageRepository promoCodeUsageRepository;
     private final ModelMapper modelMapper;
+    private final TenantScopeService tenantScopeService;
 
     @Override
     @Transactional
     public PromoCodeDto createPromoCode(PromoCodeDto promoCodeDto) {
+        Long tenantId = currentTenantId();
+        // The schema keeps promo codes globally unique, so check that same key before insert.
         if (promoCodeRepository.existsByCode(promoCodeDto.getCode())) {
             throw new RuntimeConflictException("Promo code already exists: " + promoCodeDto.getCode());
         }
 
         PromoCode promoCode = modelMapper.map(promoCodeDto, PromoCode.class);
+        promoCode.setTenantId(tenantId);
         promoCode.setCurrentUses(0);
         
         PromoCode saved = promoCodeRepository.save(promoCode);
@@ -95,7 +101,8 @@ public class PromoCodeServiceImpl implements PromoCodeService {
             return PromoCodeResultDto.builder().valid(false).message("No promo code provided").build();
         }
 
-        PromoCode promoCode = promoCodeRepository.findByCode(code)
+        Long tenantId = resolveTenantId(user.getTenantId());
+        PromoCode promoCode = promoCodeRepository.findByCodeAndTenantId(code, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Promo code not found: " + code));
 
         if (!promoCode.getActive()) {
@@ -146,10 +153,15 @@ public class PromoCodeServiceImpl implements PromoCodeService {
                     .discountApplied(discountAmount)
                     .usedAt(LocalDateTime.now())
                     .build();
-            promoCodeUsageRepository.save(usage);
-
-            promoCode.setCurrentUses(promoCode.getCurrentUses() + 1);
-            promoCodeRepository.save(promoCode);
+            try {
+                promoCodeUsageRepository.save(usage);
+                int incremented = promoCodeRepository.incrementCurrentUsesIfAvailable(promoCode.getId(), tenantId);
+                if (incremented == 0) {
+                    throw new RuntimeConflictException("Promo code usage limit reached");
+                }
+            } catch (DataIntegrityViolationException exception) {
+                throw new RuntimeConflictException("You have already used this promo code");
+            }
 
             log.info("Applied promo code {} for user {}, discount: {}", code, user.getId(), discountAmount);
         }
@@ -166,7 +178,7 @@ public class PromoCodeServiceImpl implements PromoCodeService {
     @Override
     @Transactional(readOnly = true)
     public List<PromoCodeDto> getActivePromoCodes() {
-        return promoCodeRepository.findByActiveTrue().stream()
+        return promoCodeRepository.findByTenantIdAndActiveTrue(currentTenantId()).stream()
                 .filter(p -> p.getEndDate() == null || !LocalDate.now().isAfter(p.getEndDate()))
                 .map(p -> modelMapper.map(p, PromoCodeDto.class))
                 .collect(Collectors.toList());
@@ -175,13 +187,21 @@ public class PromoCodeServiceImpl implements PromoCodeService {
     @Override
     @Transactional(readOnly = true)
     public List<PromoCodeDto> getAllPromoCodes() {
-        return promoCodeRepository.findAll().stream()
+        return promoCodeRepository.findByTenantId(currentTenantId()).stream()
                 .map(p -> modelMapper.map(p, PromoCodeDto.class))
                 .collect(Collectors.toList());
     }
 
     private PromoCode getPromoCodeEntity(Long id) {
-        return promoCodeRepository.findById(id)
+        return promoCodeRepository.findByIdAndTenantId(id, currentTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Promo code not found with id: " + id));
+    }
+
+    private Long currentTenantId() {
+        return tenantScopeService.requireCurrentTenantId();
+    }
+
+    private Long resolveTenantId(Long tenantId) {
+        return tenantId == null ? 1L : tenantId;
     }
 }

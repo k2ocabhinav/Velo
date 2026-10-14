@@ -1,6 +1,7 @@
 package com.velo.platform.services;
 
 import com.velo.platform.dto.admin.AdminStatsDto;
+import com.velo.platform.dto.admin.AdminUserDto;
 import com.velo.platform.dto.admin.DashboardDto;
 import com.velo.platform.dto.admin.PendingDriverDto;
 import com.velo.platform.dto.admin.RevenueReportDto;
@@ -20,7 +21,7 @@ public interface AdminService {
     void approveDriver(Long driverId);
     void suspendDriver(Long driverId);
     void rejectDriver(Long driverId, String reason);
-    Page<User> getAllUsers(Pageable pageable);
+    Page<AdminUserDto> getAllUsers(Pageable pageable);
     void deactivateUser(Long userId);
     void activateUser(Long userId);
 }

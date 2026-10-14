@@ -10,6 +10,7 @@ import com.velo.platform.exceptions.ResourceNotFoundException;
 import com.velo.platform.exceptions.RuntimeConflictException;
 import com.velo.platform.repositories.PromoCodeRepository;
 import com.velo.platform.repositories.PromoCodeUsageRepository;
+import com.velo.platform.services.TenantScopeService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,14 +18,17 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.modelmapper.ModelMapper;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Optional;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -39,6 +43,9 @@ class PromoCodeServiceImplTest {
     @Mock
     private ModelMapper modelMapper;
 
+    @Mock
+    private TenantScopeService tenantScopeService;
+
     @InjectMocks
     private PromoCodeServiceImpl promoCodeService;
 
@@ -48,6 +55,8 @@ class PromoCodeServiceImplTest {
 
     @BeforeEach
     void setUp() {
+        lenient().when(tenantScopeService.requireCurrentTenantId()).thenReturn(1L);
+        lenient().when(promoCodeRepository.incrementCurrentUsesIfAvailable(anyLong(), eq(1L))).thenReturn(1);
         user = User.builder().id(1L).email("test@example.com").build();
         
         promoCode = PromoCode.builder()
@@ -98,7 +107,7 @@ class PromoCodeServiceImplTest {
         promoCode.setDiscountType(DiscountType.FLAT);
         promoCode.setDiscountValue(BigDecimal.valueOf(20));
 
-        when(promoCodeRepository.findByCode("SAVE10")).thenReturn(Optional.of(promoCode));
+        when(promoCodeRepository.findByCodeAndTenantId("SAVE10", 1L)).thenReturn(Optional.of(promoCode));
         when(promoCodeUsageRepository.existsByPromoCodeAndUser(promoCode, user)).thenReturn(false);
 
         PromoCodeResultDto result = promoCodeService.validateAndApplyPromo("SAVE10", user, BigDecimal.valueOf(100));
@@ -107,13 +116,13 @@ class PromoCodeServiceImplTest {
         assertThat(result.getDiscountAmount()).isEqualByComparingTo(BigDecimal.valueOf(20));
         assertThat(result.getDiscountedFare()).isEqualByComparingTo(BigDecimal.valueOf(80));
         verify(promoCodeUsageRepository).save(any(PromoCodeUsage.class));
-        verify(promoCodeRepository).save(promoCode);
-        assertThat(promoCode.getCurrentUses()).isEqualTo(1);
+        verify(promoCodeRepository).incrementCurrentUsesIfAvailable(1L, 1L);
+        verify(promoCodeRepository, never()).save(promoCode);
     }
 
     @Test
     void validateAndApplyPromo_WithPercentageDiscount_ShouldReturnDiscount() {
-        when(promoCodeRepository.findByCode("SAVE10")).thenReturn(Optional.of(promoCode));
+        when(promoCodeRepository.findByCodeAndTenantId("SAVE10", 1L)).thenReturn(Optional.of(promoCode));
         when(promoCodeUsageRepository.existsByPromoCodeAndUser(promoCode, user)).thenReturn(false);
 
         PromoCodeResultDto result = promoCodeService.validateAndApplyPromo("SAVE10", user, BigDecimal.valueOf(100));
@@ -126,7 +135,7 @@ class PromoCodeServiceImplTest {
     @Test
     void validateAndApplyPromo_WhenExpired_ShouldThrowException() {
         promoCode.setEndDate(LocalDate.now().minusDays(1));
-        when(promoCodeRepository.findByCode("SAVE10")).thenReturn(Optional.of(promoCode));
+        when(promoCodeRepository.findByCodeAndTenantId("SAVE10", 1L)).thenReturn(Optional.of(promoCode));
 
         assertThatThrownBy(() -> promoCodeService.validateAndApplyPromo("SAVE10", user, BigDecimal.valueOf(100)))
                 .isInstanceOf(RuntimeConflictException.class)
@@ -136,7 +145,7 @@ class PromoCodeServiceImplTest {
     @Test
     void validateAndApplyPromo_WhenInactive_ShouldThrowException() {
         promoCode.setActive(false);
-        when(promoCodeRepository.findByCode("SAVE10")).thenReturn(Optional.of(promoCode));
+        when(promoCodeRepository.findByCodeAndTenantId("SAVE10", 1L)).thenReturn(Optional.of(promoCode));
 
         assertThatThrownBy(() -> promoCodeService.validateAndApplyPromo("SAVE10", user, BigDecimal.valueOf(100)))
                 .isInstanceOf(RuntimeConflictException.class)
@@ -147,7 +156,7 @@ class PromoCodeServiceImplTest {
     void validateAndApplyPromo_WhenOverLimit_ShouldThrowException() {
         promoCode.setMaxUses(5);
         promoCode.setCurrentUses(5);
-        when(promoCodeRepository.findByCode("SAVE10")).thenReturn(Optional.of(promoCode));
+        when(promoCodeRepository.findByCodeAndTenantId("SAVE10", 1L)).thenReturn(Optional.of(promoCode));
 
         assertThatThrownBy(() -> promoCodeService.validateAndApplyPromo("SAVE10", user, BigDecimal.valueOf(100)))
                 .isInstanceOf(RuntimeConflictException.class)
@@ -157,7 +166,7 @@ class PromoCodeServiceImplTest {
     @Test
     void validateAndApplyPromo_WhenFareTooLow_ShouldThrowException() {
         promoCode.setMinRideFare(BigDecimal.valueOf(200));
-        when(promoCodeRepository.findByCode("SAVE10")).thenReturn(Optional.of(promoCode));
+        when(promoCodeRepository.findByCodeAndTenantId("SAVE10", 1L)).thenReturn(Optional.of(promoCode));
 
         assertThatThrownBy(() -> promoCodeService.validateAndApplyPromo("SAVE10", user, BigDecimal.valueOf(100)))
                 .isInstanceOf(RuntimeConflictException.class)
@@ -166,7 +175,7 @@ class PromoCodeServiceImplTest {
 
     @Test
     void validateAndApplyPromo_WhenAlreadyUsed_ShouldThrowException() {
-        when(promoCodeRepository.findByCode("SAVE10")).thenReturn(Optional.of(promoCode));
+        when(promoCodeRepository.findByCodeAndTenantId("SAVE10", 1L)).thenReturn(Optional.of(promoCode));
         when(promoCodeUsageRepository.existsByPromoCodeAndUser(promoCode, user)).thenReturn(true);
 
         assertThatThrownBy(() -> promoCodeService.validateAndApplyPromo("SAVE10", user, BigDecimal.valueOf(100)))
@@ -176,7 +185,7 @@ class PromoCodeServiceImplTest {
 
     @Test
     void deactivatePromoCode_ShouldSetInactive() {
-        when(promoCodeRepository.findById(1L)).thenReturn(Optional.of(promoCode));
+        when(promoCodeRepository.findByIdAndTenantId(1L, 1L)).thenReturn(Optional.of(promoCode));
         when(promoCodeRepository.save(any(PromoCode.class))).thenReturn(promoCode);
         when(modelMapper.map(any(PromoCode.class), eq(PromoCodeDto.class))).thenReturn(promoCodeDto);
 
@@ -184,5 +193,55 @@ class PromoCodeServiceImplTest {
 
         assertThat(promoCode.getActive()).isFalse();
         verify(promoCodeRepository).save(promoCode);
+    }
+
+    @Test
+    void validateAndApplyPromo_WhenConcurrentUsesExhaustLimit_ShouldReject() {
+        promoCode.setCurrentUses(4);
+        promoCode.setMaxUses(5);
+        when(promoCodeRepository.findByCodeAndTenantId("SAVE10", 1L)).thenReturn(Optional.of(promoCode));
+        when(promoCodeUsageRepository.existsByPromoCodeAndUser(promoCode, user)).thenReturn(false);
+        when(promoCodeRepository.incrementCurrentUsesIfAvailable(1L, 1L)).thenReturn(0);
+
+        assertThatThrownBy(() -> promoCodeService.validateAndApplyPromo(
+                "SAVE10", user, BigDecimal.valueOf(100)))
+                .isInstanceOf(RuntimeConflictException.class)
+                .hasMessageContaining("limit reached");
+
+        verify(promoCodeUsageRepository).save(any(PromoCodeUsage.class));
+        verify(promoCodeRepository).incrementCurrentUsesIfAvailable(1L, 1L);
+    }
+
+    @Test
+    void validateAndApplyPromo_WhenUniqueUsageConstraintWinsRace_ShouldReturnConflict() {
+        when(promoCodeRepository.findByCodeAndTenantId("SAVE10", 1L)).thenReturn(Optional.of(promoCode));
+        when(promoCodeUsageRepository.existsByPromoCodeAndUser(promoCode, user)).thenReturn(false);
+        when(promoCodeUsageRepository.save(any(PromoCodeUsage.class)))
+                .thenThrow(new DataIntegrityViolationException("duplicate usage"));
+
+        assertThatThrownBy(() -> promoCodeService.validateAndApplyPromo(
+                "SAVE10", user, BigDecimal.valueOf(100)))
+                .isInstanceOf(RuntimeConflictException.class)
+                .hasMessageContaining("already used");
+
+        verify(promoCodeRepository, never()).incrementCurrentUsesIfAvailable(anyLong(), eq(1L));
+    }
+
+    @Test
+    void updatePromoCode_CrossTenantCode_ShouldReturnNotFound() {
+        when(promoCodeRepository.findByIdAndTenantId(1L, 1L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> promoCodeService.updatePromoCode(1L, promoCodeDto))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void getAllPromoCodes_ShouldOnlyQueryCurrentTenant() {
+        when(promoCodeRepository.findByTenantId(1L)).thenReturn(List.of(promoCode));
+        when(modelMapper.map(promoCode, PromoCodeDto.class)).thenReturn(promoCodeDto);
+
+        assertThat(promoCodeService.getAllPromoCodes()).containsExactly(promoCodeDto);
+
+        verify(promoCodeRepository).findByTenantId(1L);
     }
 }

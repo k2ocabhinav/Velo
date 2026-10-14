@@ -17,6 +17,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Page<User> findByTenantId(Long tenantId, Pageable pageable);
 
+    Optional<User> findByIdAndTenantId(Long id, Long tenantId);
+
     long countByTenantId(Long tenantId);
 
     long countByTenantIdAndCreatedTimeAfterAndCreatedTimeBefore(Long tenantId, LocalDateTime start, LocalDateTime end);

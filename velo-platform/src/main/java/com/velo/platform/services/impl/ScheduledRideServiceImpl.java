@@ -19,6 +19,7 @@ import com.velo.platform.services.RiderService;
 import com.velo.platform.services.NotificationService;
 import com.velo.platform.services.RideOfferService;
 import com.velo.platform.services.ScheduledRideService;
+import com.velo.platform.services.TenantScopeService;
 import com.velo.platform.strategies.RideStrategyManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +28,10 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -50,6 +54,8 @@ public class ScheduledRideServiceImpl implements ScheduledRideService {
     private final RideOfferService rideOfferService;
     private final NotificationService notificationService;
     private final ApplicationEventPublisher eventPublisher;
+    private final TenantScopeService tenantScopeService;
+    private final PlatformTransactionManager transactionManager;
 
     @Override
     @Transactional
@@ -119,59 +125,74 @@ public class ScheduledRideServiceImpl implements ScheduledRideService {
     @Transactional(readOnly = true)
     public Page<ScheduledRideDto> getAllScheduledRides(PageRequest pageRequest) {
         return rideRequestRepository
-                .findByRideRequestStatusOrderByScheduledTimeAsc(RideRequestStatus.SCHEDULED, pageRequest)
+                .findByTenantIdAndRideRequestStatusOrderByScheduledTimeAsc(
+                        tenantScopeService.requireCurrentTenantId(), RideRequestStatus.SCHEDULED, pageRequest)
                 .map(this::toScheduledRideDto);
     }
 
     @Override
-    @Transactional
     public int dispatchScheduledRides() {
         LocalDateTime dispatchBefore = LocalDateTime.now(UTC)
                 .plusMinutes(scheduledRideConfig.getDispatchWindowMinutes());
 
-        List<RideRequest> dueRides = rideRequestRepository
-                .findDueScheduledRides(RideRequestStatus.SCHEDULED, dispatchBefore);
+        List<Long> dueRideIds = rideRequestRepository
+                .findDueScheduledRideIds(RideRequestStatus.SCHEDULED, dispatchBefore);
+        TransactionTemplate perRideTransaction = new TransactionTemplate(transactionManager);
+        perRideTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
 
         int dispatched = 0;
-        for (RideRequest rideRequest : dueRides) {
+        for (Long rideRequestId : dueRideIds) {
             try {
-                rideRequest.setRideRequestStatus(RideRequestStatus.PENDING);
-                RideRequest savedRideRequest = rideRequestRepository.save(rideRequest);
-
-                Rider rider = savedRideRequest.getRider();
-                List<Driver> matchedDrivers = rideStrategyManager
-                        .driverMatchingStrategy(rider.getRating())
-                        .findMatchingDrivers(savedRideRequest);
-
-                rideOfferService.createOffers(savedRideRequest, matchedDrivers, DRIVER_OFFER_TTL_SECONDS);
-                if (matchedDrivers.isEmpty()) {
-                    savedRideRequest.setRideRequestStatus(RideRequestStatus.EXPIRED);
-                    rideRequestRepository.save(savedRideRequest);
-                    notificationService.createNotification(
-                            rider.getUser(),
-                            "No drivers available for scheduled ride",
-                            "We could not find available drivers for the scheduled ride dispatch window.",
-                            NotificationType.RIDE_EXPIRED,
-                            savedRideRequest.getId()
-                    );
-                    continue;
+                Boolean didDispatch = perRideTransaction.execute(status -> dispatchScheduledRide(rideRequestId));
+                if (Boolean.TRUE.equals(didDispatch)) {
+                    dispatched++;
                 }
-
-                eventPublisher.publishEvent(new RideRequestedEvent(this, savedRideRequest, matchedDrivers, true));
-
-                log.info("Dispatched scheduled ride: id={}, matchedDrivers={}",
-                        savedRideRequest.getId(), matchedDrivers.size());
-                dispatched++;
             } catch (Exception e) {
                 log.error("Failed to dispatch scheduled ride id={}: {}",
-                        rideRequest.getId(), e.getMessage(), e);
+                        rideRequestId, e.getMessage(), e);
             }
         }
 
         if (dispatched > 0) {
-            log.info("Scheduled ride dispatch complete: dispatched={}/{}", dispatched, dueRides.size());
+            log.info("Scheduled ride dispatch complete: dispatched={}/{}", dispatched, dueRideIds.size());
         }
         return dispatched;
+    }
+
+    private boolean dispatchScheduledRide(Long rideRequestId) {
+        RideRequest rideRequest = rideRequestRepository
+                .findByIdAndRideRequestStatusForUpdate(rideRequestId, RideRequestStatus.SCHEDULED)
+                .orElse(null);
+        if (rideRequest == null) {
+            return false;
+        }
+
+        rideRequest.setRideRequestStatus(RideRequestStatus.PENDING);
+        RideRequest savedRideRequest = rideRequestRepository.save(rideRequest);
+
+        Rider rider = savedRideRequest.getRider();
+        List<Driver> matchedDrivers = rideStrategyManager
+                .driverMatchingStrategy(rider.getRating())
+                .findMatchingDrivers(savedRideRequest);
+
+        rideOfferService.createOffers(savedRideRequest, matchedDrivers, DRIVER_OFFER_TTL_SECONDS);
+        if (matchedDrivers.isEmpty()) {
+            savedRideRequest.setRideRequestStatus(RideRequestStatus.EXPIRED);
+            rideRequestRepository.save(savedRideRequest);
+            notificationService.createNotification(
+                    rider.getUser(),
+                    "No drivers available for scheduled ride",
+                    "We could not find available drivers for the scheduled ride dispatch window.",
+                    NotificationType.RIDE_EXPIRED,
+                    savedRideRequest.getId()
+            );
+            return false;
+        }
+
+        eventPublisher.publishEvent(new RideRequestedEvent(this, savedRideRequest, matchedDrivers, true));
+        log.info("Dispatched scheduled ride: id={}, matchedDrivers={}",
+                savedRideRequest.getId(), matchedDrivers.size());
+        return true;
     }
 
     private void validateScheduledTime(LocalDateTime scheduledTime) {

@@ -8,6 +8,8 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -54,7 +56,7 @@ public class RiderController {
 
     @PostMapping("/rateDriver")
     @Operation(summary = "Rate a driver after a ride")
-    public ResponseEntity<DriverDto> rateDriver(@RequestBody RatingDto ratingDto) {
+    public ResponseEntity<DriverDto> rateDriver(@Valid @RequestBody RatingDto ratingDto) {
         return ResponseEntity.ok(riderService.rateDriver(ratingDto.getRideId(), ratingDto.getRating()));
     }
 
@@ -81,7 +83,8 @@ public class RiderController {
 
     @PostMapping("/rateDriver/{rideId}/{rating}")
     @Operation(summary = "Rate a driver using path variables")
-    public ResponseEntity<DriverDto> rateDriver(@PathVariable Long rideId, @PathVariable Integer rating) {
+    public ResponseEntity<DriverDto> rateDriver(@PathVariable Long rideId,
+                                                @PathVariable @Min(1) @Max(5) Integer rating) {
         return ResponseEntity.ok(riderService.rateDriver(rideId, rating));
     }
 

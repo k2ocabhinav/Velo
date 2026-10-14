@@ -13,6 +13,7 @@ import com.velo.platform.security.UserPrincipal;
 import com.velo.platform.services.DriverEarningsService;
 import com.velo.platform.services.PayoutService;
 import com.velo.platform.services.WalletService;
+import com.velo.platform.services.TenantScopeService;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
@@ -34,6 +35,7 @@ public class PayoutServiceImpl implements PayoutService {
     private final DriverRepository driverRepository;
     private final WalletService walletService;
     private final ModelMapper modelMapper;
+    private final TenantScopeService tenantScopeService;
 
     @Override
     @Transactional
@@ -62,7 +64,7 @@ public class PayoutServiceImpl implements PayoutService {
     @Override
     @Transactional
     public PayoutRequestDto approvePayout(Long payoutId, String adminNote) {
-        PayoutRequest request = payoutRequestRepository.findById(payoutId)
+        PayoutRequest request = payoutRequestRepository.findByIdAndTenantIdForUpdate(payoutId, currentTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Payout request not found"));
 
         if (request.getStatus() != PayoutStatus.PENDING) {
@@ -77,7 +79,7 @@ public class PayoutServiceImpl implements PayoutService {
     @Override
     @Transactional
     public PayoutRequestDto rejectPayout(Long payoutId, String adminNote) {
-        PayoutRequest request = payoutRequestRepository.findById(payoutId)
+        PayoutRequest request = payoutRequestRepository.findByIdAndTenantIdForUpdate(payoutId, currentTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Payout request not found"));
 
         if (request.getStatus() != PayoutStatus.PENDING) {
@@ -92,7 +94,7 @@ public class PayoutServiceImpl implements PayoutService {
     @Override
     @Transactional
     public PayoutRequestDto processPayout(Long payoutId) {
-        PayoutRequest request = payoutRequestRepository.findById(payoutId)
+        PayoutRequest request = payoutRequestRepository.findByIdAndTenantIdForUpdate(payoutId, currentTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Payout request not found"));
 
         if (request.getStatus() != PayoutStatus.APPROVED) {
@@ -110,7 +112,8 @@ public class PayoutServiceImpl implements PayoutService {
     @Override
     @Transactional(readOnly = true)
     public Page<PayoutRequestDto> getPendingPayouts(PageRequest pageRequest) {
-        return payoutRequestRepository.findByStatusOrderByRequestedAtAsc(PayoutStatus.PENDING, pageRequest)
+        return payoutRequestRepository.findByTenantIdAndStatusOrderByRequestedAtAsc(
+                        currentTenantId(), PayoutStatus.PENDING, pageRequest)
                 .map(request -> modelMapper.map(request, PayoutRequestDto.class));
     }
 
@@ -126,5 +129,9 @@ public class PayoutServiceImpl implements PayoutService {
         UserPrincipal principal = (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         return driverRepository.findByUserIdAndTenantId(principal.getUserId(), principal.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Driver profile not found"));
+    }
+
+    private Long currentTenantId() {
+        return tenantScopeService.requireCurrentTenantId();
     }
 }

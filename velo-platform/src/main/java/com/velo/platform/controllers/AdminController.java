@@ -1,6 +1,7 @@
 package com.velo.platform.controllers;
 
 import com.velo.platform.dto.admin.AdminStatsDto;
+import com.velo.platform.dto.admin.AdminUserDto;
 import com.velo.platform.dto.admin.AdminDispatchActionRequestDto;
 import com.velo.platform.dto.admin.AdminDispatchAuditDto;
 import com.velo.platform.dto.admin.AdminCreateDispatchRequestDto;
@@ -12,7 +13,6 @@ import com.velo.platform.dto.admin.AdminRideOfferDto;
 import com.velo.platform.dto.admin.DashboardDto;
 import com.velo.platform.dto.admin.PendingDriverDto;
 import com.velo.platform.dto.admin.RevenueReportDto;
-import com.velo.platform.entities.User;
 import com.velo.platform.entities.enums.DriverOnboardingStatus;
 import com.velo.platform.services.AdminDispatchService;
 import com.velo.platform.services.AdminService;
@@ -117,7 +117,7 @@ public class AdminController {
 
     @GetMapping("/users")
     @Operation(summary = "Get all users")
-    public ResponseEntity<Page<User>> getAllUsers(
+    public ResponseEntity<Page<AdminUserDto>> getAllUsers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdTime"));

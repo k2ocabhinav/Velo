@@ -23,6 +23,10 @@ public class PromoCode {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "tenant_id", nullable = false)
+    @Builder.Default
+    private Long tenantId = 1L;
+
     @Column(unique = true, nullable = false)
     private String code;
 
