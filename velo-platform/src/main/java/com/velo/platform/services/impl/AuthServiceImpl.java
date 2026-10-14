@@ -36,6 +36,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Random;
+import java.util.HashSet;
 import java.util.UUID;
 import java.util.Set;
 
@@ -56,33 +57,62 @@ public class AuthServiceImpl implements AuthService {
     private final DriverService driverService;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final RefreshTokenService refreshTokenService;
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public AuthResponseDto login(String email, String password) {
         User user = userRepository.findByEmail(email).orElse(null);
         if (user == null || password == null || !passwordEncoder.matches(password, user.getPassword())) {
             throw new BadCredentialsException("Invalid email or password");
         }
 
-        String role;
-        if (user.getRoles().contains(Role.ADMIN)) {
-            role = Role.ADMIN.name();
-        } else if (user.getRoles().contains(DRIVER)) {
-            role = DRIVER.name();
-        } else {
-            role = Role.RIDER.name();
-        }
+        String role = selectRole(user);
         Long tenantId = user.getTenantId() == null ? DEFAULT_TENANT_ID : user.getTenantId();
         String token = jwtTokenProvider.generateToken(user.getEmail(), user.getId(), role, tenantId);
+        String refreshToken = refreshTokenService.issue(user);
 
         return AuthResponseDto.builder()
                 .token(token)
+                .refreshToken(refreshToken)
+                .expiresInSeconds(jwtTokenProvider.getAccessTokenTtlSeconds())
                 .userId(user.getId())
                 .email(user.getEmail())
                 .role(role)
                 .tenantId(tenantId)
                 .build();
+    }
+
+    @Override
+    public AuthResponseDto refresh(String refreshToken) {
+        RefreshTokenService.RotatedToken rotatedToken = refreshTokenService.rotate(refreshToken);
+        String accessToken = jwtTokenProvider.generateToken(rotatedToken.email(), rotatedToken.userId(),
+                rotatedToken.role(), rotatedToken.tenantId());
+        return AuthResponseDto.builder()
+                .token(accessToken)
+                .refreshToken(rotatedToken.refreshToken())
+                .expiresInSeconds(jwtTokenProvider.getAccessTokenTtlSeconds())
+                .userId(rotatedToken.userId())
+                .email(rotatedToken.email())
+                .role(rotatedToken.role())
+                .tenantId(rotatedToken.tenantId())
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public void logout(String refreshToken) {
+        refreshTokenService.revoke(refreshToken);
+    }
+
+    private String selectRole(User user) {
+        if (user.getRoles().contains(Role.ADMIN)) {
+            return Role.ADMIN.name();
+        }
+        if (user.getRoles().contains(DRIVER)) {
+            return DRIVER.name();
+        }
+        return Role.RIDER.name();
     }
 
     @Override
@@ -96,7 +126,7 @@ public class AuthServiceImpl implements AuthService {
         User mappedUser = modelMapper.map(signupDto, User.class);
         mappedUser.setPassword(passwordEncoder.encode(signupDto.getPassword()));
         mappedUser.setActive(true);
-        mappedUser.setRoles(Set.of(Role.RIDER));
+        mappedUser.setRoles(new HashSet<>(Set.of(Role.RIDER)));
         mappedUser.setTenantId(DEFAULT_TENANT_ID);
 
         String referralCode = generateReferralCode(signupDto.getName());
@@ -223,6 +253,7 @@ public Map<String, String> resetPassword(ResetPasswordRequestDto requestDto) {
     User user = resetToken.getUser();
     user.setPassword(passwordEncoder.encode(requestDto.getNewPassword()));
     userRepository.save(user);
+    refreshTokenService.revokeAllForUser(user.getId(), user.getTenantId());
 
     resetToken.setUsed(true);
     passwordResetTokenRepository.save(resetToken);

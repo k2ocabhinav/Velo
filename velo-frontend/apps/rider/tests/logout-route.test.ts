@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { NextRequest } from "next/server";
 import { POST } from "../app/api/auth/logout/route";
 
 describe("rider logout route", () => {
   it("clears auth cookies and returns success", async () => {
-    const response = await POST();
+    const response = await POST(new NextRequest("http://rider.velo.test/api/auth/logout"));
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ ok: true });
 

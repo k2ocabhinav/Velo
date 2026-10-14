@@ -3,7 +3,10 @@ import { proxyBackendRequest, type ProxyRouteContext } from "@velo/app-core/prox
 
 const PROXY_OPTIONS = {
   missingPathMessage: "Proxy path is required.",
-  tokenCookieName: "velo_admin_token"
+  tokenCookieName: "velo_admin_token",
+  refreshCookieName: "velo_admin_refresh",
+  userIdCookieName: "velo_admin_user_id",
+  roleCookieName: "velo_admin_role_hint"
 };
 
 function handle(request: NextRequest, context: ProxyRouteContext) {

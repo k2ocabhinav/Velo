@@ -2,9 +2,12 @@ package com.velo.platform.advices;
 
 import com.velo.platform.exceptions.ResourceNotFoundException;
 import com.velo.platform.exceptions.RuntimeConflictException;
+import com.velo.platform.exceptions.InvalidRefreshTokenException;
+import com.velo.platform.exceptions.RateLimitExceededException;
 import jakarta.persistence.OptimisticLockException;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -46,6 +49,26 @@ public class GlobalExceptionHandler {
                 .message("Invalid email or password")
                 .build();
         return buildErrorResponseEntity(apiError);
+    }
+
+    @ExceptionHandler(InvalidRefreshTokenException.class)
+    public ResponseEntity<ApiResponse<?>> handleInvalidRefreshToken(InvalidRefreshTokenException exception) {
+        ApiError apiError = ApiError.builder()
+                .status(HttpStatus.UNAUTHORIZED)
+                .message("Invalid or expired refresh token")
+                .build();
+        return buildErrorResponseEntity(apiError);
+    }
+
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<ApiResponse<?>> handleRateLimitExceeded(RateLimitExceededException exception) {
+        ApiError apiError = ApiError.builder()
+                .status(HttpStatus.TOO_MANY_REQUESTS)
+                .message(exception.getMessage())
+                .build();
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, Long.toString(exception.getRetryAfterSeconds()))
+                .body(new ApiResponse<>(apiError));
     }
 
     @ExceptionHandler({ObjectOptimisticLockingFailureException.class, OptimisticLockException.class})
