@@ -42,6 +42,8 @@ Small, reversible choices do not need a record.
 | [0013](0013-demo-seed-data-isolated-from-production.md) | Demo seed data isolated from production | Accepted | 2026-10-14 |
 | [0014](0014-payment-per-ride-not-per-user.md) | Payments belong to a ride, not a user | Accepted | 2026-10-14 |
 | [0015](0015-track-only-process-metrics.md) | Track only process metrics; keep narratives local | Accepted | 2026-10-14 |
+| [0016](0016-websocket-ticket-auth.md) | Short-lived WebSocket tickets instead of browser-held JWTs | Accepted | 2026-10-14 |
+| [0017](0017-rider-current-request-recovery.md) | Recover the rider's current request from the backend | Accepted | 2026-10-14 |
 
 `0000-template.md` is the template and is intentionally not indexed.
 

@@ -23,6 +23,19 @@
 - [x] Stop logging password-reset tokens (`AuthServiceImpl`) (9ceda0f)
 - [x] Prod must not inherit the dev `jwt.secret` or DB credentials: source them from the environment and fail fast if unset (9ceda0f)
 
+### Review-fix round 2026-10-14 (merged)
+- [x] Auth/secrets hardening: onboarding ownership, JWT filter scope, generic auth errors, env-sourced secrets with fail-fast, demo seed local-only, actuator/CORS/WS origins per profile (9ceda0f)
+- [x] Payments/tenancy: per-ride payments (V6), admin user DTO, tenant-scoped admin/payout/promo/scheduled paths, atomic payouts and promo usage, SecureRandom OTP, per-ride dispatch transactions, generic 500s, input validation (37d3ebb)
+- [x] Admin dispatch N+1 removed, base fare applied, `startRide` path naming (6195de3)
+- [x] JWT kept out of browser code (WS tickets via BFF), security headers on all apps, driver `/register` reachable (decision 0016)
+- [x] Rider pending-request recovery + duplicate guard, stale earnings guard, dispatch form kept on failure, maps fit once + follow toggle, reduced motion, skeletons on admin users/payouts and driver earnings (decision 0017)
+- [x] npm audit: 20 vulnerabilities → 0
+- [x] Test infra safe by default (small pool, dedicated Flyway DB), concurrent dispatch race test, PostGIS in local compose, staging deploy fails on missing config, Prometheus metrics behind ADMIN, docs drift fixed (47437d1)
+- [x] Backend suite: 240 tests, 0 failures (was 197 claimed / 196 actual)
+
+### UI/UX improvement round (queued next)
+- [ ] Per-page UX refinement across admin, rider and driver (plan in progress)
+
 ### Security & production readiness (highest priority)
 - [ ] HTTPS enforcement config for production
 - [ ] Rate limiting on auth endpoints
@@ -42,9 +55,9 @@
 - [ ] `packages/ws`: exponential backoff reconnection strategy
 - [ ] `packages/ws`: visual "Reconnecting..." indicator component
 - [ ] `packages/ui`: skeleton variants for each composed component (`.Skeleton` exports)
-- [ ] Rider: real-time ride tracking (WebSocket + map)
+- [x] Rider: real-time ride tracking (WebSocket + map) — already implemented on `/ride/active`
 - [ ] Rider: "Finding driver" animation/loading state
-- [ ] Admin: loading skeletons for all data pages
+- [ ] Admin: loading skeletons for all data pages (users and payouts done)
 - [ ] Admin: error states with retry for all API-backed pages
 - [ ] Loading/skeleton states for every data component
 

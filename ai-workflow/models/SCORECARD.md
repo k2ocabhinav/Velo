@@ -10,11 +10,11 @@ Quota-killed runs are logged but excluded from quality means (they say nothing a
 |---|---|---|---|
 | review-backend | deepseek-v4-pro (n=1, q=5, p=0.8, 1.5M in / 27k out, 6 min) | _qwen3.8-max-0902: run cut off by quota_ | Found a real functional P0 (payment.user_id UNIQUE) |
 | review-security | deepseek-v4.1-flash (n=1, q=5, p=0.8, 2.3M in / 19k out, 6 min) | _glm-5.3: 3.5M in after 8 min with no report_ | A flash model matched a pro-tier review; glm-5.3 is very token-hungry |
-| review-frontend | _kimi-k3: run cut off by quota (1.8M in)_ | | |
-| test-ops | _mimo-v2.6-pro: run cut off by quota_ | | |
+| review-frontend | gpt-6-luna:xhigh (n=1, q=5, p=1.0, 6.9M in) | _kimi-k3: pending resume_ | |
+| test-ops | gpt-6-luna:xhigh (n=1, q=5, p=1.0; actually ran the suites) | _mimo-v2.6-pro: pending resume_ | |
 | synthesis | untested (candidate: kimi-k3, 1M ctx) | | |
 | research | deepseek-v4-flash (n=1, q=4) | | the default model; fine for web research |
-| implement | untested | | |
+| implement | gpt-6-luna:xhigh via Codex (n=6, q=4.8, p=1.0; about 2-15M in per WP, 97% cached) | | Reliable; it stops on broken baselines, and its main faults came from orchestrator prompt errors |
 | quick | deepseek-v4-flash / deepseek-v4.1-flash-fast | | cheapest |
 
 ## Model quirks (CMD flags)
