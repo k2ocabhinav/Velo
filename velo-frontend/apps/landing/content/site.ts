@@ -12,6 +12,16 @@ export const siteConfig = {
   },
 } as const;
 
+/**
+ * Single source for the numbers in the "What you can verify today" strip.
+ * Keep these accurate: they are a claim on the page.
+ */
+export const verifyFacts = {
+  backendTests: 286,
+  endToEndTests: 36,
+  demoTenants: 2,
+} as const;
+
 export const landingCopy = {
   hero: {
     title: "A dispatch desk for pre-booked business and hotel transfers.",
@@ -24,6 +34,13 @@ export const landingCopy = {
     driverLabel: "Driver:",
     sampleFleet: "Demo fleet, sample data",
   },
+  timeSpine: [
+    { time: "05:40", position: 0 },
+    { time: "09:15", position: 25 },
+    { time: "13:00", position: 50 },
+    { time: "18:30", position: 75 },
+    { time: "21:00", position: 100 },
+  ],
   morning: {
     eyebrow: "Sample day",
     title: "A morning of transfers.",
@@ -72,6 +89,16 @@ export const landingCopy = {
     supportTitle: "What the founder does with you",
     support: ["Set up the operator's name and colours", "Import the first driver and vehicle details together", "Walk through a first live day and collect feedback"],
     link: "Talk through a pilot",
+  },
+  verify: {
+    title: "What you can verify today.",
+    description: "Velo is pre-launch and working. These numbers come from the current build, not a roadmap.",
+    groupLabel: "Verification facts",
+    backend: "automated backend tests",
+    endToEnd: "end-to-end tests, with accessibility checks",
+    tenants: "branded demo tenants",
+    decisions: "public decision log, open to read",
+    decisionsValue: "Open",
   },
   pricing: {
     eyebrow: "Early-access pilot pricing",

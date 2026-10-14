@@ -3,7 +3,10 @@
 import Image from "next/image";
 import { useState } from "react";
 import { landingCopy } from "../../content/site";
+import { DeviceFrame } from "./DeviceFrame";
 import styles from "./sections.module.css";
+
+const PHONE_SHOTS = new Set(["rider-booking.webp", "driver-home.webp"]);
 
 export function FollowTransfer() {
   const [activeStep, setActiveStep] = useState(0);
@@ -11,7 +14,7 @@ export function FollowTransfer() {
   const active = copy.steps[activeStep] ?? copy.steps[0];
 
   return (
-    <section className={`${styles.section} ${styles.followSection}`} id="how-it-works" aria-labelledby="follow-title">
+    <section className={`${styles.section} ${styles.tintMorning} ${styles.followSection}`} id="how-it-works" aria-labelledby="follow-title">
       <div className={styles.container}>
         <div className={styles.sectionIntro}>
           <h2 className={styles.sectionTitle} id="follow-title">{copy.title}</h2>
@@ -45,16 +48,18 @@ export function FollowTransfer() {
           </div>
           <div className={styles.productPanel} id="transfer-panel" role="tabpanel" aria-labelledby={`transfer-tab-${activeStep}`} tabIndex={0}>
             <figure className={styles.productFigure}>
-              <Image
-                key={active.image}
-                src={`/screens/${active.image}`}
-                alt={active.alt}
-                width={active.image === "rider-booking.webp" || active.image === "driver-home.webp" ? 390 : 1440}
-                height={active.image === "rider-booking.webp" || active.image === "driver-home.webp" ? 844 : 900}
-                loading="lazy"
-                sizes="(max-width: 768px) 100vw, 58vw"
-                className={active.image === "rider-booking.webp" || active.image === "driver-home.webp" ? styles.productPhoneImage : styles.productWideImage}
-              />
+              <DeviceFrame variant={PHONE_SHOTS.has(active.image) ? "phone" : "laptop"}>
+                <Image
+                  key={active.image}
+                  src={`/screens/${active.image}`}
+                  alt={active.alt}
+                  width={PHONE_SHOTS.has(active.image) ? 390 : 1440}
+                  height={PHONE_SHOTS.has(active.image) ? 844 : 900}
+                  loading="lazy"
+                  sizes="(max-width: 768px) 100vw, 58vw"
+                  className={PHONE_SHOTS.has(active.image) ? styles.productPhoneImage : styles.productWideImage}
+                />
+              </DeviceFrame>
               <figcaption><strong>{active.caption}</strong><span>{landingCopy.brands.sampleCaption}</span></figcaption>
             </figure>
           </div>
@@ -64,15 +69,17 @@ export function FollowTransfer() {
                 <h3>{step.title}</h3>
                 <p>{step.detail}</p>
                 <figure className={styles.productFigure}>
-                  <Image
-                    src={`/screens/${step.image}`}
-                    alt={step.alt}
-                    width={step.image === "rider-booking.webp" || step.image === "driver-home.webp" ? 390 : 1440}
-                    height={step.image === "rider-booking.webp" || step.image === "driver-home.webp" ? 844 : 900}
-                    loading="lazy"
-                    sizes="(max-width: 768px) 100vw, 58vw"
-                    className={step.image === "rider-booking.webp" || step.image === "driver-home.webp" ? styles.productPhoneImage : styles.productWideImage}
-                  />
+                  <DeviceFrame variant={PHONE_SHOTS.has(step.image) ? "phone" : "laptop"}>
+                    <Image
+                      src={`/screens/${step.image}`}
+                      alt={step.alt}
+                      width={PHONE_SHOTS.has(step.image) ? 390 : 1440}
+                      height={PHONE_SHOTS.has(step.image) ? 844 : 900}
+                      loading="lazy"
+                      sizes="(max-width: 768px) 100vw, 58vw"
+                      className={PHONE_SHOTS.has(step.image) ? styles.productPhoneImage : styles.productWideImage}
+                    />
+                  </DeviceFrame>
                   <figcaption><strong>{step.caption}</strong><span>{landingCopy.brands.sampleCaption}</span></figcaption>
                 </figure>
               </article>

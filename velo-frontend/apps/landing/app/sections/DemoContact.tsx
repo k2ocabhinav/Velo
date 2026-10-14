@@ -52,7 +52,7 @@ export function DemoContact() {
   }
 
   return (
-    <section className={`${styles.section} ${styles.contactSection}`} id="contact" aria-labelledby="contact-title">
+    <section className={`${styles.section} ${styles.tintDusk} ${styles.contactSection}`} id="contact" aria-labelledby="contact-title">
       <div className={styles.container}>
         <div className={styles.contactLayout}>
           <div className={styles.contactIntro}>

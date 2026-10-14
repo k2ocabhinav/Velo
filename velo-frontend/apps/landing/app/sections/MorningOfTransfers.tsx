@@ -5,7 +5,7 @@ import styles from "./sections.module.css";
 export function MorningOfTransfers() {
   const copy = landingCopy.morning;
   return (
-    <section className={`${styles.section} ${styles.morningSection}`} id="product" aria-labelledby="morning-title">
+    <section className={`${styles.section} ${styles.tintMorning} ${styles.morningSection}`} id="product" aria-labelledby="morning-title">
       <div className={styles.container}>
         <div className={styles.sectionIntro}>
           <h2 className={styles.sectionTitle} id="morning-title">{copy.title}</h2>

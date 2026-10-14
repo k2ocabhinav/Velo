@@ -51,25 +51,25 @@ export function Pricing() {
   }
 
   return (
-    <section className={`${styles.section} ${styles.pricingSection}`} id="pricing" aria-labelledby="pricing-title">
+    <section className={`${styles.section} ${styles.tintAfternoon} ${styles.pricingSection}`} id="pricing" aria-labelledby="pricing-title">
       <div className={styles.container}>
         <div className={styles.pricingHeader}>
           <div className={styles.sectionIntro}>
             <h2 className={styles.sectionTitle} id="pricing-title">{copy.title}</h2>
             <p className={styles.sectionDescription}>{copy.description}</p>
           </div>
-          <fieldset className={styles.currencySwitch}>
-            <legend>Display currency</legend>
-            {copy.currencies.map((item) => (
-              <label className={styles.currencyOption} key={item}>
-                <input type="radio" name="pricing-currency" value={item} checked={currency === item} onChange={() => chooseCurrency(item)} />
-                <span>{item}</span>
-              </label>
-            ))}
-          </fieldset>
         </div>
         <div className={styles.priceLayout}>
-          <div className={styles.priceMain}>
+          <div className={`${styles.priceMain} ${styles.priceCard}`}>
+            <fieldset className={styles.currencySwitch}>
+              <legend>Display currency</legend>
+              {copy.currencies.map((item) => (
+                <label className={styles.currencyOption} key={item}>
+                  <input type="radio" name="pricing-currency" value={item} checked={currency === item} onChange={() => chooseCurrency(item)} />
+                  <span>{item}</span>
+                </label>
+              ))}
+            </fieldset>
             <div aria-live="polite" aria-atomic="true">
               <p className={styles.priceValue}>{money(prices.unit, currency)}</p>
               <p className={styles.priceUnit}>{copy.perVehicle}</p>
