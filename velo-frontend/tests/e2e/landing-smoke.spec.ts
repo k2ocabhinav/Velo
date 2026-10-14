@@ -4,6 +4,7 @@ import { expect, test } from "./fixtures";
 const whatsappDigits = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER?.replace(/\D/g, "") ?? "";
 const demoVideoUrl = process.env.NEXT_PUBLIC_DEMO_VIDEO_URL?.trim() ?? "";
 const contactAction = process.env.NEXT_PUBLIC_CONTACT_FORM_ACTION?.trim() ?? "";
+const contactEmail = process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() ?? "";
 
 test("primary navigation, mobile menu and demo links have working targets", async ({ page }) => {
   await page.goto("/");
@@ -13,6 +14,7 @@ test("primary navigation, mobile menu and demo links have working targets", asyn
   await expect(navigation.getByRole("link", { name: "Pricing" })).toHaveAttribute("href", "#pricing");
   await expect(navigation.getByRole("link", { name: "FAQ" })).toHaveAttribute("href", "#faq");
   await expect(navigation.getByRole("link", { name: "Book a demo" })).toHaveAttribute("href", "#contact");
+  await expect(page.locator("#verify").getByRole("link", { name: "Open" })).toHaveCount(0);
 
   const videoLink = demoVideoUrl
     ? page.getByRole("link", { name: "Watch the 2-minute demo" })
@@ -27,6 +29,9 @@ test("primary navigation, mobile menu and demo links have working targets", asyn
   }
 
   await page.setViewportSize({ width: 390, height: 844 });
+  const secondaryHeroCta = page.getByRole("link", { name: "See how it works" });
+  const secondaryHeroCtaBounds = await secondaryHeroCta.boundingBox();
+  expect(secondaryHeroCtaBounds?.height).toBeGreaterThanOrEqual(44);
   const menuButton = navigation.getByRole("button", { name: "Open navigation menu" });
   await expect(menuButton).toBeVisible();
   await menuButton.click();
@@ -41,14 +46,23 @@ test("primary navigation, mobile menu and demo links have working targets", asyn
   await expect(navigation.getByRole("button", { name: "Open navigation menu" })).toHaveAttribute("aria-expanded", "false");
 });
 
-test("contact form asks only for demo details and exposes the configured route", async ({ page }) => {
+test("contact form appears only when a demo request destination is configured", async ({ page }) => {
   await page.goto("/");
   const form = page.locator('form[name="demo-request"]');
+
+  if (!contactAction && !contactEmail) {
+    await expect(form).toHaveCount(0);
+    await expect(page.locator("#contact")).toContainText("No details were sent or saved");
+    await expect(page.getByRole("button", { name: "Send demo request" })).toHaveCount(0);
+    await expect(page.locator('a[href^="mailto:"]')).toHaveCount(0);
+    return;
+  }
+
   await expect(form.getByLabel("Your name")).toBeVisible();
   await expect(form.getByLabel("Phone or WhatsApp")).toHaveAttribute("required", "");
   await expect(form.getByLabel("Fleet size")).toHaveAttribute("required", "");
-  await expect(form.getByLabel("City")).toHaveAttribute("required", "");
-  await expect(form.getByLabel("Preferred time and time zone")).toHaveAttribute("required", "");
+  await expect(form.getByLabel("City (optional)")).not.toHaveAttribute("required", "");
+  await expect(form.getByLabel("Preferred time and time zone (optional)")).not.toHaveAttribute("required", "");
   await expect(form.getByLabel("Email (optional)")).not.toHaveAttribute("required", "");
   await expect(form.getByLabel("Company")).toHaveCount(0);
   await expect(form.getByLabel("Message")).toHaveCount(0);
@@ -68,7 +82,7 @@ test("contact form asks only for demo details and exposes the configured route",
     await form.getByRole("button", { name: "Send demo request" }).click();
     await expect(page.getByRole("status")).toContainText("Your request was sent");
   } else {
-    await expect(page.locator('a[href^="mailto:"]')).toContainText(/hello@velo\.dev/);
+    await expect(page.locator(`a[href="mailto:${contactEmail}"]`)).toBeVisible();
   }
 });
 
@@ -82,24 +96,32 @@ test("privacy and terms pages are reachable", async ({ page }) => {
   await expect(page.getByRole("link", { name: "Privacy" })).toHaveAttribute("href", "/privacy/");
 });
 
-test("production largest contentful paint is the hero h1", async ({ page }) => {
+test("production LCP is the hero h1 and CLS is zero", async ({ page }) => {
   await page.addInitScript(() => {
-    const entries: Array<{ tag: string | null; id: string | null }> = [];
-    Object.defineProperty(window, "__landingLcp", { value: entries });
+    const metrics: { lcp: Array<{ tag: string | null; id: string | null }>; cls: number } = { lcp: [], cls: 0 };
+    Object.defineProperty(window, "__landingMetrics", { value: metrics });
     new PerformanceObserver((list) => {
       for (const entry of list.getEntries()) {
         const element = (entry as LargestContentfulPaint).element;
-        entries.push({ tag: element?.tagName ?? null, id: element?.id ?? null });
+        metrics.lcp.push({ tag: element?.tagName ?? null, id: element?.id ?? null });
       }
     }).observe({ type: "largest-contentful-paint", buffered: true });
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        const shift = entry as PerformanceEntry & { hadRecentInput?: boolean; value?: number };
+        if (!shift.hadRecentInput) metrics.cls += shift.value ?? 0;
+      }
+    }).observe({ type: "layout-shift", buffered: true });
   });
 
   await page.goto("/");
   await page.waitForTimeout(1500);
-  const entries = await page.evaluate(() => (window as Window & {
-    __landingLcp?: Array<{ tag: string | null; id: string | null }>;
-  }).__landingLcp ?? []);
+  const metrics = await page.evaluate(() => (window as Window & {
+    __landingMetrics?: { lcp: Array<{ tag: string | null; id: string | null }>; cls: number };
+  }).__landingMetrics ?? { lcp: [], cls: -1 });
 
-  expect(entries.length, "the browser should report an LCP entry").toBeGreaterThan(0);
-  expect(entries.at(-1)?.tag, "the last LCP element should be the hero heading").toBe("H1");
+  expect(metrics.lcp.length, "the browser should report an LCP entry").toBeGreaterThan(0);
+  expect(metrics.lcp.at(-1)?.tag, "the last LCP element should be the hero heading").toBe("H1");
+  expect(metrics.lcp.at(-1)?.id, "the LCP heading should be the hero h1").toBe("hero-title");
+  expect(metrics.cls, "cumulative layout shift should be zero").toBe(0);
 });

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Footer } from "../components/Footer";
 import { Navbar } from "../components/Navbar";
 
-const contactEmail = process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() || "hello@velo.dev";
+const contactEmail = process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim();
 
 export const metadata: Metadata = {
   title: "Terms",
@@ -27,10 +27,9 @@ export default function TermsPage() {
             Product details, availability, and early-access pricing may change. Any pilot or paid
             use will be covered by written terms agreed with Velo before it begins.
           </p>
-          <p>
-            For questions about these terms, email{" "}
-            <a href={`mailto:${contactEmail}`}>{contactEmail}</a>.
-          </p>
+          {contactEmail
+            ? <p>For questions about these terms, email <a href={`mailto:${contactEmail}`}>{contactEmail}</a>.</p>
+            : <p>No contact email is published in this build.</p>}
         </div>
       </main>
       <Footer home={false} />

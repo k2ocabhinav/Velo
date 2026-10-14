@@ -4,10 +4,9 @@ import styles from "./sections.module.css";
 export function VerifyToday() {
   const copy = landingCopy.verify;
   const facts = [
-    { value: String(verifyFacts.backendTests), label: copy.backend },
-    { value: String(verifyFacts.endToEndTests), label: copy.endToEnd },
+    { value: copy.backendScope, label: copy.backend },
+    { value: copy.endToEndScope, label: copy.endToEnd },
     { value: String(verifyFacts.demoTenants), label: copy.tenants },
-    { value: copy.decisionsValue, label: copy.decisions },
   ];
 
   return (

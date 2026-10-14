@@ -18,20 +18,18 @@ export function DemoContact() {
     const fields = new FormData(form);
     setStatus(null);
     if (!siteConfig.contactFormAction) {
-      if (!siteConfig.contactEmail) {
-        setStatus({ type: "error", message: whatsapp ? copy.noEmail : copy.noContact });
-        return;
-      }
+      const contactEmail = siteConfig.contactEmail;
+      if (!contactEmail) return;
       const body = [
         `Name: ${fields.get("name")}`,
         `Phone or WhatsApp: ${fields.get("phone")}`,
         `Fleet size: ${fields.get("fleetSize")}`,
-        `City: ${fields.get("city")}`,
-        `Preferred time: ${fields.get("preferredTime")}`,
+        fields.get("city") ? `City: ${fields.get("city")}` : undefined,
+        fields.get("preferredTime") ? `Preferred time: ${fields.get("preferredTime")}` : undefined,
         `Email: ${fields.get("email") || "Not provided"}`,
-      ].join("\n");
-      window.location.href = `mailto:${siteConfig.contactEmail}?subject=${encodeURIComponent("Velo demo request")}&body=${encodeURIComponent(body)}`;
-      setStatus({ type: "success", message: copy.mailto.replace("{email}", siteConfig.contactEmail) });
+      ].filter(Boolean).join("\n");
+      window.location.href = `mailto:${contactEmail}?subject=${encodeURIComponent("Velo demo request")}&body=${encodeURIComponent(body)}`;
+      setStatus({ type: "success", message: copy.mailto.replace("{email}", contactEmail) });
       return;
     }
 
@@ -65,27 +63,31 @@ export function DemoContact() {
               {siteConfig.contactEmail && <a className={styles.contactEmail} href={`mailto:${siteConfig.contactEmail}`}>{copy.emailLink}</a>}
             </div>
           </div>
-          <form className={styles.contactForm} name="demo-request" data-netlify="true" onSubmit={handleSubmit}>
-            <input type="hidden" name="form-name" value="demo-request" />
-            <div className={styles.formGrid}>
-              <div className={styles.formField}><label htmlFor="demo-name">{copy.name}</label><input autoComplete="name" id="demo-name" name="name" required /></div>
-              <div className={styles.formField}><label htmlFor="demo-phone">{copy.phone}</label><input autoComplete="tel" id="demo-phone" name="phone" type="tel" required /></div>
-              <div className={styles.formField}>
-                <label htmlFor="demo-fleet-size">{copy.fleetSize}</label>
-                <select id="demo-fleet-size" name="fleetSize" defaultValue="" required>
-                  <option value="" disabled>Select a range</option><option value="10–25">10–25 vehicles</option><option value="26–50">26–50 vehicles</option><option value="Other">Other</option>
-                </select>
+          {siteConfig.contactFormAction || siteConfig.contactEmail ? (
+            <form className={styles.contactForm} name="demo-request" data-netlify="true" onSubmit={handleSubmit}>
+              <input type="hidden" name="form-name" value="demo-request" />
+              <div className={styles.formGrid}>
+                <div className={styles.formField}><label htmlFor="demo-name">{copy.name}</label><input autoComplete="name" id="demo-name" name="name" required /></div>
+                <div className={styles.formField}><label htmlFor="demo-phone">{copy.phone}</label><input autoComplete="tel" id="demo-phone" name="phone" type="tel" required /></div>
+                <div className={styles.formField}>
+                  <label htmlFor="demo-fleet-size">{copy.fleetSize}</label>
+                  <select id="demo-fleet-size" name="fleetSize" defaultValue="" required>
+                    <option value="" disabled>Select a range</option><option value="10–25">10–25 vehicles</option><option value="26–50">26–50 vehicles</option><option value="Other">Other</option>
+                  </select>
+                </div>
+                <div className={styles.formField}><label htmlFor="demo-city">{copy.city}</label><input autoComplete="address-level2" id="demo-city" name="city" /></div>
+                <div className={styles.formField}><label htmlFor="demo-time">{copy.preferredTime}</label><input id="demo-time" name="preferredTime" placeholder={copy.timePlaceholder} /></div>
+                <div className={styles.formField}><label htmlFor="demo-email">{copy.email}</label><input autoComplete="email" id="demo-email" name="email" type="email" /></div>
               </div>
-              <div className={styles.formField}><label htmlFor="demo-city">{copy.city}</label><input autoComplete="address-level2" id="demo-city" name="city" required /></div>
-              <div className={styles.formField}><label htmlFor="demo-time">{copy.preferredTime}</label><input id="demo-time" name="preferredTime" placeholder={copy.timePlaceholder} required /></div>
-              <div className={styles.formField}><label htmlFor="demo-email">{copy.email}</label><input autoComplete="email" id="demo-email" name="email" type="email" /></div>
-            </div>
-            <div className={styles.formSubmit}>
-              <button className={styles.primaryButton} type="submit" disabled={isSubmitting}>{isSubmitting ? copy.sending : copy.submit}</button>
-              <p>{copy.privacy}</p>
-            </div>
-            {status && <p className={status.type === "error" ? styles.formError : styles.formSuccess} role={status.type === "error" ? "alert" : "status"}>{status.message}</p>}
-          </form>
+              <div className={styles.formSubmit}>
+                <button className={styles.primaryButton} type="submit" disabled={isSubmitting}>{isSubmitting ? copy.sending : copy.submit}</button>
+                <p>{copy.privacy}</p>
+              </div>
+              {status && <p className={status.type === "error" ? styles.formError : styles.formSuccess} role={status.type === "error" ? "alert" : "status"}>{status.message}</p>}
+            </form>
+          ) : (
+            <p className={styles.noContactNotice} role="status">{copy.noContact}</p>
+          )}
         </div>
       </div>
     </section>

@@ -1,4 +1,4 @@
-const contactEmail = process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() || "hello@velo.dev";
+const contactEmail = process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim();
 
 export function Footer({ home = true }: { home?: boolean }) {
   const sectionLink = (id: string) => home ? `#${id}` : `/#${id}`;
@@ -25,7 +25,7 @@ export function Footer({ home = true }: { home?: boolean }) {
           <div className="footer-links-group">
             <span className="footer-label">Contact</span>
             <a href={sectionLink("contact")}>Book a demo</a>
-            <a href={`mailto:${contactEmail}`}>{contactEmail}</a>
+            {contactEmail && <a href={`mailto:${contactEmail}`}>{contactEmail}</a>}
           </div>
 
           <nav className="footer-links-group" aria-label="Legal links">

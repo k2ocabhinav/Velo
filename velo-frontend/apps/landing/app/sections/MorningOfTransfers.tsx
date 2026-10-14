@@ -13,13 +13,8 @@ export function MorningOfTransfers() {
           <h2 className={styles.sectionTitle} id="morning-title">{copy.title}</h2>
           <p className={styles.sectionDescription}>{copy.description}</p>
         </div>
-        <div className={styles.timeline} aria-label="Sample day from 05:00 to 20:00">
-          <div className={styles.timelineAxis} aria-hidden="true">
-            <span className={styles.axisSpacer} />
-            <div className={styles.axisTimes}>
-              {[copy.axisStart, copy.axisMiddleOne, copy.axisMiddleTwo, copy.axisEnd].map((time) => <span key={time}>{time}</span>)}
-            </div>
-          </div>
+        <div className={styles.timeline} role="group" aria-label={copy.statusContext}>
+          <p className={styles.timelineContext}>{copy.statusContext}</p>
           {SAMPLE_TRIPS.map((trip) => {
             const reached = (copy.stages as readonly string[]).indexOf(trip.status);
             const midStage = trip.status === "On trip";

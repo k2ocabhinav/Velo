@@ -41,8 +41,7 @@ export function Hero() {
               <DispatchIllustration />
             </div>
             <p className={styles.caption}>
-              <span className={styles.scaleBar} aria-hidden="true" />
-              <span className={styles.captionText}>Sample day · three booked transfers</span>
+              <span className={styles.captionText}>{landingCopy.hero.mapCaption}</span>
             </p>
           </div>
         </div>

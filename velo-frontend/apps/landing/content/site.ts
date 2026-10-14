@@ -17,8 +17,6 @@ export const siteConfig = {
  * Keep these accurate: they are a claim on the page.
  */
 export const verifyFacts = {
-  backendTests: 286,
-  endToEndTests: 36,
   demoTenants: 2,
 } as const;
 
@@ -33,6 +31,7 @@ export const landingCopy = {
     nextTransfer: "Next transfer",
     driverLabel: "Driver:",
     sampleFleet: "Demo fleet, sample data",
+    mapCaption: "Schematic neighbourhood: three sample transfers",
   },
   timeSpine: [
     { time: "05:40", position: 0 },
@@ -45,10 +44,7 @@ export const landingCopy = {
     eyebrow: "Sample day",
     title: "A morning of transfers.",
     description: "Three bookings, one dispatch view. Follow the day from the first airport pickup to the evening return.",
-    axisStart: "05:00",
-    axisMiddleOne: "10:00",
-    axisMiddleTwo: "15:00",
-    axisEnd: "20:00",
+    statusContext: "Trip status around 09:20",
     stages: ["Booked", "Driver assigned", "On trip", "Completed"],
     sampleNote: "These are illustrative trips with sample names.",
   },
@@ -92,13 +88,13 @@ export const landingCopy = {
   },
   verify: {
     title: "What you can verify today.",
-    description: "Velo is pre-launch and working. These numbers come from the current build, not a roadmap.",
+    description: "Check the current test scope and branded demo tenants.",
     groupLabel: "Verification facts",
-    backend: "automated backend tests",
-    endToEnd: "end-to-end tests, with accessibility checks",
+    backend: "backend test suite",
+    backendScope: "Unit + integration",
+    endToEnd: "landing E2E checks, including axe",
+    endToEndScope: "Chromium",
     tenants: "branded demo tenants",
-    decisions: "public decision log, open to read",
-    decisionsValue: "Open",
   },
   pricing: {
     eyebrow: "Early-access pilot pricing",
@@ -117,9 +113,9 @@ export const landingCopy = {
     notIncluded: ["Corporate billing and monthly statements", "Native iOS or Android apps", "Payment gateway integration"],
   },
   founder: {
-    eyebrow: "A note from the founder",
+    eyebrow: "Why Velo is being built",
     title: "Built around the work between booking and pickup.",
-    note: "I started Velo to give small transfer fleets one place to prepare a day of work, assign drivers and keep trip progress visible. The next milestone is working with the first pilot fleets and learning where the product needs to go next.",
+    note: "Velo is being built to give small transfer fleets one place to prepare a day of work, assign drivers and keep trip progress visible. The next milestone is working with the first pilot fleets and learning where the product needs to go next.",
   },
   faq: {
     eyebrow: "Questions",
@@ -140,8 +136,8 @@ export const landingCopy = {
     name: "Your name",
     phone: "Phone or WhatsApp",
     fleetSize: "Fleet size",
-    city: "City",
-    preferredTime: "Preferred time and time zone",
+    city: "City (optional)",
+    preferredTime: "Preferred time and time zone (optional)",
     email: "Email (optional)",
     submit: "Send demo request",
     sending: "Sending request",
@@ -150,7 +146,6 @@ export const landingCopy = {
     mailto: "Your email app should open with the request addressed to {email}. Send that email to complete your request.",
     sent: "Thanks. Your request was sent. The founder will coordinate a demo time with you.",
     failed: "We couldn't send the request. Try again or use one of the contact options below.",
-    noEmail: "No email form is configured. Use the WhatsApp link above to contact the founder; these details were not sent or saved.",
     timePlaceholder: "e.g. 14:00 UTC+1",
     whatsapp: "WhatsApp the founder",
     emailLink: "Email the founder",

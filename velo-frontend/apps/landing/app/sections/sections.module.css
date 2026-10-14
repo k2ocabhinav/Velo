@@ -122,21 +122,13 @@
   border-top: 1px solid var(--lp-line);
 }
 
-.timelineAxis {
-  display: grid;
-  grid-template-columns: minmax(170px, 0.72fr) minmax(0, 1.28fr);
-  gap: clamp(20px, 4vw, 54px);
+.timelineContext {
+  margin: 0;
   padding: 12px 0 14px;
   color: var(--lp-muted);
   font-family: var(--font-display), "Barlow Condensed", system-ui, sans-serif;
   font-size: 0.9375rem;
-  font-variant-numeric: tabular-nums;
   letter-spacing: 0.03em;
-}
-
-.axisTimes {
-  display: flex;
-  justify-content: space-between;
 }
 
 .timelineRow {
@@ -866,6 +858,15 @@
   background: var(--lp-card);
 }
 
+.noContactNotice {
+  grid-column: 2;
+  margin: 0;
+  padding: 16px 18px;
+  border-inline-start: 3px solid var(--lp-signal);
+  background: color-mix(in srgb, var(--lp-ink) 5%, var(--lp-ground));
+  color: var(--lp-ink);
+}
+
 .formGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -982,7 +983,7 @@
 
 .verifyFacts {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: clamp(18px, 2.6vw, 34px);
   margin: 0;
   padding: 0;
@@ -1036,20 +1037,20 @@
 
 .laptopFrame {
   position: relative;
-  padding: 9px;
-  border: 1px solid var(--lp-border-ui);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--lp-ink) 88%, var(--lp-ground));
+  padding: 3px;
+  border: 1px solid var(--landing-border-ui);
+  border-radius: 10px;
+  background: var(--landing-card);
 }
 
 .laptopFrame::after {
   position: absolute;
-  right: -4%;
-  bottom: -6px;
-  left: -4%;
-  height: 6px;
-  border-radius: 0 0 10px 10px;
-  background: color-mix(in srgb, var(--lp-ink) 78%, var(--lp-ground));
+  right: -2%;
+  bottom: -2px;
+  left: -2%;
+  height: 2px;
+  border-radius: 0 0 3px 3px;
+  background: var(--landing-border-ui);
   content: "";
 }
 
@@ -1122,13 +1123,8 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .timelineAxis {
-    grid-template-columns: minmax(0, 1fr);
-    font-size: 0.8125rem;
-  }
-
-  .axisSpacer {
-    display: none;
+  .noContactNotice {
+    grid-column: auto;
   }
 
   .timelineRow {

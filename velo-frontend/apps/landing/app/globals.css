@@ -25,7 +25,7 @@
 
   /* Print-manifest texture (§10.5). Applied through pseudo-elements only. */
   --landing-dot: rgb(22 24 27 / 0.5);
-  --landing-grain-opacity: 0.5;
+  --landing-grain-opacity: 0.05;
   --landing-grain-blend: multiply;
   --landing-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23g)'/%3E%3C/svg%3E");
   --landing-halftone: radial-gradient(circle, var(--landing-dot) 0.7px, transparent 0.85px);
@@ -68,7 +68,7 @@
   --landing-tenant-b: #e0913f;
 
   --landing-dot: rgb(243 239 230 / 0.32);
-  --landing-grain-opacity: 0.3;
+  --landing-grain-opacity: 0.05;
   --landing-grain-blend: soft-light;
 }
 
