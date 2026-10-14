@@ -1,4 +1,6 @@
 import { expect, test } from "./fixtures";
+
+const tenantBrandName = process.env.PLAYWRIGHT_TENANT_BRAND_NAME ?? "Velo";
 import type { Page } from "@playwright/test";
 
 function formatDateTimeLocal(value: Date): string {
@@ -93,7 +95,7 @@ test.describe("rider smoke", () => {
 
     await page.goto("/account");
     await expect(page.getByRole("heading", { name: "Account" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Velo home" })).toContainText("VELO");
+    await expect(page.getByRole("link", { name: `${tenantBrandName} home` })).toHaveText(tenantBrandName === "Velo" ? "VELO" : tenantBrandName);
     await expect(page.getByRole("link", { name: "Notifications" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Offers" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Scheduled trips" })).toBeVisible();
@@ -402,6 +404,25 @@ test.describe("rider smoke", () => {
     await context.addCookies([{ name: "velo_rider_token", value: "e2e-rider-token", url: riderBaseUrl }]);
     await mockUnreadCount(page);
 
+    await page.route("**/api/backend/riders/wallet*", async (route) => {
+      const requestUrl = new URL(route.request().url());
+      const pageIndex = Number(requestUrl.searchParams.get("page") ?? "0");
+      const transaction = pageIndex === 0
+        ? { id: 16, type: "DEBIT", amount: "18.00", method: "RIDE", rideReference: 810, timestamp: new Date().toISOString() }
+        : { id: 17, type: "CREDIT", amount: "50.00", method: "BANKING", rideReference: 811, timestamp: new Date(Date.now() - 86_400_000).toISOString() };
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: {
+            balance: "125.50",
+            currency: "USD",
+            transactions: { content: [transaction], number: pageIndex, size: 10, totalElements: 2, totalPages: 2 },
+          },
+        }),
+      });
+    });
+
     let methods = [
       { id: 4, type: "CARD", lastFourDigits: "1111", expiryDate: "10/28", isDefault: true },
     ];
@@ -422,6 +443,14 @@ test.describe("rider smoke", () => {
 
     await page.goto("/wallet");
     await expect(page.getByRole("heading", { name: "Wallet" })).toBeVisible();
+    await expect(page.getByText("$125.50")).toBeVisible();
+    await expect(page.getByText("Used from wallet")).toBeVisible();
+    await expect(page.getByText("$18.00")).toBeVisible();
+    await expect(page.getByText("Trip #810")).toBeVisible();
+    await expect(page.getByText("Page 1 of 2")).toBeVisible();
+    await page.getByRole("button", { name: "Next", exact: true }).click();
+    await expect(page.getByText("Trip #811")).toBeVisible();
+    await expect(page.getByText("Page 2 of 2")).toBeVisible();
     await page.getByRole("button", { name: "Add method" }).first().click();
     const addDialog = page.getByRole("dialog", { name: "Add payment method" });
     await addDialog.getByLabel("Last four digits").fill("4242");
@@ -437,6 +466,37 @@ test.describe("rider smoke", () => {
     const removeDialog = page.getByRole("dialog", { name: "Remove this payment method?" });
     await removeDialog.getByRole("button", { name: "Remove method" }).click();
     await expect(page.getByText("Ending in 4242")).toHaveCount(0);
+  });
+
+  test("rider wallet offers retry and explains an empty transaction history", async ({ baseURL, context, page }) => {
+    const riderBaseUrl = baseURL ?? "http://127.0.0.1:5302";
+    await context.addCookies([{ name: "velo_rider_token", value: "e2e-rider-token", url: riderBaseUrl }]);
+    await mockUnreadCount(page);
+
+    let walletRequestCount = 0;
+    await page.route("**/api/backend/riders/wallet*", async (route) => {
+      walletRequestCount += 1;
+      if (walletRequestCount === 1) {
+        await route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: { message: "Wallet temporarily unavailable." } }) });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ data: { balance: "0.00", currency: "USD", transactions: { content: [], number: 0, size: 10, totalElements: 0, totalPages: 1 } } }),
+      });
+    });
+    await page.route("**/api/backend/payment-methods", async (route) => {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: [] }) });
+    });
+
+    await page.goto("/wallet");
+    await expect(page.getByRole("heading", { name: "Couldn't load wallet" })).toBeVisible();
+    await page.getByRole("button", { name: "Retry" }).click();
+    await expect(page.getByText("$0.00")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "No wallet transactions yet" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "No saved payment methods" })).toBeVisible();
+    expect(walletRequestCount).toBe(2);
   });
 
   test("rider offers copy codes and notifications support read actions", async ({ baseURL, context, page }) => {

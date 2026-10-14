@@ -1,6 +1,7 @@
 package com.velo.platform.repositories;
 
 import com.velo.platform.dto.EarningsSummaryDto;
+import com.velo.platform.dto.admin.TopDriverRevenueDto;
 import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.DriverEarning;
 import org.springframework.data.domain.Page;
@@ -27,4 +28,19 @@ public interface DriverEarningRepository extends JpaRepository<DriverEarning, Lo
 
     @Query("SELECT COALESCE(SUM(e.netEarning), 0) FROM DriverEarning e WHERE e.driver = :driver")
     BigDecimal getTotalNetEarningsByDriver(@Param("driver") Driver driver);
+
+    @Query("SELECT new com.velo.platform.dto.admin.TopDriverRevenueDto(" +
+           "d.id, COALESCE(NULLIF(TRIM(CONCAT(COALESCE(u.firstName, ''), ' ', COALESCE(u.lastName, ''))), ''), 'Unknown driver'), " +
+           "COUNT(e), SUM(e.grossFare), SUM(e.platformCommission), SUM(e.netEarning)) " +
+           "FROM DriverEarning e JOIN e.driver d LEFT JOIN d.user u " +
+           "WHERE e.tenantId = :tenantId AND d.tenantId = :tenantId " +
+           "AND (u IS NULL OR u.tenantId = :tenantId) " +
+           "AND e.createdTime >= :startDate AND e.createdTime < :endDate " +
+           "GROUP BY d.id, u.firstName, u.lastName " +
+           "ORDER BY SUM(e.netEarning) DESC, d.id ASC")
+    java.util.List<TopDriverRevenueDto> findTopDriversByNetEarnings(
+            @Param("tenantId") Long tenantId,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate,
+            Pageable pageable);
 }

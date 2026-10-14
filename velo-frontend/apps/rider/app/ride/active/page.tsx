@@ -414,7 +414,7 @@ export default function RiderActiveRidePage() {
 
       {loading ? (
         <Section title="Loading your trip">
-          <div className="stack" aria-label="Loading trip details">
+          <div className="stack" role="status" aria-label="Loading trip details" aria-busy="true">
             <Skeleton className="skeleton-line skeleton-line-wide" />
             <Skeleton className="skeleton-card" />
             <Skeleton className="active-map-skeleton" />

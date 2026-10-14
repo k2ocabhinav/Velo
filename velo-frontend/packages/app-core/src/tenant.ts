@@ -31,6 +31,12 @@ export const DEFAULT_TENANT_BRANDING: TenantBranding = {
   riderPortalEnabled: true,
 };
 
+export function getTenantWordmark(brandName: string | null | undefined): string {
+  const normalized = brandName?.trim();
+  if (!normalized || normalized.toLowerCase() === "velo") return "VELO";
+  return normalized;
+}
+
 export interface TenantSlugOptions {
   hostname: string;
   defaultTenantSlug?: string;

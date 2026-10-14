@@ -6,6 +6,7 @@ Last updated: 2026-10-14
 - **Orchestrator: Claude Code (Opus 5.5).** Plans, splits work, writes tight task prompts, picks models from the scorecard, verifies results lightly (diff stat, a skim of key changes, one test run, spot-checking claims), integrates, commits when asked, and keeps the docs current.
 - **Executor: CMD (Command Code CLI, `cmd`).** Does the heavy lifting: implementation, reviews, optimisation, bug hunts, test-fix loops and web research. Gives access to about 88 models (open-weight and proprietary), chosen per task with `-m`.
 - **Executor 2: Codex CLI (`codex`, 0.162, ChatGPT login).** Added 2026-10-14 after CMD hit its quota. Used for implementation. Models: **only `gpt-6-luna` at `xhigh`** (default) or `gpt-6.1-sol`. Never `gpt-6-astra` (burns tokens) and never older models.
+- **CMD model rule (2026-10-14):** only `deepseek/deepseek-v4.1-flash` at `--effort high`; other models drain the 5-hour quota.
 - **Principle:** the orchestrator spends tokens on judgement, and the executors spend them on volume.
 
 ## How Codex is driven

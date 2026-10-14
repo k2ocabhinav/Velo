@@ -3,11 +3,11 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
 import { AppTopBar, BottomNav } from "@velo/ui/composed";
+import { useTenantBranding } from "@velo/ui/theme";
+import { getTenantWordmark } from "@velo/app-core/tenant";
 import { FadeIn } from "@velo/ui/motion";
 import { DriverNotificationsNavIndicator } from "../notifications/_components/nav-indicator";
-import { requestDriverProxy } from "../_lib/driver-client";
 import { isPublicDriverRoute } from "../_lib/driver-shell-routes";
 
 const NAV_ITEMS = [
@@ -16,10 +16,6 @@ const NAV_ITEMS = [
   { href: "/earnings", label: "Earnings", icon: "earnings" as const },
   { href: "/me", label: "Me", icon: "account" as const },
 ];
-
-type TenantBrandingResponse = {
-  brandName?: string;
-};
 
 function isActiveRidePage(pathname: string): boolean {
   return /^\/ride\/[^/]+$/.test(pathname);
@@ -36,39 +32,8 @@ function getPageTitle(pathname: string): string {
 
 export function DriverShell({ children }: Readonly<{ children: ReactNode }>) {
   const pathname = usePathname() ?? "/";
-  const [tenantBrandName, setTenantBrandName] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (isPublicDriverRoute(pathname)) {
-      return;
-    }
-
-    let cancelled = false;
-    void requestDriverProxy<TenantBrandingResponse>("api/v1/tenant/branding")
-      .then((payload) => {
-        if (cancelled) {
-          return;
-        }
-        setTenantBrandName(typeof payload.brandName === "string" ? payload.brandName : null);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setTenantBrandName(null);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [pathname]);
-
-  const platformBrand = useMemo(() => {
-    const normalized = tenantBrandName?.trim();
-    if (!normalized || normalized.toLowerCase() === "velo") {
-      return "VELO";
-    }
-    return `VELO | ${normalized}`;
-  }, [tenantBrandName]);
+  const { brandName } = useTenantBranding();
+  const wordmark = getTenantWordmark(brandName);
 
   if (isPublicDriverRoute(pathname)) {
     return <>{children}</>;
@@ -83,7 +48,7 @@ export function DriverShell({ children }: Readonly<{ children: ReactNode }>) {
     <div className="driver-shell">
       <AppTopBar
         className="driver-topbar"
-        brand={<Link href="/" className="driver-wordmark">{platformBrand}</Link>}
+        brand={<Link href="/" className="driver-wordmark" title={wordmark}>{wordmark}</Link>}
         title={getPageTitle(pathname)}
         actions={(
           <>

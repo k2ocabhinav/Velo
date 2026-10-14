@@ -13,7 +13,7 @@ Quota-killed runs are logged but excluded from quality means (they say nothing a
 | review-frontend | gpt-6-luna:xhigh (n=1, q=5, p=1.0, 6.9M in) | _kimi-k3: pending resume_ | |
 | test-ops | gpt-6-luna:xhigh (n=1, q=5, p=1.0; actually ran the suites) | _mimo-v2.6-pro: pending resume_ | |
 | synthesis | untested (candidate: kimi-k3, 1M ctx) | | |
-| research | deepseek-v4-flash (n=1, q=4) | | the default model; fine for web research |
+| research | gpt-6.1-sol:high via Codex --search (n=2, q=5) | deepseek-v4-flash via CMD (n=1, q=4) | Sol is better sourced; CMD is now restricted to deepseek-v4.1-flash |
 | implement | gpt-6-luna:xhigh via Codex (n=6, q=4.8, p=1.0; about 2-15M in per WP, 97% cached) | | Reliable; it stops on broken baselines, and its main faults came from orchestrator prompt errors |
 | quick | deepseek-v4-flash / deepseek-v4.1-flash-fast | | cheapest |
 

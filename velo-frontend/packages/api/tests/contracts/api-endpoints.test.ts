@@ -59,6 +59,21 @@ describe("admin endpoints", () => {
     });
   });
 
+  it("requests top driver revenue for the selected number of days", async () => {
+    const { client, requests } = createRecordingClient([
+      { driverId: 4, driverName: "Asha Patel", trips: 8, gross: 500, commission: 75, net: 425 },
+    ]);
+    const api = createAdminApi(client);
+
+    await api.getTopDriversByRevenue(7);
+
+    expect(requests[0]).toMatchObject({
+      method: "GET",
+      url: "/api/v1/admin/stats/revenue/top-drivers",
+      params: { days: 7 },
+    });
+  });
+
   it("unwraps spring pages for admin lists", async () => {
     const { client, requests } = createRecordingClient({
       content: [
@@ -372,6 +387,31 @@ describe("auth and driver endpoints", () => {
 });
 
 describe("rider and supporting domains", () => {
+  it("loads the rider wallet with paginated transaction parameters", async () => {
+    const { client, requests } = createRecordingClient({
+      balance: "125.50",
+      currency: "USD",
+      transactions: {
+        content: [{ id: 9, type: "DEBIT", amount: "12.00", method: "RIDE", rideReference: 99, timestamp: "2026-04-09T11:20:00" }],
+        number: 1,
+        size: 5,
+        totalElements: 6,
+        totalPages: 2,
+      },
+    });
+    const api = createRidesApi(client);
+
+    const wallet = await api.getWalletSummary({ page: 1, size: 5 });
+
+    expect(wallet.balance).toBe("125.50");
+    expect(wallet.transactions.content[0]?.rideReference).toBe(99);
+    expect(requests[0]).toMatchObject({
+      method: "GET",
+      url: "/riders/wallet",
+      params: { page: 1, size: 5 },
+    });
+  });
+
   it("uses booking contracts for fare estimate and immediate ride request", async () => {
     const fareEstimate = createRecordingClient({
       estimatedFare: 25,

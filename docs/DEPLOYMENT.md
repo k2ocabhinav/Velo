@@ -99,7 +99,7 @@ CORS_ALLOWED_ORIGINS=https://admin.example.com,https://rider.example.com
 VELO_PROMETHEUS_ENABLED=false
 ```
 
-Prod and staging use `ddl-auto=validate`, disable SQL logging and SQL initialization, require an explicit Redis host, and apply only schema Flyway migrations. Redis uses TLS. `/actuator/health` is public for load-balancer checks; Prometheus requires an ADMIN token.
+Prod and staging use `ddl-auto=validate`, disable SQL logging and SQL initialization, require an explicit Redis host, and apply only schema Flyway migrations. Redis uses TLS. Liveness and readiness probes are enabled for local, staging, and prod. `/actuator/health/readiness` checks readiness state, PostgreSQL, and disk space without depending on Redis; Docker uses this group. The aggregate `/actuator/health` remains public for status checks, while component details, including Redis, are visible to ADMIN. Prometheus requires an ADMIN token.
 
 Requests with `X-Forwarded-Proto=http` are denied. The ALB redirects port 80 to HTTPS and forwards the HTTPS scheme; prod/staging trust forwarded headers and return HSTS for HTTPS requests. The BFF login cookies are httpOnly and production always sets `Secure`.
 
@@ -120,6 +120,16 @@ docker build --build-arg APP=admin --build-arg NEXT_PUBLIC_API_BASE_URL=https://
 ```
 
 Repeat for the other three app names. Runtime BFF requests use `VELO_API_BASE_URL`; set `VELO_AUTH_COOKIE_SECURE=true` in production. Each frontend image runs the existing `start-standalone.mjs` asset-sync startup.
+
+To build all five images and run a local container smoke check, use:
+
+```sh
+scripts/docker-smoke.sh
+```
+
+The script requires Docker, `curl`, and local PostgreSQL tools. It recreates only the dedicated `velo_docker_smoke` database on `localhost:5432`, enables PostGIS, builds the backend plus admin, rider, driver, and landing images, then starts the backend with the `local` profile and the admin image. The staging profile cannot use the default local PostgreSQL credentials: backend security rejects the `postgres` username or `user` password outside local/test profiles. The backend connects to the host database through `host.docker.internal`; the script checks `/actuator/health/readiness` and that admin `/login` returns HTTP 200. It prints local image sizes, removes only the containers it starts, and keeps the images and smoke database. Set `VELO_DOCKER_SMOKE_PGHOST`, `VELO_DOCKER_SMOKE_PGPORT`, `VELO_DOCKER_SMOKE_PGUSER`, or `VELO_DOCKER_SMOKE_PGPASSWORD` to use different local database connection settings. `VELO_DOCKER_SMOKE_TAG` changes the image tag.
+
+The local profile can start without Redis and use its fallback paths. If no Redis server is reachable, the aggregate `/actuator/health` can report Redis as down, visible in its component details to ADMIN. Readiness and the backend Docker healthcheck remain healthy when PostgreSQL and disk space are healthy.
 
 ### AWS deployment
 

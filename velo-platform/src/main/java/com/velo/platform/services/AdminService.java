@@ -5,6 +5,7 @@ import com.velo.platform.dto.admin.AdminUserDto;
 import com.velo.platform.dto.admin.DashboardDto;
 import com.velo.platform.dto.admin.PendingDriverDto;
 import com.velo.platform.dto.admin.RevenueReportDto;
+import com.velo.platform.dto.admin.TopDriverRevenueDto;
 import com.velo.platform.entities.User;
 import com.velo.platform.entities.enums.DriverOnboardingStatus;
 import org.springframework.data.domain.Page;
@@ -16,6 +17,7 @@ public interface AdminService {
     DashboardDto getDashboard();
     AdminStatsDto getDailyStats(LocalDate date);
     List<RevenueReportDto> getRevenueReport(LocalDate startDate, LocalDate endDate);
+    List<TopDriverRevenueDto> getTopDriversByRevenue(int days);
     Page<PendingDriverDto> getPendingDrivers(Pageable pageable);
     Page<PendingDriverDto> getDriversByStatus(DriverOnboardingStatus status, Pageable pageable);
     void approveDriver(Long driverId);

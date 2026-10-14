@@ -104,6 +104,9 @@ test("driver logout clears ws session token and blocks protected routes", async 
     },
   ]);
 
+  await page.route("**/api/auth/ws-ticket", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { ticket: "driver-logout-ticket" } }) });
+  });
   await mockUnreadCount(page);
   await page.route("**/api/backend/drivers/getMyProfile", async (route) => {
     await route.fulfill({
@@ -134,8 +137,11 @@ test("driver logout clears ws session token and blocks protected routes", async 
   });
 
   await page.goto("/");
-  await page.getByRole("link", { name: "Me", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Your account" })).toBeVisible();
+  await Promise.all([
+    page.waitForURL("**/me"),
+    page.getByRole("link", { name: "Me", exact: true }).click(),
+  ]);
+  await expect(page.getByRole("heading", { name: "Your account" })).toBeVisible({ timeout: 10_000 });
   await expect(page.getByRole("button", { name: /Switch to (dark|light) mode/ })).toBeVisible();
   await page.getByRole("button", { name: "Sign out" }).click();
 

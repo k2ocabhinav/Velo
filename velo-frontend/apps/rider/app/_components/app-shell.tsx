@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AppTopBar, BottomNav } from "@velo/ui";
+import { useTenantBranding } from "@velo/ui/theme";
+import { getTenantWordmark } from "@velo/app-core/tenant";
 import { FadeIn } from "@velo/ui/motion";
 import { NotificationsNavIndicator } from "../notifications/_components/nav-indicator";
 
@@ -15,6 +17,8 @@ function isPublicRoute(pathname: string): boolean {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname() ?? "/";
+  const { brandName } = useTenantBranding();
+  const wordmark = getTenantWordmark(brandName);
 
   if (isPublicRoute(pathname)) {
     return <>{children}</>;
@@ -23,7 +27,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="rider-shell">
       <AppTopBar
-        brand={<Link className="rider-brand" href="/" aria-label="Velo home">VELO</Link>}
+        brand={<Link className="rider-brand" href="/" aria-label={`${wordmark} home`} title={wordmark}>{wordmark}</Link>}
         actions={<NotificationsNavIndicator />}
       />
       <BottomNav

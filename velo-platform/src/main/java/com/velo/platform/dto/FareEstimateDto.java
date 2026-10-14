@@ -25,7 +25,6 @@ public class FareEstimateDto {
     private BigDecimal discountAmount; // discount applied
     private Double distanceKm;
     private Double durationMinutes; // keeping as Double if service returns double
-    private BigDecimal walletBalance;
     private Boolean walletSufficient;
     private LocalDateTime estimatedPickupTime;
     private List<PromoCodeDto> applicablePromos;

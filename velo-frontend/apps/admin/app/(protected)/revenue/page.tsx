@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { EmptyState, ErrorState, Money, Section, StatCard } from "@velo/ui";
+import { DataTable, EmptyState, ErrorState, Field, Money, Section, Select, StatCard } from "@velo/ui";
 import { formatMoney } from "@velo/app-core/formatters";
 import { PageFrame } from "../_components/page-frame";
-import { adminClient, type RevenueRow } from "../_lib/admin-client";
+import { adminClient, type RevenueRow, type TopDriverRevenue } from "../_lib/admin-client";
 import { toActionErrorMessage } from "../_lib/ui-state";
 
 type PeriodStats = { revenue: number; rides: number };
@@ -89,6 +89,11 @@ export default function RevenuePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadVersion, setReloadVersion] = useState(0);
+  const [driverDays, setDriverDays] = useState(30);
+  const [topDrivers, setTopDrivers] = useState<TopDriverRevenue[]>([]);
+  const [driversLoading, setDriversLoading] = useState(true);
+  const [driversError, setDriversError] = useState<string | null>(null);
+  const [driversReloadVersion, setDriversReloadVersion] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -119,6 +124,27 @@ export default function RevenuePage() {
     return () => { isMounted = false; };
   }, [reloadVersion]);
 
+  useEffect(() => {
+    let isMounted = true;
+    async function loadTopDrivers(): Promise<void> {
+      setDriversLoading(true);
+      setDriversError(null);
+      try {
+        const rows = await adminClient.getTopDriversByRevenue(driverDays);
+        if (isMounted) setTopDrivers(rows);
+      } catch (loadError) {
+        if (isMounted) {
+          setTopDrivers([]);
+          setDriversError(toActionErrorMessage(loadError, "Couldn't load top drivers."));
+        }
+      } finally {
+        if (isMounted) setDriversLoading(false);
+      }
+    }
+    void loadTopDrivers();
+    return () => { isMounted = false; };
+  }, [driverDays, driversReloadVersion]);
+
   const hasRevenue = dailyRows.some((row) => numeric(row.grossRevenue) > 0 || numeric(row.rideCount) > 0);
 
   return (
@@ -138,8 +164,34 @@ export default function RevenuePage() {
           <Section title="Daily revenue · last 30 days">
             {hasRevenue ? <RevenueChart rows={dailyRows} /> : <EmptyState title="No revenue recorded yet" description="Daily revenue will appear here after completed rides." action={<Link className="secondary-button" href="/dispatch">Open dispatch</Link>} />}
           </Section>
-          <Section title="Driver earnings">
-            <EmptyState title="Driver breakdown isn't available" description="The revenue feed reports driver earnings as daily totals, without names or per-driver amounts." action={<Link className="secondary-button" href="/drivers">Review drivers</Link>} />
+          <Section title="Top drivers" actions={
+            <Field label="Range">
+              <Select aria-label="Top drivers date range" value={driverDays} onChange={(event) => setDriverDays(Number(event.target.value))}>
+                <option value={7}>Last 7 days</option>
+                <option value={30}>Last 30 days</option>
+                <option value={90}>Last 90 days</option>
+              </Select>
+            </Field>
+          }>
+            {driversError ? <ErrorState title="Couldn't load top drivers" description={driversError} onRetry={() => setDriversReloadVersion((value) => value + 1)} /> : null}
+            {driversLoading ? <DataTable.Skeleton rows={4} columns={5} label="Loading top drivers" /> : null}
+            {!driversLoading && !driversError && topDrivers.length === 0 ? (
+              <EmptyState title="No driver earnings in this period" description="Driver totals will appear after completed trips in the selected range." />
+            ) : null}
+            {!driversLoading && !driversError && topDrivers.length > 0 ? (
+              <DataTable
+                ariaLabel="Top drivers by net earnings"
+                data={topDrivers}
+                getRowKey={(driver) => driver.driverId}
+                columns={[
+                  { header: "Driver", cell: (driver) => driver.driverName },
+                  { header: "Trips", accessorKey: "trips", align: "right" },
+                  { header: "Gross", cell: (driver) => <Money amount={driver.gross} />, align: "right" },
+                  { header: "Commission", cell: (driver) => <Money amount={driver.commission} />, align: "right" },
+                  { header: "Net", cell: (driver) => <Money amount={driver.net} emphasis />, align: "right" },
+                ]}
+              />
+            ) : null}
           </Section>
         </>
       ) : null}

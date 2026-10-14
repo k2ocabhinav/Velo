@@ -16,6 +16,9 @@
 }
 
 .auth-wordmark {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
   margin: 0;
   font-family: var(--font-display);
   font-weight: 800;
@@ -24,7 +27,16 @@
   letter-spacing: 0.02em;
 }
 
+.auth-tenant-wordmark {
+  min-width: 0;
+  max-width: min(60vw, 20rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .auth-product {
+  flex: 0 0 auto;
   font-family: var(--font-body);
   font-weight: 500;
   font-size: var(--text-base);

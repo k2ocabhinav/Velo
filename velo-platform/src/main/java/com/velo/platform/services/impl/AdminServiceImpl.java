@@ -5,6 +5,7 @@ import com.velo.platform.dto.admin.AdminUserDto;
 import com.velo.platform.dto.admin.DashboardDto;
 import com.velo.platform.dto.admin.PendingDriverDto;
 import com.velo.platform.dto.admin.RevenueReportDto;
+import com.velo.platform.dto.admin.TopDriverRevenueDto;
 import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.User;
 import com.velo.platform.entities.enums.DriverOnboardingStatus;
@@ -19,6 +20,7 @@ import com.velo.platform.services.CacheService;
 import com.velo.platform.services.TenantScopeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +42,7 @@ public class AdminServiceImpl implements AdminService {
     private final RideRepository rideRepository;
     private final PaymentRepository paymentRepository;
     private final RideRequestRepository rideRequestRepository;
+    private final DriverEarningRepository driverEarningRepository;
     private final CacheService cacheService;
     private final TenantScopeService tenantScopeService;
 
@@ -123,6 +126,16 @@ public class AdminServiceImpl implements AdminService {
                             .build();
                 })
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<TopDriverRevenueDto> getTopDriversByRevenue(int days) {
+        LocalDate today = LocalDate.now();
+        LocalDateTime startDate = today.minusDays(days - 1L).atStartOfDay();
+        LocalDateTime endDate = today.plusDays(1).atStartOfDay();
+        return driverEarningRepository.findTopDriversByNetEarnings(
+                currentTenantId(), startDate, endDate, PageRequest.of(0, 10));
     }
 
     @Override

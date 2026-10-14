@@ -42,6 +42,15 @@ export type RevenueRow = {
   rideCount: number;
 };
 
+export type TopDriverRevenue = {
+  driverId: number;
+  driverName: string;
+  trips: number;
+  gross: number | string;
+  commission: number | string;
+  net: number | string;
+};
+
 export type PendingDriver = {
   driverId: number;
   userId: number;
@@ -348,6 +357,13 @@ export const adminClient = {
       `api/v1/admin/stats/revenue?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`
     );
     return toList<RevenueRow>(payload);
+  },
+
+  async getTopDriversByRevenue(days = 30): Promise<TopDriverRevenue[]> {
+    const payload = await requestAdminProxy<unknown>(
+      `api/v1/admin/stats/revenue/top-drivers?days=${days}`
+    );
+    return toList<TopDriverRevenue>(payload);
   },
 
   async getPendingDrivers(page = 0, size = 10): Promise<ApiPage<PendingDriver>> {

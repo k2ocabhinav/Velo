@@ -40,7 +40,6 @@ import {
 } from "./_lib/booking-map-state";
 import { fetchRoutePath, type MapPoint, type RoutePath } from "./_lib/map/routing";
 import { BookingMapLoader } from "./_components/booking-map-loader";
-import { rememberWalletBalance } from "./_lib/wallet-balance";
 import {
   AddressSearch,
   DefinitionList,
@@ -67,7 +66,6 @@ type FareEstimate = {
   promoMessage?: string | null;
   surgeMultiplier: number;
   discountAmount: DecimalValue;
-  walletBalance?: DecimalValue | null;
   walletSufficient?: boolean | null;
   distanceKm: number;
   durationMinutes: number;
@@ -638,7 +636,6 @@ export default function RiderHomePage() {
         body: JSON.stringify(payload),
       });
       setEstimate(response);
-      rememberWalletBalance(response.walletBalance);
       setEstimateSignature(currentDraftSignature);
       setMessage("Fare estimate updated.");
     } catch (estimateError) {

@@ -5,14 +5,12 @@ import { useState } from "react";
 import { performClientLogout } from "@velo/app-core/logout";
 import { Button, PageHeader, Section } from "@velo/ui";
 import { DarkModeToggle } from "@velo/ui/theme";
-import { clearRememberedWalletBalance } from "../_lib/wallet-balance";
 
 export default function RiderAccountPage() {
   const [loggingOut, setLoggingOut] = useState(false);
 
   async function signOut(): Promise<void> {
     setLoggingOut(true);
-    clearRememberedWalletBalance();
     try {
       await performClientLogout({ logoutPath: "/api/auth/logout", loginPath: "/login" });
     } finally {

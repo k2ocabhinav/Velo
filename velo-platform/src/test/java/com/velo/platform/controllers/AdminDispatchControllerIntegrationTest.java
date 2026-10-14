@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.velo.platform.config.TestSecurityConfig;
 import com.velo.platform.entities.AdminDispatchAudit;
 import com.velo.platform.entities.Driver;
+import com.velo.platform.entities.DriverEarning;
 import com.velo.platform.entities.Ride;
 import com.velo.platform.entities.RideOffer;
 import com.velo.platform.entities.RideRequest;
@@ -17,6 +18,7 @@ import com.velo.platform.entities.enums.RideOfferStatus;
 import com.velo.platform.entities.enums.RideRequestStatus;
 import com.velo.platform.entities.enums.RideStatus;
 import com.velo.platform.repositories.AdminDispatchAuditRepository;
+import com.velo.platform.repositories.DriverEarningRepository;
 import com.velo.platform.repositories.DriverRepository;
 import com.velo.platform.repositories.NotificationRepository;
 import com.velo.platform.repositories.RideOfferRepository;
@@ -76,6 +78,7 @@ class AdminDispatchControllerIntegrationTest {
     @Autowired private UserRepository userRepository;
     @Autowired private RiderRepository riderRepository;
     @Autowired private DriverRepository driverRepository;
+    @Autowired private DriverEarningRepository driverEarningRepository;
     @Autowired private NotificationRepository notificationRepository;
     @Autowired private RideRequestRepository rideRequestRepository;
     @Autowired private RideOfferRepository rideOfferRepository;
@@ -95,6 +98,7 @@ class AdminDispatchControllerIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        driverEarningRepository.deleteAll();
         notificationRepository.deleteAll();
         adminDispatchAuditRepository.deleteAll();
         rideOfferRepository.deleteAll();
@@ -212,6 +216,49 @@ class AdminDispatchControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.totalDrivers").isNumber())
                 .andExpect(jsonPath("$.data.pendingRideRequests").isNumber());
+    }
+
+    @Test
+    @DisplayName("Admin revenue endpoint aggregates top drivers and excludes other tenants and old earnings")
+    void topDriversRevenue_shouldAggregateWithinTenantAndDefaultDateRange() throws Exception {
+        createEarning(primaryDriver, new BigDecimal("100.00"), new BigDecimal("20.00"), LocalDateTime.now().minusDays(5));
+        createEarning(primaryDriver, new BigDecimal("500.00"), new BigDecimal("100.00"), LocalDateTime.now().minusDays(40));
+        createEarning(secondaryDriver, new BigDecimal("120.00"), new BigDecimal("30.00"), LocalDateTime.now().minusDays(2));
+
+        User otherTenantUser = userRepository.save(User.builder()
+                .email(uniqueEmail("other.tenant.driver@test.com"))
+                .password("password123")
+                .firstName("Other")
+                .lastName("Tenant")
+                .tenantId(2L)
+                .roles(Set.of(Role.DRIVER))
+                .active(true)
+                .build());
+        Driver otherTenantDriver = driverRepository.save(Driver.builder()
+                .user(otherTenantUser)
+                .tenantId(2L)
+                .vehicleId("KA02EE5555")
+                .available(true)
+                .onboardingStatus(DriverOnboardingStatus.APPROVED)
+                .build());
+        createEarning(otherTenantDriver, new BigDecimal("1000.00"), new BigDecimal("100.00"), LocalDateTime.now().minusDays(1));
+
+        mockMvc.perform(withAdminAuth(get("/api/v1/admin/stats/revenue/top-drivers")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", org.hamcrest.Matchers.hasSize(2)))
+                .andExpect(jsonPath("$.data[0].driverId").value(secondaryDriver.getId()))
+                .andExpect(jsonPath("$.data[0].driverName").value("Test DRIVER"))
+                .andExpect(jsonPath("$.data[0].trips").value(1))
+                .andExpect(jsonPath("$.data[0].gross").value(120.00))
+                .andExpect(jsonPath("$.data[0].commission").value(30.00))
+                .andExpect(jsonPath("$.data[0].net").value(90.00))
+                .andExpect(jsonPath("$.data[1].driverId").value(primaryDriver.getId()))
+                .andExpect(jsonPath("$.data[1].trips").value(1))
+                .andExpect(jsonPath("$.data[1].gross").value(100.00))
+                .andExpect(jsonPath("$.data[1].net").value(80.00));
+
+        mockMvc.perform(withDriverAuth(get("/api/v1/admin/stats/revenue/top-drivers"), primaryDriver))
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -442,5 +489,26 @@ class AdminDispatchControllerIntegrationTest {
         long suffix = EMAIL_SEQUENCE.incrementAndGet();
         int atIndex = baseEmail.indexOf('@');
         return baseEmail.substring(0, atIndex) + "+" + suffix + baseEmail.substring(atIndex);
+    }
+
+    private DriverEarning createEarning(Driver driver, BigDecimal gross, BigDecimal commission, LocalDateTime createdTime) {
+        Ride earningRide = rideRepository.saveAndFlush(Ride.builder()
+                .tenantId(driver.getTenantId())
+                .driver(driver)
+                .rideStatus(RideStatus.ENDED)
+                .paymentMethod(PaymentMethod.CASH)
+                .fare(gross)
+                .otp("6789")
+                .build());
+        DriverEarning earning = driverEarningRepository.saveAndFlush(DriverEarning.builder()
+                .tenantId(driver.getTenantId())
+                .driver(driver)
+                .ride(earningRide)
+                .grossFare(gross)
+                .platformCommission(commission)
+                .netEarning(gross.subtract(commission))
+                .build());
+        earning.setCreatedTime(createdTime);
+        return driverEarningRepository.saveAndFlush(earning);
     }
 }
