@@ -65,6 +65,7 @@ export function Section({
 
 type DescribedControlProps = {
   id?: string;
+  className?: string;
   "aria-describedby"?: string;
   "aria-invalid"?: boolean | "true" | "false";
 };
@@ -98,7 +99,10 @@ export function Field({
     const describedBy = [element.props["aria-describedby"], hintId, errorId]
       .filter(Boolean)
       .join(" ") || undefined;
-    const controlProps: Partial<DescribedControlProps> = { id: element.props.id ?? controlId };
+    const controlProps: Partial<DescribedControlProps> = {
+      id: element.props.id ?? controlId,
+      className: cn(element.props.className, "ui-control"),
+    };
     if (describedBy) controlProps["aria-describedby"] = describedBy;
     if (error) controlProps["aria-invalid"] = true;
     else if (element.props["aria-invalid"] !== undefined) {

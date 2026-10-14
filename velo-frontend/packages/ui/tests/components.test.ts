@@ -52,6 +52,7 @@ describe("shared UI foundation", () => {
     }));
     expect(markup).toContain('aria-invalid="true"');
     expect(markup).toContain('aria-describedby="');
+    expect(markup).toContain('class="ui-control"');
     expect(markup).toContain("Enter a valid email.");
   });
 
