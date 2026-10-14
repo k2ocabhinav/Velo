@@ -40,13 +40,15 @@
 - [ ] Refresh-token cleanup job; cross-instance refresh single-flight
 - [ ] Validate Docker images build (Docker daemon was off) and apply Terraform with a real AWS account
 
-### UI/UX improvement round (in progress)
+### UI/UX improvement round (merged; e2e 28/28)
 - [x] Plan written: `docs/UX_REFINEMENT_PLAN.md`
-- [ ] UI-0 shared foundation (styles, components, formatters, RouteStrip)
-- [ ] UI-1 admin pages
-- [ ] UI-2 rider pages
-- [ ] UI-3 driver pages
-- [ ] UI-4 auth, landing, cross-app polish and a11y pass
+- [x] UI-0 shared foundation (styles, components, formatters, RouteStrip)
+- [x] UI-1 admin pages
+- [x] UI-2 rider pages
+- [x] UI-3 driver pages
+- [x] UI-4a auth screens (AuthLayout) and landing reduced-motion
+- [ ] UI-4b polish: rider Book banner shows completed trips as underway; Follow-driver control styling
+- [ ] UI-4c WCAG 2.1 AA pass (axe in e2e)
 
 ### Security & production readiness (highest priority)
 - [x] HTTPS enforcement config for production (forwarded proto + HSTS)
