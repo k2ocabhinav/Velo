@@ -35,11 +35,11 @@ public class DriverController {
         return ResponseEntity.ok(driverService.getRideRequestForAcceptance(rideRequestId));
     }
 
-    @PostMapping("/startRide/{rideRequestId}")
+    @PostMapping("/startRide/{rideId}")
     @Operation(summary = "Start a ride after OTP verification")
-    public ResponseEntity<RideDto> startRide(@PathVariable Long rideRequestId,
+    public ResponseEntity<RideDto> startRide(@PathVariable("rideId") Long rideId,
                                              @RequestBody RideStartDto rideStartDto) {
-        return ResponseEntity.ok(driverService.startRide(rideRequestId, rideStartDto.getOtp()));
+        return ResponseEntity.ok(driverService.startRide(rideId, rideStartDto.getOtp()));
     }
 
     @PostMapping("/endRide/{rideId}")

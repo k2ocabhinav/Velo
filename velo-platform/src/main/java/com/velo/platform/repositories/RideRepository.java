@@ -6,6 +6,7 @@ import com.velo.platform.entities.Rider;
 import com.velo.platform.entities.enums.RideStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -26,6 +27,7 @@ public interface RideRepository extends JpaRepository<Ride, Long> {
 
     Page<Ride> findByRideStatusInOrderByCreatedTimeDesc(List<RideStatus> rideStatuses, Pageable pageable);
 
+    @EntityGraph(attributePaths = {"rider.user", "driver.user"})
     Page<Ride> findByTenantIdAndRideStatusInOrderByCreatedTimeDesc(
             Long tenantId,
             List<RideStatus> rideStatuses,

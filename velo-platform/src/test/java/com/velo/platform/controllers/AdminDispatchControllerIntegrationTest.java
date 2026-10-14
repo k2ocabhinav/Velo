@@ -23,6 +23,8 @@ import com.velo.platform.repositories.RideRepository;
 import com.velo.platform.repositories.RideRequestRepository;
 import com.velo.platform.repositories.RiderRepository;
 import com.velo.platform.repositories.UserRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -30,6 +32,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -67,6 +70,8 @@ class AdminDispatchControllerIntegrationTest {
     @Autowired private RideOfferRepository rideOfferRepository;
     @Autowired private RideRepository rideRepository;
     @Autowired private AdminDispatchAuditRepository adminDispatchAuditRepository;
+    @Autowired private EntityManager entityManager;
+    @Autowired private EntityManagerFactory entityManagerFactory;
 
     private User adminUser;
     private Rider rider;
@@ -187,6 +192,69 @@ class AdminDispatchControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.totalDrivers").isNumber())
                 .andExpect(jsonPath("$.data.pendingRideRequests").isNumber());
+    }
+
+    @Test
+    @DisplayName("Admin dispatch read queries fetch user names and aggregate offer counts in batches")
+    void dispatchReadQueries_fetchUserAssociationsAndOfferCountsInBatches() {
+        RideRequest secondPendingRequest = rideRequestRepository.save(RideRequest.builder()
+                .rider(rider)
+                .paymentMethod(PaymentMethod.WALLET)
+                .rideRequestStatus(RideRequestStatus.PENDING)
+                .fare(BigDecimal.valueOf(190))
+                .requestedTime(LocalDateTime.now().minusMinutes(2))
+                .build());
+        rideOfferRepository.save(RideOffer.builder()
+                .rideRequest(secondPendingRequest)
+                .driver(primaryDriver)
+                .status(RideOfferStatus.OFFERED)
+                .expiresAt(LocalDateTime.now().plusSeconds(45))
+                .build());
+        rideRepository.save(Ride.builder()
+                .rider(rider)
+                .driver(primaryDriver)
+                .paymentMethod(PaymentMethod.WALLET)
+                .rideStatus(RideStatus.ONGOING)
+                .fare(BigDecimal.valueOf(230))
+                .otp("4321")
+                .createdTime(LocalDateTime.now().minusMinutes(1))
+                .build());
+
+        entityManager.flush();
+        entityManager.clear();
+        var persistenceUnitUtil = entityManagerFactory.getPersistenceUnitUtil();
+
+        var pendingRequests = rideRequestRepository.findByTenantIdAndRideRequestStatusOrderByRequestedTimeDesc(
+                1L, RideRequestStatus.PENDING, PageRequest.of(0, 10));
+        assertThat(pendingRequests.getContent()).hasSize(2);
+        assertThat(pendingRequests.getContent()).allSatisfy(request -> {
+            assertThat(persistenceUnitUtil.isLoaded(request, "rider")).isTrue();
+            assertThat(persistenceUnitUtil.isLoaded(request.getRider(), "user")).isTrue();
+        });
+
+        var offerCounts = rideOfferRepository.countOffersByRideRequestIdsAndStatus(
+                List.of(pendingRequest.getId(), secondPendingRequest.getId()), RideOfferStatus.OFFERED);
+        assertThat(offerCounts)
+                .extracting(RideOfferRepository.OfferCountProjection::getOfferCount)
+                .containsExactlyInAnyOrder(2L, 1L);
+
+        var activeRides = rideRepository.findByTenantIdAndRideStatusInOrderByCreatedTimeDesc(
+                1L, List.of(RideStatus.CONFIRMED, RideStatus.ONGOING), PageRequest.of(0, 10));
+        assertThat(activeRides.getContent()).hasSize(2);
+        assertThat(activeRides.getContent()).allSatisfy(ride -> {
+            assertThat(persistenceUnitUtil.isLoaded(ride, "rider")).isTrue();
+            assertThat(persistenceUnitUtil.isLoaded(ride.getRider(), "user")).isTrue();
+            assertThat(persistenceUnitUtil.isLoaded(ride, "driver")).isTrue();
+            assertThat(persistenceUnitUtil.isLoaded(ride.getDriver(), "user")).isTrue();
+        });
+
+        var offers = rideOfferRepository.findByRideRequestIdAndTenantIdOrderByOfferedAtDesc(
+                pendingRequest.getId(), 1L);
+        assertThat(offers).hasSize(2);
+        assertThat(offers).allSatisfy(offer -> {
+            assertThat(persistenceUnitUtil.isLoaded(offer, "driver")).isTrue();
+            assertThat(persistenceUnitUtil.isLoaded(offer.getDriver(), "user")).isTrue();
+        });
     }
 
     @Test
