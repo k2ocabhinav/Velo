@@ -2,6 +2,7 @@ package com.velo.platform.services.impl;
 
 import com.velo.platform.dto.RideDto;
 import com.velo.platform.dto.RideRequestDto;
+import com.velo.platform.dto.GeocodingResultDto;
 import com.velo.platform.dto.admin.AdminCreateDispatchRequestDto;
 import com.velo.platform.dto.admin.AdminActiveRideDto;
 import com.velo.platform.dto.admin.AdminDispatchAuditDto;
@@ -43,6 +44,7 @@ import com.velo.platform.utils.GeometryUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
+import org.locationtech.jts.geom.Point;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -51,7 +53,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -184,6 +188,26 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
                         .createdTime(ride.getCreatedTime())
                         .startedAt(ride.getStartedAt())
                         .build());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<GeocodingResultDto> getRecentAddresses() {
+        Long tenantId = tenantScopeService.requireCurrentTenantId();
+        Map<String, GeocodingResultDto> recentAddresses = new LinkedHashMap<>();
+        for (Ride ride : rideRepository.findTop20ByTenantIdOrderByCreatedTimeDesc(tenantId)) {
+            addRecentAddress(recentAddresses, ride.getPickupLocation(), "Recent pickup");
+            addRecentAddress(recentAddresses, ride.getDropOffLocation(), "Recent drop-off");
+        }
+        return List.copyOf(recentAddresses.values());
+    }
+
+    private void addRecentAddress(Map<String, GeocodingResultDto> addresses, Point point, String type) {
+        if (point == null) return;
+        double latitude = point.getY();
+        double longitude = point.getX();
+        String key = String.format(Locale.ROOT, "%.5f,%.5f", latitude, longitude);
+        addresses.putIfAbsent(key, new GeocodingResultDto(key, latitude, longitude, type));
     }
 
     @Override

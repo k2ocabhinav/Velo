@@ -17,6 +17,7 @@ import com.velo.platform.entities.enums.TransactionMethod;
 import com.velo.platform.entities.enums.TransactionType;
 import com.velo.platform.repositories.DriverRepository;
 import com.velo.platform.repositories.RatingRepository;
+import com.velo.platform.repositories.RiderSavedPlaceRepository;
 import com.velo.platform.repositories.RideRepository;
 import com.velo.platform.repositories.RideRequestRepository;
 import com.velo.platform.repositories.RiderRepository;
@@ -58,6 +59,7 @@ class RiderControllerIntegrationTest {
     @Autowired private RideRepository rideRepository;
     @Autowired private RideRequestRepository rideRequestRepository;
     @Autowired private RatingRepository ratingRepository;
+    @Autowired private RiderSavedPlaceRepository savedPlaceRepository;
     @Autowired private WalletRepository walletRepository;
     @Autowired private WalletTransactionRepository walletTransactionRepository;
 
@@ -68,6 +70,7 @@ class RiderControllerIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        savedPlaceRepository.deleteAll();
         walletTransactionRepository.deleteAll();
         walletRepository.deleteAll();
         rideRequestRepository.deleteAll();
@@ -150,6 +153,49 @@ class RiderControllerIntegrationTest {
         mockMvc.perform(withRiderAuth(get("/riders/getMyProfile")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.user.email").value("rider@test.com"));
+    }
+
+    @Test
+    @DisplayName("Riders can create, list, update, and delete only their saved places")
+    void savedPlacesCrudUsesTheAuthenticatedRider() throws Exception {
+        String createResponse = mockMvc.perform(withRiderAuth(post("/riders/saved-places")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name":"Home","label":"Home, Bengaluru","lat":12.9716,"lon":77.5946,"type":"saved"}
+                                """)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.name").value("Home"))
+                .andExpect(jsonPath("$.data.lat").value(12.9716))
+                .andReturn().getResponse().getContentAsString();
+        long savedPlaceId = objectMapper.readTree(createResponse).path("data").path("id").asLong();
+
+        mockMvc.perform(withRiderAuth(get("/riders/saved-places")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].name").value("Home"));
+
+        mockMvc.perform(withRiderAuth(put("/riders/saved-places/" + savedPlaceId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name":"Work","label":"Office, Bengaluru","lat":12.9,"lon":77.6,"type":"saved"}
+                                """)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.name").value("Work"));
+
+        mockMvc.perform(withRiderAuth(delete("/riders/saved-places/" + savedPlaceId)))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(withRiderAuth(get("/riders/saved-places")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").isEmpty());
+    }
+
+    @Test
+    @DisplayName("Saved places reject non-rider roles")
+    void savedPlacesRejectOtherRoles() throws Exception {
+        mockMvc.perform(get("/riders/saved-places")
+                        .header("X-Test-User-Id", testRider.getUser().getId())
+                        .header("X-Test-Email", testRider.getUser().getEmail())
+                        .header("X-Test-Role", Role.DRIVER.name()))
+                .andExpect(status().isForbidden());
     }
 
     @Test

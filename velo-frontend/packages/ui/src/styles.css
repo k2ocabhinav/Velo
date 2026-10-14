@@ -520,6 +520,187 @@ textarea.ui-control {
   box-shadow: 0 0 0 3px hsl(var(--color-ring));
 }
 
+.address-search {
+  position: relative;
+  z-index: 20;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.address-search--open {
+  z-index: 21;
+}
+
+.address-search-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  align-items: start;
+}
+
+.address-search-submit {
+  min-height: 2.75rem;
+  padding-inline: var(--space-3);
+  border: 1px solid hsl(var(--color-border));
+  border-radius: var(--radius-md);
+  background: hsl(var(--color-primary));
+  color: hsl(var(--color-primary-foreground));
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.address-search-submit:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.address-search-status,
+.address-search-error {
+  margin: 0;
+  color: hsl(var(--color-muted));
+  font-size: var(--text-sm);
+}
+
+.address-search-error {
+  color: hsl(var(--color-danger));
+}
+
+.address-search-popup {
+  position: absolute;
+  inset-block-start: calc(100% - var(--space-2));
+  inset-inline: 0;
+  z-index: 1100;
+  overflow: hidden;
+  border: 1px solid hsl(var(--color-border));
+  border-radius: var(--radius-md);
+  background: hsl(var(--color-elevated));
+  box-shadow: var(--shadow-md);
+}
+
+.address-search-group-label {
+  margin: 0;
+  padding: var(--space-2) var(--space-3) var(--space-1);
+  color: hsl(var(--color-muted));
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.address-search-list {
+  max-height: 16rem;
+  overflow-y: auto;
+  margin: 0;
+  padding: var(--space-1);
+  list-style: none;
+}
+
+.address-search-list [role="option"] {
+  display: grid;
+  gap: var(--space-1);
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.address-search-list [role="option"] span {
+  overflow-wrap: anywhere;
+}
+
+.address-search-list [role="option"][aria-selected="true"],
+.address-search-list [role="option"]:hover {
+  background: hsl(var(--color-surface-hover));
+}
+
+.address-search-list small {
+  color: hsl(var(--color-muted));
+}
+
+.address-search-attribution {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid hsl(var(--color-border));
+  color: hsl(var(--color-muted));
+  font-size: var(--text-xs);
+}
+
+.address-search-attribution a {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.geo-location-picker {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.geo-location-picker-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.geo-location-picker-actions button {
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid hsl(var(--color-border));
+  border-radius: var(--radius-md);
+  background: hsl(var(--color-surface));
+  color: hsl(var(--color-foreground));
+  cursor: pointer;
+}
+
+.geo-location-picker-actions button[aria-pressed="true"] {
+  border-color: hsl(var(--color-primary));
+  background: hsl(var(--color-primary));
+  color: hsl(var(--color-primary-fg));
+}
+
+.geo-location-picker-actions button:focus-visible {
+  outline: 3px solid hsl(var(--color-ring));
+  outline-offset: 2px;
+}
+
+.geo-map-picker {
+  height: 224px;
+  overflow: hidden;
+  border: 1px solid hsl(var(--color-border));
+  border-radius: var(--radius-lg);
+}
+
+.geo-map-loading {
+  display: grid;
+  place-items: center;
+  color: hsl(var(--color-muted));
+}
+
+.geo-map-picker-canvas {
+  width: 100%;
+  height: 100%;
+  background: hsl(var(--color-surface-hover));
+}
+
+.geo-map-marker {
+  border: 0;
+  background: transparent;
+}
+
+.geo-map-marker span {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border: 3px solid hsl(var(--color-surface));
+  border-radius: 50% 50% 50% 0;
+  background: hsl(var(--color-primary));
+  box-shadow: var(--shadow-md);
+  transform: rotate(-45deg);
+}
+
+.geo-map-marker--dropoff span {
+  background: hsl(var(--color-accent));
+}
+
 [aria-invalid="true"].ui-control,
 .field [aria-invalid="true"] {
   border-color: hsl(var(--color-danger));
