@@ -11,7 +11,6 @@ import SockJS from "sockjs-client";
 export interface CreateStompClientOptions {
   baseURL?: string;
   endpoint?: string;
-  token?: string | null;
   connectHeaders?: Record<string, string>;
   reconnectDelay?: number;
   maxReconnectDelay?: number;
@@ -46,14 +45,12 @@ export function createStompClient(options: CreateStompClientOptions = {}): Clien
   const baseURL = options.baseURL ?? runtime.process?.env?.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
   const endpoint = options.endpoint ?? "/ws";
   const socketUrl = normalizeEndpoint(baseURL, endpoint);
-  const token = options.token ? (options.token.startsWith("Bearer ") ? options.token : `Bearer ${options.token}`) : undefined;
   const reconnectDelay = options.reconnectDelay ?? 5000;
   const maxReconnectDelay = Math.max(options.maxReconnectDelay ?? 60_000, reconnectDelay);
 
   const config: StompConfig = {
     webSocketFactory: options.webSocketFactory ?? createSockJsFactory(socketUrl),
     connectHeaders: {
-      ...(token ? { Authorization: token } : {}),
       ...options.connectHeaders,
     },
     reconnectDelay,

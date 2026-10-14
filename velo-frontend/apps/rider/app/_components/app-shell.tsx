@@ -78,7 +78,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     await performClientLogout({
       logoutPath: "/api/auth/logout",
       loginPath: "/login",
-      sessionStorageKeysToClear: ["velo_ws_token"],
     });
     setLoggingOut(false);
   }

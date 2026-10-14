@@ -42,7 +42,7 @@ async function mockRideHistory(
 }
 
 test.describe("rider smoke", () => {
-  test("rider logout clears ws session token and blocks protected routes", async ({ baseURL, context, page }) => {
+  test("rider logout clears the session and blocks protected routes", async ({ baseURL, context, page }) => {
     const riderBaseUrl = baseURL ?? "http://127.0.0.1:4102";
     await context.addCookies([
       {
@@ -75,15 +75,10 @@ test.describe("rider smoke", () => {
     });
 
     await page.goto("/");
-    await page.evaluate(() => {
-      window.sessionStorage.setItem("velo_ws_token", "ws-token");
-    });
     await expect(page.getByRole("button", { name: "Logout" })).toBeVisible();
     await page.getByRole("button", { name: "Logout" }).click();
 
     await page.waitForURL("**/login");
-    const wsToken = await page.evaluate(() => window.sessionStorage.getItem("velo_ws_token"));
-    expect(wsToken).toBeNull();
 
     await page.goto("/scheduled");
     await page.waitForURL("**/login?next=%2Fscheduled");

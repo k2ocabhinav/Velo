@@ -3,10 +3,9 @@ import { ReconnectionTimeMode } from "@stomp/stompjs";
 import { createStompClient } from "../src/stomp-client";
 
 describe("stomp client", () => {
-  it("applies sane defaults and bearer auth normalization", () => {
+  it("applies sane defaults without embedding authentication credentials", () => {
     const client = createStompClient({
-      baseURL: "http://localhost:8080",
-      token: "abc123"
+      baseURL: "http://localhost:8080"
     });
 
     expect(client.reconnectDelay).toBe(5000);
@@ -14,14 +13,13 @@ describe("stomp client", () => {
     expect(client.reconnectTimeMode).toBe(ReconnectionTimeMode.EXPONENTIAL);
     expect(client.heartbeatIncoming).toBe(10_000);
     expect(client.heartbeatOutgoing).toBe(10_000);
-    expect(client.connectHeaders.Authorization).toBe("Bearer abc123");
+    expect(client.connectHeaders.Authorization).toBeUndefined();
     client.deactivate();
   });
 
   it("applies explicit reconnect and heartbeat options", () => {
     const client = createStompClient({
       baseURL: "http://localhost:8080",
-      token: "Bearer live-token",
       reconnectDelay: 4000,
       maxReconnectDelay: 1000,
       reconnectTimeMode: ReconnectionTimeMode.EXPONENTIAL,
@@ -37,7 +35,7 @@ describe("stomp client", () => {
     expect(client.reconnectTimeMode).toBe(ReconnectionTimeMode.EXPONENTIAL);
     expect(client.heartbeatIncoming).toBe(2000);
     expect(client.heartbeatOutgoing).toBe(3000);
-    expect(client.connectHeaders.Authorization).toBe("Bearer live-token");
+    expect(client.connectHeaders.Authorization).toBeUndefined();
     expect(client.connectHeaders["X-Client"]).toBe("driver");
     client.deactivate();
   });

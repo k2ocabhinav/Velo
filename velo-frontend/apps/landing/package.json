@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@velo/config": "*",
     "@velo/ui": "*",
     "lenis": "^1.1.0",
     "motion": "^12.0.0",

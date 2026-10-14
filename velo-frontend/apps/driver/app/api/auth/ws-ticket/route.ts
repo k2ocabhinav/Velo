@@ -1,0 +1,7 @@
+import type { NextRequest } from "next/server";
+import { performWebSocketTicketProxy } from "@velo/app-core/auth";
+import { LOGIN_COOKIE_NAME } from "../../../login/_lib/auth";
+
+export async function POST(request: NextRequest) {
+  return performWebSocketTicketProxy(request.cookies.get(LOGIN_COOKIE_NAME)?.value);
+}

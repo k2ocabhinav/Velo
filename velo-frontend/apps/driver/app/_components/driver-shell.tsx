@@ -9,8 +9,7 @@ import { DarkModeToggle } from "@velo/ui/theme";
 import { FadeIn } from "@velo/ui/motion";
 import { DriverNotificationsNavIndicator } from "../notifications/_components/nav-indicator";
 import { requestDriverProxy } from "../_lib/driver-client";
-
-const PUBLIC_ROUTES = ["/login"];
+import { isPublicDriverRoute } from "../_lib/driver-shell-routes";
 
 const NAV_ITEMS = [
   { href: "/", label: "Home" },
@@ -22,10 +21,6 @@ const NAV_ITEMS = [
 type TenantBrandingResponse = {
   brandName?: string;
 };
-
-function isPublicRoute(pathname: string): boolean {
-  return PUBLIC_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`));
-}
 
 function isActiveRoute(pathname: string, href: string): boolean {
   if (href === "/") {
@@ -44,7 +39,7 @@ export function DriverShell({ children }: Readonly<{ children: ReactNode }>) {
   const [tenantBrandName, setTenantBrandName] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isPublicRoute(pathname)) {
+    if (isPublicDriverRoute(pathname)) {
       return;
     }
 
@@ -80,12 +75,11 @@ export function DriverShell({ children }: Readonly<{ children: ReactNode }>) {
     await performClientLogout({
       logoutPath: "/api/auth/logout",
       loginPath: "/login",
-      sessionStorageKeysToClear: ["velo_ws_token"],
     });
     setLoggingOut(false);
   }
 
-  if (isPublicRoute(pathname)) {
+  if (isPublicDriverRoute(pathname)) {
     return <>{children}</>;
   }
 

@@ -7,3 +7,4 @@ export * from "./http-payload";
 export * from "./logout";
 export * from "./proxy-route";
 export * from "./redirect";
+export * from "./ws-ticket";

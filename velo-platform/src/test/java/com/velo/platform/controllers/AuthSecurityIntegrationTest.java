@@ -14,6 +14,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
@@ -91,6 +92,28 @@ class AuthSecurityIntegrationTest {
 
         org.assertj.core.api.Assertions.assertThat(userRepository.findById(user.getId()).orElseThrow().getFirstName())
                 .isEqualTo("Updated");
+    }
+
+    @Test
+    @DisplayName("WebSocket tickets are short-lived and cannot authenticate REST requests")
+    void websocketTicket_ShouldBeWsOnly() throws Exception {
+        User user = createUser(Role.RIDER, 1L);
+
+        MvcResult result = mockMvc.perform(post("/auth/ws-ticket")
+                        .header("Authorization", bearer(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.expiresInSeconds").value(60))
+                .andExpect(jsonPath("$.data.ticket").isNotEmpty())
+                .andReturn();
+
+        String ticket = objectMapper.readTree(result.getResponse().getContentAsString())
+                .path("data").path("ticket").asText();
+        org.assertj.core.api.Assertions.assertThat(jwtTokenProvider.validateWebSocketTicket(ticket)).isTrue();
+        org.assertj.core.api.Assertions.assertThat(jwtTokenProvider.validateToken(ticket)).isFalse();
+
+        mockMvc.perform(get("/auth/profile")
+                        .header("Authorization", "Bearer " + ticket))
+                .andExpect(status().isForbidden());
     }
 
     @Test
