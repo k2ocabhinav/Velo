@@ -1,4 +1,5 @@
 # Local tooling state
+.demo-runtime/
 .claude/
 .codex/
 .agents/

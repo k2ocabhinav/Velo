@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.UUID;
@@ -97,6 +98,40 @@ class FlywayMigrationIntegrationTest {
     }
 
     @Test
+    @DisplayName("Local demo migration seeds repeatable, tenant-scoped fleets and trip history")
+    void demoLocation_shouldSeedBothTenantsAndRemainRepeatable() throws Exception {
+        Flyway flyway = newFlyway(schemaName);
+        flyway.clean();
+        flyway.migrate();
+
+        assertThat(count(schemaName, "tenant")).isEqualTo(2);
+        assertThat(countByTenantSlug("app_user", "default")).isGreaterThanOrEqualTo(5);
+        assertThat(countByTenantSlug("app_user", "saffron-routes")).isEqualTo(5);
+        assertThat(countByTenantSlug("driver", "default")).isGreaterThanOrEqualTo(2);
+        assertThat(countByTenantSlug("driver", "saffron-routes")).isEqualTo(2);
+        assertThat(countByTenantSlug("ride", "default")).isGreaterThanOrEqualTo(5);
+        assertThat(countByTenantSlug("ride", "saffron-routes")).isGreaterThanOrEqualTo(3);
+        assertThat(countRideByOtpStatus("1357", "ENDED")).isEqualTo(1);
+        assertThat(countRideByOtpStatus("1357", "CONFIRMED")).isZero();
+        assertThat(countByTenantSlug("payout_request", "default")).isGreaterThanOrEqualTo(2);
+        assertThat(countByTenantSlug("payout_request", "saffron-routes")).isEqualTo(2);
+        assertThat(countBranding("Saffron Routes", "#8A3D2B", "Guest", "Chauffeur", "Transfer")).isEqualTo(1);
+
+        long usersAfterFirst = count(schemaName, "app_user");
+        long ridesAfterFirst = count(schemaName, "ride");
+        long requestsAfterFirst = count(schemaName, "ride_request");
+        long payoutsAfterFirst = count(schemaName, "payout_request");
+
+        flyway.migrate();
+
+        assertThat(count(schemaName, "tenant")).isEqualTo(2);
+        assertThat(count(schemaName, "app_user")).isEqualTo(usersAfterFirst);
+        assertThat(count(schemaName, "ride")).isEqualTo(ridesAfterFirst);
+        assertThat(count(schemaName, "ride_request")).isEqualTo(requestsAfterFirst);
+        assertThat(count(schemaName, "payout_request")).isEqualTo(payoutsAfterFirst);
+    }
+
+    @Test
     @DisplayName("Production Flyway location excludes the demo seed")
     void productionLocation_ShouldExcludeDemoSeed() throws Exception {
         Flyway productionFlyway = newFlyway("classpath:db/migration", schemaName);
@@ -104,6 +139,8 @@ class FlywayMigrationIntegrationTest {
         productionFlyway.migrate();
 
         assertThat(count(schemaName, "app_user")).isZero();
+        assertThat(count(schemaName, "tenant")).isEqualTo(1);
+        assertThat(countTenantSlug("saffron-routes")).isZero();
     }
 
     private Flyway newFlyway(String schema) {
@@ -134,6 +171,67 @@ class FlywayMigrationIntegrationTest {
              ResultSet resultSet = statement.executeQuery("SELECT COUNT(*) FROM " + schema + "." + table)) {
             resultSet.next();
             return resultSet.getLong(1);
+        }
+    }
+
+    private long countByTenantSlug(String table, String slug) throws Exception {
+        String sql = "SELECT COUNT(*) FROM " + schemaName + "." + table + " row "
+                + "JOIN " + schemaName + ".tenant tenant ON tenant.id = row.tenant_id WHERE tenant.slug = ?";
+        try (Connection connection = DriverManager.getConnection(JDBC_URL, JDBC_USERNAME, JDBC_PASSWORD);
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, slug);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                resultSet.next();
+                return resultSet.getLong(1);
+            }
+        }
+    }
+
+    private long countTenantSlug(String slug) throws Exception {
+        try (Connection connection = DriverManager.getConnection(JDBC_URL, JDBC_USERNAME, JDBC_PASSWORD);
+             PreparedStatement statement = connection.prepareStatement(
+                     "SELECT COUNT(*) FROM " + schemaName + ".tenant WHERE slug = ?")) {
+            statement.setString(1, slug);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                resultSet.next();
+                return resultSet.getLong(1);
+            }
+        }
+    }
+
+    private long countRideByOtpStatus(String otp, String status) throws Exception {
+        String sql = "SELECT COUNT(*) FROM " + schemaName + ".ride ride "
+                + "JOIN " + schemaName + ".tenant tenant ON tenant.id = ride.tenant_id "
+                + "WHERE tenant.slug = 'default' AND ride.otp = ? AND ride.ride_status = ?";
+        try (Connection connection = DriverManager.getConnection(JDBC_URL, JDBC_USERNAME, JDBC_PASSWORD);
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, otp);
+            statement.setString(2, status);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                resultSet.next();
+                return resultSet.getLong(1);
+            }
+        }
+    }
+
+    private long countBranding(String brandName, String primaryColor, String riderLabel,
+                               String driverLabel, String tripLabel) throws Exception {
+        String sql = "SELECT COUNT(*) FROM " + schemaName + ".tenant_configuration configuration "
+                + "JOIN " + schemaName + ".tenant tenant ON tenant.id = configuration.tenant_id "
+                + "WHERE tenant.slug = 'saffron-routes' AND configuration.brand_name = ? "
+                + "AND configuration.primary_color = ? AND configuration.rider_label = ? "
+                + "AND configuration.driver_label = ? AND configuration.trip_label = ?";
+        try (Connection connection = DriverManager.getConnection(JDBC_URL, JDBC_USERNAME, JDBC_PASSWORD);
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, brandName);
+            statement.setString(2, primaryColor);
+            statement.setString(3, riderLabel);
+            statement.setString(4, driverLabel);
+            statement.setString(5, tripLabel);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                resultSet.next();
+                return resultSet.getLong(1);
+            }
         }
     }
 }

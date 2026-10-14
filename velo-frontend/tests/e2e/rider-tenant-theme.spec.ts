@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-const tenantBrandName = process.env.PLAYWRIGHT_TENANT_BRAND_NAME ?? "Velo";
-const tenantPrimaryHsl = process.env.PLAYWRIGHT_TENANT_PRIMARY_HSL ?? "221.2 83.2% 53.3%";
+const tenantBrandName = process.env.PLAYWRIGHT_TENANT_BRAND_NAME ?? "Velo Business";
+const tenantPrimaryHsl = process.env.PLAYWRIGHT_TENANT_PRIMARY_HSL ?? "224.3 100% 55.1%";
 
 async function assertTenantTheme(page: import("@playwright/test").Page) {
   const html = page.locator("html");

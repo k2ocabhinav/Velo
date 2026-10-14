@@ -2,6 +2,9 @@ import { ScrollReveal } from "./ScrollReveal";
 
 export function Footer({ brandName }: { brandName: string }) {
   const displayName = brandName === "Velo" ? "VELO" : brandName.toUpperCase();
+  const adminPortalUrl = process.env.VELO_ADMIN_PORTAL_URL ?? "http://localhost:4101";
+  const riderPortalUrl = process.env.VELO_RIDER_PORTAL_URL ?? "http://localhost:4102";
+  const driverPortalUrl = process.env.VELO_DRIVER_PORTAL_URL ?? "http://localhost:4103";
 
   return (
     <footer className="section-dark section">
@@ -49,13 +52,13 @@ export function Footer({ brandName }: { brandName: string }) {
           </span>
 
           <div style={{ display: "flex", alignItems: "center", gap: "1.5rem", fontSize: "0.8125rem" }}>
-            <a href="http://localhost:4101" className="text-muted" style={{ transition: "color 0.2s" }}>
+            <a href={adminPortalUrl} className="text-muted" style={{ transition: "color 0.2s" }}>
               Admin
             </a>
-            <a href="http://localhost:4102" className="text-muted" style={{ transition: "color 0.2s" }}>
+            <a href={riderPortalUrl} className="text-muted" style={{ transition: "color 0.2s" }}>
               Rider
             </a>
-            <a href="http://localhost:4103" className="text-muted" style={{ transition: "color 0.2s" }}>
+            <a href={driverPortalUrl} className="text-muted" style={{ transition: "color 0.2s" }}>
               Driver
             </a>
             <span className="text-muted">
