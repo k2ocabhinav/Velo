@@ -39,7 +39,7 @@
 - [x] EP-3 Refresh-token cleanup + grace window (decision 0022); tenant brand in wordmarks
 - [x] EP-4 Docker images build (backend 143 MiB, frontends ~72 MiB), readiness without Redis, scripts/docker-smoke.sh
 - [ ] EP-5 Demo readiness: two branded demo tenants, one-command local demo, tunnel guide, README with screenshots (in progress)
-- [ ] Next: corporate accounts + contract tariffs + monthly statement CSV (niche: small fleets with pre-booked business transfers)
+- [ ] EP-7 Corporate accounts + contract tariffs + monthly statement CSV (in progress)
 - [ ] EP-6 Recurring scheduled trips + trip sheet + unassigned alerts (in progress)
 - [ ] Apply Terraform — deferred: no AWS account or budget; demos run locally (see research for $0 options)
 
