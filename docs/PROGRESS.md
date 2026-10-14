@@ -39,7 +39,7 @@
 - [x] EP-3 Refresh-token cleanup + grace window (decision 0022); tenant brand in wordmarks
 - [x] EP-4 Docker images build (backend 143 MiB, frontends ~72 MiB), readiness without Redis, scripts/docker-smoke.sh
 - [x] EP-5 Demo readiness: second branded tenant (Saffron Routes), `scripts/demo-up.sh`, README with screenshots, `docs/DEMO_SCRIPT.md`
-- [ ] EP-6 Recurring scheduled trips + trip sheet + unassigned alerts (in progress)
+- [x] EP-6 Recurring trip templates (V10), trip sheet + CSV, unassigned alerts, reason codes (decision 0023)
 - [ ] LP Landing page rewritten for the niche (in progress) (small fleets, pre-booked transfers), pricing hypothesis, contact form; Netlify-free-tier deployable
 
 ### After program acceptance (parked; depth features)
