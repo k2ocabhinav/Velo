@@ -9,6 +9,7 @@ import com.velo.platform.exceptions.ResourceNotFoundException;
 import com.velo.platform.repositories.TenantConfigurationRepository;
 import com.velo.platform.repositories.TenantRepository;
 import com.velo.platform.services.TenantConfigurationService;
+import com.velo.platform.services.TenantBrandingCacheService;
 import com.velo.platform.services.TenantScopeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -21,15 +22,21 @@ public class TenantConfigurationServiceImpl implements TenantConfigurationServic
     private final TenantRepository tenantRepository;
     private final TenantConfigurationRepository tenantConfigurationRepository;
     private final TenantScopeService tenantScopeService;
+    private final TenantBrandingCacheService tenantBrandingCacheService;
 
     @Override
     @Transactional(readOnly = true)
     public TenantBrandingDto getBrandingByTenantSlug(String tenantSlug) {
+        TenantBrandingDto cachedBranding = tenantBrandingCacheService.get(tenantSlug);
+        if (cachedBranding != null) return cachedBranding;
+
         Tenant tenant = tenantRepository.findBySlug(tenantSlug)
                 .orElseThrow(() -> new ResourceNotFoundException("Tenant not found for slug " + tenantSlug));
         TenantConfiguration config = tenantConfigurationRepository.findByTenant_Id(tenant.getId())
                 .orElseGet(() -> defaultConfiguration(tenant));
-        return toDto(config);
+        TenantBrandingDto branding = toDto(config);
+        tenantBrandingCacheService.put(tenantSlug, branding);
+        return branding;
     }
 
     @Override
@@ -61,7 +68,9 @@ public class TenantConfigurationServiceImpl implements TenantConfigurationServic
         config.setTripLabel(updateDto.getTripLabel().trim());
         config.setDispatchMode(updateDto.getDispatchMode() == null ? DispatchMode.RIDE_HAILING : updateDto.getDispatchMode());
 
-        return toDto(tenantConfigurationRepository.save(config));
+        TenantBrandingDto branding = toDto(tenantConfigurationRepository.save(config));
+        tenantBrandingCacheService.evict(tenant.getSlug());
+        return branding;
     }
 
     private TenantConfiguration defaultConfiguration(Tenant tenant) {
@@ -74,7 +83,7 @@ public class TenantConfigurationServiceImpl implements TenantConfigurationServic
                 .tripLabel("Trip")
                 .dispatchMode(DispatchMode.RIDE_HAILING)
                 .build();
-        return tenantConfigurationRepository.save(configuration);
+        return configuration;
     }
 
     private TenantBrandingDto toDto(TenantConfiguration config) {

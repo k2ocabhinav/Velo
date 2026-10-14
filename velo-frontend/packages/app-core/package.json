@@ -16,7 +16,8 @@
     "./proxy-route": "./src/proxy-route.ts",
     "./ws-ticket": "./src/ws-ticket.ts",
     "./redirect": "./src/redirect.ts",
-    "./formatters": "./src/formatters.ts"
+    "./formatters": "./src/formatters.ts",
+    "./tenant": "./src/tenant.ts"
   },
   "scripts": {
     "lint": "eslint .",
