@@ -41,7 +41,7 @@
 - [ ] EP-5 Demo readiness: two branded demo tenants, one-command local demo, tunnel guide, README with screenshots (in progress)
 - [ ] Geocoding must be search-on-submit + saved locations (provider usage policy) — correction to EP-2
 - [ ] Next: corporate accounts + contract tariffs + monthly statement CSV (niche: small fleets with pre-booked business transfers)
-- [ ] Next: recurring scheduled trips + tomorrow's trip sheet + overdue/unassigned alerts
+- [ ] EP-6 Recurring scheduled trips + trip sheet + unassigned alerts (in progress)
 - [ ] Apply Terraform — deferred: no AWS account or budget; demos run locally (see research for $0 options)
 
 ### UI/UX improvement round (merged; e2e 32/32)
