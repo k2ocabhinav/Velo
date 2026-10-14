@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from "react-leaflet";
 import type { LatLngExpression } from "leaflet";
+import { shouldFitMapBounds, shouldFollowDriverLocation } from "@velo/app-core/map-viewport";
 import { getTileProviderConfig } from "../../../_lib/map/providers";
 import type { MapPoint } from "../../../_lib/map/routing";
 
@@ -17,13 +18,15 @@ function toLatLng(point: MapPoint): LatLngExpression {
   return [point.lat, point.lng];
 }
 
-function FitBounds({ points }: { points: MapPoint[] }) {
+function FitBoundsOnce({ points }: { points: MapPoint[] }) {
   const map = useMap();
+  const hasFitted = useRef(false);
 
   useEffect(() => {
-    if (points.length === 0) {
+    if (!shouldFitMapBounds(hasFitted.current, points.length)) {
       return;
     }
+    hasFitted.current = true;
 
     if (points.length === 1) {
       map.setView(toLatLng(points[0]), 14);
@@ -39,8 +42,22 @@ function FitBounds({ points }: { points: MapPoint[] }) {
   return null;
 }
 
+function FollowDriver({ follow, driver }: { follow: boolean; driver: MapPoint | null }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!shouldFollowDriverLocation(follow, driver !== null) || !driver) {
+      return;
+    }
+    map.panTo(toLatLng(driver));
+  }, [driver, follow, map]);
+
+  return null;
+}
+
 export function DriverRideMap({ pickup, dropOff, driver, routePoints }: DriverRideMapProps) {
   const tileProvider = getTileProviderConfig();
+  const [followDriver, setFollowDriver] = useState(false);
 
   const allPoints = useMemo(() => {
     const points: MapPoint[] = [];
@@ -55,6 +72,15 @@ export function DriverRideMap({ pickup, dropOff, driver, routePoints }: DriverRi
 
   return (
     <div className="driver-ride-map">
+      <button
+        className="secondary-button"
+        type="button"
+        aria-pressed={followDriver}
+        disabled={!driver}
+        onClick={() => setFollowDriver((following) => !following)}
+      >
+        {followDriver ? "Stop following" : "Follow my location"}
+      </button>
       <MapContainer center={toLatLng(center)} zoom={13} scrollWheelZoom className="driver-ride-map-inner">
         <TileLayer
           attribution={tileProvider.attribution}
@@ -63,28 +89,29 @@ export function DriverRideMap({ pickup, dropOff, driver, routePoints }: DriverRi
           maxZoom={tileProvider.maxZoom}
         />
 
-        <FitBounds points={allPoints.length > 0 ? allPoints : [center]} />
+        <FitBoundsOnce points={allPoints} />
+        <FollowDriver follow={followDriver} driver={driver} />
 
         {pickup ? (
-          <CircleMarker center={toLatLng(pickup)} pathOptions={{ color: "#1d4ed8", fillColor: "#1d4ed8" }} radius={8}>
+          <CircleMarker center={toLatLng(pickup)} pathOptions={{ color: "hsl(var(--color-primary))", fillColor: "hsl(var(--color-primary))" }} radius={8}>
             <Popup>Pickup</Popup>
           </CircleMarker>
         ) : null}
 
         {dropOff ? (
-          <CircleMarker center={toLatLng(dropOff)} pathOptions={{ color: "#059669", fillColor: "#059669" }} radius={8}>
+          <CircleMarker center={toLatLng(dropOff)} pathOptions={{ color: "hsl(var(--color-success))", fillColor: "hsl(var(--color-success))" }} radius={8}>
             <Popup>Drop-off</Popup>
           </CircleMarker>
         ) : null}
 
         {driver ? (
-          <CircleMarker center={toLatLng(driver)} pathOptions={{ color: "#b45309", fillColor: "#f59e0b" }} radius={7}>
+          <CircleMarker center={toLatLng(driver)} pathOptions={{ color: "hsl(var(--color-warning))", fillColor: "hsl(var(--color-warning))" }} radius={7}>
             <Popup>Driver</Popup>
           </CircleMarker>
         ) : null}
 
         {polylinePoints.length > 1 ? (
-          <Polyline positions={polylinePoints.map(toLatLng)} pathOptions={{ color: "#2563eb", weight: 4 }} />
+          <Polyline positions={polylinePoints.map(toLatLng)} pathOptions={{ color: "hsl(var(--color-info))", weight: 4 }} />
         ) : null}
       </MapContainer>
     </div>

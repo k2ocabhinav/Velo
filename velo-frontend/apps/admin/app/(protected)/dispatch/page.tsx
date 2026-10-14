@@ -13,6 +13,7 @@ import {
   type BrandingSettings,
 } from "../_lib/admin-client";
 import { toActionErrorMessage } from "../_lib/ui-state";
+import { executeDispatchOperation } from "../../_lib/dispatch-action";
 
 const PAGE_SIZE = 10;
 
@@ -135,20 +136,23 @@ export default function AdminDispatchPage() {
     void loadAll();
   }, []);
 
-  async function runAction(actionKey: string, operation: () => Promise<void>, successMessage: string): Promise<void> {
+  async function runAction(actionKey: string, operation: () => Promise<void>, successMessage: string): Promise<boolean> {
     if (isActionPending(pendingActions, actionKey)) {
-      return;
+      return false;
     }
 
     setPendingActions((current) => setActionPending(current, actionKey, true));
     setError(null);
     setStatusMessage(null);
     try {
-      await operation();
+      const result = await executeDispatchOperation(operation);
+      if (!result.ok) {
+        setError(toActionErrorMessage(result.error, "Unable to complete dispatch action."));
+        return false;
+      }
       await loadAll();
       setStatusMessage(successMessage);
-    } catch (actionError) {
-      setError(toActionErrorMessage(actionError, "Unable to complete dispatch action."));
+      return true;
     } finally {
       setPendingActions((current) => setActionPending(current, actionKey, false));
     }
@@ -251,7 +255,7 @@ export default function AdminDispatchPage() {
       return;
     }
 
-    await runAction(
+    const created = await runAction(
       "create-dispatch-request",
       async () =>
         adminClient.createDispatchRequest({
@@ -268,7 +272,9 @@ export default function AdminDispatchPage() {
         }),
       "Dispatch request created and offered to nearby drivers.",
     );
-    setDispatchForm(INITIAL_DISPATCH_FORM);
+    if (created) {
+      setDispatchForm(INITIAL_DISPATCH_FORM);
+    }
   }
 
   return (

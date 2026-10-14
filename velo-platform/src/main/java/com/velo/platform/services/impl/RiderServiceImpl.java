@@ -77,8 +77,17 @@ public class RiderServiceImpl implements RiderService {
     @Override
     @Transactional
     public RideRequestDto requestRide(RideRequestDto rideRequestDto) {
-        Rider rider = getCurrentRider();
+        Rider rider = getCurrentRiderForUpdate();
         assertRiderPortalEnabled(rider.getTenantId());
+        Long tenantId = resolveTenantId(rider.getTenantId());
+        if (rideRequestRepository.existsByRiderAndTenantIdAndRideRequestStatusIn(
+                rider,
+                tenantId,
+                List.of(RideRequestStatus.PENDING, RideRequestStatus.CONFIRMED)
+        )) {
+            throw new RuntimeConflictException("A pending or active ride request already exists for this rider.");
+        }
+
         RideRequest rideRequest = modelMapper.map(rideRequestDto, RideRequest.class);
         rideRequest.setRideRequestStatus(RideRequestStatus.PENDING);
         rideRequest.setRider(rider);
@@ -215,6 +224,20 @@ public class RiderServiceImpl implements RiderService {
 
     @Override
     @Transactional(readOnly = true)
+    public RideRequestDto getCurrentRideRequest() {
+        Rider currentRider = getCurrentRider();
+        return rideRequestRepository
+                .findTopByRiderAndTenantIdAndRideRequestStatusInOrderByRequestedTimeDesc(
+                        currentRider,
+                        resolveTenantId(currentRider.getTenantId()),
+                        List.of(RideRequestStatus.PENDING, RideRequestStatus.CONFIRMED)
+                )
+                .map(rideRequest -> modelMapper.map(rideRequest, RideRequestDto.class))
+                .orElse(null);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public RideTrackingDto getActiveRideTracking() {
         Rider currentRider = getCurrentRider();
 
@@ -252,6 +275,14 @@ public class RiderServiceImpl implements RiderService {
     public Rider getCurrentRider() {
         UserPrincipal principal = (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         return riderRepository.findByUserIdAndTenantId(principal.getUserId(), principal.getTenantId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Rider not found for user id " + principal.getUserId()
+                ));
+    }
+
+    private Rider getCurrentRiderForUpdate() {
+        UserPrincipal principal = (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return riderRepository.findByUserIdAndTenantIdForUpdate(principal.getUserId(), principal.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Rider not found for user id " + principal.getUserId()
                 ));

@@ -475,6 +475,23 @@ describe("rider and supporting domains", () => {
     });
   });
 
+  it("fetches the rider's current pending request after reload", async () => {
+    const { client, requests } = createRecordingClient({
+      id: 77,
+      rideRequestStatus: "PENDING",
+      requestedTime: "2026-04-09T11:20:00Z",
+      paymentMethod: "WALLET",
+    });
+
+    const api = createRidesApi(client);
+    await api.getCurrentRideRequest();
+
+    expect(requests[0]).toMatchObject({
+      method: "GET",
+      url: "/riders/current-request",
+    });
+  });
+
   it("keeps payment methods flat and excludes wallet endpoints", async () => {
     const { client, requests } = createRecordingClient([
       {

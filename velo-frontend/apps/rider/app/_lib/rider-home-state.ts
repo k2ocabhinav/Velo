@@ -15,6 +15,7 @@ export type RiderHomePendingRequest = Readonly<{
   id?: number;
   rideRequestStatus?: string | null;
   paymentMethod?: string | null;
+  requestedTime?: string | null;
   createdTime?: string | null;
 }>;
 
@@ -31,9 +32,27 @@ export type RiderHomeTripLane = Readonly<{
 const ACTIVE_STATUSES = new Set(["CONFIRMED", "ONGOING"]);
 const CANCELLABLE_STATUSES = new Set(["CONFIRMED"]);
 const PENDING_REQUEST_STATUSES = new Set(["PENDING", "CONFIRMED", "SCHEDULED"]);
+const REQUEST_BLOCKING_STATUSES = new Set(["PENDING", "CONFIRMED"]);
 
 function normalizeStatus(status: string | null | undefined): string {
   return (status ?? "").toUpperCase();
+}
+
+export function normalizeCurrentRideRequest(
+  request: RiderHomePendingRequest | null | undefined,
+): RiderHomePendingRequest | null {
+  if (!request) {
+    return null;
+  }
+
+  return {
+    ...request,
+    createdTime: request.requestedTime ?? request.createdTime ?? null,
+  };
+}
+
+export function hasInFlightRideRequest(request: RiderHomePendingRequest | null | undefined): boolean {
+  return REQUEST_BLOCKING_STATUSES.has(normalizeStatus(request?.rideRequestStatus));
 }
 
 function isActiveStatus(status: string | null | undefined): boolean {

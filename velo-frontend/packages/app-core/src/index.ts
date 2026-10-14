@@ -5,5 +5,6 @@ export * from "./browser-proxy";
 export * from "./env";
 export * from "./http-payload";
 export * from "./logout";
+export * from "./map-viewport";
 export * from "./proxy-route";
 export * from "./redirect";

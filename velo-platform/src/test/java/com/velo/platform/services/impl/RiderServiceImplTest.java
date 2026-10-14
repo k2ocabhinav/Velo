@@ -194,7 +194,8 @@ class RiderServiceImplTest {
         when(authentication.getPrincipal()).thenReturn(userPrincipal);
         when(userPrincipal.getUserId()).thenReturn(101L);
         when(userPrincipal.getTenantId()).thenReturn(1L);
-        when(riderRepository.findByUserIdAndTenantId(101L, 1L)).thenReturn(Optional.of(testRider));
+        lenient().when(riderRepository.findByUserIdAndTenantId(101L, 1L)).thenReturn(Optional.of(testRider));
+        lenient().when(riderRepository.findByUserIdAndTenantIdForUpdate(101L, 1L)).thenReturn(Optional.of(testRider));
         SecurityContextHolder.setContext(securityContext);
     }
 
@@ -219,6 +220,45 @@ class RiderServiceImplTest {
         assertThat(testRideRequest.getFare()).isEqualByComparingTo(BigDecimal.valueOf(150.0));
         verify(rideOfferService).createOffers(testRideRequest, List.of(matchedDriver), 45L);
         verify(eventPublisher).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("Request ride rejects a rider who already has a pending request")
+    void requestRide_WhenPendingRequestExists_ShouldRejectDuplicate() {
+        mockAuthenticatedRider();
+        when(rideRequestRepository.existsByRiderAndTenantIdAndRideRequestStatusIn(
+                testRider,
+                1L,
+                List.of(RideRequestStatus.PENDING, RideRequestStatus.CONFIRMED)
+        )).thenReturn(true);
+
+        assertThatThrownBy(() -> riderService.requestRide(testRideRequestDto))
+                .isInstanceOf(com.velo.platform.exceptions.RuntimeConflictException.class)
+                .hasMessageContaining("already exists");
+
+        verify(rideRequestRepository, never()).save(any(RideRequest.class));
+        verify(rideStrategyManager, never()).rideFareCalculationStrategy();
+    }
+
+    @Test
+    @DisplayName("Current ride request lookup is scoped to the authenticated rider tenant")
+    void getCurrentRideRequest_ShouldReturnOnlyCurrentTenantRequest() {
+        mockAuthenticatedRider();
+        when(rideRequestRepository.findTopByRiderAndTenantIdAndRideRequestStatusInOrderByRequestedTimeDesc(
+                testRider,
+                1L,
+                List.of(RideRequestStatus.PENDING, RideRequestStatus.CONFIRMED)
+        )).thenReturn(Optional.of(testRideRequest));
+        when(modelMapper.map(testRideRequest, RideRequestDto.class)).thenReturn(testRideRequestDto);
+
+        RideRequestDto result = riderService.getCurrentRideRequest();
+
+        assertThat(result).isSameAs(testRideRequestDto);
+        verify(rideRequestRepository).findTopByRiderAndTenantIdAndRideRequestStatusInOrderByRequestedTimeDesc(
+                testRider,
+                1L,
+                List.of(RideRequestStatus.PENDING, RideRequestStatus.CONFIRMED)
+        );
     }
 
     @Test

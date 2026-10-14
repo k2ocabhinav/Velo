@@ -79,6 +79,12 @@ public class RiderController {
         return ResponseEntity.ok(riderService.getActiveRideTracking());
     }
 
+    @GetMapping("/current-request")
+    @Operation(summary = "Get the rider's current pending or confirmed ride request")
+    public ResponseEntity<RideRequestDto> getCurrentRideRequest() {
+        return ResponseEntity.ok(riderService.getCurrentRideRequest());
+    }
+
     @PostMapping("/rateDriver/{rideId}/{rating}")
     @Operation(summary = "Rate a driver using path variables")
     public ResponseEntity<DriverDto> rateDriver(@PathVariable Long rideId, @PathVariable Integer rating) {

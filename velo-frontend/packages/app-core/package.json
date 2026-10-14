@@ -12,6 +12,7 @@
     "./env": "./src/env.ts",
     "./http-payload": "./src/http-payload.ts",
     "./logout": "./src/logout.ts",
+    "./map-viewport": "./src/map-viewport.ts",
     "./proxy-route": "./src/proxy-route.ts",
     "./redirect": "./src/redirect.ts"
   },

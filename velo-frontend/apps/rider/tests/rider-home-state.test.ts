@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   getRideStatusLabel,
+  hasInFlightRideRequest,
   isRideCancelableFromTripLane,
+  normalizeCurrentRideRequest,
   selectTripLaneRide,
   type RiderHomeRide,
 } from "../app/_lib/rider-home-state";
@@ -20,6 +22,23 @@ function createRide(overrides: Partial<RiderHomeRide>): RiderHomeRide {
 }
 
 describe("rider home trip lane", () => {
+  it("rehydrates a pending request from the current-request endpoint response", () => {
+    const request = normalizeCurrentRideRequest({
+      id: 77,
+      rideRequestStatus: "PENDING",
+      paymentMethod: "WALLET",
+      requestedTime: "2026-04-08T10:05:00.000Z",
+    });
+
+    expect(request?.createdTime).toBe("2026-04-08T10:05:00.000Z");
+    expect(selectTripLaneRide([], request).mode).toBe("pending");
+    expect(hasInFlightRideRequest(request)).toBe(true);
+  });
+
+  it("does not block a new immediate request for a scheduled ride", () => {
+    expect(hasInFlightRideRequest({ rideRequestStatus: "SCHEDULED" })).toBe(false);
+  });
+
   it("keeps pending request continuity when no ride exists yet", () => {
     const lane = selectTripLaneRide([], {
       id: 77,

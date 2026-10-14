@@ -47,6 +47,18 @@ public interface RideRequestRepository extends JpaRepository<RideRequest, Long> 
             List<RideRequestStatus> statuses
     );
 
+    Optional<RideRequest> findTopByRiderAndTenantIdAndRideRequestStatusInOrderByRequestedTimeDesc(
+            Rider rider,
+            Long tenantId,
+            List<RideRequestStatus> statuses
+    );
+
+    boolean existsByRiderAndTenantIdAndRideRequestStatusIn(
+            Rider rider,
+            Long tenantId,
+            List<RideRequestStatus> statuses
+    );
+
     Optional<RideRequest> findTopByRiderAndRideRequestStatusOrderByRequestedTimeDesc(
             Rider rider,
             RideRequestStatus status

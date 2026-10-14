@@ -1,4 +1,6 @@
 import type { SVGProps } from "react";
+import { cn } from "../lib/cn";
+import { MOTION_SAFE_SPIN_CLASS } from "./motion-classes";
 
 export function Spinner({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
@@ -8,7 +10,7 @@ export function Spinner({ className, ...props }: SVGProps<SVGSVGElement>) {
       fill="none"
       role="status"
       aria-label="Loading"
-      className={className}
+      className={cn(MOTION_SAFE_SPIN_CLASS, className)}
     >
       <circle
         cx="12"
@@ -24,14 +26,6 @@ export function Spinner({ className, ...props }: SVGProps<SVGSVGElement>) {
         strokeWidth="2"
         strokeLinecap="round"
       >
-        <animateTransform
-          attributeName="transform"
-          type="rotate"
-          from="0 12 12"
-          to="360 12 12"
-          dur="0.9s"
-          repeatCount="indefinite"
-        />
       </path>
     </svg>
   );

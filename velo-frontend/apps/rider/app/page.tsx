@@ -17,7 +17,9 @@ import {
 import {
   getRideFareValue,
   isRideCancelableFromTripLane,
+  normalizeCurrentRideRequest,
   normalizeRidePage,
+  hasInFlightRideRequest,
   selectTripLaneRide,
   type RiderHomeRide,
   type RiderHomeTripLane,
@@ -58,6 +60,7 @@ type RideRequest = {
   id?: number;
   rideRequestStatus?: string;
   paymentMethod: string;
+  requestedTime?: string | null;
   createdTime?: string;
 };
 
@@ -257,17 +260,41 @@ export default function RiderHomePage() {
       const pendingRequest = pendingRequestOverride === undefined ? lastRequest : pendingRequestOverride;
 
       try {
-        const response = await requestRiderProxy<SpringPage<RiderHomeRide>>("riders/getMyRides?pageOffset=0&pageSize=10");
-        const rides = normalizeRidePage(response);
-        setTripLane(selectTripLaneRide(rides, pendingRequest));
-        setLastTripLaneSyncAt(new Date().toISOString());
-      } catch (loadError) {
-        setTripLaneError(
-          loadError instanceof Error
-            ? mapApiError({ error: loadError.message }, "Unable to load your trip lane right now.")
-            : "Unable to load your trip lane right now.",
-        );
-        setTripLane(selectTripLaneRide([], pendingRequest));
+        const [ridesResult, currentRequestResult] = await Promise.allSettled([
+          requestRiderProxy<SpringPage<RiderHomeRide>>("riders/getMyRides?pageOffset=0&pageSize=10"),
+          requestRiderProxy<RideRequest | null>("riders/current-request"),
+        ]);
+        const currentRequest =
+          currentRequestResult.status === "fulfilled"
+            ? normalizeCurrentRideRequest(currentRequestResult.value)
+            : pendingRequest;
+        const rides = ridesResult.status === "fulfilled" ? normalizeRidePage(ridesResult.value) : [];
+
+        if (currentRequestResult.status === "fulfilled") {
+          setLastRequest((previous) => {
+            const next = currentRequest as RideRequest | null;
+            if (
+              previous?.id === next?.id &&
+              previous?.rideRequestStatus === next?.rideRequestStatus &&
+              previous?.paymentMethod === next?.paymentMethod &&
+              previous?.createdTime === next?.createdTime
+            ) {
+              return previous;
+            }
+            return next;
+          });
+        }
+        setTripLane(selectTripLaneRide(rides, currentRequest));
+        const failedResult = [ridesResult, currentRequestResult].find((result) => result.status === "rejected");
+        if (failedResult?.status === "rejected") {
+          setTripLaneError(
+            failedResult.reason instanceof Error
+              ? mapApiError({ error: failedResult.reason.message }, "Unable to load your trip lane right now.")
+              : "Unable to load your trip lane right now.",
+          );
+        } else {
+          setLastTripLaneSyncAt(new Date().toISOString());
+        }
       } finally {
         setLoadingTripLane(false);
         setRefreshingTripLane(false);
@@ -450,6 +477,14 @@ export default function RiderHomePage() {
 
   async function requestRide(): Promise<void> {
     clearActionFeedback();
+    if (loadingTripLane) {
+      setError("Checking your current trip status. Please try again in a moment.");
+      return;
+    }
+    if (hasInFlightTrip) {
+      setError("You already have a pending or active trip request.");
+      return;
+    }
     if (!hasSelectedLocations) {
       setError("Set pickup and drop-off before requesting a ride.");
       return;
@@ -470,7 +505,7 @@ export default function RiderHomePage() {
       });
       const pendingRequest: RideRequest = {
         ...response,
-        createdTime: new Date().toISOString(),
+        createdTime: response.requestedTime ?? new Date().toISOString(),
       };
       setLastRequest(pendingRequest);
       setMessage(`${tripLabel} requested. We are now matching you with a nearby ${driverLabel.toLowerCase()}.`);
@@ -529,8 +564,13 @@ export default function RiderHomePage() {
   }
 
   const canEstimate = hasSelectedLocations && !shouldDisableSubmit(estimating, formInputs);
-  const hasInFlightTrip = tripLane.mode === "pending" || tripLane.mode === "active";
-  const canRequest = hasSelectedLocations && hasFreshEstimate && !shouldDisableSubmit(requesting, formInputs) && !hasInFlightTrip;
+  const hasInFlightTrip = tripLane.mode === "pending" || tripLane.mode === "active" || hasInFlightRideRequest(lastRequest);
+  const canRequest =
+    !loadingTripLane &&
+    hasSelectedLocations &&
+    hasFreshEstimate &&
+    !shouldDisableSubmit(requesting, formInputs) &&
+    !hasInFlightTrip;
 
   async function retryLastAction(): Promise<void> {
     if (failedAction === "estimate") {

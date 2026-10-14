@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Skeleton } from "@velo/ui/feedback";
 import {
   requestDriverProxy,
   toCurrency,
@@ -12,6 +13,7 @@ import {
   type SpringPage,
 } from "../_lib/driver-client";
 import { mapApiError, validatePayoutAmount } from "../_lib/driver-forms";
+import { LatestRequestSequence } from "../_lib/latest-request-sequence";
 
 type SummaryPeriod = "DAILY" | "WEEKLY" | "MONTHLY";
 
@@ -41,8 +43,10 @@ export default function DriverEarningsPage() {
   const [requestingPayout, setRequestingPayout] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const requestSequence = useRef(new LatestRequestSequence());
 
   const loadData = useCallback(async () => {
+    const sequence = requestSequence.current.next();
     setLoading(true);
     setError(null);
 
@@ -54,19 +58,27 @@ export default function DriverEarningsPage() {
         requestDriverProxy<SpringPage<DriverPayoutItem>>("drivers/earnings/payouts?pageOffset=0&pageSize=8"),
       ]);
 
+      if (!requestSequence.current.isCurrent(sequence)) {
+        return;
+      }
       setSummary(summaryResponse);
       setBalance(balanceResponse);
       setEarnings(Array.isArray(earningsResponse.content) ? earningsResponse.content : []);
       setPayouts(Array.isArray(payoutsResponse.content) ? payoutsResponse.content : []);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Unable to load earnings data.");
+      if (requestSequence.current.isCurrent(sequence)) {
+        setError(loadError instanceof Error ? loadError.message : "Unable to load earnings data.");
+      }
     } finally {
-      setLoading(false);
+      if (requestSequence.current.isCurrent(sequence)) {
+        setLoading(false);
+      }
     }
   }, [period]);
 
   useEffect(() => {
     void loadData();
+    return () => requestSequence.current.invalidate();
   }, [loadData]);
 
   const numericBalance = useMemo(() => parseDecimalValue(balance), [balance]);
@@ -127,7 +139,19 @@ export default function DriverEarningsPage() {
           </div>
         </div>
 
-        {loading ? <p className="helper">Loading earnings...</p> : null}
+        {loading ? (
+          <div className="grid grid-3" aria-label="Loading earnings summary" aria-busy="true">
+            {Array.from({ length: 3 }, (_, index) => (
+              <article className="list-item" key={index}>
+                <div className="stack compact">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-3 w-32" />
+                </div>
+                <Skeleton className="h-5 w-20" />
+              </article>
+            ))}
+          </div>
+        ) : null}
         {!loading && summary ? (
           <div className="grid grid-3">
             <article className="list-item">
@@ -182,7 +206,19 @@ export default function DriverEarningsPage() {
 
       <section className="card stack">
         <strong>Payout history</strong>
-        {loading ? <p className="helper">Loading payout history...</p> : null}
+        {loading ? (
+          <div className="list" aria-label="Loading payout history" aria-busy="true">
+            {Array.from({ length: 2 }, (_, index) => (
+              <article className="list-item" key={index}>
+                <div className="stack compact">
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-3 w-36" />
+                </div>
+                <Skeleton className="h-5 w-20" />
+              </article>
+            ))}
+          </div>
+        ) : null}
         {!loading && payouts.length === 0 ? <p className="helper">No payout requests yet.</p> : null}
         {!loading && payouts.length > 0 ? (
           <div className="list">
@@ -204,7 +240,20 @@ export default function DriverEarningsPage() {
 
       <section className="card stack">
         <strong>Recent earning entries</strong>
-        {loading ? <p className="helper">Loading earning entries...</p> : null}
+        {loading ? (
+          <div className="list" aria-label="Loading earning entries" aria-busy="true">
+            {Array.from({ length: 3 }, (_, index) => (
+              <article className="list-item" key={index}>
+                <div className="stack compact">
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="h-3 w-36" />
+                </div>
+                <Skeleton className="h-5 w-20" />
+              </article>
+            ))}
+          </div>
+        ) : null}
         {!loading && earnings.length === 0 ? <p className="helper">No earnings entries yet.</p> : null}
         {!loading && earnings.length > 0 ? (
           <div className="list">
