@@ -18,7 +18,7 @@ function project(point: Point2, height = 0): ProjectionPoint {
 }
 
 function pointString(point: ProjectionPoint): string {
-  return `${point.x.toFixed(1)},${point.y.toFixed(1)}`;
+  return `${Math.round(point.x)},${Math.round(point.y)}`;
 }
 
 function projectLine(points: readonly Point2[], origin?: ProjectionPoint): string {
@@ -52,6 +52,18 @@ function routeMotionPath(points: readonly Point2[]): { start: ProjectionPoint; p
   return { start, path: projectLine(points, start) };
 }
 
+/** Cartographic graticule: small crosses at the street-grid intersections. */
+function graticulePath(): string {
+  const marks: string[] = [];
+  for (const x of [-8, -4, 0, 4, 8]) {
+    for (const z of [-6, -3, 0, 3, 6]) {
+      const point = project({ x, z });
+      marks.push(`M${Math.round(point.x) - 2} ${Math.round(point.y)}h4m-2-2v4`);
+    }
+  }
+  return marks.join("");
+}
+
 export type DispatchFallbackProps = {
   selectedTripId?: SampleTrip["id"];
   previewRunId?: number;
@@ -74,6 +86,7 @@ export function DispatchFallback({
   const selectedRoute = coordinates.routes[selectedTripId];
   const selectedMotion = routeMotionPath(selectedRoute);
   const buildingOrder = [...coordinates.buildings, ...coordinates.landmarks].sort((a, b) => a.x + a.z - (b.x + b.z));
+  const graticule = graticulePath();
 
   useEffect(() => {
     const svg = svgRef.current;
@@ -115,6 +128,7 @@ export function DispatchFallback({
       data-dispatch-fallback="true"
     >
       <rect width="640" height="360" fill="var(--dispatch-ground)" />
+      <path d={graticule} fill="none" stroke="var(--dispatch-street)" strokeWidth="0.6" opacity="0.55" />
       <g fill="none" stroke="var(--dispatch-street)" strokeWidth="10" strokeLinecap="round" opacity="0.9">
         {coordinates.streets.map((street, index) => (
           <polyline key={`street-${index}`} points={projectLine(street)} />
@@ -136,11 +150,19 @@ export function DispatchFallback({
                   key={faceIndex}
                   points={face}
                   fill={landmark ? "var(--dispatch-roof)" : "var(--dispatch-building)"}
-                  stroke="var(--dispatch-ground)"
-                  strokeWidth="0.45"
+                  stroke="var(--dispatch-edge)"
+                  strokeWidth="0.5"
+                  strokeLinejoin="round"
                 />
               ))}
-              <polygon points={faces.top} fill="var(--dispatch-roof)" opacity={landmark ? 1 : 0.85} />
+              <polygon
+                points={faces.top}
+                fill="var(--dispatch-roof)"
+                opacity={landmark ? 1 : 0.85}
+                stroke="var(--dispatch-edge)"
+                strokeWidth="0.5"
+                strokeLinejoin="round"
+              />
               {building.label && (() => {
                 const labelPoint = project(building, building.height + 0.26);
                 return (

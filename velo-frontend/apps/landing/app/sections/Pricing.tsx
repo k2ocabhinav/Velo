@@ -51,10 +51,11 @@ export function Pricing() {
   }
 
   return (
-    <section className={`${styles.section} ${styles.tintAfternoon} ${styles.pricingSection}`} id="pricing" aria-labelledby="pricing-title">
+    <section className={`${styles.section} ${styles.pricingSection}`} id="pricing" aria-labelledby="pricing-title">
       <div className={styles.container}>
         <div className={styles.pricingHeader}>
           <div className={styles.sectionIntro}>
+            <p className={styles.eyebrow}>{copy.eyebrow}</p>
             <h2 className={styles.sectionTitle} id="pricing-title">{copy.title}</h2>
             <p className={styles.sectionDescription}>{copy.description}</p>
           </div>

@@ -11,20 +11,23 @@ export function VerifyToday() {
   ];
 
   return (
-    <section className={`${styles.section} ${styles.tintAfternoon} ${styles.verifySection}`} id="verify" aria-labelledby="verify-title">
+    <section className={`${styles.section} ${styles.verifySection}`} id="verify" aria-labelledby="verify-title">
       <div className={styles.container}>
         <div className={styles.verifyHead}>
           <h2 className={styles.sectionTitle} id="verify-title">{copy.title}</h2>
           <p className={styles.sectionDescription}>{copy.description}</p>
         </div>
-        <ul className={styles.verifyFacts} aria-label={copy.groupLabel}>
-          {facts.map((fact) => (
-            <li key={fact.label}>
-              <span className={styles.verifyValue}>{fact.value}</span>
-              <span className={styles.verifyLabel}>{fact.label}</span>
-            </li>
-          ))}
-        </ul>
+        <div className={styles.verifyCertificate}>
+          <span className={styles.verifyStamp} aria-hidden="true">Verified</span>
+          <ul className={styles.verifyFacts} aria-label={copy.groupLabel}>
+            {facts.map((fact) => (
+              <li key={fact.label}>
+                <span className={styles.verifyValue}>{fact.value}</span>
+                <span className={styles.verifyLabel}>{fact.label}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
     </section>
   );

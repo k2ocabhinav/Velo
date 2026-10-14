@@ -208,7 +208,7 @@ export function DispatchIllustration({ className, forceSvg = false }: DispatchIl
         <article className={styles.tripCard} aria-label={`${selectedTrip.time} sample transfer`}>
           <div className={styles.cardTopline}>
             <p className={styles.tripTime}>{selectedTrip.time}</p>
-            <span className={styles.bookedLabel}>Sample transfer</span>
+            <span className={styles.stubNumber}>Nº {selectedTrip.time.replace(":", "")}</span>
           </div>
           <p className={styles.tripRoute}>{selectedTrip.pickup} to {selectedTrip.dropOff}</p>
           <div className={styles.driverLine}>
@@ -253,7 +253,8 @@ export function DispatchIllustration({ className, forceSvg = false }: DispatchIl
             Reset view
           </button>
         </div>
-        {webglReady && <p className={styles.dragHint}>Drag the scene to tilt it.</p>}
+        {/* Always rendered so enabling the canvas never shifts the page (CLS stays 0). */}
+        <p className={`${styles.dragHint}${webglReady ? ` ${styles.dragHintOn}` : ""}`}>Drag the scene to tilt it.</p>
         <p className={styles.liveStatus} aria-live="polite" role="status">{statusMessage}</p>
       </div>
     </div>

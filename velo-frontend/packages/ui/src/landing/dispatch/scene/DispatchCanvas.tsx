@@ -149,7 +149,6 @@ function ribbonGeometry(paths: readonly Point2[][], width: number, height: numbe
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
   geometry.setIndex(indices);
-  geometry.computeVertexNormals();
   return geometry;
 }
 
@@ -190,8 +189,8 @@ function makeWindowInstances(coordinates: DispatchCoordinates, palette: Palette)
     for (let floor = 0; floor < floors; floor += 1) {
       const y = 0.26 + floor * 0.42;
       if (y > building.height - 0.12) break;
-      if (random() < 0.58) bands.push({ x: building.x + building.width / 2 + 0.012, y, z: building.z, sx: 0.02, sz: building.depth * 0.7 });
-      if (random() < 0.58) bands.push({ x: building.x, y, z: building.z + building.depth / 2 + 0.012, sx: building.width * 0.7, sz: 0.02 });
+      if (random() < 0.5) bands.push({ x: building.x + building.width / 2 + 0.012, y, z: building.z, sx: 0.02, sz: building.depth * 0.7 });
+      if (random() < 0.5) bands.push({ x: building.x, y, z: building.z + building.depth / 2 + 0.012, sx: building.width * 0.7, sz: 0.02 });
     }
   }
   const geometry = new THREE.BoxGeometry(1, 1, 1);
@@ -207,10 +206,8 @@ function makeWindowInstances(coordinates: DispatchCoordinates, palette: Palette)
     scale.set(band.sx, 0.1, band.sz);
     matrix.compose(position, rotation, scale);
     windows.setMatrixAt(index, matrix);
-    // Mix warm sodium and cooler office light so the city reads as lived-in, not uniform.
-    // Instance colour is a multiplier on the material colour: brightness plus an occasional cool office tint.
-    tint.setRGB(1, 1, 1).lerp(new THREE.Color("#b8cdf5"), random() < 0.22 ? 0.6 : 0);
-    tint.multiplyScalar(0.82 + random() * 0.34);
+    // Brightness only: the windows are sodium at night and pale glazing by day, never blue.
+    tint.setRGB(1, 1, 1).multiplyScalar(0.78 + random() * 0.4);
     windows.setColorAt(index, tint);
   });
   windows.count = bands.length;
@@ -309,7 +306,7 @@ export function DispatchCanvas({
     const glow = glowTexture();
     const groundFade = groundFadeTexture();
     const aspect = Math.max(0.8, root.clientWidth / Math.max(1, root.clientHeight));
-    const cameraHeight = 19.5;
+    const cameraHeight = 17.8;
     const camera = new THREE.OrthographicCamera(
       -(cameraHeight * aspect) / 2,
       (cameraHeight * aspect) / 2,
@@ -324,7 +321,7 @@ export function DispatchCanvas({
     camera.lookAt(0, 0.4, 0);
     const city = new THREE.Group();
     scene.add(city);
-    // Night lighting: cool moonlight from the upper left, a dim sky/ground hemisphere.
+    // Warm key light from the upper left over a sky/ground hemisphere: no blue cast (§10.3).
     const hemisphereLight = new THREE.HemisphereLight(colorFromToken(root, "--dispatch-sky-light"), palette.ground, 1.15);
     scene.add(hemisphereLight);
     const keyLight = new THREE.DirectionalLight(colorFromToken(root, "--dispatch-key-light"), 1.05);
@@ -452,7 +449,8 @@ export function DispatchCanvas({
           : 0.42;
         if (halo) {
           halo.color.copy(color);
-          halo.opacity = (selected ? (phase === "route" ? 0.58 : 0.44) : 0.15) * glowScale;
+          // A single thin halo under the core: cartographic, not neon.
+          halo.opacity = (selected ? (phase === "route" ? 0.34 : 0.26) : 0.1) * glowScale;
         }
       });
     };
@@ -558,7 +556,7 @@ export function DispatchCanvas({
       const height = root.clientHeight;
       if (!width || !height) return;
       const nextAspect = width / height;
-      const nextHeight = 19.5;
+      const nextHeight = 17.8;
       camera.left = -(nextHeight * nextAspect) / 2;
       camera.right = (nextHeight * nextAspect) / 2;
       camera.top = nextHeight / 2;
@@ -574,9 +572,9 @@ export function DispatchCanvas({
       const day = glowStrength < 0.6;
       hemisphereLight.color.copy(colorFromToken(root, "--dispatch-sky-light"));
       hemisphereLight.groundColor.copy(palette.ground);
-      hemisphereLight.intensity = day ? 2.2 : 1.4;
+      hemisphereLight.intensity = day ? 1.32 : 1.4;
       keyLight.color.copy(colorFromToken(root, "--dispatch-key-light"));
-      keyLight.intensity = day ? 1.9 : 1.25;
+      keyLight.intensity = day ? 1.05 : 1.25;
       (lamps.material as THREE.PointsMaterial).opacity = day ? 0 : 0.62;
       (headlights.material as THREE.PointsMaterial).opacity = 0.9 * glowStrength;
       glowScale = glowStrength;

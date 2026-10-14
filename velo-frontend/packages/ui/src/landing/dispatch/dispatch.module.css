@@ -1,34 +1,62 @@
+/*
+ * Sample dispatch — §10.3 / §10.9.7. Day is the default palette; night overrides it.
+ * The neighbourhood reads as an inked map on paper by day and a warm ink-black
+ * street at night, lit by sodium windows. No glass, no blur.
+ */
 .root {
-  --dispatch-asphalt: var(--landing-asphalt, var(--velo-black));
-  --dispatch-dawn: var(--landing-dawn, hsl(var(--color-background)));
-  --dispatch-signal: var(--landing-signal-blue, var(--velo-blue));
-  --dispatch-teal: var(--landing-route-teal, hsl(var(--color-accent)));
-  --dispatch-sodium: var(--landing-sodium, hsl(var(--color-warning)));
-  --dispatch-concrete: var(--landing-concrete, hsl(var(--color-border)));
-  /* Night scene roles (the hero is pre-dawn). */
-  --dispatch-ground: #0d1626;
-  --dispatch-street: #22304a;
-  --dispatch-lane: #3a4c72;
-  --dispatch-building: #1b2742;
-  --dispatch-roof: #31426a;
-  --dispatch-window: #f6c56b;
-  --dispatch-vehicle: #dce4f2;
-  --dispatch-route: #4f86ff;
-  --dispatch-route-alt: #38c2b0;
-  --dispatch-ink: #eef2f8;
-  --dispatch-ink-muted: #b4bed0;
-  --dispatch-surface: rgb(13 20 36 / 0.78);
-  --dispatch-line: rgb(201 207 216 / 0.22);
-  --dispatch-sky-light: #6f86bd;
-  --dispatch-key-light: #a9bdf0;
-  --dispatch-glow: 1;
-  --dispatch-halo: 0.24;
+  /* DAY — a bright, inked neighbourhood on paper */
+  --dispatch-ground: #f4f1e9;
+  --dispatch-street: #d8d2c4;
+  --dispatch-lane: #fcfbf7;
+  --dispatch-building: #e4dfd3;
+  --dispatch-roof: #cfc8b8;
+  --dispatch-edge: color-mix(in srgb, var(--dispatch-ink) 38%, var(--dispatch-ground));
+  --dispatch-window: #a9b3ac;
+  --dispatch-vehicle: #16181b;
+  --dispatch-route: #1e5240;
+  --dispatch-route-alt: #5e8574;
+  --dispatch-on-route: #ffffff;
+  --dispatch-ink: #16181b;
+  --dispatch-ink-muted: #4e5257;
+  --dispatch-surface: rgb(252 251 247 / 0.92);
+  --dispatch-line: rgb(22 24 27 / 0.16);
+  --dispatch-control-line: color-mix(in srgb, var(--dispatch-ink) 52%, transparent);
+  --dispatch-sky-light: #ffffff;
+  --dispatch-key-light: #fff6e4;
+  --dispatch-sodium: #c2401f;
+  --dispatch-glow: 0.25;
+  --dispatch-halo: 0.05;
   position: relative;
   display: grid;
-  gap: 0.75rem;
+  gap: 0.875rem;
   width: 100%;
   color: var(--dispatch-ink);
   font-family: var(--font-body), "Inter", system-ui, sans-serif;
+}
+
+/* NIGHT — warm ink-black, sodium lamps, no blue */
+:global([data-theme="night"]) .root {
+  --dispatch-ground: #14120f;
+  --dispatch-street: #2a2620;
+  --dispatch-lane: #3b362d;
+  --dispatch-building: #221e18;
+  --dispatch-roof: #332d24;
+  --dispatch-edge: color-mix(in srgb, var(--dispatch-ink) 34%, var(--dispatch-ground));
+  --dispatch-window: #e8a552;
+  --dispatch-vehicle: #f3efe6;
+  --dispatch-route: #6fc29b;
+  --dispatch-route-alt: #4e7a66;
+  --dispatch-on-route: #14120f;
+  --dispatch-ink: #f3efe6;
+  --dispatch-ink-muted: #b0aa9c;
+  --dispatch-surface: rgb(20 18 15 / 0.82);
+  --dispatch-line: rgb(243 239 230 / 0.2);
+  --dispatch-control-line: color-mix(in srgb, var(--dispatch-ink) 45%, transparent);
+  --dispatch-sky-light: #6e6a5f;
+  --dispatch-key-light: #ffe6be;
+  --dispatch-sodium: #e8a552;
+  --dispatch-glow: 1;
+  --dispatch-halo: 0.22;
 }
 
 .scene {
@@ -37,9 +65,9 @@
   overflow: hidden;
   aspect-ratio: 1.38;
   min-height: 17rem;
-  background: transparent;
-  -webkit-mask-image: radial-gradient(120% 110% at 55% 45%, #000 62%, transparent 100%);
-  mask-image: radial-gradient(120% 110% at 55% 45%, #000 62%, transparent 100%);
+  background: var(--dispatch-ground);
+  -webkit-mask-image: radial-gradient(132% 122% at 60% 48%, #000 72%, transparent 100%);
+  mask-image: radial-gradient(132% 122% at 60% 48%, #000 72%, transparent 100%);
 }
 
 .fallback,
@@ -78,19 +106,30 @@
   cursor: grabbing;
 }
 
+/* The trip card becomes a docket: perforated top, stub number, tabular time. */
 .tripCard {
   position: absolute;
   z-index: 2;
-  right: 0.75rem;
-  bottom: 0.75rem;
-  width: min(15rem, calc(100% - 1.5rem));
-  padding: 0.875rem 1rem 0.8rem;
-  border: 1px solid var(--dispatch-line);
-  border-radius: 10px;
+  bottom: 0.875rem;
+  left: 0.875rem;
+  width: min(15.5rem, calc(100% - 1.75rem));
+  padding: 0.95rem 1rem 0.9rem;
+  border: 1px solid var(--dispatch-control-line);
+  border-radius: 4px;
   background: var(--dispatch-surface);
-  box-shadow: 0 18px 48px rgb(4 8 18 / 0.45);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
+  box-shadow: 0 1px 0 rgb(22 24 27 / 0.06);
+}
+
+.tripCard::before {
+  position: absolute;
+  top: -1px;
+  right: 0;
+  left: 0;
+  height: 8px;
+  background-image: radial-gradient(circle at 5px 0, var(--dispatch-ground) 3.6px, transparent 4px);
+  background-repeat: repeat-x;
+  background-size: 11px 8px;
+  content: "";
 }
 
 .cardTopline {
@@ -98,27 +137,33 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px dashed var(--dispatch-control-line);
 }
 
 .tripTime {
   margin: 0;
   color: var(--dispatch-ink);
-  font-size: 1.5rem;
+  font-family: var(--font-display), "Barlow Condensed", system-ui, sans-serif;
+  font-size: 1.75rem;
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  letter-spacing: -0.04em;
+  font-weight: 800;
+  letter-spacing: 0.01em;
   line-height: 1;
 }
 
-.bookedLabel {
+.stubNumber {
   color: var(--dispatch-ink-muted);
-  font-size: 0.68rem;
+  font-size: 0.6rem;
+  font-variant-numeric: tabular-nums;
   font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .tripRoute {
-  margin: 0.55rem 0 0;
-  font-size: 0.84rem;
+  margin: 0.6rem 0 0;
+  font-size: 0.86rem;
   font-weight: 600;
   line-height: 1.3;
 }
@@ -128,41 +173,41 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  margin-top: 0.55rem;
+  margin-top: 0.35rem;
   color: var(--dispatch-ink-muted);
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   line-height: 1.3;
 }
 
 .driverLine span:last-child {
-  color: var(--dispatch-route-alt);
+  color: var(--dispatch-route);
   font-weight: 600;
 }
 
 .statusSteps {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.22rem 0.5rem;
-  margin: 0.65rem 0 0;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.28rem;
+  margin: 0.7rem 0 0;
   padding: 0;
   list-style: none;
   color: var(--dispatch-ink-muted);
-  font-size: 0.625rem;
+  font-size: 0.68rem;
 }
 
 .statusStep {
   display: flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.42rem;
   min-width: 0;
   line-height: 1.25;
 }
 
 .statusMarker {
-  width: 0.34rem;
-  height: 0.34rem;
+  width: 0.36rem;
+  height: 0.36rem;
   flex: 0 0 auto;
-  border: 1px solid var(--dispatch-line);
+  border: 1px solid var(--dispatch-control-line);
   border-radius: 50%;
   background: transparent;
 }
@@ -174,29 +219,33 @@
 
 .mapLabel {
   fill: var(--dispatch-ink);
-  font-family: var(--font-body), "Inter", system-ui, sans-serif;
-  font-size: 7px;
-  font-weight: 600;
+  font-family: var(--font-display), "Barlow Condensed", system-ui, sans-serif;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
   paint-order: stroke;
   stroke: var(--dispatch-ground);
   stroke-linejoin: round;
   stroke-width: 2.5px;
 }
 
-/* Wider, softer glow under each fallback route. Day recolours via the same tokens. */
+/* A single thin halo under each route: cartographic, not neon. */
 .routeHalo {
-  opacity: var(--dispatch-halo, 0.24);
+  opacity: var(--dispatch-halo, 0.05);
 }
 
 .controls {
   display: grid;
-  gap: 0.5rem;
+  gap: 0.625rem;
 }
 
+/* Arrivals board: one row of split-flap cells behind a hairline grid. */
 .tripButtons {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.5rem;
+  overflow: hidden;
+  border: 1px solid var(--dispatch-control-line);
+  border-radius: 3px;
 }
 
 .tripButton,
@@ -206,31 +255,39 @@
   min-height: 44px;
   align-items: center;
   justify-content: center;
-  padding: 0.55rem 0.7rem;
-  border: 1px solid var(--dispatch-line);
-  border-radius: 6px;
-  background: rgb(255 255 255 / 0.04);
+  padding: 0.5rem 0.7rem;
+  border: 0;
+  border-radius: 0;
+  background: var(--dispatch-surface);
   color: var(--dispatch-ink);
   font: inherit;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
   line-height: 1.15;
   cursor: pointer;
-  transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
+}
+
+.tripButton {
+  border-inline-start: 1px solid var(--dispatch-control-line);
+  font-family: var(--font-display), "Barlow Condensed", system-ui, sans-serif;
+  font-size: 1.375rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.tripButton:first-child {
+  border-inline-start: 0;
 }
 
 .tripButton:hover,
 .actionButton:hover:not(:disabled) {
-  border-color: var(--dispatch-ink-muted);
-  background: rgb(255 255 255 / 0.08);
+  background: color-mix(in srgb, var(--dispatch-ink) 8%, var(--dispatch-surface));
 }
 
 .tripButton[aria-pressed="true"] {
-  border-color: var(--dispatch-signal);
-  background: var(--dispatch-signal);
-  color: #ffffff;
-  box-shadow: 0 0 0 1px rgb(79 134 255 / 0.4), 0 8px 24px rgb(26 86 255 / 0.35);
+  background: var(--dispatch-route);
+  color: var(--dispatch-on-route);
 }
 
 .actionRow {
@@ -241,6 +298,9 @@
 
 .actionButton {
   flex: 1 1 7rem;
+  border: 1px solid var(--dispatch-control-line);
+  border-radius: 3px;
+  font-size: 0.8rem;
 }
 
 .actionButton:disabled {
@@ -250,9 +310,14 @@
 
 .dragHint {
   margin: 0;
+  visibility: hidden;
   color: var(--dispatch-ink-muted);
   font-size: 0.72rem;
   line-height: 1.4;
+}
+
+.dragHintOn {
+  visibility: visible;
 }
 
 .liveStatus {
@@ -273,14 +338,13 @@
   }
 
   .tripCard {
-    right: 0.625rem;
     bottom: 0.625rem;
-    width: min(14rem, calc(100% - 1.25rem));
+    left: 0.625rem;
+    width: min(14.5rem, calc(100% - 1.25rem));
   }
 
-  .tripButton,
-  .actionButton {
-    padding-inline: 0.4rem;
+  .tripButton {
+    font-size: 1.125rem;
   }
 }
 
@@ -291,28 +355,3 @@
     transition: none;
   }
 }
-
-/* Day mode: a bright morning over the same neighbourhood. */
-:global([data-theme="day"]) .root {
-  --dispatch-ground: #dfe7f3;
-  --dispatch-street: #c2cfe2;
-  --dispatch-lane: #ffffff;
-  --dispatch-building: #ffffff;
-  --dispatch-roof: #b4c4dc;
-  --dispatch-window: #7fa8de;
-  --dispatch-vehicle: #1c2230;
-  --dispatch-route: #1a56ff;
-  --dispatch-route-alt: #1d8f80;
-  --dispatch-ink: #1c2230;
-  --dispatch-ink-muted: #4a5568;
-  --dispatch-surface: rgb(255 255 255 / 0.85);
-  --dispatch-line: rgb(28 34 48 / 0.16);
-  --dispatch-sky-light: #ffffff;
-  --dispatch-key-light: #fff4e2;
-  --dispatch-glow: 0.35;
-  --dispatch-halo: 0.06;
-}
-
-:global([data-theme="day"]) .tripCard { box-shadow: 0 18px 48px rgb(28 34 48 / 0.16); }
-:global([data-theme="day"]) .tripButton,
-:global([data-theme="day"]) .actionButton { background: rgb(255 255 255 / 0.7); }

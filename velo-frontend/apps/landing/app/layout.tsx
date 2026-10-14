@@ -61,7 +61,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="en" className={`${barlowCondensed.variable} ${inter.variable}`} data-theme="night" suppressHydrationWarning>
+    <html lang="en" className={`${barlowCondensed.variable} ${inter.variable}`} data-theme="day" suppressHydrationWarning>
       <head>
         <script
           // Runs before paint so the hero never flashes the wrong time of day.

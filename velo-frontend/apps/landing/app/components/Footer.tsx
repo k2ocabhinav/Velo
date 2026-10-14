@@ -4,7 +4,7 @@ export function Footer({ home = true }: { home?: boolean }) {
   const sectionLink = (id: string) => home ? `#${id}` : `/#${id}`;
 
   return (
-    <footer className="site-footer section-dark">
+    <footer className="site-footer section-night">
       <div className="container">
         <div className="footer-main">
           <div className="footer-brand-block">

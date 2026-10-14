@@ -13,13 +13,14 @@ export function BrandSwitcher() {
   const copy = landingCopy.brands;
   const selected = copy.tenants.find((tenant) => tenant.id === brand) ?? copy.tenants[0];
   const previewStyle = {
-    "--mock-accent": brand === "velo" ? "var(--landing-signal, var(--velo-blue))" : "var(--landing-teal, hsl(var(--color-accent)))",
+    "--mock-accent": brand === "velo" ? "var(--landing-tenant-a)" : "var(--landing-tenant-b)",
   } as CSSProperties;
 
   return (
-    <section className={`${styles.section} ${styles.tintMidday} ${styles.brandSection}`} aria-labelledby="brand-title">
+    <section className={`${styles.section} ${styles.brandSection}`} aria-labelledby="brand-title">
       <div className={styles.container}>
         <div className={styles.sectionIntro}>
+          <p className={styles.eyebrow}>{copy.eyebrow}</p>
           <h2 className={styles.sectionTitle} id="brand-title">{copy.title}</h2>
           <p className={styles.sectionDescription}>{copy.description}</p>
         </div>

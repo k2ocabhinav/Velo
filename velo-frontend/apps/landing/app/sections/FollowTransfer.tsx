@@ -14,9 +14,10 @@ export function FollowTransfer() {
   const active = copy.steps[activeStep] ?? copy.steps[0];
 
   return (
-    <section className={`${styles.section} ${styles.tintMorning} ${styles.followSection}`} id="how-it-works" aria-labelledby="follow-title">
+    <section className={`${styles.section} ${styles.followSection}`} id="how-it-works" aria-labelledby="follow-title">
       <div className={styles.container}>
         <div className={styles.sectionIntro}>
+          <p className={styles.eyebrow}>{copy.eyebrow}</p>
           <h2 className={styles.sectionTitle} id="follow-title">{copy.title}</h2>
           <p className={styles.sectionDescription}>{copy.description}</p>
         </div>

@@ -13,25 +13,40 @@ export function Hero() {
       <div className={shared.container}>
         <div className={styles.grid}>
           <div className={styles.copy}>
-            <p className={styles.stage}>{landingCopy.hero.stage}</p>
+            <p className={styles.ticket}>
+              <span className={styles.ticketText}>{landingCopy.hero.stage}</span>
+              <span className={styles.ticketStamp} aria-hidden="true">Pre-launch</span>
+            </p>
             <h1 className={styles.title} id="hero-title">{landingCopy.hero.title}</h1>
             <p className={styles.description}>{landingCopy.hero.description}</p>
             <div className={styles.actions}>
               <a className={styles.primary} href="#contact">{landingCopy.hero.bookDemo}</a>
-              <a className={styles.secondary} href={demoLink.href} target={siteConfig.demoVideoUrl ? "_blank" : undefined} rel={siteConfig.demoVideoUrl ? "noreferrer" : undefined}>{demoLink.label}</a>
+              <a
+                className={styles.voucher}
+                href={demoLink.href}
+                target={siteConfig.demoVideoUrl ? "_blank" : undefined}
+                rel={siteConfig.demoVideoUrl ? "noreferrer" : undefined}
+              >
+                {demoLink.label}
+              </a>
             </div>
-            <ul className={styles.facts} aria-label="What the working demo covers">
-              <li>Branded workspaces</li>
-              <li>Live trip status</li>
-              <li>Weekly recurring trips</li>
-            </ul>
           </div>
           <div className={styles.visual}>
-            <DispatchIllustration />
+            <ul className={styles.legend} aria-label="Map legend">
+              <li><span className={styles.legendSolid} aria-hidden="true" />Selected route</li>
+              <li><span className={styles.legendOther} aria-hidden="true" />Other trips</li>
+              <li><span className={styles.legendMark} aria-hidden="true" />Vehicle</li>
+            </ul>
+            <div className={styles.bleed}>
+              <DispatchIllustration />
+            </div>
+            <p className={styles.caption}>
+              <span className={styles.scaleBar} aria-hidden="true" />
+              <span className={styles.captionText}>Sample day · three booked transfers</span>
+            </p>
           </div>
         </div>
       </div>
-      <div className={styles.sunrise} aria-hidden="true" />
     </section>
   );
 }
