@@ -1,0 +1,39 @@
+/* Global theme rules for the landing (night is default; [data-theme="day"] = day mode). */
+/* Night treatment for the sticky header (scoped here so the hero owns the night look). */
+.site-header {
+  border-bottom-color: rgb(244 246 249 / 0.1);
+  background: rgb(11 17 30 / 0.72);
+  color: #f4f6f9;
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
+}
+.site-header .wordmark,
+.site-header .nav-links a,
+.site-header .nav-menu-toggle { color: #f4f6f9; }
+.site-header .nav-links a:hover { color: #ffffff; }
+.site-header .nav-menu-toggle { border-color: rgb(244 246 249 / 0.24); background: transparent; }
+.theme-toggle {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  margin-inline: 4px 8px;
+  border: 1px solid rgb(244 246 249 / 0.24);
+  border-radius: 999px;
+  background: transparent;
+  color: #f4f6f9;
+  cursor: pointer;
+}
+.theme-toggle:focus-visible { outline: 3px solid #8fb0ff; outline-offset: 2px; }
+[data-theme="day"] .site-header {
+  border-bottom-color: rgb(28 34 48 / 0.1);
+  background: rgb(244 246 249 / 0.78);
+  color: #1c2230;
+}
+[data-theme="day"] .site-header .wordmark,
+[data-theme="day"] .site-header .nav-links a,
+[data-theme="day"] .site-header .nav-menu-toggle,
+[data-theme="day"] .theme-toggle { color: #1c2230; }
+[data-theme="day"] .site-header .nav-menu-toggle,
+[data-theme="day"] .theme-toggle { border-color: rgb(28 34 48 / 0.2); }

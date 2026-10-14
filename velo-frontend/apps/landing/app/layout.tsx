@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Barlow_Condensed, Inter } from "next/font/google";
 import "@velo/ui/tokens.css";
 import "./globals.css";
+import "./theme.css";
 
 const barlowCondensed = Barlow_Condensed({
   subsets: ["latin"],
@@ -22,6 +23,8 @@ const siteTitle = "Velo | Dispatch desk for transfer fleets";
 const siteDescription =
   "A dispatch desk for fleets of 10 to 50 vehicles running pre-booked business and hotel transfers, anywhere.";
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "https://velo.app";
+
+const THEME_SCRIPT = `try{var t=localStorage.getItem("velo-theme");if(t!=="day"&&t!=="night"){t=window.matchMedia("(prefers-color-scheme: light)").matches?"day":"night"}document.documentElement.dataset.theme=t}catch(e){}`;
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -58,7 +61,13 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="en" className={`${barlowCondensed.variable} ${inter.variable}`}>
+    <html lang="en" className={`${barlowCondensed.variable} ${inter.variable}`} data-theme="night" suppressHydrationWarning>
+      <head>
+        <script
+          // Runs before paint so the hero never flashes the wrong time of day.
+          dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }}
+        />
+      </head>
       <body>{children}</body>
     </html>
   );
