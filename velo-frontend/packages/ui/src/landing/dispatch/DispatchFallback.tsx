@@ -159,6 +159,20 @@ export function DispatchFallback({
           );
         })}
       </g>
+      {/* Wide, low-opacity halo under every route: the night glow. Day recolours it via the tokens. */}
+      <g className={styles.routeHalo} fill="none" strokeLinecap="round" strokeLinejoin="round">
+        {Object.entries(coordinates.routes).map(([tripId, route]) => {
+          const active = tripId === selectedTripId;
+          return (
+            <polyline
+              key={`halo-${tripId}`}
+              points={projectLine(route)}
+              stroke={active ? "var(--dispatch-route)" : "var(--dispatch-route-alt)"}
+              strokeWidth={active ? 13 : 9}
+            />
+          );
+        })}
+      </g>
       <g fill="none" strokeLinecap="round" strokeLinejoin="round">
         {Object.entries(coordinates.routes).map(([tripId, route]) => {
           const active = tripId === selectedTripId;

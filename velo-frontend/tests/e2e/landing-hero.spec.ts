@@ -57,4 +57,34 @@ test.describe("landing dispatch hero", () => {
     await expect(illustration.locator("canvas")).toHaveCount(0);
     await expect(illustration.locator("[data-dispatch-fallback='true']")).toBeVisible();
   });
+
+  test("theme toggle switches data-theme, persists across reload, and passes axe in both themes", async ({ page }) => {
+    await page.emulateMedia({ colorScheme: "dark" });
+    await page.goto("/");
+
+    const html = page.locator("html");
+    await expect(html).toHaveAttribute("data-theme", "night");
+
+    const nightAxe = await new AxeBuilder({ page })
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+      .analyze();
+    expect(nightAxe.violations.filter((violation) => ["serious", "critical"].includes(violation.impact ?? ""))).toEqual([]);
+
+    const toDay = page.getByRole("button", { name: "Switch to day view" });
+    await toDay.focus();
+    await page.keyboard.press("Enter");
+
+    await expect(html).toHaveAttribute("data-theme", "day");
+    await expect(page.getByRole("button", { name: "Switch to night view" })).toHaveAttribute("aria-pressed", "true");
+    await expect.poll(() => page.evaluate(() => localStorage.getItem("velo-theme"))).toBe("day");
+
+    const dayAxe = await new AxeBuilder({ page })
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+      .analyze();
+    expect(dayAxe.violations.filter((violation) => ["serious", "critical"].includes(violation.impact ?? ""))).toEqual([]);
+
+    await page.reload();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "day");
+    await expect(page.getByRole("button", { name: "Switch to night view" })).toBeVisible();
+  });
 });

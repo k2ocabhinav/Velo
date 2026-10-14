@@ -22,6 +22,7 @@
   --dispatch-sky-light: #6f86bd;
   --dispatch-key-light: #a9bdf0;
   --dispatch-glow: 1;
+  --dispatch-halo: 0.24;
   position: relative;
   display: grid;
   gap: 0.75rem;
@@ -80,8 +81,8 @@
 .tripCard {
   position: absolute;
   z-index: 2;
-  top: 0.75rem;
-  left: 0.75rem;
+  right: 0.75rem;
+  bottom: 0.75rem;
   width: min(15rem, calc(100% - 1.5rem));
   padding: 0.875rem 1rem 0.8rem;
   border: 1px solid var(--dispatch-line);
@@ -182,6 +183,11 @@
   stroke-width: 2.5px;
 }
 
+/* Wider, softer glow under each fallback route. Day recolours via the same tokens. */
+.routeHalo {
+  opacity: var(--dispatch-halo, 0.24);
+}
+
 .controls {
   display: grid;
   gap: 0.5rem;
@@ -267,8 +273,8 @@
   }
 
   .tripCard {
-    top: 0.625rem;
-    left: 0.625rem;
+    right: 0.625rem;
+    bottom: 0.625rem;
     width: min(14rem, calc(100% - 1.25rem));
   }
 
@@ -288,22 +294,23 @@
 
 /* Day mode: a bright morning over the same neighbourhood. */
 :global([data-theme="day"]) .root {
-  --dispatch-ground: #e9eef6;
-  --dispatch-street: #cfd8e6;
+  --dispatch-ground: #dfe7f3;
+  --dispatch-street: #c2cfe2;
   --dispatch-lane: #ffffff;
-  --dispatch-building: #f7f9fc;
-  --dispatch-roof: #c3cfe2;
-  --dispatch-window: #8fb0de;
+  --dispatch-building: #ffffff;
+  --dispatch-roof: #b4c4dc;
+  --dispatch-window: #7fa8de;
   --dispatch-vehicle: #1c2230;
   --dispatch-route: #1a56ff;
   --dispatch-route-alt: #1d8f80;
   --dispatch-ink: #1c2230;
   --dispatch-ink-muted: #4a5568;
-  --dispatch-surface: rgb(255 255 255 / 0.82);
-  --dispatch-line: rgb(28 34 48 / 0.14);
+  --dispatch-surface: rgb(255 255 255 / 0.85);
+  --dispatch-line: rgb(28 34 48 / 0.16);
   --dispatch-sky-light: #ffffff;
   --dispatch-key-light: #fff4e2;
   --dispatch-glow: 0.35;
+  --dispatch-halo: 0.06;
 }
 
 :global([data-theme="day"]) .tripCard { box-shadow: 0 18px 48px rgb(28 34 48 / 0.16); }

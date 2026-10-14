@@ -210,7 +210,7 @@ function makeWindowInstances(coordinates: DispatchCoordinates, palette: Palette)
     // Mix warm sodium and cooler office light so the city reads as lived-in, not uniform.
     // Instance colour is a multiplier on the material colour: brightness plus an occasional cool office tint.
     tint.setRGB(1, 1, 1).lerp(new THREE.Color("#b8cdf5"), random() < 0.22 ? 0.6 : 0);
-    tint.multiplyScalar(0.6 + random() * 0.4);
+    tint.multiplyScalar(0.82 + random() * 0.34);
     windows.setColorAt(index, tint);
   });
   windows.count = bands.length;
@@ -452,7 +452,7 @@ export function DispatchCanvas({
           : 0.42;
         if (halo) {
           halo.color.copy(color);
-          halo.opacity = (selected ? (phase === "route" ? 0.42 : 0.3) : 0.08) * glowScale;
+          halo.opacity = (selected ? (phase === "route" ? 0.58 : 0.44) : 0.15) * glowScale;
         }
       });
     };
@@ -574,11 +574,11 @@ export function DispatchCanvas({
       const day = glowStrength < 0.6;
       hemisphereLight.color.copy(colorFromToken(root, "--dispatch-sky-light"));
       hemisphereLight.groundColor.copy(palette.ground);
-      hemisphereLight.intensity = day ? 2.2 : 1.15;
+      hemisphereLight.intensity = day ? 2.2 : 1.4;
       keyLight.color.copy(colorFromToken(root, "--dispatch-key-light"));
-      keyLight.intensity = day ? 1.9 : 1.05;
-      (lamps.material as THREE.PointsMaterial).opacity = day ? 0 : 0.55;
-      (headlights.material as THREE.PointsMaterial).opacity = 0.85 * glowStrength;
+      keyLight.intensity = day ? 1.9 : 1.25;
+      (lamps.material as THREE.PointsMaterial).opacity = day ? 0 : 0.62;
+      (headlights.material as THREE.PointsMaterial).opacity = 0.9 * glowStrength;
       glowScale = glowStrength;
       (windowMesh.material as THREE.MeshBasicMaterial).color.copy(palette.window);
     };
