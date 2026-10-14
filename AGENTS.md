@@ -24,7 +24,7 @@
 - Domain models (Rider, Driver, Ride) are intentionally generic — do not rename
 
 ## Backend Conventions (MUST follow)
-- Constructor injection via `@RequiredArgsConstructor` — never `@Autowired`
+- Constructor injection via `@RequiredArgsConstructor` — never `@Autowired` in `src/main` (field `@Autowired` is fine in test classes)
 - `@Transactional` must be `org.springframework.transaction.annotation.Transactional` — NEVER `jakarta.transaction.Transactional`
 - `@Transactional(readOnly = true)` on reads
 - `GlobalResponseHandler` wraps all returns in `ApiResponse<>` — controllers return raw objects
