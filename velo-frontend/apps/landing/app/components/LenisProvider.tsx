@@ -2,6 +2,7 @@
 
 import { useEffect, type ReactNode } from "react";
 import Lenis from "lenis";
+import { MotionConfig } from "motion/react";
 
 export function LenisProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
@@ -25,5 +26,6 @@ export function LenisProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  return <>{children}</>;
+  // "user" makes every motion component honour prefers-reduced-motion.
+  return <MotionConfig reducedMotion="user">{children}</MotionConfig>;
 }

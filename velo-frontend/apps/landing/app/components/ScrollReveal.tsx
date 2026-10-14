@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import { fadeUp } from "@velo/ui/motion";
 
 export function ScrollReveal({
@@ -13,11 +13,13 @@ export function ScrollReveal({
   delay?: number;
   className?: string;
 }) {
+  const reduceMotion = useReducedMotion();
   return (
     <motion.div
       className={className}
       variants={fadeUp}
-      initial="hidden"
+      // Reduced motion: render the content in place instead of hidden-then-revealed.
+      initial={reduceMotion ? false : "hidden"}
       whileInView="visible"
       viewport={{ once: true, amount: 0.2 }}
       transition={{ delay }}
