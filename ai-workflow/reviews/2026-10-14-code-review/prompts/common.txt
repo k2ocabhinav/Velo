@@ -1,8 +1,0 @@
-You are one of four parallel reviewers doing a thorough CODE REVIEW of the Velo project (white-label ride/dispatch platform; Spring Boot backend in velo-platform/, Next.js Turborepo in velo-frontend/ with apps admin/rider/driver/landing and packages api/app-core/config/ui/ws). Start by reading AGENTS.md, docs/README.md, docs/PROGRESS.md, docs/ARCHITECTURE.md and the docs/decisions/ index for intent. Then review the ACTUAL CODE in your scope deeply (read the files; do not guess). Do NOT modify any files.
-
-Report format (plain markdown, max ~180 lines):
-## Summary (3-5 lines, overall health verdict)
-## Findings — table or list, sorted by severity (Critical / High / Medium / Low). Each finding: severity, title, file:line, evidence (what the code does), impact (concrete failure scenario), fix (1-2 lines).
-## Gaps — things claimed done in docs/PROGRESS.md that are missing/partial in code, and important things not tracked at all.
-## Convention violations — against AGENTS.md rules (count + examples).
-Only report issues you verified in the code. Mark anything uncertain as "(unverified)". No praise filler.

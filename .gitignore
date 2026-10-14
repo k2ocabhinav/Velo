@@ -18,3 +18,9 @@ DFD Level 1 - New Page - Uber_UML_Diagram_6bee8f589b.pdf
 
 unlogs/
 index/
+
+# Process narratives stay local (only metrics + setup are tracked; see decision 0015)
+ai-workflow/JOURNAL.md
+ai-workflow/LESSONS.md
+ai-workflow/plans/
+ai-workflow/reviews/

@@ -13,7 +13,7 @@
 - Keep docs concise. If a doc exceeds 200 lines, you're probably adding too much.
 - Living docs: when something changes, rewrite the affected text and delete what's obsolete. Git keeps the history.
 - **Decision ledger** (`docs/decisions/`): record any choice that is costly to reverse, or that someone may later ask "why?" about, as a new `NNNN-title.md` from `0000-template.md`, and add it to the index. Records are append-only: to reverse one, write a new record that supersedes it. Mistakes are recorded, not erased.
-- `docs/` is product documentation; keep it free of AI-tooling talk. The AI development process (orchestration, model scorecard, journal, lessons) lives in `ai-workflow/` and is tracked for later publication.
+- `docs/` is product documentation; keep it free of AI-tooling talk. The AI development process lives in `ai-workflow/`. Only the setup and model metrics (`SETUP.md`, `models/`) are tracked; the journal, lessons, plans and review reports are gitignored and local only.
 
 ## Project Identity
 - **Name:** Velo (white-label dispatch platform)

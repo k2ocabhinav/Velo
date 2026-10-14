@@ -1,6 +1,6 @@
 # 0012 — Track the AI-assisted development process in the repository
 
-- **Status:** Accepted
+- **Status:** Superseded in part by 0015
 - **Date:** 2026-10-14
 
 ## Context

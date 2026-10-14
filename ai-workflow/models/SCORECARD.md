@@ -34,4 +34,5 @@ Open-weight coding candidates (newest per family):
 - **GLM:** zai-org/glm-5.3 (security-strong), z-ai/glm-5.3-flash (cheap, 1M ctx)
 - **MiniMax:** minimax-m3. **MiMo:** mimo-v2.6-pro, mimo-v2.6-flash. **Others:** step-5-preview, longcat-2.0, mistral-large-4, nemotron-3-ultra
 - **Free tiers:** poolside/laguna-s-2.1-free, inclusionai/ling-3.1-flash:free (try these for `quick`)
+- **Codex CLI (ChatGPT plan):** `gpt-6-luna` (xhigh) is the default; `gpt-6.1-sol` is the alternative. The user's rule: never `gpt-6-astra` (token-hungry) or older models.
 - **Proprietary (also in CMD):** Claude 5.x, GPT-6.x, Gemini 3.x/4, Grok 4.x. Use these only when open models score below 3 for a role.

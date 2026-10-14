@@ -5,7 +5,15 @@ Last updated: 2026-10-14
 ## Roles
 - **Orchestrator: Claude Code (Opus 5.5).** Plans, splits work, writes tight task prompts, picks models from the scorecard, verifies results lightly (diff stat, a skim of key changes, one test run, spot-checking claims), integrates, commits when asked, and keeps the docs current.
 - **Executor: CMD (Command Code CLI, `cmd`).** Does the heavy lifting: implementation, reviews, optimisation, bug hunts, test-fix loops and web research. Gives access to about 88 models (open-weight and proprietary), chosen per task with `-m`.
-- **Principle:** the orchestrator spends tokens on judgement, and the executor spends them on volume.
+- **Executor 2: Codex CLI (`codex`, 0.162, ChatGPT login).** Added 2026-10-14 after CMD hit its quota. Used for implementation. Models: **only `gpt-6-luna` at `xhigh`** (default) or `gpt-6.1-sol`. Never `gpt-6-astra` (burns tokens) and never older models.
+- **Principle:** the orchestrator spends tokens on judgement, and the executors spend them on volume.
+
+## How Codex is driven
+- **Command:** `codex exec --ignore-user-config -m gpt-6-luna -c model_reasoning_effort=xhigh -s <read-only|workspace-write> -C <worktree> --json -o last.md "<task>" < /dev/null`
+- **Sandbox:** a real OS sandbox, so writes need no bypass flag. For Maven and Postgres tests, add `-c sandbox_workspace_write.network_access=true --add-dir ~/.m2`.
+- **Output:** JSONL events (`thread.started` → `thread_id`; `turn.completed` → usage). Follow-up: `codex exec resume <thread_id> "<msg>"`.
+- **`--ignore-user-config`** keeps the machine-wide MemPalace hooks in `~/.codex` out of Velo runs. `< /dev/null` stops it waiting on stdin.
+- **Parallel backend work:** one worktree plus one test DB each (`-Dspring.datasource.url=…/testpostgres_wpN`), because tests use `create-drop`.
 
 ## How CMD is driven
 - **Headless call:** `cmd -p "<task>" --trust --skip-onboarding --max-turns N --output-format json -m <model> [--effort ...]`
@@ -21,7 +29,8 @@ Last updated: 2026-10-14
 ## Tooling
 | Tool | Status | Why |
 |---|---|---|
-| CMD (Command Code 1.81) | Used | Multi-model executor |
+| CMD (Command Code 1.81) | Used | Multi-model executor (open-weight models); 5-hour plan quota |
+| Codex CLI 0.162 | Used | Second executor with an OS sandbox; GPT-6 Luna/Sol |
 | Claude Code plugins: jdtls-lsp, typescript-lsp, frontend-design | Used | Code intelligence for Java and TS; UI quality |
 | RuFlo / claude-flow v3 | Removed 2026-10-14 | Heavy swarm framework: hooks added noise to every prompt, set an AI co-author line on commits, and `init` overwrites instruction files |
 | MemPalace | Not used in Velo | Disputed benchmarks; MCP and security rough edges |
