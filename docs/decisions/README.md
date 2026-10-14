@@ -44,9 +44,10 @@ Small, reversible choices do not need a record.
 | [0015](0015-track-only-process-metrics.md) | Track only process metrics; keep narratives local | Accepted | 2026-10-14 |
 | [0016](0016-websocket-ticket-auth.md) | Short-lived WebSocket tickets instead of browser-held JWTs | Accepted | 2026-10-14 |
 | [0017](0017-rider-current-request-recovery.md) | Recover the rider's current request from the backend | Accepted | 2026-10-14 |
-| [0018](0018-refresh-token-rotation.md) | Rotating refresh tokens with family revocation | Accepted | 2026-10-14 |
+| [0018](0018-refresh-token-rotation.md) | Rotating refresh tokens with family revocation | Superseded in part by 0022 | 2026-10-14 |
 | [0019](0019-terraform-for-aws-infrastructure.md) | Terraform for AWS infrastructure | Accepted | 2026-10-14 |
 | [0020](0020-tenant-theme-loading.md) | Server-side tenant theme loading | Accepted | 2026-10-14 |
+| [0022](0022-refresh-rotation-grace-window.md) | Refresh rotation grace window | Accepted | 2026-10-14 |
 
 `0000-template.md` is the template and is intentionally not indexed.
 

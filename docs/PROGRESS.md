@@ -34,9 +34,9 @@
 - [x] Backend suite: 240 tests, 0 failures (was 197 claimed / 196 actual)
 
 ### Follow-ups found during the 2026-10-14 rounds
-- [ ] EP-1 Rider wallet balance/transactions endpoint + admin revenue per driver (in progress)
+- [x] EP-1 Rider wallet balance/transactions endpoint + admin revenue per driver
 - [ ] EP-2 Geocoding proxy + address search in admin New trip and rider booking (in progress)
-- [ ] EP-3 Refresh-token cleanup + grace window for cross-instance refresh; tenant brand in wordmarks (in progress)
+- [x] EP-3 Refresh-token cleanup + grace window (decision 0022); tenant brand in wordmarks
 - [ ] EP-4 Docker image build + container smoke test (in progress)
 - [ ] EP-5 Demo readiness: two branded demo tenants, one-command local demo, tunnel guide, README with screenshots (in progress)
 - [ ] Geocoding must be search-on-submit + saved locations (provider usage policy) — correction to EP-2
