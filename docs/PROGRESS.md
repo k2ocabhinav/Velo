@@ -35,11 +35,10 @@
 
 ### Follow-ups found during the 2026-10-14 rounds
 - [x] EP-1 Rider wallet balance/transactions endpoint + admin revenue per driver
-- [ ] EP-2 Geocoding proxy + address search in admin New trip and rider booking (in progress)
+- [x] EP-2 Geocoding proxy (decision 0021) + search-on-submit address search + rider saved places (V9)
 - [x] EP-3 Refresh-token cleanup + grace window (decision 0022); tenant brand in wordmarks
 - [x] EP-4 Docker images build (backend 143 MiB, frontends ~72 MiB), readiness without Redis, scripts/docker-smoke.sh
 - [ ] EP-5 Demo readiness: two branded demo tenants, one-command local demo, tunnel guide, README with screenshots (in progress)
-- [ ] Geocoding must be search-on-submit + saved locations (provider usage policy) — correction to EP-2
 - [ ] Next: corporate accounts + contract tariffs + monthly statement CSV (niche: small fleets with pre-booked business transfers)
 - [ ] EP-6 Recurring scheduled trips + trip sheet + unassigned alerts (in progress)
 - [ ] Apply Terraform — deferred: no AWS account or budget; demos run locally (see research for $0 options)

@@ -47,6 +47,7 @@ Small, reversible choices do not need a record.
 | [0018](0018-refresh-token-rotation.md) | Rotating refresh tokens with family revocation | Superseded in part by 0022 | 2026-10-14 |
 | [0019](0019-terraform-for-aws-infrastructure.md) | Terraform for AWS infrastructure | Accepted | 2026-10-14 |
 | [0020](0020-tenant-theme-loading.md) | Server-side tenant theme loading | Accepted | 2026-10-14 |
+| [0021](0021-geocoding-provider.md) | Geocoding through a provider-swappable backend proxy | Accepted | 2026-10-14 |
 | [0022](0022-refresh-rotation-grace-window.md) | Refresh rotation grace window | Accepted | 2026-10-14 |
 
 `0000-template.md` is the template and is intentionally not indexed.
