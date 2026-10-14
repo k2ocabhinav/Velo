@@ -6,6 +6,7 @@ import jakarta.persistence.OptimisticLockException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -30,6 +31,15 @@ public class GlobalExceptionHandler {
         ApiError apiError = ApiError.builder()
                 .status(HttpStatus.CONFLICT)
                 .message(exception.getMessage())
+                .build();
+        return buildErrorResponseEntity(apiError);
+    }
+
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<ApiResponse<?>> handleBadCredentials(BadCredentialsException exception) {
+        ApiError apiError = ApiError.builder()
+                .status(HttpStatus.UNAUTHORIZED)
+                .message("Invalid email or password")
                 .build();
         return buildErrorResponseEntity(apiError);
     }

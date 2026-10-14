@@ -1,10 +1,12 @@
 package com.velo.platform.services.impl;
 
 import com.velo.platform.dto.AuthResponseDto;
+import com.velo.platform.dto.ForgotPasswordRequestDto;
 import com.velo.platform.dto.DriverDto;
 import com.velo.platform.dto.SignupDto;
 import com.velo.platform.dto.UserDto;
 import com.velo.platform.entities.Driver;
+import com.velo.platform.entities.PasswordResetToken;
 import com.velo.platform.entities.User;
 import com.velo.platform.entities.enums.DriverOnboardingStatus;
 import com.velo.platform.entities.enums.Role;
@@ -13,17 +15,27 @@ import com.velo.platform.exceptions.RuntimeConflictException;
 import com.velo.platform.repositories.PasswordResetTokenRepository;
 import com.velo.platform.repositories.UserRepository;
 import com.velo.platform.security.JwtTokenProvider;
+import com.velo.platform.security.UserPrincipal;
 import com.velo.platform.services.DriverService;
 import com.velo.platform.services.RiderService;
 import com.velo.platform.services.WalletService;
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.modelmapper.ModelMapper;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashSet;
 import java.util.Optional;
@@ -34,7 +46,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-@ExtendWith(MockitoExtension.class)
+@ExtendWith({MockitoExtension.class, OutputCaptureExtension.class})
 class AuthServiceImplTest {
 
     @Mock
@@ -65,6 +77,7 @@ class AuthServiceImplTest {
 
     @BeforeEach
     void setUp() {
+        SecurityContextHolder.clearContext();
         authService = new AuthServiceImpl(
                 userRepository, passwordResetTokenRepository, modelMapper, riderService, walletService, driverService, passwordEncoder, jwtTokenProvider);
     }
@@ -145,7 +158,7 @@ class AuthServiceImplTest {
     }
 
     @Test
-    @DisplayName("Login with invalid password should throw RuntimeConflictException")
+    @DisplayName("Login with invalid password should throw the generic bad-credentials exception")
     void login_WithInvalidPassword_ShouldThrowException() {
         String email = "user@test.com";
         User user = User.builder()
@@ -159,8 +172,46 @@ class AuthServiceImplTest {
         when(passwordEncoder.matches("wrong-password", user.getPassword())).thenReturn(false);
 
         assertThatThrownBy(() -> authService.login(email, "wrong-password"))
-                .isInstanceOf(RuntimeConflictException.class)
-                .hasMessageContaining("Invalid password");
+                .isInstanceOf(BadCredentialsException.class)
+                .hasMessage("Invalid email or password");
+    }
+
+    @Test
+    @DisplayName("Login with unknown email should use the same bad-credentials exception")
+    void login_WithUnknownEmail_ShouldThrowGenericException() {
+        when(userRepository.findByEmail("missing@test.com")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> authService.login("missing@test.com", "password"))
+                .isInstanceOf(BadCredentialsException.class)
+                .hasMessage("Invalid email or password");
+        verify(passwordEncoder, never()).matches(any(), any());
+    }
+
+    @Test
+    @DisplayName("Forgot password does not write the reset token to logs")
+    void forgotPassword_ShouldNotLogResetToken(CapturedOutput output) {
+        User user = User.builder().id(5L).email("reset@test.com").build();
+        ForgotPasswordRequestDto request = new ForgotPasswordRequestDto();
+        request.setEmail(user.getEmail());
+        when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(passwordResetTokenRepository.save(any(PasswordResetToken.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        Logger serviceLogger = (Logger) LoggerFactory.getLogger(AuthServiceImpl.class);
+        Level originalLevel = serviceLogger.getLevel();
+        serviceLogger.setLevel(Level.DEBUG);
+        try {
+            authService.forgotPassword(request);
+        } finally {
+            serviceLogger.setLevel(originalLevel);
+        }
+
+        org.mockito.ArgumentCaptor<PasswordResetToken> tokenCaptor =
+                org.mockito.ArgumentCaptor.forClass(PasswordResetToken.class);
+        verify(passwordResetTokenRepository).save(tokenCaptor.capture());
+        assertThat(tokenCaptor.getValue().getToken()).isNotBlank();
+        assertThat(output).doesNotContain(tokenCaptor.getValue().getToken());
+        assertThat(output).doesNotContain("Reset token:");
     }
 
     @Test
@@ -174,6 +225,7 @@ class AuthServiceImplTest {
                 .email("driver@test.com")
                 .roles(new HashSet<>())
                 .build();
+        authenticate(userId, Role.RIDER, 1L);
 
         Driver driverToSave = Driver.builder()
                 .user(user)
@@ -203,6 +255,7 @@ class AuthServiceImplTest {
     @DisplayName("Onboard new driver for non-existent user should throw exception")
     void onboardNewDriver_ForNonExistentUser_ShouldThrowException() {
         Long userId = 999L;
+        authenticate(userId, Role.RIDER, 1L);
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> authService.onboardNewDriver(userId, "VEH123"))
@@ -220,11 +273,19 @@ class AuthServiceImplTest {
                 .id(userId)
                 .roles(new HashSet<>(Set.of(Role.DRIVER)))
                 .build();
+        authenticate(userId, Role.RIDER, 1L);
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 
         assertThatThrownBy(() -> authService.onboardNewDriver(userId, vehicleId))
                 .isInstanceOf(RuntimeConflictException.class)
                 .hasMessageContaining("already a Driver");
+    }
+
+    private void authenticate(Long userId, Role role, Long tenantId) {
+        UserPrincipal principal = new UserPrincipal(userId, "user@test.com", role.name(), tenantId);
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                principal, null, Set.of(new SimpleGrantedAuthority("ROLE_" + role.name())));
+        SecurityContextHolder.getContext().setAuthentication(authentication);
     }
 }

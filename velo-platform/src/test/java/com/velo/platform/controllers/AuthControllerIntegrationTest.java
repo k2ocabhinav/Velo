@@ -104,8 +104,8 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
-    @DisplayName("POST /auth/login with wrong password should return 409")
-    void login_WithWrongPassword_ShouldReturn409() throws Exception {
+    @DisplayName("POST /auth/login with wrong password should return generic 401")
+    void login_WithWrongPassword_ShouldReturn401() throws Exception {
         SignupDto signupDto = new SignupDto();
         signupDto.setName("Test User");
         signupDto.setEmail("wrong@test.com");
@@ -124,7 +124,67 @@ class AuthControllerIntegrationTest {
                                 "password": "wrongpassword"
                             }
                             """))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.error.message").value("Invalid password"));
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error.message").value("Invalid email or password"));
+    }
+
+    @Test
+    @DisplayName("POST /auth/login uses the same response for unknown email and wrong password")
+    void login_UnknownEmail_ShouldReturnSameGeneric401() throws Exception {
+        SignupDto signupDto = new SignupDto();
+        signupDto.setName("Known User");
+        signupDto.setEmail("known@test.com");
+        signupDto.setPassword("password123");
+        mockMvc.perform(post("/auth/signup")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(signupDto)))
+                .andExpect(status().isCreated());
+
+        String unknownEmailResponse = mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                            {"email":"unknown@test.com","password":"password"}
+                            """))
+                .andExpect(status().isUnauthorized())
+                .andReturn().getResponse().getContentAsString();
+
+        String wrongPasswordResponse = mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                            {"email":"known@test.com","password":"wrong-password"}
+                            """))
+                .andExpect(status().isUnauthorized())
+                .andReturn().getResponse().getContentAsString();
+
+        org.assertj.core.api.Assertions.assertThat(objectMapper.readTree(unknownEmailResponse).path("error").path("message").asText())
+                .isEqualTo(objectMapper.readTree(wrongPasswordResponse).path("error").path("message").asText());
+    }
+
+    @Test
+    @DisplayName("POST /auth/forgot-password returns the same success response for known and unknown emails")
+    void forgotPassword_ShouldNotEnumerateUsers() throws Exception {
+        SignupDto signupDto = new SignupDto();
+        signupDto.setName("Reset User");
+        signupDto.setEmail("reset@test.com");
+        signupDto.setPassword("password123");
+        mockMvc.perform(post("/auth/signup")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(signupDto)))
+                .andExpect(status().isCreated());
+
+        String knownResponse = mockMvc.perform(post("/auth/forgot-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"reset@test.com\"}"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String unknownResponse = mockMvc.perform(post("/auth/forgot-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"missing@test.com\"}"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        org.assertj.core.api.Assertions.assertThat(objectMapper.readTree(knownResponse).path("data").path("message").asText())
+                .isEqualTo(objectMapper.readTree(unknownResponse).path("data").path("message").asText())
+                .isEqualTo("If an account exists with this email, a password reset link has been sent");
     }
 }

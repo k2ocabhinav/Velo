@@ -10,6 +10,7 @@ import com.velo.platform.dto.UpdateProfileRequestDto;
 import com.velo.platform.dto.UserDto;
 import com.velo.platform.services.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +42,7 @@ public class AuthController {
 
     @PostMapping("/onBoardNewDriver/{userId}")
     @Operation(summary = "Complete driver onboarding for an existing user")
+    @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<DriverDto> onBoardNewDriver(@PathVariable Long userId, @RequestBody @Valid OnboardDriverDto onboardDriverDto) {
         return new ResponseEntity<>(authService.onboardNewDriver(userId, onboardDriverDto.getVehicleId()), HttpStatus.CREATED);
     }
