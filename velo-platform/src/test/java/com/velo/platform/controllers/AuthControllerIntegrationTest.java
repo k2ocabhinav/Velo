@@ -268,8 +268,8 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
-    @DisplayName("POST /auth/refresh rotates opaque refresh tokens and reuse revokes the family")
-    void refresh_RotatesAndDetectsReuse() throws Exception {
+    @DisplayName("POST /auth/refresh replays the same pair in grace and revokes reuse after grace")
+    void refresh_ReplaysWithinGraceAndDetectsReuseAfterGrace() throws Exception {
         createUser("refresh@test.com", "Refresh User");
         String loginResponse = mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -288,8 +288,26 @@ class AuthControllerIntegrationTest {
                         .content(objectMapper.writeValueAsString(Map.of("refreshToken", originalRefreshToken))))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
-        String rotatedRefreshToken = objectMapper.readTree(rotatedResponse).path("data").path("refreshToken").asText();
+        var rotatedData = objectMapper.readTree(rotatedResponse).path("data");
+        String rotatedRefreshToken = rotatedData.path("refreshToken").asText();
         org.assertj.core.api.Assertions.assertThat(rotatedRefreshToken).isNotEqualTo(originalRefreshToken);
+
+        String replayedResponse = mockMvc.perform(post("/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("refreshToken", originalRefreshToken))))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        var replayedData = objectMapper.readTree(replayedResponse).path("data");
+        org.assertj.core.api.Assertions.assertThat(replayedData.path("token").asText())
+                .isEqualTo(rotatedData.path("token").asText());
+        org.assertj.core.api.Assertions.assertThat(replayedData.path("refreshToken").asText())
+                .isEqualTo(rotatedRefreshToken);
+
+        var consumedToken = refreshTokenRepository.findAll().stream()
+                .filter(token -> token.getConsumedAt() != null)
+                .findFirst().orElseThrow();
+        consumedToken.setConsumedAt(LocalDateTime.now().minusSeconds(21));
+        refreshTokenRepository.saveAndFlush(consumedToken);
 
         mockMvc.perform(post("/auth/refresh")
                         .contentType(MediaType.APPLICATION_JSON)

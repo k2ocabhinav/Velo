@@ -1,6 +1,6 @@
 # 0018 — Rotating refresh tokens for BFF sessions
 
-- **Status:** Accepted
+- **Status:** Superseded in part by 0022
 - **Date:** 2026-10-14
 
 ## Context

@@ -1,4 +1,6 @@
 import { expect, test } from "./fixtures";
+
+const tenantBrandName = process.env.PLAYWRIGHT_TENANT_BRAND_NAME ?? "Velo";
 import type { Page } from "@playwright/test";
 
 function formatDateTimeLocal(value: Date): string {
@@ -93,7 +95,7 @@ test.describe("rider smoke", () => {
 
     await page.goto("/account");
     await expect(page.getByRole("heading", { name: "Account" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Velo home" })).toContainText("VELO");
+    await expect(page.getByRole("link", { name: `${tenantBrandName} home` })).toHaveText(tenantBrandName === "Velo" ? "VELO" : tenantBrandName);
     await expect(page.getByRole("link", { name: "Notifications" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Offers" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Scheduled trips" })).toBeVisible();

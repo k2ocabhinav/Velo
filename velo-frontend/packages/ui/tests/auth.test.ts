@@ -3,7 +3,9 @@ import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { JSDOM } from "jsdom";
 import { describe, expect, it } from "vitest";
+import { DEFAULT_TENANT_BRANDING } from "@velo/app-core/tenant";
 import { AuthLayout, PasswordField } from "../src/composed";
+import { TenantBrandingProvider } from "../src/theme/tenant-branding-provider";
 
 function html(node: ReactNode): string {
   return renderToStaticMarkup(node as ReactElement);
@@ -11,18 +13,36 @@ function html(node: ReactNode): string {
 
 describe("shared auth components", () => {
   it("renders the auth frame with a dark brand panel and its form", () => {
-    const markup = html(h(AuthLayout, {
-      product: "Admin",
-      statement: "Run dispatch, approvals and payouts for your fleet.",
-      title: "Sign in to Velo Admin",
-      children: "Login form",
+    const markup = html(h(TenantBrandingProvider, {
+      branding: DEFAULT_TENANT_BRANDING,
+      children: h(AuthLayout, {
+        product: "Admin",
+        statement: "Run dispatch, approvals and payouts for your fleet.",
+        title: "Sign in to Velo Admin",
+        children: "Login form",
+      }),
     }));
 
     expect(markup).toContain('class="auth-brand velo-theme-dark"');
+    expect(markup).toContain('class="auth-tenant-wordmark" title="VELO">VELO</span>');
     expect(markup).toContain('class="auth-product">Admin</span>');
     expect(markup).toContain("Run dispatch, approvals and payouts for your fleet.");
     expect(markup).toContain("Sign in to Velo Admin");
     expect(markup).toContain("Login form");
+  });
+
+  it("renders the tenant wordmark in the auth frame", () => {
+    const markup = html(h(TenantBrandingProvider, {
+      branding: { ...DEFAULT_TENANT_BRANDING, brandName: "Northstar Mobility" },
+      children: h(AuthLayout, {
+        product: "Rider",
+        statement: "Book a ride.",
+        title: "Sign in",
+        children: "Login form",
+      }),
+    }));
+
+    expect(markup).toContain('class="auth-tenant-wordmark" title="Northstar Mobility">Northstar Mobility</span>');
   });
 
   it("associates the password label with its input and toggles visibility accessibly", async () => {

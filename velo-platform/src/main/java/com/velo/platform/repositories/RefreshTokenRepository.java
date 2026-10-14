@@ -30,4 +30,25 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
     int revokeAllForUser(@Param("userId") Long userId,
                          @Param("tenantId") Long tenantId,
                          @Param("revokedAt") LocalDateTime revokedAt);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = "WITH cleanup_batch AS (" +
+            "SELECT id FROM auth_refresh_token " +
+            "WHERE tenant_id = :tenantId " +
+            "AND (expires_at <= :expiredBefore OR revoked_at <= :revokedBefore) " +
+            "ORDER BY id LIMIT :batchSize FOR UPDATE SKIP LOCKED) " +
+            "DELETE FROM auth_refresh_token token USING cleanup_batch batch " +
+            "WHERE token.id = batch.id AND token.tenant_id = :tenantId", nativeQuery = true)
+    int deleteCleanupBatch(@Param("tenantId") Long tenantId,
+                           @Param("expiredBefore") LocalDateTime expiredBefore,
+                           @Param("revokedBefore") LocalDateTime revokedBefore,
+                           @Param("batchSize") int batchSize);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update RefreshToken token set token.rotationResponseCiphertext = :encryptedResponse " +
+            "where token.id = :predecessorId and token.tenantId = :tenantId " +
+            "and token.consumedAt is not null and token.revokedAt is null")
+    int storeRotationResponse(@Param("predecessorId") Long predecessorId,
+                              @Param("tenantId") Long tenantId,
+                              @Param("encryptedResponse") String encryptedResponse);
 }

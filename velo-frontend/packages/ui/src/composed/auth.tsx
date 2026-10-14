@@ -3,6 +3,8 @@
 import { useId, useState, type InputHTMLAttributes, type ReactNode } from "react";
 import { cn } from "../lib/cn";
 import { RouteStrip } from "./route-strip";
+import { getTenantWordmark } from "@velo/app-core/tenant";
+import { useTenantBranding } from "../theme/tenant-branding-provider";
 
 /**
  * Two-panel sign-in / sign-up frame shared by the rider, driver and admin apps.
@@ -25,11 +27,15 @@ export function AuthLayout({
   children: ReactNode;
   footer?: ReactNode;
 }) {
+  const { brandName } = useTenantBranding();
+  const wordmark = getTenantWordmark(brandName);
+
   return (
     <main className="auth-shell">
-      <aside className="auth-brand velo-theme-dark" aria-label={`Velo ${product}`}>
-        <p className="auth-wordmark">
-          VELO <span className="auth-product">{product}</span>
+      <aside className="auth-brand velo-theme-dark" aria-label={`${wordmark} ${product}`}>
+        <p className="auth-wordmark" aria-label={`${wordmark} ${product}`}>
+          <span className="auth-tenant-wordmark" title={wordmark}>{wordmark}</span>
+          <span className="auth-product">{product}</span>
         </p>
         <p className="auth-statement">{statement}</p>
         <RouteStrip className="auth-route" stage="on_trip" variant="static" />

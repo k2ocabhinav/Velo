@@ -57,6 +57,12 @@ public class RefreshToken {
     @Column(name = "revoked_at")
     private LocalDateTime revokedAt;
 
+    @Column(name = "successor_token_id")
+    private Long successorTokenId;
+
+    @Column(name = "rotation_response_ciphertext", columnDefinition = "text")
+    private String rotationResponseCiphertext;
+
     @Version
     private Long version;
 }

@@ -9,6 +9,12 @@
 }
 
 .rider-brand {
+  display: block;
+  min-width: 0;
+  max-width: min(14rem, 52vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: hsl(var(--color-foreground));
   font-family: var(--font-display), system-ui, sans-serif;
   font-size: var(--text-2xl);

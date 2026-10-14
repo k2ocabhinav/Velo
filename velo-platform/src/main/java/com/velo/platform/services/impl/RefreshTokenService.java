@@ -2,9 +2,11 @@ package com.velo.platform.services.impl;
 
 import com.velo.platform.entities.User;
 import com.velo.platform.exceptions.InvalidRefreshTokenException;
+import com.velo.platform.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -24,9 +26,14 @@ public class RefreshTokenService {
     private static final Long DEFAULT_TENANT_ID = 1L;
 
     private final RefreshTokenStore refreshTokenStore;
+    private final JwtTokenProvider jwtTokenProvider;
+    private final RefreshTokenReplayCipher refreshTokenReplayCipher;
 
     @Value("${auth.refresh-token.ttl:PT720H}")
     private Duration tokenTtl;
+
+    @Value("${auth.refresh-token.rotation-grace-window:PT20S}")
+    private Duration rotationGraceWindow;
 
     public String issue(User user) {
         String rawToken = newRawToken();
@@ -36,17 +43,35 @@ public class RefreshTokenService {
         return rawToken;
     }
 
+    @Transactional(noRollbackFor = InvalidRefreshTokenException.class)
     public RotatedToken rotate(String rawToken) {
         if (rawToken == null || rawToken.isBlank()) {
             throw new InvalidRefreshTokenException();
         }
+        LocalDateTime now = LocalDateTime.now();
         String nextRawToken = newRawToken();
         RefreshTokenStore.RotationResult result = refreshTokenStore.rotate(
-                hash(rawToken), hash(nextRawToken), LocalDateTime.now(), LocalDateTime.now().plus(tokenTtl));
+                hash(rawToken), hash(nextRawToken), now, now.plus(tokenTtl), rotationGraceWindow);
+        if (result.status() == RefreshTokenStore.RotationResult.Status.REPLAY) {
+            try {
+                RefreshTokenReplayCipher.ReplayResponse replay = refreshTokenReplayCipher.decrypt(result.replayCiphertext());
+                return new RotatedToken(result.userId(), result.email(), result.role(), result.tenantId(),
+                        replay.accessToken(), replay.refreshToken());
+            } catch (IllegalStateException exception) {
+                refreshTokenStore.revoke(hash(rawToken), now);
+                throw new InvalidRefreshTokenException();
+            }
+        }
         if (result.status() != RefreshTokenStore.RotationResult.Status.ROTATED) {
             throw new InvalidRefreshTokenException();
         }
-        return new RotatedToken(result.userId(), result.email(), result.role(), result.tenantId(), nextRawToken);
+
+        String accessToken = jwtTokenProvider.generateToken(result.email(), result.userId(),
+                result.role(), result.tenantId());
+        String encryptedResponse = refreshTokenReplayCipher.encrypt(accessToken, nextRawToken);
+        refreshTokenStore.storeRotationResponse(result.predecessorId(), result.tenantId(), encryptedResponse);
+        return new RotatedToken(result.userId(), result.email(), result.role(), result.tenantId(),
+                accessToken, nextRawToken);
     }
 
     public void revoke(String rawToken) {
@@ -75,5 +100,6 @@ public class RefreshTokenService {
         }
     }
 
-    public record RotatedToken(Long userId, String email, String role, Long tenantId, String refreshToken) { }
+    public record RotatedToken(Long userId, String email, String role, Long tenantId,
+                               String accessToken, String refreshToken) { }
 }

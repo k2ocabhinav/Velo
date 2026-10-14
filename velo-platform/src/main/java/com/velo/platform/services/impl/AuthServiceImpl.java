@@ -86,10 +86,8 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public AuthResponseDto refresh(String refreshToken) {
         RefreshTokenService.RotatedToken rotatedToken = refreshTokenService.rotate(refreshToken);
-        String accessToken = jwtTokenProvider.generateToken(rotatedToken.email(), rotatedToken.userId(),
-                rotatedToken.role(), rotatedToken.tenantId());
         return AuthResponseDto.builder()
-                .token(accessToken)
+                .token(rotatedToken.accessToken())
                 .refreshToken(rotatedToken.refreshToken())
                 .expiresInSeconds(jwtTokenProvider.getAccessTokenTtlSeconds())
                 .userId(rotatedToken.userId())
