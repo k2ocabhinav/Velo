@@ -25,6 +25,7 @@ export interface PointDto {
 export interface DriverUserSummary {
   name?: string;
   email?: string;
+  phoneNumber?: string | null;
   roles?: string[];
 }
 
