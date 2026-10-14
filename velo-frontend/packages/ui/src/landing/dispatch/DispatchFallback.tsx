@@ -191,7 +191,7 @@ export function DispatchFallback({
                 key={`halo-${tripId}`}
                 points={projectLine(route)}
                 stroke={active ? "var(--dispatch-route)" : "var(--dispatch-route-alt)"}
-                strokeWidth={active ? 13 : 9}
+                strokeWidth={active ? 15 : 10.5}
               />
             );
           })}
@@ -204,7 +204,7 @@ export function DispatchFallback({
                 key={tripId}
                 points={projectLine(route)}
                 stroke={active ? "var(--dispatch-route)" : "var(--dispatch-route-alt)"}
-                strokeWidth={active ? 3.6 : 2.2}
+                strokeWidth={active ? 4.2 : 2.55}
                 opacity={active ? previewPhase === "assign" ? 0.36 : 0.95 : 0.55}
               />
             );

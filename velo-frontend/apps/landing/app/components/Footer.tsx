@@ -27,7 +27,7 @@ export function Footer({ home = true }: { home?: boolean }) {
           {siteConfig.demoContactAvailable && (
             <div className="footer-links-group">
               <span className="footer-label">Contact</span>
-              <a href={sectionLink("contact")}>{landingCopy.hero.bookDemo}</a>
+              <a href={sectionLink("book-a-demo")}>{landingCopy.hero.bookDemo}</a>
               {contactEmail && <a href={`mailto:${contactEmail}`}>{contactEmail}</a>}
             </div>
           )}

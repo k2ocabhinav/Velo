@@ -14,12 +14,9 @@ test("primary navigation, mobile menu and demo links have working targets", asyn
   await expect(navigation.getByRole("link", { name: "How it works" })).toHaveAttribute("href", "#how-it-works");
   await expect(navigation.getByRole("link", { name: "Pricing" })).toHaveAttribute("href", "#pricing");
   await expect(navigation.getByRole("link", { name: "FAQ" })).toHaveAttribute("href", "#faq");
-  if (hasDemoDestination) {
-    await expect(navigation.getByRole("link", { name: "Book a demo" })).toHaveAttribute("href", "#contact");
-  } else {
-    await expect(navigation.getByRole("link", { name: "Book a demo" })).toHaveCount(0);
-    await expect(page.getByRole("link", { name: "Book a demo" })).toHaveCount(0);
-  }
+  await expect(navigation.locator(".nav-cta a")).toHaveAttribute("href", "#book-a-demo");
+  await expect(page.locator('#top a[href="#book-a-demo"]')).toHaveAttribute("href", "#book-a-demo");
+  expect((await navigation.locator(".nav-cta a").boundingBox())?.height).toBeGreaterThanOrEqual(48);
   await expect(page.locator("#verify").getByRole("link", { name: "Open" })).toHaveCount(0);
   await expect(page.locator("#verify")).toContainText("Build checks");
   await expect(page.locator("#verify")).toContainText(/6 landing checks passed · checked \d{1,2} \w{3} \d{4}/);
@@ -59,6 +56,8 @@ test("primary navigation, mobile menu and demo links have working targets", asyn
   await menuButton.click();
   await expect(navigation.getByRole("button", { name: "Close navigation menu" })).toHaveAttribute("aria-expanded", "true");
   await expect(navigation.getByRole("link", { name: "FAQ" })).toBeVisible();
+  await expect(navigation.locator(".nav-mobile-cta")).toHaveAttribute("href", "#book-a-demo");
+  expect((await navigation.locator(".nav-mobile-cta").boundingBox())?.height).toBeGreaterThanOrEqual(48);
 
   const findings = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
   expect(findings.violations.filter(({ impact }) => impact === "serious" || impact === "critical")).toEqual([]);
@@ -79,8 +78,8 @@ test("contact form appears only when a demo request destination is configured", 
     if (whatsappDigits) {
       await expect(page.getByRole("link", { name: "WhatsApp the founder" })).toBeVisible();
     } else {
-      await expect(page.locator("#contact")).toContainText("No details were sent or saved");
-      await expect(page.locator("#contact")).toContainText("Demo contact isn’t available yet");
+      await expect(page.locator("#book-a-demo")).toContainText("No details were sent or saved");
+      await expect(page.locator("#book-a-demo")).toContainText("Demo contact isn’t available yet");
       await expect(page.locator("footer .footer-links-group").filter({ hasText: "Contact" })).toHaveCount(0);
     }
     return;

@@ -1378,12 +1378,30 @@
 .timeSpineMarker {
   position: absolute;
   top: 0;
-  left: -4px;
-  width: 10px;
-  height: 10px;
+  left: -5px;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--landing-livery);
   border-radius: 50%;
-  background: var(--landing-signal);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--landing-signal) 22%, transparent);
+  background: var(--landing-paper);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--landing-livery) 20%, transparent);
+}
+
+.timeSpineMarkerLabel {
+  position: absolute;
+  top: 50%;
+  left: 16px;
+  transform: translateY(-50%);
+  padding: 1px 6px;
+  border: 1px solid var(--landing-livery);
+  border-radius: 3px;
+  background: var(--landing-card);
+  color: var(--landing-livery);
+  font-family: var(--font-display), "Barlow Condensed", system-ui, sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  line-height: 1.5;
+  white-space: nowrap;
 }
 
 @media (max-width: 1299px) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { landingCopy, siteConfig } from "../../content/site";
+import { landingCopy } from "../../content/site";
 
 type Theme = "day" | "night";
 
@@ -31,6 +31,9 @@ export function Navbar({ home = true }: { home?: boolean }) {
           <a href={sectionLink("how-it-works")} onClick={closeMenu}>How it works</a>
           <a href={sectionLink("pricing")} onClick={closeMenu}>Pricing</a>
           <a href={sectionLink("faq")} onClick={closeMenu}>FAQ</a>
+          <a className="button button-primary nav-mobile-cta" href={sectionLink("book-a-demo")} onClick={closeMenu}>
+            {landingCopy.hero.bookDemo}
+          </a>
         </div>
 
         <button
@@ -58,13 +61,11 @@ export function Navbar({ home = true }: { home?: boolean }) {
           )}
         </button>
 
-        {siteConfig.demoContactAvailable && (
-          <div className="nav-cta">
-            <a className="button button-small button-primary" href={sectionLink("contact")} onClick={closeMenu}>
-              {landingCopy.hero.bookDemo}
-            </a>
-          </div>
-        )}
+        <div className="nav-cta">
+          <a className="button button-primary" href={sectionLink("book-a-demo")} onClick={closeMenu}>
+            {landingCopy.hero.bookDemo}
+          </a>
+        </div>
       </nav>
     </header>
   );

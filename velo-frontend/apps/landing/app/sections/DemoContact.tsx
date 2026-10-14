@@ -50,7 +50,7 @@ export function DemoContact() {
   }
 
   return (
-    <section className={`${styles.section} ${styles.tintNight} ${styles.contactSection}`} id="contact" aria-labelledby="contact-title">
+    <section className={`${styles.section} ${styles.tintNight} ${styles.contactSection}`} id="book-a-demo" aria-labelledby="contact-title">
       <div className={styles.container}>
         <div className={styles.contactLayout}>
           <div className={styles.contactIntro}>
@@ -84,8 +84,10 @@ export function DemoContact() {
                 <div className={styles.formField}><label htmlFor="demo-email">{copy.email}</label><input autoComplete="email" id="demo-email" name="email" type="email" /></div>
               </div>
               <div className={styles.formSubmit}>
-                <button className={styles.primaryButton} type="submit" disabled={isSubmitting}>{isSubmitting ? copy.sending : copy.submit}</button>
-                <p>{copy.privacy}</p>
+                <button className={styles.primaryButton} type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? copy.sending : siteConfig.contactFormAction ? copy.submit : copy.prepareEmail}
+                </button>
+                <p>{siteConfig.contactFormAction ? copy.privacy : copy.mailtoPrivacy}</p>
               </div>
               {status && <p className={status.type === "error" ? styles.formError : styles.formSuccess} role={status.type === "error" ? "alert" : "status"}>{status.message}</p>}
             </form>

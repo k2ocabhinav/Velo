@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { landingCopy, siteConfig } from "../../content/site";
+import { landingCopy } from "../../content/site";
 import styles from "./sections.module.css";
 
 type Currency = (typeof landingCopy.pricing.currencies)[number];
@@ -80,7 +80,7 @@ export function Pricing() {
               <p className={styles.priceExample}>{copy.examplePrefix} {money(prices.unit, currency)} = {money(exampleTotal, currency)} per month</p>
             </div>
             <p className={styles.priceCaveat}>{copy.taxes} {copy.caveat}</p>
-            {siteConfig.demoContactAvailable && <a className={styles.primaryButton} href="#contact">{landingCopy.hero.bookDemo}</a>}
+            <a className={styles.primaryButton} href="#book-a-demo">{landingCopy.hero.bookDemo}</a>
           </div>
           <div className={styles.priceDetails}>
             <div><h3>{copy.includedTitle}</h3><ul>{copy.included.map((item) => <li key={item}>{item}</li>)}</ul></div>

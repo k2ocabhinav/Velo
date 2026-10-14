@@ -70,6 +70,12 @@
   mask-image: radial-gradient(132% 122% at 60% 48%, #000 72%, transparent 100%);
 }
 
+.mobileMapScale {
+  transform: scale(1.15);
+  transform-box: view-box;
+  transform-origin: center;
+}
+
 .fallback,
 .canvasLayer {
   position: absolute;
@@ -220,13 +226,13 @@
 .mapLabel {
   fill: var(--dispatch-ink);
   font-family: var(--font-display), "Barlow Condensed", system-ui, sans-serif;
-  font-size: 8px;
+  font-size: 9.2px;
   font-weight: 800;
   letter-spacing: 0.04em;
   paint-order: stroke;
   stroke: var(--dispatch-ground);
   stroke-linejoin: round;
-  stroke-width: 2.5px;
+  stroke-width: 3px;
 }
 
 /* A single thin halo under each route: cartographic, not neon. */
@@ -333,21 +339,44 @@
 
 @media (max-width: 480px) {
   .scene {
-    aspect-ratio: 1.22;
-    min-height: 18rem;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 200px auto;
+    gap: 0.75rem;
+    width: 100%;
+    min-height: 0;
+    aspect-ratio: auto;
+    overflow: visible;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+
+  .fallback,
+  .canvasLayer {
+    top: 0;
+    right: 0;
+    bottom: auto;
+    left: 0;
+    grid-column: 1;
+    grid-row: 1;
+    height: 200px;
   }
 
   .tripCard {
-    bottom: 0.625rem;
-    left: 0.625rem;
-    width: min(14.5rem, calc(100% - 1.25rem));
-    padding: 0.65rem 0.75rem 0.6rem;
+    position: relative;
+    bottom: auto;
+    left: auto;
+    grid-column: 1;
+    grid-row: 2;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
   }
 
   .statusSteps {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     column-gap: 0.5rem;
-    row-gap: 0.3rem;
+    row-gap: 0.2rem;
+    font-size: 0.7rem;
   }
 
   .tripButton {
@@ -358,8 +387,6 @@
 @media (max-width: 479px) {
   .mobileMapScale {
     transform: scale(1.12);
-    transform-box: view-box;
-    transform-origin: center;
   }
 }
 

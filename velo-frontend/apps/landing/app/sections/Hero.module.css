@@ -120,7 +120,7 @@
 .voucher {
   position: relative;
   display: inline-flex;
-  min-height: 52px;
+  min-height: 48px;
   align-items: center;
   justify-content: center;
   padding: 14px 22px;
@@ -285,48 +285,81 @@
     margin-right: 0;
   }
 
-  .legend {
-    top: 8px;
-    inset-inline-end: 8px;
-    width: fit-content;
-    gap: 6px;
-    margin: 0;
-    padding: 8px 10px;
-    font-size: 0.8125rem;
-  }
 }
 
 @media (max-width: 760px) {
   .hero {
-    padding-block: 28px 36px;
+    padding-block: 22px 30px;
   }
 
   .grid {
-    gap: 14px;
+    gap: 10px;
+  }
+
+  .visual {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .bleed {
+    width: min(100%, 342px);
+    margin-inline: auto;
+  }
+
+  .bleed > * {
+    width: 100%;
   }
 
   .ticket {
-    margin-bottom: 14px;
-    padding-block: 7px;
+    margin-bottom: 10px;
+    padding-block: 6px;
+  }
+
+  .ticketStamp {
+    display: none;
   }
 
   .title {
-    font-size: clamp(2.75rem, 10vw, 3.5rem);
+    font-size: clamp(2.5rem, 9vw, 3.25rem);
   }
 
   .description {
-    margin-top: 14px;
+    margin-top: 10px;
+    font-size: 1rem;
+    line-height: 1.45;
   }
 
   .actions {
     flex-direction: row;
     align-items: center;
     gap: 8px;
-    margin-top: 18px;
+    margin-top: 14px;
+  }
+
+  .bleed {
+    order: 1;
+  }
+
+  .legend {
+    position: static;
+    order: 2;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: min(100%, 342px);
+    gap: 8px 14px;
+    margin: 10px auto 0;
+    padding: 8px 10px;
+    font-size: 0.8125rem;
+  }
+
+  .caption {
+    order: 3;
   }
 
   .primary {
     flex: 0 0 auto;
+    padding-block: 12px;
   }
 
   .voucher {

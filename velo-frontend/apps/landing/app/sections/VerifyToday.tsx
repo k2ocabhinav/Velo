@@ -3,15 +3,15 @@ import styles from "./sections.module.css";
 
 export function VerifyToday() {
   const copy = landingCopy.verify;
-  const buildDate = new Date();
-  const checkedOn = Number.isNaN(buildDate.getTime())
+  const verifiedDate = new Date(`${verifyFacts.landingChecksVerifiedOn}T12:00:00Z`);
+  const checkedOn = Number.isNaN(verifiedDate.getTime())
     ? undefined
     : new Intl.DateTimeFormat("en-GB", {
         day: "numeric",
         month: "short",
         year: "numeric",
         timeZone: "Asia/Kolkata",
-      }).format(buildDate);
+      }).format(verifiedDate);
   const facts = [
     { value: copy.backendScope, label: copy.backend },
     {

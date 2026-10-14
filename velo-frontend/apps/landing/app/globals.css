@@ -292,6 +292,10 @@ summary:focus-visible {
   cursor: pointer;
 }
 
+.nav-links .nav-mobile-cta {
+  display: none;
+}
+
 .button {
   display: inline-flex;
   min-height: 44px;
@@ -328,10 +332,19 @@ summary:focus-visible {
   background: var(--landing-livery-hover);
 }
 
+.nav-links .button-primary:hover {
+  color: var(--landing-on-livery);
+  text-decoration: none;
+}
+
 .button-small {
   min-height: 42px;
   padding: 9px 14px;
   font-size: 0.875rem;
+}
+
+.nav-cta .button {
+  min-height: 48px;
 }
 
 /* Legal pages */
@@ -467,9 +480,15 @@ summary:focus-visible {
   }
 
   .nav-cta .button {
-    min-height: 42px;
-    padding-inline: 10px;
-    font-size: 0.8125rem;
+    min-height: 48px;
+    padding-inline: 12px;
+    font-size: 0.875rem;
+  }
+
+  .nav-links .nav-mobile-cta {
+    display: inline-flex;
+    width: 100%;
+    margin-block: 12px 4px;
   }
 
   .footer-main {

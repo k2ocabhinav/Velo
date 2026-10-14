@@ -12,6 +12,17 @@ test.describe("landing dispatch hero", () => {
     await expect(illustration).toContainText("Grand Hotel to Business park");
     await expect(illustration).toContainText("On trip");
 
+    const map = illustration.locator("[data-dispatch-fallback='true']");
+    const mapBounds = await map.boundingBox();
+    const docketBounds = await illustration.locator("article").boundingBox();
+    expect(mapBounds?.width).toBeGreaterThanOrEqual(330);
+    expect(mapBounds?.width).toBeLessThanOrEqual(350);
+    expect(mapBounds?.height).toBe(200);
+    expect(docketBounds?.y).toBeGreaterThanOrEqual((mapBounds?.y ?? 0) + (mapBounds?.height ?? 0));
+    for (const button of await illustration.getByRole("button", { name: /^(05:40|09:15|18:30)$/ }).all()) {
+      expect((await button.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+    }
+
     const airportTrip = illustration.getByRole("button", { name: "05:40" });
     await airportTrip.focus();
     await page.keyboard.press("Enter");

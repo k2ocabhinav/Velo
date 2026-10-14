@@ -21,6 +21,7 @@ export const siteConfig = {
  */
 export const verifyFacts = {
   landingChecksPassed: 6,
+  landingChecksVerifiedOn: "2026-10-15",
   demoTenants: ["Velo Business", "Saffron Routes"],
 } as const;
 
@@ -150,8 +151,10 @@ export const landingCopy = {
     preferredTime: "Preferred time and time zone (optional)",
     email: "Email (optional)",
     submit: "Send demo request",
+    prepareEmail: "Prepare email",
     sending: "Sending request",
     privacy: "We'll use these details to respond to your demo request. Please do not include rider or driver personal data.",
+    mailtoPrivacy: "Your email app opens a draft; your details are sent only if you choose to send it. Please do not include rider or driver personal data.",
     noContact: "No contact option is configured. No details were sent or saved.",
     mailto: "Your email app should open with the request addressed to {email}. Send that email to complete your request.",
     sent: "Thanks. Your request was sent. The founder will coordinate a demo time with you.",

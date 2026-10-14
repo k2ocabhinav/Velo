@@ -315,6 +315,8 @@ export function DispatchCanvas({
       0.1,
       100,
     );
+    camera.zoom = 1.15;
+    camera.updateProjectionMatrix();
     const cameraHome = new THREE.Vector3(22, 25, 22);
     const cameraIntro = new THREE.Vector3(27, 24, 15);
     camera.position.copy(cameraIntro);
@@ -561,6 +563,7 @@ export function DispatchCanvas({
       camera.right = (nextHeight * nextAspect) / 2;
       camera.top = nextHeight / 2;
       camera.bottom = -nextHeight / 2;
+      camera.zoom = 1.15;
       camera.updateProjectionMatrix();
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
       renderer.setSize(width, height, false);
