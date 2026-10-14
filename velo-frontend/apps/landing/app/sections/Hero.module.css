@@ -1,0 +1,195 @@
+/* Pre-dawn hero (LANDING_PLAN §9). Owns the hero, the sunrise transition and the night navbar treatment. */
+.hero {
+  --night-0: #070c18;
+  --night-1: #0e1524;
+  --night-2: #1c2230;
+  --horizon-sodium: #f2a33a;
+  --horizon-rose: #f4a6a0;
+  --horizon-blue: #1a56ff;
+  --hero-ink: #f4f6f9;
+  --hero-muted: #b9c3d4;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  margin-top: -72px; /* sit under the sticky night navbar */
+  padding-block: calc(72px + clamp(56px, 7vw, 104px)) 0;
+  color: var(--hero-ink);
+  background:
+    radial-gradient(60% 55% at 88% 102%, rgb(242 163 58 / 0.34) 0%, rgb(244 166 160 / 0.16) 38%, transparent 70%),
+    radial-gradient(48% 40% at 70% 108%, rgb(26 86 255 / 0.28) 0%, transparent 70%),
+    radial-gradient(1px 1px at 12% 18%, rgb(255 255 255 / 0.55), transparent 60%),
+    radial-gradient(1px 1px at 34% 9%, rgb(255 255 255 / 0.4), transparent 60%),
+    radial-gradient(1px 1px at 58% 22%, rgb(255 255 255 / 0.35), transparent 60%),
+    radial-gradient(1px 1px at 81% 12%, rgb(255 255 255 / 0.45), transparent 60%),
+    radial-gradient(1.5px 1.5px at 46% 31%, rgb(255 255 255 / 0.3), transparent 60%),
+    linear-gradient(180deg, var(--night-0) 0%, var(--night-1) 46%, var(--night-2) 100%);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.18fr);
+  align-items: center;
+  gap: clamp(24px, 4vw, 56px);
+}
+
+.copy { position: relative; z-index: 2; max-width: 600px; }
+
+.stage {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 22px;
+  padding: 7px 12px 7px 10px;
+  border: 1px solid rgb(244 246 249 / 0.16);
+  border-radius: 999px;
+  background: rgb(244 246 249 / 0.06);
+  color: var(--hero-muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.stage::before {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #38c2b0;
+  box-shadow: 0 0 0 4px rgb(56 194 176 / 0.18);
+  content: "";
+}
+
+.title {
+  margin: 0;
+  color: var(--hero-ink);
+  font-family: var(--font-display), "Barlow Condensed", system-ui, sans-serif;
+  font-size: clamp(3rem, 6.4vw, 6.25rem);
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 0.94;
+  text-wrap: balance;
+}
+
+.description {
+  max-width: 34rem;
+  margin: 24px 0 0;
+  color: var(--hero-muted);
+  font-size: clamp(1.05rem, 1.25vw, 1.2rem);
+  line-height: 1.6;
+}
+
+.actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
+
+.primary,
+.secondary {
+  display: inline-flex;
+  min-height: 52px;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 22px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease, border-color 160ms ease;
+}
+
+.primary {
+  background: #1a56ff;
+  color: #ffffff;
+  box-shadow: 0 10px 30px rgb(26 86 255 / 0.45), inset 0 1px 0 rgb(255 255 255 / 0.18);
+}
+
+.primary:hover { transform: translateY(-1px); background: #2f66ff; box-shadow: 0 14px 36px rgb(26 86 255 / 0.55); }
+
+.secondary {
+  border-color: rgb(244 246 249 / 0.22);
+  background: rgb(244 246 249 / 0.04);
+  color: var(--hero-ink);
+}
+
+.secondary:hover { transform: translateY(-1px); border-color: rgb(244 246 249 / 0.5); }
+
+.primary:focus-visible,
+.secondary:focus-visible { outline: 3px solid #8fb0ff; outline-offset: 3px; }
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  margin: 34px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--hero-muted);
+  font-size: 0.875rem;
+}
+
+.facts li { display: inline-flex; align-items: center; gap: 8px; }
+.facts li::before { width: 6px; height: 6px; border-radius: 50%; background: var(--horizon-sodium); content: ""; }
+
+.visual {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  margin-right: calc(-1 * clamp(16px, 6vw, 120px)); /* bleed toward the right edge */
+}
+
+/* Sunrise band: night → sodium/rose haze → Dawn, carrying the page into daylight. */
+.sunrise {
+  height: clamp(120px, 16vw, 220px);
+  margin-top: clamp(28px, 4vw, 56px);
+  background: linear-gradient(
+    180deg,
+    rgb(28 34 48 / 0) 0%,
+    rgb(62 52 70 / 0.55) 28%,
+    rgb(214 140 112 / 0.38) 55%,
+    rgb(246 214 190 / 0.6) 78%,
+    #f4f6f9 100%
+  );
+}
+
+
+
+
+
+
+
+
+
+
+
+
+/* ---------- Day mode: the same street at 09:15, bright and crisp. ---------- */
+:global([data-theme="day"]) .hero {
+  --hero-ink: #1c2230;
+  --hero-muted: #4a5568;
+  background:
+    radial-gradient(42% 46% at 86% 6%, rgb(255 214 150 / 0.55) 0%, rgb(255 236 210 / 0.25) 40%, transparent 72%),
+    radial-gradient(55% 50% at 10% 0%, rgb(170 199 255 / 0.45) 0%, transparent 70%),
+    linear-gradient(180deg, #d9e7ff 0%, #eaf1fd 48%, #f4f6f9 100%);
+}
+:global([data-theme="day"]) .stage { border-color: rgb(28 34 48 / 0.14); background: rgb(255 255 255 / 0.6); }
+:global([data-theme="day"]) .secondary { border-color: rgb(28 34 48 / 0.2); background: rgb(255 255 255 / 0.55); }
+:global([data-theme="day"]) .secondary:hover { border-color: rgb(28 34 48 / 0.5); }
+:global([data-theme="day"]) .primary:focus-visible,
+:global([data-theme="day"]) .secondary:focus-visible { outline-color: #1a56ff; }
+:global([data-theme="day"]) .sunrise { background: linear-gradient(180deg, rgb(244 246 249 / 0) 0%, #f4f6f9 100%); }
+:global([data-theme="day"]) .facts li::before { background: #1a56ff; }
+
+
+
+
+@media (max-width: 1023px) {
+  .grid { grid-template-columns: minmax(0, 1fr); }
+  .visual { margin-right: 0; }
+}
+
+@media (max-width: 760px) {
+  .hero { padding-top: calc(72px + 40px); }
+  .actions { flex-direction: column; }
+  .primary, .secondary { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .primary, .secondary { transition: none; }
+  .primary:hover, .secondary:hover { transform: none; }
+}

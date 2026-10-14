@@ -114,13 +114,13 @@ export function DispatchFallback({
       focusable="false"
       data-dispatch-fallback="true"
     >
-      <rect width="640" height="360" fill="var(--dispatch-dawn)" />
-      <g fill="none" stroke="var(--dispatch-concrete)" strokeWidth="10" strokeLinecap="round" opacity="0.55">
+      <rect width="640" height="360" fill="var(--dispatch-ground)" />
+      <g fill="none" stroke="var(--dispatch-street)" strokeWidth="10" strokeLinecap="round" opacity="0.9">
         {coordinates.streets.map((street, index) => (
           <polyline key={`street-${index}`} points={projectLine(street)} />
         ))}
       </g>
-      <g fill="none" stroke="var(--dispatch-dawn)" strokeWidth="1.4" strokeDasharray="3 5" opacity="0.95">
+      <g fill="none" stroke="var(--dispatch-lane)" strokeWidth="1.2" strokeDasharray="3 5" opacity="0.8">
         {coordinates.streets.map((street, index) => (
           <polyline key={`lane-${index}`} points={projectLine(street)} />
         ))}
@@ -135,12 +135,12 @@ export function DispatchFallback({
                 <polygon
                   key={faceIndex}
                   points={face}
-                  fill={landmark ? "var(--dispatch-concrete)" : "var(--dispatch-concrete)"}
-                  stroke="var(--dispatch-dawn)"
+                  fill={landmark ? "var(--dispatch-roof)" : "var(--dispatch-building)"}
+                  stroke="var(--dispatch-ground)"
                   strokeWidth="0.45"
                 />
               ))}
-              <polygon points={faces.top} fill="var(--dispatch-asphalt)" opacity={landmark ? 0.92 : 0.7} />
+              <polygon points={faces.top} fill="var(--dispatch-roof)" opacity={landmark ? 1 : 0.85} />
               {building.label && (() => {
                 const labelPoint = project(building, building.height + 0.26);
                 return (
@@ -166,7 +166,7 @@ export function DispatchFallback({
             <polyline
               key={tripId}
               points={projectLine(route)}
-              stroke={active ? "var(--dispatch-signal)" : "var(--dispatch-teal)"}
+              stroke={active ? "var(--dispatch-route)" : "var(--dispatch-route-alt)"}
               strokeWidth={active ? 3.6 : 1.7}
               opacity={active ? previewPhase === "assign" ? 0.36 : 0.95 : 0.34}
             />
@@ -180,7 +180,7 @@ export function DispatchFallback({
           if (selected) {
             return (
               <g key={`vehicle-${index}`} transform={`translate(${selectedMotion.start.x} ${selectedMotion.start.y})`}>
-                <circle r="5.4" fill="var(--dispatch-teal)" stroke="var(--dispatch-dawn)" strokeWidth="2">
+                <circle r="5.4" fill="var(--dispatch-route-alt)" stroke="var(--dispatch-ground)" strokeWidth="2">
                   <animateMotion
                     ref={motionRef}
                     path={selectedMotion.path}
@@ -198,8 +198,8 @@ export function DispatchFallback({
               cx={point.x}
               cy={point.y - 1.5}
               r={vehicle.tripId === selectedTripId ? 4.4 : 3.2}
-              fill={vehicle.tripId === selectedTripId ? "var(--dispatch-teal)" : "var(--dispatch-asphalt)"}
-              stroke="var(--dispatch-dawn)"
+              fill={vehicle.tripId === selectedTripId ? "var(--dispatch-route-alt)" : "var(--dispatch-vehicle)"}
+              stroke="var(--dispatch-ground)"
               strokeWidth="1.5"
             />
           );

@@ -28,13 +28,67 @@ const TILT_LIMIT = THREE.MathUtils.degToRad(8);
 const VEHICLE_STARTS = [0.08, 0.7, 0.08, 0.7, 0.08, 0.7] as const;
 
 type Palette = {
-  asphalt: THREE.Color;
-  dawn: THREE.Color;
-  signal: THREE.Color;
-  teal: THREE.Color;
+  ground: THREE.Color;
+  street: THREE.Color;
+  building: THREE.Color;
+  roof: THREE.Color;
+  window: THREE.Color;
+  vehicle: THREE.Color;
+  route: THREE.Color;
+  routeAlt: THREE.Color;
   sodium: THREE.Color;
-  concrete: THREE.Color;
 };
+
+const INTRO_MS = 3_200;
+
+/** Deterministic PRNG so the night scene looks the same on every load. */
+function mulberry32(seed: number): () => number {
+  let a = seed;
+  return () => {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Soft round sprite for lamp and headlight glows (generated, no network). */
+function glowTexture(): THREE.CanvasTexture {
+  const size = 64;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext("2d");
+  if (context) {
+    const gradient = context.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+    gradient.addColorStop(0, "rgba(255,255,255,1)");
+    gradient.addColorStop(0.25, "rgba(255,255,255,0.55)");
+    gradient.addColorStop(1, "rgba(255,255,255,0)");
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, size, size);
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+/** Radial alpha mask so the ground fades into the night sky behind the canvas. */
+function groundFadeTexture(): THREE.CanvasTexture {
+  const size = 128;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext("2d");
+  if (context) {
+    const gradient = context.createRadialGradient(size / 2, size / 2, size * 0.18, size / 2, size / 2, size / 2);
+    gradient.addColorStop(0, "rgba(255,255,255,1)");
+    gradient.addColorStop(1, "rgba(255,255,255,0)");
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, size, size);
+  }
+  return new THREE.CanvasTexture(canvas);
+}
 
 type Runtime = {
   updateState: (tripId: SampleTrip["id"], phase: PreviewPhase, runId: number) => void;
@@ -54,12 +108,15 @@ function colorFromToken(element: HTMLElement, name: string): THREE.Color {
 
 function readPalette(element: HTMLElement): Palette {
   return {
-    asphalt: colorFromToken(element, "--dispatch-asphalt"),
-    dawn: colorFromToken(element, "--dispatch-dawn"),
-    signal: colorFromToken(element, "--dispatch-signal"),
-    teal: colorFromToken(element, "--dispatch-teal"),
+    ground: colorFromToken(element, "--dispatch-ground"),
+    street: colorFromToken(element, "--dispatch-street"),
+    building: colorFromToken(element, "--dispatch-building"),
+    roof: colorFromToken(element, "--dispatch-roof"),
+    window: colorFromToken(element, "--dispatch-window"),
+    vehicle: colorFromToken(element, "--dispatch-vehicle"),
+    route: colorFromToken(element, "--dispatch-route"),
+    routeAlt: colorFromToken(element, "--dispatch-route-alt"),
     sodium: colorFromToken(element, "--dispatch-sodium"),
-    concrete: colorFromToken(element, "--dispatch-concrete"),
   };
 }
 
@@ -102,8 +159,8 @@ function makeBuildingInstances(
   palette: Palette,
 ): THREE.InstancedMesh {
   const geometry = new THREE.BoxGeometry(1, 1, 1);
-  const sides = new THREE.MeshStandardMaterial({ color: palette.concrete, roughness: 1, metalness: 0 });
-  const roof = new THREE.MeshStandardMaterial({ color: palette.asphalt, roughness: 1, metalness: 0 });
+  const sides = new THREE.MeshLambertMaterial({ color: palette.building });
+  const roof = new THREE.MeshLambertMaterial({ color: palette.roof });
   const materials = [sides, sides, roof, sides, sides, sides];
   const buildings = [...coordinates.buildings, ...coordinates.landmarks];
   const instances = new THREE.InstancedMesh(geometry, materials, buildings.length);
@@ -124,13 +181,70 @@ function makeBuildingInstances(
   return instances;
 }
 
+/** Lit window bands on the two camera-facing sides of every building: one instanced draw call. */
+function makeWindowInstances(coordinates: DispatchCoordinates, palette: Palette): THREE.InstancedMesh {
+  const random = mulberry32(5_40);
+  const bands: { x: number; y: number; z: number; sx: number; sz: number }[] = [];
+  for (const building of [...coordinates.buildings, ...coordinates.landmarks]) {
+    const floors = Math.max(1, Math.floor(building.height / 0.42));
+    for (let floor = 0; floor < floors; floor += 1) {
+      const y = 0.26 + floor * 0.42;
+      if (y > building.height - 0.12) break;
+      if (random() < 0.58) bands.push({ x: building.x + building.width / 2 + 0.012, y, z: building.z, sx: 0.02, sz: building.depth * 0.7 });
+      if (random() < 0.58) bands.push({ x: building.x, y, z: building.z + building.depth / 2 + 0.012, sx: building.width * 0.7, sz: 0.02 });
+    }
+  }
+  const geometry = new THREE.BoxGeometry(1, 1, 1);
+  const material = new THREE.MeshBasicMaterial({ color: palette.window, toneMapped: false });
+  const windows = new THREE.InstancedMesh(geometry, material, Math.max(1, bands.length));
+  const matrix = new THREE.Matrix4();
+  const position = new THREE.Vector3();
+  const scale = new THREE.Vector3();
+  const rotation = new THREE.Quaternion();
+  const tint = new THREE.Color();
+  bands.forEach((band, index) => {
+    position.set(band.x, band.y, band.z);
+    scale.set(band.sx, 0.1, band.sz);
+    matrix.compose(position, rotation, scale);
+    windows.setMatrixAt(index, matrix);
+    // Mix warm sodium and cooler office light so the city reads as lived-in, not uniform.
+    // Instance colour is a multiplier on the material colour: brightness plus an occasional cool office tint.
+    tint.setRGB(1, 1, 1).lerp(new THREE.Color("#b8cdf5"), random() < 0.22 ? 0.6 : 0);
+    tint.multiplyScalar(0.6 + random() * 0.4);
+    windows.setColorAt(index, tint);
+  });
+  windows.count = bands.length;
+  windows.instanceMatrix.needsUpdate = true;
+  if (windows.instanceColor) windows.instanceColor.needsUpdate = true;
+  return windows;
+}
+
+function makeGlowPoints(positions: Point2[], color: THREE.Color, size: number, height: number, opacity: number, texture: THREE.Texture): THREE.Points {
+  const geometry = new THREE.BufferGeometry();
+  const array = new Float32Array(Math.max(1, positions.length) * 3);
+  positions.forEach((point, index) => array.set([point.x, height, point.z], index * 3));
+  geometry.setAttribute("position", new THREE.BufferAttribute(array, 3));
+  const material = new THREE.PointsMaterial({
+    color,
+    map: texture,
+    size,
+    sizeAttenuation: false,
+    transparent: true,
+    opacity,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    toneMapped: false,
+  });
+  return new THREE.Points(geometry, material);
+}
+
 function addVehicles(scene: THREE.Scene, palette: Palette, count: number): THREE.InstancedMesh {
   const geometry = new THREE.BoxGeometry(0.54, 0.2, 0.3);
-  const material = new THREE.MeshStandardMaterial({ color: "white", roughness: 0.78, metalness: 0.04 });
+  const material = new THREE.MeshLambertMaterial({ color: "white" });
   const vehicles = new THREE.InstancedMesh(geometry, material, count);
   const color = new THREE.Color();
   for (let index = 0; index < count; index += 1) {
-    color.copy(index % 2 === 0 ? palette.teal : palette.asphalt);
+    color.copy(palette.vehicle);
     vehicles.setColorAt(index, color);
   }
   vehicles.instanceColor!.needsUpdate = true;
@@ -138,13 +252,15 @@ function addVehicles(scene: THREE.Scene, palette: Palette, count: number): THREE
   return vehicles;
 }
 
-function makeRibbonMaterial(color: THREE.Color, opacity: number): THREE.MeshBasicMaterial {
+function makeRibbonMaterial(color: THREE.Color, opacity: number, additive = false): THREE.MeshBasicMaterial {
   return new THREE.MeshBasicMaterial({
     color,
     transparent: true,
     opacity,
     depthWrite: false,
     side: THREE.DoubleSide,
+    toneMapped: false,
+    blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
   });
 }
 
@@ -175,7 +291,7 @@ export function DispatchCanvas({
     try {
       renderer = new THREE.WebGLRenderer({
         canvas,
-        alpha: false,
+        alpha: true,
         antialias: true,
         failIfMajorPerformanceCaveat: true,
         powerPreference: "low-power",
@@ -188,7 +304,10 @@ export function DispatchCanvas({
     const coordinates = generateDispatchCoordinates();
     const palette = readPalette(root);
     const scene = new THREE.Scene();
-    scene.background = palette.dawn;
+    scene.background = null;
+    renderer.setClearColor(0x000000, 0);
+    const glow = glowTexture();
+    const groundFade = groundFadeTexture();
     const aspect = Math.max(0.8, root.clientWidth / Math.max(1, root.clientHeight));
     const cameraHeight = 19.5;
     const camera = new THREE.OrthographicCamera(
@@ -199,17 +318,21 @@ export function DispatchCanvas({
       0.1,
       100,
     );
-    camera.position.set(22, 25, 22);
+    const cameraHome = new THREE.Vector3(22, 25, 22);
+    const cameraIntro = new THREE.Vector3(27, 24, 15);
+    camera.position.copy(cameraIntro);
     camera.lookAt(0, 0.4, 0);
     const city = new THREE.Group();
     scene.add(city);
-    scene.add(new THREE.HemisphereLight(palette.dawn, palette.concrete, 2.1));
-    const keyLight = new THREE.DirectionalLight(palette.dawn, 1.65);
+    // Night lighting: cool moonlight from the upper left, a dim sky/ground hemisphere.
+    const hemisphereLight = new THREE.HemisphereLight(colorFromToken(root, "--dispatch-sky-light"), palette.ground, 1.15);
+    scene.add(hemisphereLight);
+    const keyLight = new THREE.DirectionalLight(colorFromToken(root, "--dispatch-key-light"), 1.05);
     keyLight.position.set(-7, 14, 9);
     scene.add(keyLight);
     const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(22, 16),
-      new THREE.MeshBasicMaterial({ color: palette.dawn }),
+      new THREE.PlaneGeometry(26, 20),
+      new THREE.MeshBasicMaterial({ color: palette.ground, alphaMap: groundFade, transparent: true, depthWrite: false }),
     );
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -0.09;
@@ -217,29 +340,47 @@ export function DispatchCanvas({
 
     const streetMesh = new THREE.Mesh(
       ribbonGeometry(coordinates.streets, 0.52, -0.035),
-      makeRibbonMaterial(palette.concrete, 0.85),
+      makeRibbonMaterial(palette.street, 1),
     );
     city.add(streetMesh);
+    const streetPoints = coordinates.streets.flat();
+    const lamps = makeGlowPoints(streetPoints.filter((_, index) => index % 2 === 0), palette.sodium, 9, 0.05, 0.55, glow);
+    city.add(lamps);
     const buildingMesh = makeBuildingInstances(scene, coordinates, palette);
     city.remove(buildingMesh);
     city.add(buildingMesh);
-    const routeMeshes = Object.values(coordinates.routes).map((route) => {
-      const mesh = new THREE.Mesh(
-        ribbonGeometry([route], 0.15, 0.035),
-        makeRibbonMaterial(palette.signal, 0.9),
-      );
+    const windowMesh = makeWindowInstances(coordinates, palette);
+    city.add(windowMesh);
+    const routes = Object.values(coordinates.routes);
+    // Each route = a wide additive halo under a crisp core: a cheap glow without post-processing.
+    const haloMeshes = routes.map((route) => {
+      const mesh = new THREE.Mesh(ribbonGeometry([route], 0.85, 0.03), makeRibbonMaterial(palette.route, 0.18, true));
       mesh.renderOrder = 2;
+      city.add(mesh);
+      return mesh;
+    });
+    const routeMeshes = routes.map((route) => {
+      const mesh = new THREE.Mesh(
+        ribbonGeometry([route], 0.16, 0.04),
+        makeRibbonMaterial(palette.route, 0.95),
+      );
+      mesh.renderOrder = 3;
       city.add(mesh);
       return mesh;
     });
     const vehicles = addVehicles(scene, palette, coordinates.vehicles.length);
     city.remove(vehicles);
     city.add(vehicles);
+    const headlights = makeGlowPoints(coordinates.vehicles.map(() => ({ x: 0, z: 0 })), new THREE.Color("#fff3d6"), 22, 0.22, 0.85, glow);
+    headlights.renderOrder = 4;
+    city.add(headlights);
 
     renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.NoToneMapping;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     renderer.setSize(root.clientWidth, root.clientHeight, false);
 
+    let glowScale = 1;
     let visible = false;
     let destroyed = false;
     let ready = false;
@@ -280,8 +421,12 @@ export function DispatchCanvas({
         transform.scale.set(1, 1, 1);
         transform.updateMatrix();
         vehicles.setMatrixAt(index, transform.matrix);
+        const headlightPositions = headlights.geometry.getAttribute("position") as THREE.BufferAttribute;
+        const ahead = pointAlongRoute(route, Math.min(1, progress + 0.03));
+        headlightPositions.setXYZ(index, ahead.x, 0.22, ahead.z);
       });
       vehicles.instanceMatrix.needsUpdate = true;
+      headlights.geometry.getAttribute("position").needsUpdate = true;
     };
 
     const updateSelectedVehicleColor = () => {
@@ -289,7 +434,7 @@ export function DispatchCanvas({
       coordinates.vehicles.forEach((vehicle, index) => {
         const selected = vehicle.tripId === selectedId;
         const isFirst = index === getRouteIndex(vehicle.tripId) * 2;
-        tint.copy(selected && isFirst && phase === "assign" ? palette.sodium : selected ? palette.teal : palette.asphalt);
+        tint.copy(selected && isFirst && phase === "assign" ? palette.sodium : selected ? palette.routeAlt : palette.vehicle);
         vehicles.setColorAt(index, tint);
       });
       if (vehicles.instanceColor) vehicles.instanceColor.needsUpdate = true;
@@ -298,17 +443,42 @@ export function DispatchCanvas({
     const updateRouteAppearance = () => {
       routeMeshes.forEach((mesh, index) => {
         const material = mesh.material as THREE.MeshBasicMaterial;
+        const halo = haloMeshes[index]?.material as THREE.MeshBasicMaterial | undefined;
         const selected = index === getRouteIndex(selectedId);
-        material.color.copy(phase === "route" && selected ? palette.sodium : palette.signal);
+        const color = phase === "route" && selected ? palette.sodium : selected ? palette.route : palette.routeAlt;
+        material.color.copy(color);
         material.opacity = selected
-          ? phase === "assign" ? 0.34 : phase === "route" ? 1 : 0.92
-          : 0.16;
-        material.needsUpdate = true;
+          ? phase === "assign" ? 0.45 : 1
+          : 0.42;
+        if (halo) {
+          halo.color.copy(color);
+          halo.opacity = (selected ? (phase === "route" ? 0.42 : 0.3) : 0.08) * glowScale;
+        }
       });
     };
 
     const scheduleRender = () => {
       if (visible && document.visibilityState !== "hidden") render();
+    };
+
+    // One short establishing move (≤ 3.2 s), then the scene settles and renders only on demand.
+    let introStart = 0;
+    let introFrame = 0;
+    let introDone = false;
+    const introStep = (now: number) => {
+      if (destroyed || introDone) return;
+      if (!visible || document.visibilityState === "hidden") { introFrame = 0; return; }
+      if (!introStart) introStart = now;
+      const t = Math.min(1, (now - introStart) / INTRO_MS);
+      const eased = 1 - Math.pow(1 - t, 3);
+      camera.position.lerpVectors(cameraIntro, cameraHome, eased);
+      camera.lookAt(0, 0.4, 0);
+      render();
+      if (t < 1) introFrame = window.requestAnimationFrame(introStep);
+      else { introDone = true; introFrame = 0; }
+    };
+    const startIntro = () => {
+      if (!introDone && !introFrame && visible) introFrame = window.requestAnimationFrame(introStep);
     };
 
     const stopAnimation = (preserveElapsed: boolean) => {
@@ -399,27 +569,30 @@ export function DispatchCanvas({
       scheduleRender();
     };
 
+    const applyLighting = () => {
+      const glowStrength = Number.parseFloat(readToken(root, "--dispatch-glow")) || 1;
+      const day = glowStrength < 0.6;
+      hemisphereLight.color.copy(colorFromToken(root, "--dispatch-sky-light"));
+      hemisphereLight.groundColor.copy(palette.ground);
+      hemisphereLight.intensity = day ? 2.2 : 1.15;
+      keyLight.color.copy(colorFromToken(root, "--dispatch-key-light"));
+      keyLight.intensity = day ? 1.9 : 1.05;
+      (lamps.material as THREE.PointsMaterial).opacity = day ? 0 : 0.55;
+      (headlights.material as THREE.PointsMaterial).opacity = 0.85 * glowStrength;
+      glowScale = glowStrength;
+      (windowMesh.material as THREE.MeshBasicMaterial).color.copy(palette.window);
+    };
+
     const resolvePalette = () => {
-      const nextPalette = readPalette(root);
-      palette.asphalt.copy(nextPalette.asphalt);
-      palette.dawn.copy(nextPalette.dawn);
-      palette.signal.copy(nextPalette.signal);
-      palette.teal.copy(nextPalette.teal);
-      palette.sodium.copy(nextPalette.sodium);
-      palette.concrete.copy(nextPalette.concrete);
-      scene.background = palette.dawn;
-      const hemisphere = scene.children.find((child) => child instanceof THREE.HemisphereLight) as THREE.HemisphereLight | undefined;
-      const directional = scene.children.find((child) => child instanceof THREE.DirectionalLight) as THREE.DirectionalLight | undefined;
-      hemisphere?.color.copy(palette.dawn);
-      hemisphere?.groundColor.copy(palette.concrete);
-      directional?.color.copy(palette.dawn);
-      const streetMaterial = streetMesh.material as THREE.MeshBasicMaterial;
-      streetMaterial.color.copy(palette.concrete);
-      const buildingMaterials = buildingMesh.material as THREE.Material[];
-      (buildingMaterials[0] as THREE.MeshStandardMaterial).color.copy(palette.concrete);
-      (buildingMaterials[2] as THREE.MeshStandardMaterial).color.copy(palette.asphalt);
-      const groundMaterial = ground.material as THREE.MeshBasicMaterial;
-      groundMaterial.color.copy(palette.dawn);
+      const next = readPalette(root);
+      (Object.keys(palette) as (keyof Palette)[]).forEach((key) => palette[key].copy(next[key]));
+      (ground.material as THREE.MeshBasicMaterial).color.copy(palette.ground);
+      (streetMesh.material as THREE.MeshBasicMaterial).color.copy(palette.street);
+      const buildingMaterials = buildingMesh.material as THREE.MeshLambertMaterial[];
+      buildingMaterials[0]?.color.copy(palette.building);
+      buildingMaterials[2]?.color.copy(palette.roof);
+      (lamps.material as THREE.PointsMaterial).color.copy(palette.sodium);
+      applyLighting();
       updateRouteAppearance();
       updateSelectedVehicleColor();
       scheduleRender();
@@ -459,6 +632,9 @@ export function DispatchCanvas({
     };
     const onResetView = () => {
       city.rotation.set(0, 0, 0);
+      introDone = true;
+      camera.position.copy(cameraHome);
+      camera.lookAt(0, 0.4, 0);
       scheduleRender();
     };
 
@@ -473,6 +649,7 @@ export function DispatchCanvas({
           visible = entry?.isIntersecting ?? false;
           if (visible) {
             scheduleRender();
+            startIntro();
             startAnimation();
           } else {
             stopAnimation(true);
@@ -486,10 +663,12 @@ export function DispatchCanvas({
     canvas.addEventListener("pointercancel", onPointerUp, { passive: true });
     document.addEventListener("visibilitychange", onVisibilityChange);
     runtimeRef.current = { updateState, resetView: onResetView };
+    applyLighting();
     updateState(propsRef.current.selectedTripId, propsRef.current.previewPhase, propsRef.current.previewRunId);
 
     return () => {
       destroyed = true;
+      if (introFrame) window.cancelAnimationFrame(introFrame);
       animationRequested = false;
       stopAnimation(false);
       resizeObserver?.disconnect();
@@ -509,6 +688,14 @@ export function DispatchCanvas({
         if (Array.isArray(object.material)) object.material.forEach((material) => material.dispose());
         else object.material.dispose();
       });
+      scene.traverse((object) => {
+        if (object instanceof THREE.Points) {
+          object.geometry.dispose();
+          (object.material as THREE.Material).dispose();
+        }
+      });
+      glow.dispose();
+      groundFade.dispose();
       renderer.dispose();
       renderer.forceContextLoss();
     };

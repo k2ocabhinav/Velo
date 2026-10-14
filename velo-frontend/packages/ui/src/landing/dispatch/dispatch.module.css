@@ -5,11 +5,28 @@
   --dispatch-teal: var(--landing-route-teal, hsl(var(--color-accent)));
   --dispatch-sodium: var(--landing-sodium, hsl(var(--color-warning)));
   --dispatch-concrete: var(--landing-concrete, hsl(var(--color-border)));
+  /* Night scene roles (the hero is pre-dawn). */
+  --dispatch-ground: #0d1626;
+  --dispatch-street: #22304a;
+  --dispatch-lane: #3a4c72;
+  --dispatch-building: #1b2742;
+  --dispatch-roof: #31426a;
+  --dispatch-window: #f6c56b;
+  --dispatch-vehicle: #dce4f2;
+  --dispatch-route: #4f86ff;
+  --dispatch-route-alt: #38c2b0;
+  --dispatch-ink: #eef2f8;
+  --dispatch-ink-muted: #b4bed0;
+  --dispatch-surface: rgb(13 20 36 / 0.78);
+  --dispatch-line: rgb(201 207 216 / 0.22);
+  --dispatch-sky-light: #6f86bd;
+  --dispatch-key-light: #a9bdf0;
+  --dispatch-glow: 1;
   position: relative;
   display: grid;
   gap: 0.75rem;
   width: 100%;
-  color: var(--dispatch-asphalt);
+  color: var(--dispatch-ink);
   font-family: var(--font-body), "Inter", system-ui, sans-serif;
 }
 
@@ -19,9 +36,9 @@
   overflow: hidden;
   aspect-ratio: 1.38;
   min-height: 17rem;
-  border: 1px solid var(--dispatch-concrete);
-  border-radius: 10px;
-  background: var(--dispatch-dawn);
+  background: transparent;
+  -webkit-mask-image: radial-gradient(120% 110% at 55% 45%, #000 62%, transparent 100%);
+  mask-image: radial-gradient(120% 110% at 55% 45%, #000 62%, transparent 100%);
 }
 
 .fallback,
@@ -67,10 +84,12 @@
   left: 0.75rem;
   width: min(15rem, calc(100% - 1.5rem));
   padding: 0.875rem 1rem 0.8rem;
-  border: 1px solid var(--dispatch-concrete);
+  border: 1px solid var(--dispatch-line);
   border-radius: 10px;
-  background: var(--dispatch-dawn);
-  box-shadow: var(--landing-shadow-md, var(--shadow-md));
+  background: var(--dispatch-surface);
+  box-shadow: 0 18px 48px rgb(4 8 18 / 0.45);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
 }
 
 .cardTopline {
@@ -82,7 +101,7 @@
 
 .tripTime {
   margin: 0;
-  color: var(--dispatch-asphalt);
+  color: var(--dispatch-ink);
   font-size: 1.5rem;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
@@ -91,7 +110,7 @@
 }
 
 .bookedLabel {
-  color: var(--dispatch-asphalt);
+  color: var(--dispatch-ink-muted);
   font-size: 0.68rem;
   font-weight: 600;
 }
@@ -109,13 +128,13 @@
   justify-content: space-between;
   gap: 0.5rem;
   margin-top: 0.55rem;
-  color: var(--dispatch-asphalt);
+  color: var(--dispatch-ink-muted);
   font-size: 0.7rem;
   line-height: 1.3;
 }
 
 .driverLine span:last-child {
-  color: var(--landing-teal-text, var(--dispatch-teal));
+  color: var(--dispatch-route-alt);
   font-weight: 600;
 }
 
@@ -126,7 +145,7 @@
   margin: 0.65rem 0 0;
   padding: 0;
   list-style: none;
-  color: var(--dispatch-asphalt);
+  color: var(--dispatch-ink-muted);
   font-size: 0.625rem;
 }
 
@@ -142,9 +161,9 @@
   width: 0.34rem;
   height: 0.34rem;
   flex: 0 0 auto;
-  border: 1px solid var(--dispatch-concrete);
+  border: 1px solid var(--dispatch-line);
   border-radius: 50%;
-  background: var(--dispatch-dawn);
+  background: transparent;
 }
 
 .statusStepActive .statusMarker {
@@ -153,12 +172,12 @@
 }
 
 .mapLabel {
-  fill: var(--dispatch-asphalt);
+  fill: var(--dispatch-ink);
   font-family: var(--font-body), "Inter", system-ui, sans-serif;
   font-size: 7px;
   font-weight: 600;
   paint-order: stroke;
-  stroke: var(--dispatch-dawn);
+  stroke: var(--dispatch-ground);
   stroke-linejoin: round;
   stroke-width: 2.5px;
 }
@@ -182,10 +201,10 @@
   align-items: center;
   justify-content: center;
   padding: 0.55rem 0.7rem;
-  border: 1px solid var(--dispatch-concrete);
+  border: 1px solid var(--dispatch-line);
   border-radius: 6px;
-  background: var(--dispatch-dawn);
-  color: var(--dispatch-asphalt);
+  background: rgb(255 255 255 / 0.04);
+  color: var(--dispatch-ink);
   font: inherit;
   font-size: 0.8rem;
   font-variant-numeric: tabular-nums;
@@ -197,13 +216,15 @@
 
 .tripButton:hover,
 .actionButton:hover:not(:disabled) {
-  border-color: var(--dispatch-asphalt);
+  border-color: var(--dispatch-ink-muted);
+  background: rgb(255 255 255 / 0.08);
 }
 
 .tripButton[aria-pressed="true"] {
   border-color: var(--dispatch-signal);
   background: var(--dispatch-signal);
-  color: var(--landing-dawn, white);
+  color: #ffffff;
+  box-shadow: 0 0 0 1px rgb(79 134 255 / 0.4), 0 8px 24px rgb(26 86 255 / 0.35);
 }
 
 .actionRow {
@@ -223,7 +244,7 @@
 
 .dragHint {
   margin: 0;
-  color: var(--dispatch-asphalt);
+  color: var(--dispatch-ink-muted);
   font-size: 0.72rem;
   line-height: 1.4;
 }
@@ -264,3 +285,27 @@
     transition: none;
   }
 }
+
+/* Day mode: a bright morning over the same neighbourhood. */
+:global([data-theme="day"]) .root {
+  --dispatch-ground: #e9eef6;
+  --dispatch-street: #cfd8e6;
+  --dispatch-lane: #ffffff;
+  --dispatch-building: #f7f9fc;
+  --dispatch-roof: #c3cfe2;
+  --dispatch-window: #8fb0de;
+  --dispatch-vehicle: #1c2230;
+  --dispatch-route: #1a56ff;
+  --dispatch-route-alt: #1d8f80;
+  --dispatch-ink: #1c2230;
+  --dispatch-ink-muted: #4a5568;
+  --dispatch-surface: rgb(255 255 255 / 0.82);
+  --dispatch-line: rgb(28 34 48 / 0.14);
+  --dispatch-sky-light: #ffffff;
+  --dispatch-key-light: #fff4e2;
+  --dispatch-glow: 0.35;
+}
+
+:global([data-theme="day"]) .tripCard { box-shadow: 0 18px 48px rgb(28 34 48 / 0.16); }
+:global([data-theme="day"]) .tripButton,
+:global([data-theme="day"]) .actionButton { background: rgb(255 255 255 / 0.7); }
