@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { isActionPending, setActionPending } from "@velo/app-core/async-actions";
 import { Button } from "@velo/ui/primitives";
 import { DateTime, EmptyState, ErrorState, Money, PageHeader, RouteStrip, Section, StatusBadge } from "@velo/ui/composed";
-import { CountdownBadge, LiveStatusPill, MatchingIndicator, Skeleton } from "@velo/ui/feedback";
+import { CountdownBadge, LiveStatusPill, MatchingIndicator, ReconnectingIndicator, Skeleton } from "@velo/ui/feedback";
 import {
   requestDriverProxy,
   type DriverNotification,
@@ -458,14 +458,19 @@ export default function DriverHomePage() {
           </Button>
         )}
       >
-        {realtime.state === "error" ? (
-          <p className="driver-realtime-notice" role="status">Live offers paused. Showing the latest list; refresh to check again.</p>
-        ) : (
-          <div className="driver-row-meta">
-            <LiveStatusPill state={realtime.state} label={realtime.state === "connected" ? "Listening for offers" : undefined} />
-            {queuedRequestCount > 0 ? <span className="badge" data-tone="attention">{queuedRequestCount} waiting</span> : null}
-          </div>
-        )}
+        <div className="driver-row-meta">
+          {realtime.state === "error" || realtime.state === "reconnecting" ? (
+            <ReconnectingIndicator
+              state={realtime.state}
+              attempts={realtime.reconnectAttempts}
+              message="Live offers paused. The list refreshes automatically."
+              onRetry={() => void loadIncoming(true)}
+              retryLabel="Refresh offers"
+              retrying={refreshingIncoming}
+            />
+          ) : <LiveStatusPill state={realtime.state} label={realtime.state === "connected" ? "Listening for offers" : undefined} />}
+          {queuedRequestCount > 0 ? <span className="badge" data-tone="attention">{queuedRequestCount} waiting</span> : null}
+        </div>
         {incomingError ? (
           <ErrorState title="Couldn't load trip offers" description={incomingError} onRetry={() => void loadIncoming()} />
         ) : null}

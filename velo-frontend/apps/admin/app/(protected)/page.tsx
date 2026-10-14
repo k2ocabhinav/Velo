@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { EmptyState, ErrorState, Money, Section, Skeleton, StatCard } from "@velo/ui";
+import { EmptyState, ErrorState, Money, Section, StatCard } from "@velo/ui";
 import { PageFrame } from "./_components/page-frame";
 import { adminClient, type AdminOpsHealth, type DashboardStats } from "./_lib/admin-client";
 import { toActionErrorMessage } from "./_lib/ui-state";
@@ -73,7 +73,7 @@ export default function DashboardPage() {
 
       {loading ? (
         <div className="dashboard-kpis" aria-label="Loading dashboard" aria-busy="true">
-          {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} className="h-28" />)}
+          {Array.from({ length: 4 }, (_, index) => <StatCard.Skeleton key={index} />)}
         </div>
       ) : null}
 

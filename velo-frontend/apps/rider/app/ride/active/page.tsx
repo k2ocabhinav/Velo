@@ -7,6 +7,7 @@ import { applyRideUpdateStatus, normalizeRideLifecycleStatus, resolveActiveRideP
 import { fetchRoutePath, type MapPoint, type RoutePath } from "../../_lib/map/routing";
 import { mapApiError, validateRatingInput } from "../../_lib/ride-forms";
 import { useRiderRideUpdatesSubscription, type RiderRideUpdateEvent } from "../../_lib/rider-ws";
+import { ReconnectingIndicator } from "@velo/ui/feedback";
 import {
   Button,
   DateTime,
@@ -400,11 +401,13 @@ export default function RiderActiveRidePage() {
         />
       ) : null}
 
-      {!error && realtime.state === "error" && tracking ? (
-        <ErrorState
-          title="Live updates paused"
-          description="Refreshing in the background. Retry to check the latest trip status."
-          retryLabel={refreshing ? "Refreshing…" : "Retry"}
+      {!error && tracking ? (
+        <ReconnectingIndicator
+          state={realtime.state}
+          attempts={realtime.reconnectAttempts}
+          message="Live updates paused. Trip details refresh automatically."
+          retryLabel="Refresh trip"
+          retrying={refreshing}
           onRetry={() => void loadTracking(true)}
         />
       ) : null}

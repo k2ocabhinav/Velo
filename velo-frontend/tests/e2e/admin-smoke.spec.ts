@@ -1,4 +1,5 @@
-import { expect, test, type BrowserContext } from "@playwright/test";
+import { expect, test } from "./fixtures";
+import type { BrowserContext } from "@playwright/test";
 
 async function signInAsAdmin(context: BrowserContext, baseURL?: string): Promise<void> {
   await context.addCookies([
@@ -181,4 +182,78 @@ test("admin dispatch shows offers and assigns a pending request", async ({ baseU
   await page.getByRole("button", { name: "Assign driver" }).last().click();
   await expect(page.getByText("Driver assigned.")).toBeVisible();
   expect(assignCount).toBe(1);
+});
+
+test("admin rejects a driver application with a recorded reason", async ({ baseURL, context, page }) => {
+  await signInAsAdmin(context, baseURL);
+  let rejected = false;
+  let rejectionReason = "";
+  await page.route("**/api/proxy/api/v1/admin/drivers?status=PENDING*", async (route) => {
+    if (route.request().method() !== "GET") { await route.continue(); return; }
+    const content = rejected ? [] : [{ driverId: 78, userId: 89, name: "Mira Driver", email: "mira@example.com", phone: "9999999999", rating: 4.9, vehicleId: "KA10AA1234", appliedAt: new Date().toISOString() }];
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { content, number: 0, totalPages: 1, totalElements: content.length, size: 10 } }) });
+  });
+  for (const status of ["APPROVED", "SUSPENDED"]) {
+    await page.route(`**/api/proxy/api/v1/admin/drivers?status=${status}*`, async (route) => {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { content: [], number: 0, totalPages: 1, totalElements: 0, size: 10 } }) });
+    });
+  }
+  await page.route("**/api/proxy/api/v1/admin/drivers/78/reject", async (route) => {
+    rejected = true;
+    rejectionReason = route.request().postData() ?? "";
+    await route.fulfill({ status: 200, body: "" });
+  });
+
+  await page.goto("/drivers");
+  await expect(page.getByText("Mira Driver")).toBeVisible();
+  await page.getByRole("button", { name: "Actions for Mira Driver" }).click();
+  await page.getByRole("menuitem", { name: "Reject" }).click();
+  const rejectSheet = page.getByRole("dialog", { name: "Reject application" });
+  await rejectSheet.getByLabel("Reason").fill("Application documents could not be verified.");
+  await rejectSheet.getByRole("button", { name: "Continue to confirmation" }).click();
+  await page.getByRole("dialog", { name: "Reject driver application?" }).getByRole("button", { name: "Reject application" }).click();
+  await expect(page.getByText("Driver application rejected.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "No applications to review" })).toBeVisible();
+  expect(rejected).toBe(true);
+  expect(rejectionReason).toBe("Application documents could not be verified.");
+});
+
+test("admin rejects a pending payout and processes an approved payout", async ({ baseURL, context, page }) => {
+  await signInAsAdmin(context, baseURL);
+  const payouts = [
+    { id: 91, amount: 140.25, status: "PENDING", requestedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString() },
+    { id: 92, amount: 260.5, status: "APPROVED", requestedAt: new Date(Date.now() - 60 * 60 * 1000).toISOString() },
+  ];
+  let rejected = false;
+  let processed = false;
+  await page.route("**/api/proxy/api/v1/admin/payouts/pending*", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { content: payouts, totalPages: 1, number: 0, totalElements: payouts.length, size: 10 } }) });
+  });
+  await page.route("**/api/proxy/api/v1/admin/payouts/91/reject", async (route) => {
+    rejected = true;
+    payouts[0].status = "REJECTED";
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: payouts[0] }) });
+  });
+  await page.route("**/api/proxy/api/v1/admin/payouts/92/process", async (route) => {
+    processed = true;
+    payouts[1].status = "PROCESSED";
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: payouts[1] }) });
+  });
+
+  await page.goto("/payouts");
+  const pendingRow = page.getByRole("row").filter({ hasText: "$140.25" });
+  await pendingRow.getByRole("button", { name: "Payout actions" }).click();
+  await page.getByRole("menuitem", { name: "Reject payout" }).click();
+  await page.getByRole("dialog", { name: "Reject payout?" }).getByRole("button", { name: "Reject payout" }).click();
+  await expect(page.getByText("Payout rejected.")).toBeVisible();
+  await expect(pendingRow.getByText("Rejected")).toBeVisible();
+
+  const approvedRow = page.getByRole("row").filter({ hasText: "$260.50" });
+  await approvedRow.getByRole("button", { name: "Payout actions" }).click();
+  await page.getByRole("menuitem", { name: "Process payout" }).click();
+  await page.getByRole("dialog", { name: "Process payout?" }).getByRole("button", { name: "Process payout" }).click();
+  await expect(page.getByText("Payout processed.")).toBeVisible();
+  await expect(approvedRow.getByText("Processed")).toBeVisible();
+  expect(rejected).toBe(true);
+  expect(processed).toBe(true);
 });

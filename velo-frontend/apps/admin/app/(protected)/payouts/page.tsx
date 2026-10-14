@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ConfirmDialog, DataTable, EmptyState, ErrorState, PageHeader, Pagination, Section, SegmentedControl, Skeleton, StatusBadge, Money, DateTime, type DataTableColumn } from "@velo/ui";
+import { ConfirmDialog, DataTable, EmptyState, ErrorState, PageHeader, Pagination, Section, SegmentedControl, StatusBadge, Money, DateTime, type DataTableColumn } from "@velo/ui";
 import { adminClient, type PayoutItem } from "../_lib/admin-client";
 import { normalizePageNumber, normalizeTotalPages, pageFallbackAfterMutation, toActionErrorMessage } from "../_lib/ui-state";
 
@@ -54,7 +54,8 @@ export default function PayoutsPage() {
       else if (action === "reject") await adminClient.rejectPayout(payout.id, ACTION_NOTES.reject);
       else await adminClient.processPayout(payout.id);
       await load(page);
-      setStatusMessage(`Payout ${action === "process" ? "processed" : `${action}d`}.`);
+      const completionLabel: Record<PayoutAction, string> = { approve: "approved", reject: "rejected", process: "processed" };
+      setStatusMessage(`Payout ${completionLabel[action]}.`);
     } catch (actionError) {
       setError(toActionErrorMessage(actionError, `Couldn't ${action} payout.`));
     } finally {
@@ -77,7 +78,7 @@ export default function PayoutsPage() {
       {error ? <ErrorState title="Couldn't update payouts" description={error} onRetry={() => void load(page)} /> : null}
       {statusMessage ? <p role="status" className="helper">{statusMessage}</p> : null}
       <Section title="Payout requests" actions={<SegmentedControl ariaLabel="Payout status filter" value={filter} onValueChange={(value) => setFilter(value as (typeof FILTERS)[number])} options={FILTERS.map((value) => ({ value, label: value === "ALL" ? "All" : value.charAt(0) + value.slice(1).toLowerCase() }))} />}>
-        {loading ? <div aria-label="Loading payouts" aria-busy="true" className="stack">{Array.from({ length: 5 }, (_, index) => <Skeleton key={index} className="h-12" />)}</div> : (
+        {loading ? <DataTable.Skeleton rows={5} columns={4} label="Loading payouts" /> : (
           <DataTable
             data={visibleRows}
             columns={columns}

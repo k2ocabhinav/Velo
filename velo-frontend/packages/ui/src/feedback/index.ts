@@ -2,6 +2,7 @@ export * from "./skeleton";
 export * from "./spinner";
 export * from "./motion-classes";
 export * from "./live-status-pill";
+export * from "./reconnecting-indicator";
 export * from "./countdown-badge";
 export * from "./matching-indicator";
 export * from "./error-boundary";

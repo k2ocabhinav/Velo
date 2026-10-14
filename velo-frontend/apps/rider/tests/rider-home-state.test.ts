@@ -5,6 +5,7 @@ import {
   isRideCancelableFromTripLane,
   normalizeCurrentRideRequest,
   selectTripLaneRide,
+  shouldShowTripBanner,
   type RiderHomeRide,
 } from "../app/_lib/rider-home-state";
 
@@ -83,6 +84,13 @@ describe("rider home trip lane", () => {
 
     expect(lane.mode).toBe("recent");
     expect(lane.statusLabel).toBe("Completed");
+    expect(shouldShowTripBanner(lane)).toBe(false);
+  });
+
+  it("shows the home banner only while a request or ride is in progress", () => {
+    expect(shouldShowTripBanner(selectTripLaneRide([], { rideRequestStatus: "PENDING" }))).toBe(true);
+    expect(shouldShowTripBanner(selectTripLaneRide([createRide({ rideStatus: "CONFIRMED" })]))).toBe(true);
+    expect(shouldShowTripBanner(selectTripLaneRide([createRide({ rideStatus: "ONGOING" })]))).toBe(true);
   });
 });
 

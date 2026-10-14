@@ -66,7 +66,7 @@
 .driver-shell .error-state p,
 .driver-error-text,
 .error-text {
-  color: hsl(var(--color-danger));
+  color: hsl(var(--color-foreground));
 }
 
 .driver-shell .section .error-state {
@@ -203,7 +203,8 @@
 
 .driver-availability-toggle[data-online="true"] {
   border-color: hsl(var(--color-success));
-  background: hsl(var(--color-success));
+  background: color-mix(in srgb, hsl(var(--color-success)) 35%, hsl(var(--color-background)));
+  color: hsl(var(--color-foreground));
 }
 
 .driver-offer-list,
@@ -364,6 +365,7 @@
 }
 
 .driver-ride-map {
+  position: relative;
   overflow: hidden;
   border: 1px solid hsl(var(--color-border));
   border-radius: var(--radius-lg);

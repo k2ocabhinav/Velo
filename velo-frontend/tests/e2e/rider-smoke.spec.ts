@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "./fixtures";
+import type { Page } from "@playwright/test";
 
 function formatDateTimeLocal(value: Date): string {
   const year = value.getFullYear();
@@ -297,6 +298,27 @@ test.describe("rider smoke", () => {
     expect(rideRequested).toBe(true);
   });
 
+  test("rider home hides the in-progress banner after a completed trip", async ({ baseURL, context, page }) => {
+    const riderBaseUrl = baseURL ?? "http://127.0.0.1:4102";
+    await context.addCookies([{ name: "velo_rider_token", value: "e2e-rider-token", url: riderBaseUrl }]);
+    await mockUnreadCount(page);
+    await mockRideHistory(page, () => [{ id: 777, rideStatus: "ENDED", paymentMethod: "WALLET", fare: 205, endedAt: new Date().toISOString() }]);
+    await page.route("**/api/backend/riders/current-request", async (route) => {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: null }) });
+    });
+    await page.route("**/api/backend/riders/active-ride", async (route) => {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: null }) });
+    });
+
+    const ridesLoaded = page.waitForResponse("**/api/backend/riders/getMyRides?pageOffset=0&pageSize=10");
+    const requestLoaded = page.waitForResponse("**/api/backend/riders/current-request");
+    await page.goto("/");
+    await Promise.all([ridesLoaded, requestLoaded]);
+    await expect(page.getByRole("button", { name: "Plan a trip" })).toBeVisible();
+    await expect(page.locator(".trip-banner")).toHaveCount(0);
+    await expect(page.getByText("Your trip is underway")).toHaveCount(0);
+  });
+
   test("rider wallet adds, selects, and removes saved payment methods", async ({ baseURL, context, page }) => {
     const riderBaseUrl = baseURL ?? "http://127.0.0.1:4102";
     await context.addCookies([{ name: "velo_rider_token", value: "e2e-rider-token", url: riderBaseUrl }]);
@@ -586,6 +608,8 @@ test.describe("rider smoke", () => {
     await expect(page.getByRole("heading", { name: "Your trip", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Your trip is in progress" })).toBeVisible();
     await expect(page.locator(".active-ride-map")).toBeVisible();
+    const followButton = page.getByRole("button", { name: "Follow driver" });
+    await expect(followButton).toHaveCSS("min-height", "44px");
     await page.getByRole("button", { name: "Follow driver" }).click();
     await expect(page.getByRole("button", { name: "Stop following" })).toHaveAttribute("aria-pressed", "true");
 

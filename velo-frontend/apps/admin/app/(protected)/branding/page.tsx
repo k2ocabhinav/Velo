@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button, ErrorState, Field, PageHeader, Section, Select, Skeleton } from "@velo/ui";
+import { Button, ErrorState, Field, PageHeader, Section, Select } from "@velo/ui";
 import { adminClient, type BrandingSettings } from "../_lib/admin-client";
 import { toActionErrorMessage } from "../_lib/ui-state";
 
@@ -80,7 +80,7 @@ export default function BrandingPage() {
       <PageHeader title="Branding" description="Set the customer-facing identity and operating labels." actions={<Button variant="secondary" disabled={loading || saving} onClick={() => void load()}>Reload</Button>} />
       {error ? <ErrorState title="Couldn't update branding" description={error} onRetry={() => void load()} /> : null}
       {message ? <p role="status" className="helper">{message}</p> : null}
-      {loading ? <div className="branding-columns" aria-label="Loading branding settings" aria-busy="true"><Skeleton className="h-80" /><Skeleton className="h-52" /></div> : (
+      {loading ? <div className="branding-columns" aria-label="Loading branding settings" aria-busy="true"><Section.Skeleton rows={5} /><Section.Skeleton rows={3} /></div> : (
         <div className="branding-columns">
           <div className="stack">
             <Section title="Identity">

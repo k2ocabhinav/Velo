@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { EmptyState, ErrorState, Money, Section, Skeleton, StatCard } from "@velo/ui";
+import { EmptyState, ErrorState, Money, Section, StatCard } from "@velo/ui";
 import { formatMoney } from "@velo/app-core/formatters";
 import { PageFrame } from "../_components/page-frame";
 import { adminClient, type RevenueRow } from "../_lib/admin-client";
@@ -125,7 +125,9 @@ export default function RevenuePage() {
     <div className="stack">
       <PageFrame title="Revenue" description="Track daily, weekly, and monthly platform performance." />
       {error ? <ErrorState title="Couldn't load revenue" description={error} onRetry={() => setReloadVersion((value) => value + 1)} /> : null}
-      {loading ? <div className="dashboard-kpis" aria-label="Loading revenue" aria-busy="true">{Array.from({ length: 3 }, (_, index) => <Skeleton className="h-28" key={index} />)}</div> : null}
+      {loading ? <div className="dashboard-kpis" aria-label="Loading revenue" aria-busy="true">{Array.from({ length: 3 }, (_, index) => <StatCard.Skeleton key={index} />)}</div> : null}
+      {loading ? <Section.Skeleton rows={5} /> : null}
+      {loading ? <Section.Skeleton rows={3} /> : null}
       {!loading && today && week && month ? (
         <>
           <div className="dashboard-kpis">

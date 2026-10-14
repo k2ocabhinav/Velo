@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { cn } from "../lib/cn";
+import { Skeleton as GenericSkeleton } from "../feedback/skeleton";
 
 export interface StatCardProps {
   title: string;
@@ -10,7 +11,7 @@ export interface StatCardProps {
   className?: string;
 }
 
-export function StatCard({
+export const StatCard = Object.assign(function StatCard({
   className,
   delta,
   helperText,
@@ -37,6 +38,16 @@ export function StatCard({
       {helperText ? (
         <p className="stat-card-helper">{helperText}</p>
       ) : null}
+    </section>
+  );
+}, { Skeleton: StatCardSkeleton });
+
+function StatCardSkeleton() {
+  return (
+    <section className="stat-card stat-card-skeleton" role="status" aria-label="Loading statistic" aria-busy="true">
+      <GenericSkeleton className="stat-skeleton-title" />
+      <GenericSkeleton className="stat-skeleton-value" />
+      <GenericSkeleton className="stat-skeleton-helper" />
     </section>
   );
 }

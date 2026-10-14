@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@velo/ui/primitives";
 import { ConfirmDialog, DateTime, EmptyState, ErrorState, Field, Money, PageHeader, RouteStrip, Section, Select, StatusBadge } from "@velo/ui/composed";
+import { ReconnectingIndicator } from "@velo/ui/feedback";
 import { requestDriverProxy, type DriverRide, type SpringPage } from "../../_lib/driver-client";
 import {
   canSubmitCancelRide,
@@ -18,7 +19,7 @@ import {
 import { useDriverLocationPublisher } from "../../_lib/driver-location-publisher";
 import { normalizeDriverRidePage, toMapPoint, getDriverRideFareValue } from "../../_lib/driver-ride-state";
 import { fetchRoutePath, type RoutePath } from "../../_lib/map/routing";
-import { getDriverRealtimeStatusText, useDriverNotificationSubscription, type DriverNotificationEvent } from "../../_lib/driver-ws";
+import { useDriverNotificationSubscription, type DriverNotificationEvent } from "../../_lib/driver-ws";
 import { DriverRideMapLoader } from "./_components/driver-ride-map-loader";
 
 const ACTIVE_RIDE_REFRESH_INTERVAL_MS = 10_000;
@@ -272,14 +273,14 @@ export default function DriverRidePage() {
           </Section>
 
           <Section title="Live map">
-            {realtime.state === "error" ? (
-              <ErrorState
-                title="Live updates are paused"
-                description={`${getDriverRealtimeStatusText(realtime.state, realtime.reconnectAttempts)} Trip details will refresh automatically.`}
-                onRetry={() => void loadRide(true)}
-                retryLabel="Refresh trip"
-              />
-            ) : null}
+            <ReconnectingIndicator
+              state={realtime.state}
+              attempts={realtime.reconnectAttempts}
+              message="Live updates paused. Trip details refresh automatically."
+              onRetry={() => void loadRide(true)}
+              retryLabel="Refresh trip"
+              retrying={loading}
+            />
             {locationPublisher.mode === "degraded" ? (
               <p className="driver-error-text" role="alert">{locationPublisher.message}</p>
             ) : <p className="helper">{locationPublisher.message}</p>}

@@ -13,6 +13,7 @@ import {
 } from "react";
 import { formatDateTime, formatMoney } from "@velo/app-core/formatters";
 import { cn } from "../lib/cn";
+import { Skeleton as GenericSkeleton } from "../feedback/skeleton";
 
 /** A page title, purpose line, and optional primary action area. */
 export function PageHeader({
@@ -38,7 +39,7 @@ export function PageHeader({
 }
 
 /** A titled content section with optional actions. */
-export function Section({
+export const Section = Object.assign(function Section({
   actions,
   children,
   className,
@@ -59,6 +60,17 @@ export function Section({
         </div>
       ) : null}
       <div className="section-body">{children}</div>
+    </section>
+  );
+}, { Skeleton: SectionSkeleton });
+
+function SectionSkeleton({ rows = 3, className }: { rows?: number; className?: string }) {
+  return (
+    <section className={cn("section section-skeleton", className)} role="status" aria-label="Loading section" aria-busy="true">
+      <div className="section-header"><GenericSkeleton className="section-skeleton-title" /></div>
+      <div className="section-body stack compact">
+        {Array.from({ length: rows }, (_, index) => <GenericSkeleton className="section-skeleton-row" key={index} />)}
+      </div>
     </section>
   );
 }
