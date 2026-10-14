@@ -4,7 +4,7 @@ import styles from "./sections.module.css";
 export function FAQ() {
   const copy = landingCopy.faq;
   return (
-    <section className={`${styles.section} ${styles.faqSection}`} id="faq" aria-labelledby="faq-title">
+    <section className={`${styles.section} ${styles.tintDusk} ${styles.faqSection}`} id="faq" aria-labelledby="faq-title">
       <div className={styles.container}>
         <div className={styles.faqLayout}>
           <div className={styles.sectionIntro}><h2 className={styles.sectionTitle} id="faq-title">{copy.title}</h2></div>

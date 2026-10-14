@@ -9,6 +9,8 @@ import { GettingStarted } from "./sections/GettingStarted";
 import { Hero } from "./sections/Hero";
 import { MorningOfTransfers } from "./sections/MorningOfTransfers";
 import { Pricing } from "./sections/Pricing";
+import { TimeSpine } from "./sections/TimeSpine";
+import { VerifyToday } from "./sections/VerifyToday";
 import styles from "./sections/sections.module.css";
 
 export default function LandingPage() {
@@ -16,12 +18,14 @@ export default function LandingPage() {
     <div className={styles.page}>
       <a className="skip-link" href="#main">Skip to content</a>
       <Navbar />
+      <TimeSpine />
       <main id="main">
         <Hero />
         <MorningOfTransfers />
         <FollowTransfer />
         <BrandSwitcher />
         <GettingStarted />
+        <VerifyToday />
         <Pricing />
         <FounderNote />
         <FAQ />

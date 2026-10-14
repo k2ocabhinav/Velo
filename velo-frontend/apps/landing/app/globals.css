@@ -11,6 +11,15 @@
   --landing-muted-on-dark: #aab3c0;
   --landing-teal-text: #1d7066;
 
+  /* Time-of-day tints (pre-dawn → dusk) for the landing narrative. */
+  --landing-night: #0e1524;
+  --landing-rose: #f4a6a0;
+  --landing-midday: #ffffff;
+  --landing-afternoon: #e7ebf1;
+  /* Short aliases used by the section layer. */
+  --landing-signal: var(--landing-signal-blue);
+  --landing-teal: var(--landing-route-teal);
+
   --section-background: var(--landing-dawn);
   --section-foreground: var(--landing-asphalt);
   --section-muted: color-mix(in srgb, var(--landing-asphalt) 68%, var(--landing-dawn));
@@ -282,11 +291,12 @@ textarea:focus-visible {
   font-weight: 600;
   line-height: 1.2;
   text-align: center;
-  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease;
 }
 
 .button:hover {
   text-decoration: none;
+  transform: translateY(-1px);
 }
 
 .button-primary {
@@ -1189,5 +1199,9 @@ textarea:focus-visible {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .button:hover {
+    transform: none;
   }
 }

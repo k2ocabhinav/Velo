@@ -5,7 +5,7 @@ export function FounderNote() {
   const { name, photoUrl, city } = siteConfig.founder;
   const copy = landingCopy.founder;
   return (
-    <section className={`${styles.section} ${styles.founderSection}`} aria-labelledby="founder-title">
+    <section className={`${styles.section} ${styles.tintDusk} ${styles.tintDuskEntry} ${styles.founderSection}`} aria-labelledby="founder-title">
       <div className={styles.container}>
         <div className={styles.founderCopy}>
           <h2 className={styles.sectionTitle} id="founder-title">{copy.title}</h2>

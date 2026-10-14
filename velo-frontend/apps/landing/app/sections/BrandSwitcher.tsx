@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useState, type CSSProperties } from "react";
 import { landingCopy } from "../../content/site";
+import { DeviceFrame } from "./DeviceFrame";
 import styles from "./sections.module.css";
 
 type BrandId = "velo" | "saffron";
@@ -16,7 +17,7 @@ export function BrandSwitcher() {
   } as CSSProperties;
 
   return (
-    <section className={`${styles.section} ${styles.brandSection}`} aria-labelledby="brand-title">
+    <section className={`${styles.section} ${styles.tintMidday} ${styles.brandSection}`} aria-labelledby="brand-title">
       <div className={styles.container}>
         <div className={styles.sectionIntro}>
           <h2 className={styles.sectionTitle} id="brand-title">{copy.title}</h2>
@@ -44,11 +45,15 @@ export function BrandSwitcher() {
         </div>
         <div className={styles.brandScreens}>
           <figure className={styles.brandFigure}>
-            <Image src="/screens/velo-business-dispatch.webp" alt="Velo Business dispatch console demonstration" width={1440} height={900} loading="lazy" sizes="(max-width: 768px) 100vw, 50vw" />
+            <DeviceFrame tilt="gentle">
+              <Image src="/screens/velo-business-dispatch.webp" alt="Velo Business dispatch console demonstration" width={1440} height={900} loading="lazy" sizes="(max-width: 768px) 100vw, 50vw" />
+            </DeviceFrame>
             <figcaption><strong>Velo Business</strong><span>{copy.sampleCaption}</span></figcaption>
           </figure>
           <figure className={styles.brandFigure}>
-            <Image src="/screens/saffron-routes-dispatch.webp" alt="Saffron Routes dispatch console demonstration" width={1440} height={900} loading="lazy" sizes="(max-width: 768px) 100vw, 50vw" />
+            <DeviceFrame tilt="gentle">
+              <Image src="/screens/saffron-routes-dispatch.webp" alt="Saffron Routes dispatch console demonstration" width={1440} height={900} loading="lazy" sizes="(max-width: 768px) 100vw, 50vw" />
+            </DeviceFrame>
             <figcaption><strong>Saffron Routes</strong><span>{copy.sampleCaption}</span></figcaption>
           </figure>
         </div>

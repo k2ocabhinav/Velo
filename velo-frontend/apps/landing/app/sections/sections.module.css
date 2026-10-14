@@ -172,7 +172,7 @@
 .previewButton { margin-inline-start: auto; }
 .previewNote { margin: 8px 0 0; color: var(--lp-muted); font-size: 0.8125rem; }
 
-.morningSection { border-top: 1px solid var(--lp-line); }
+.morningSection { position: relative; }
 .sectionIntro { max-width: 760px; margin-bottom: clamp(36px, 5vw, 60px); }
 .eyebrow { margin: 0 0 12px; color: var(--lp-blue); font-size: 0.9375rem; font-weight: 600; }
 .sectionTitle { max-width: 19ch; font-size: clamp(2.25rem, 4.5vw, 4.25rem); }
@@ -195,7 +195,7 @@
 .sampleNote { margin: 15px 0 0; color: var(--lp-muted); font-size: 0.8125rem; }
 
 .followSection,
-.startSection { background: color-mix(in srgb, var(--lp-ground) 86%, var(--lp-line)); }
+.startSection { border-top: 1px solid var(--lp-line); }
 .followLayout { display: grid; grid-template-columns: minmax(0, 0.86fr) minmax(0, 1.14fr); align-items: start; gap: clamp(28px, 6vw, 84px); }
 .stepList { display: grid; border-top: 1px solid var(--lp-line); }
 .stepButton { display: grid; grid-template-columns: 12px minmax(0, 1fr); gap: 16px; width: 100%; min-height: 90px; padding: 18px 4px; border: 0; border-bottom: 1px solid var(--lp-line); background: transparent; color: var(--lp-muted); cursor: pointer; text-align: left; }
@@ -395,4 +395,300 @@
   .primaryButton,
   .secondaryButton,
   .faqItem summary span::after { transition: none; }
+}
+
+/* Time-of-day tints: pre-dawn (hero) → morning → midday → afternoon → dusk. */
+.tintMorning {
+  --lp-ground: var(--landing-dawn);
+  --lp-ink: var(--landing-asphalt);
+  --lp-muted: var(--landing-muted);
+  --lp-line: var(--landing-concrete);
+  background: linear-gradient(180deg, var(--landing-dawn) 0%, color-mix(in srgb, var(--landing-dawn) 91%, var(--landing-sodium)) 30%, var(--landing-dawn) 68%);
+  color: var(--lp-ink);
+}
+
+.tintMidday {
+  --lp-ground: var(--landing-midday);
+  --lp-ink: var(--landing-asphalt);
+  --lp-muted: var(--landing-muted);
+  --lp-line: color-mix(in srgb, var(--landing-concrete) 74%, var(--landing-midday));
+  background: var(--landing-midday);
+  color: var(--lp-ink);
+}
+
+.tintAfternoon {
+  --lp-ground: var(--landing-afternoon);
+  --lp-ink: var(--landing-asphalt);
+  --lp-muted: var(--landing-muted);
+  --lp-line: color-mix(in srgb, var(--landing-concrete) 78%, var(--landing-afternoon));
+  background: var(--landing-afternoon);
+  color: var(--lp-ink);
+}
+
+.tintDusk {
+  --lp-ground: var(--landing-asphalt);
+  --lp-ink: var(--landing-dawn);
+  --lp-muted: var(--landing-muted-on-dark);
+  --lp-line: color-mix(in srgb, var(--velo-white) 18%, transparent);
+  background: var(--landing-asphalt);
+  color: var(--lp-ink);
+}
+
+.tintDuskEntry {
+  background: linear-gradient(180deg, var(--landing-afternoon) 0%, color-mix(in srgb, var(--landing-rose) 16%, var(--landing-asphalt)) clamp(90px, 12vh, 170px), var(--landing-asphalt) clamp(230px, 30vh, 380px));
+}
+
+/* Desktop time spine: a route line in the left gutter, stopping at five times. */
+.timeSpine {
+  --time-spine-height: min(56vh, 540px);
+  position: fixed;
+  z-index: 6;
+  top: 20vh;
+  left: max(8px, calc((100vw - 1200px) / 2 + 8px));
+  display: none;
+  width: 2px;
+  height: var(--time-spine-height);
+  pointer-events: none;
+}
+
+@media (min-width: 1200px) {
+  .timeSpine { display: block; }
+}
+
+.timeSpineLine {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--landing-concrete) 72%, transparent) 14%, color-mix(in srgb, var(--landing-concrete) 72%, transparent) 86%, transparent);
+}
+
+.timeSpineStop { position: absolute; left: 0; width: 0; height: 0; }
+
+.timeSpineDot {
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  width: 8px;
+  height: 8px;
+  border: 1px solid color-mix(in srgb, var(--landing-concrete) 88%, transparent);
+  border-radius: 50%;
+  background: var(--landing-dawn);
+}
+
+.timeSpineTime {
+  position: absolute;
+  top: 0;
+  right: 12px;
+  transform: translateY(-50%);
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--landing-dawn) 84%, transparent);
+  color: var(--landing-asphalt);
+  font-size: 0.625rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+  backdrop-filter: blur(3px);
+}
+
+.timeSpineMarker {
+  position: absolute;
+  top: 0;
+  left: -4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--landing-signal-blue);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--landing-signal-blue) 22%, transparent);
+}
+
+@media (max-width: 1299px) {
+  .timeSpineTime { display: none; }
+}
+
+@keyframes timeSpineTravel {
+  from { transform: translateY(0); }
+  to { transform: translateY(calc(var(--time-spine-height) - 10px)); }
+}
+
+@supports (animation-timeline: scroll()) {
+  @media (min-width: 1200px) and (prefers-reduced-motion: no-preference) {
+    .timeSpineMarker {
+      animation: timeSpineTravel linear both;
+      animation-timeline: scroll(root block);
+      animation-range: 8% 92%;
+    }
+  }
+}
+
+/* Product screenshots in laptop and phone frames with coloured shadows. */
+.device { position: relative; }
+
+.deviceLaptop,
+.devicePhone { width: 100%; }
+
+.deviceTilt {
+  transform: perspective(1500px) rotateY(-5deg) rotateX(1.4deg);
+  transform-origin: center;
+  transition: transform 300ms ease;
+}
+
+.deviceGentle .deviceTilt { transform: perspective(1600px) rotateY(-2.6deg) rotateX(0.9deg); }
+
+.device:hover .deviceTilt,
+.device:focus-within .deviceTilt { transform: none; }
+
+.laptopFrame {
+  position: relative;
+  padding: 9px;
+  border: 1px solid color-mix(in srgb, var(--landing-asphalt) 72%, transparent);
+  border-radius: 16px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--landing-asphalt) 86%, var(--landing-dawn)), var(--landing-asphalt));
+  box-shadow: -30px 34px 66px -40px color-mix(in srgb, var(--lp-blue) 20%, transparent), 26px 30px 66px -44px color-mix(in srgb, var(--lp-teal) 20%, transparent);
+}
+
+.laptopFrame::after {
+  position: absolute;
+  right: -4%;
+  bottom: -7px;
+  left: -4%;
+  height: 7px;
+  border-radius: 0 0 12px 12px;
+  background: color-mix(in srgb, var(--landing-asphalt) 78%, var(--landing-dawn));
+  content: "";
+}
+
+.laptopFrame img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 0;
+  border-radius: 9px;
+  background: var(--landing-asphalt);
+}
+
+.phoneFrame {
+  position: relative;
+  width: fit-content;
+  margin-inline: auto;
+  padding: 11px;
+  border: 1px solid color-mix(in srgb, var(--landing-asphalt) 72%, transparent);
+  border-radius: 30px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--landing-asphalt) 86%, var(--landing-dawn)), var(--landing-asphalt));
+  box-shadow: -26px 32px 60px -38px color-mix(in srgb, var(--lp-blue) 20%, transparent), 22px 28px 60px -40px color-mix(in srgb, var(--lp-teal) 20%, transparent);
+}
+
+.phoneFrame::before {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  width: 34%;
+  height: 4px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--landing-dawn) 30%, transparent);
+  content: "";
+}
+
+.phoneFrame img {
+  display: block;
+  border: 0;
+  border-radius: 20px;
+  background: transparent;
+}
+
+@media (max-width: 767px) {
+  .deviceTilt,
+  .deviceGentle .deviceTilt,
+  .device:hover .deviceTilt,
+  .device:focus-within .deviceTilt { transform: none; }
+}
+
+/* "What you can verify today" strip. */
+.verifySection {
+  padding-block: clamp(56px, 6.5vw, 88px);
+  border-top: 3px solid transparent;
+  border-image: linear-gradient(90deg, var(--lp-blue), var(--lp-teal)) 1;
+}
+
+.verifyHead { max-width: 720px; }
+
+.verifyFacts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(18px, 2.6vw, 34px);
+  margin: clamp(28px, 4vw, 44px) 0 0;
+  padding: clamp(24px, 3vw, 32px) 0 0;
+  border-top: 1px solid var(--lp-line);
+  list-style: none;
+}
+
+.verifyValue {
+  display: block;
+  color: var(--lp-ink);
+  font-family: var(--font-display), "Barlow Condensed", system-ui, sans-serif;
+  font-size: clamp(2.25rem, 3.6vw, 3.5rem);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.verifyLabel {
+  display: block;
+  max-width: 22ch;
+  margin-top: 10px;
+  color: var(--lp-muted);
+  font-size: 0.9375rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 900px) {
+  .verifyFacts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Elevated pricing card with a blue → teal gradient border. */
+.priceCard {
+  max-width: 460px;
+  padding: clamp(22px, 3vw, 34px);
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: linear-gradient(var(--landing-midday), var(--landing-midday)) padding-box, linear-gradient(120deg, var(--lp-blue), var(--lp-teal)) border-box;
+  box-shadow: 0 30px 60px -44px color-mix(in srgb, var(--lp-blue) 46%, transparent);
+}
+
+.priceCard .currencySwitch { margin: 0 0 20px; }
+.priceCard .priceValue { margin-top: 4px; }
+
+/* Micro-interactions: 1px button lift, FAQ reveal. */
+.primaryButton,
+.secondaryButton {
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease, transform 150ms ease;
+}
+
+.primaryButton:hover,
+.secondaryButton:hover { transform: translateY(-1px); }
+
+.faqItem[open] p { animation: faqReveal 180ms ease-out; }
+
+@keyframes faqReveal {
+  from { opacity: 0; transform: translateY(-4px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .timeSpine,
+  .timeSpineTime { display: none; }
+
+  .deviceTilt,
+  .device:hover .deviceTilt,
+  .device:focus-within .deviceTilt { transform: none; transition: none; }
+
+  .primaryButton,
+  .secondaryButton { transition: none; }
+
+  .primaryButton:hover,
+  .secondaryButton:hover { transform: none; }
+
+  .faqItem[open] p { animation: none; }
 }
