@@ -1,5 +1,6 @@
 import type { Key, ReactNode } from "react";
 import { cn } from "../lib/cn";
+import { Menu, type MenuItem } from "./interaction";
 
 export interface DataTableColumn<T> {
   header: ReactNode;
@@ -16,52 +17,59 @@ export interface DataTableProps<T> {
   getRowKey: (row: T, index: number) => Key;
   emptyState?: ReactNode;
   caption?: ReactNode;
+  ariaLabel?: string;
   className?: string;
+  rowActions?: (row: T) => MenuItem[];
+  rowActionsLabel?: (row: T) => string;
 }
 
+/** Responsive data table with optional overflow actions on each row. */
 export function DataTable<T>({
   caption,
   className,
   columns,
   data,
   emptyState = "No data yet.",
-  getRowKey
+  getRowKey,
+  rowActions,
+  rowActionsLabel,
+  ariaLabel = "Results",
 }: DataTableProps<T>) {
   return (
-    <div className={cn("w-full overflow-hidden rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]", className)}>
-      <table className="w-full border-collapse text-left text-sm">
+    <div className={cn("data-table-wrap", className)}>
+      <table className="data-table" aria-label={caption ? undefined : ariaLabel}>
         {caption ? <caption className="sr-only">{caption}</caption> : null}
-        <thead className="bg-[hsl(var(--color-surface-hover))]">
+        <thead>
           <tr>
             {columns.map((column, index) => (
               <th
                 key={index}
                 scope="col"
                 className={cn(
-                  "border-b border-[hsl(var(--color-border))] px-4 py-3 font-medium text-[hsl(var(--color-muted))]",
-                  column.align === "center" && "text-center",
-                  column.align === "right" && "text-right",
+                  column.align === "center" && "align-center",
+                  column.align === "right" && "align-right",
                   column.headerClassName
                 )}
               >
                 {column.header}
               </th>
             ))}
+            {rowActions ? <th scope="col"><span className="sr-only">Actions</span></th> : null}
           </tr>
         </thead>
         <tbody>
           {data.length === 0 ? (
             <tr>
               <td
-                colSpan={columns.length}
-                className="px-4 py-10 text-center text-[hsl(var(--color-muted))]"
+                colSpan={columns.length + (rowActions ? 1 : 0)}
+                className="data-table-empty"
               >
                 {emptyState}
               </td>
             </tr>
           ) : (
             data.map((row, rowIndex) => (
-              <tr key={getRowKey(row, rowIndex)} className="hover:bg-[hsl(var(--color-surface-hover))]">
+              <tr key={getRowKey(row, rowIndex)}>
                 {columns.map((column, columnIndex) => {
                   const content =
                     column.cell?.(row) ??
@@ -71,9 +79,8 @@ export function DataTable<T>({
                     <td
                       key={columnIndex}
                       className={cn(
-                        "border-b border-[hsl(var(--color-border))] px-4 py-3 text-[hsl(var(--color-foreground))]",
-                        column.align === "center" && "text-center",
-                        column.align === "right" && "text-right",
+                        column.align === "center" && "align-center",
+                        column.align === "right" && "align-right",
                         column.className
                       )}
                     >
@@ -81,6 +88,14 @@ export function DataTable<T>({
                     </td>
                   );
                 })}
+                {rowActions ? (
+                  <td className="data-table-actions">
+                    <Menu
+                      items={rowActions(row)}
+                      triggerLabel={rowActionsLabel?.(row) ?? "More row actions"}
+                    />
+                  </td>
+                ) : null}
               </tr>
             ))
           )}

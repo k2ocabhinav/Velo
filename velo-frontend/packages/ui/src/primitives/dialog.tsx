@@ -1,8 +1,9 @@
 "use client";
 
 import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
-import { createContext, useContext, useId, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useId, useMemo, useRef, useState } from "react";
 import { cn } from "../lib/cn";
+import { useFocusTrap } from "../lib/use-focus-trap";
 import { Button } from "./button";
 
 interface DialogContextValue {
@@ -79,22 +80,29 @@ export function DialogContent({
   className?: string;
 }) {
   const context = useDialogContext("DialogContent");
+  const panelRef = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => context.setOpen(false), [context]);
+  useFocusTrap(panelRef, context.open, close);
 
   if (!context.open) {
     return null;
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[hsl(var(--color-overlay))] p-4">
+    <div
+      className="ui-dialog-overlay"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) context.setOpen(false);
+      }}
+    >
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={context.titleId}
         aria-describedby={context.descriptionId}
-        className={cn(
-          "w-full max-w-lg rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-elevated))] p-6 shadow-lg",
-          className
-        )}
+        tabIndex={-1}
+        className={cn("ui-dialog", className)}
       >
         {children}
       </div>
@@ -103,7 +111,7 @@ export function DialogContent({
 }
 
 export function DialogHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div {...props} className={cn("mb-4 space-y-1", className)} />;
+  return <div {...props} className={cn("ui-dialog-header", className)} />;
 }
 
 export function DialogTitle({ className, ...props }: HTMLAttributes<HTMLHeadingElement>) {
@@ -112,7 +120,7 @@ export function DialogTitle({ className, ...props }: HTMLAttributes<HTMLHeadingE
     <h2
       {...props}
       id={context.titleId}
-      className={cn("text-lg font-semibold text-[hsl(var(--color-foreground))]", className)}
+      className={cn("ui-dialog-title", className)}
     />
   );
 }
@@ -123,16 +131,12 @@ export function DialogDescription({
 }: HTMLAttributes<HTMLParagraphElement>) {
   const context = useDialogContext("DialogDescription");
   return (
-    <p
-      {...props}
-      id={context.descriptionId}
-      className={cn("text-sm text-[hsl(var(--color-muted))]", className)}
-    />
+    <p {...props} id={context.descriptionId} className={cn("ui-dialog-description", className)} />
   );
 }
 
 export function DialogFooter({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div {...props} className={cn("mt-6 flex items-center justify-end gap-3", className)} />;
+  return <div {...props} className={cn("ui-dialog-footer", className)} />;
 }
 
 export function DialogClose({
