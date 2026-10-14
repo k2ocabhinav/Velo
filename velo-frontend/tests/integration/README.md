@@ -25,7 +25,7 @@ This folder contains the compose-friendly handshake test used to validate the fu
 - Rider: `alice@example.com` / `password123`
 - Driver: `eve.driver@example.com` / `password123`
 
-These come from `velo-platform/src/main/resources/data.sql`.
+These come from the local/dev Flyway demo seed at `velo-platform/src/main/resources/db/demo-migration/V2__seed_demo_data.sql`.
 
 ## Run it
 

@@ -18,7 +18,7 @@ class FlywayMigrationIntegrationTest {
 
     private static final String JDBC_URL = System.getProperty(
             "velo.test.flyway.url",
-            System.getProperty("spring.datasource.url", "jdbc:postgresql://localhost:5432/testpostgres_wp1"));
+            "jdbc:postgresql://localhost:5432/testpostgres_flyway");
     private static final String JDBC_USERNAME = System.getProperty(
             "velo.test.flyway.username", System.getProperty("spring.datasource.username", "postgres"));
     private static final String JDBC_PASSWORD = System.getProperty(
