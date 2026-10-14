@@ -258,11 +258,13 @@ textarea:disabled {
 }
 
 .helper,
-.error-text {
+.error-text,
+.list-item .error-text {
   margin: 0;
 }
 
-.error-text {
+.error-text,
+.list-item .error-text {
   color: hsl(var(--color-danger));
   font-size: 0.875rem;
 }
@@ -394,7 +396,7 @@ textarea:disabled {
 .live-status-pill[data-state="connecting"] { border-color: color-mix(in srgb, hsl(var(--color-info)) 30%, transparent); background: color-mix(in srgb, hsl(var(--color-info)) 10%, transparent); color: hsl(var(--color-foreground)); }
 .live-status-pill[data-state="connected"] { border-color: color-mix(in srgb, hsl(var(--color-accent)) 30%, transparent); background: color-mix(in srgb, hsl(var(--color-accent)) 10%, transparent); color: hsl(var(--color-foreground)); }
 .live-status-pill[data-state="reconnecting"] { border-color: color-mix(in srgb, hsl(var(--color-warning)) 30%, transparent); background: color-mix(in srgb, hsl(var(--color-warning)) 12%, transparent); color: hsl(var(--color-foreground)); }
-.live-status-pill[data-state="error"] { border-color: color-mix(in srgb, hsl(var(--color-danger)) 30%, transparent); background: color-mix(in srgb, hsl(var(--color-danger)) 10%, transparent); color: hsl(var(--color-foreground)); }
+.live-status-pill[data-state="error"] { border-color: color-mix(in srgb, hsl(var(--color-danger)) 30%, transparent); background: color-mix(in srgb, hsl(var(--color-danger)) 10%, transparent); color: hsl(var(--color-danger)); }
 
 .live-status-dot {
   width: 0.5rem;
@@ -816,7 +818,7 @@ textarea.ui-control {
   margin: 0;
   padding-inline-start: var(--space-2);
   border-inline-start: 2px solid hsl(var(--color-danger));
-  color: hsl(var(--color-foreground));
+  color: hsl(var(--color-danger));
   font-size: 0.8125rem;
 }
 
@@ -870,6 +872,11 @@ textarea.ui-control {
   border-radius: var(--radius-lg);
 }
 
+.error-state {
+  border-color: color-mix(in srgb, hsl(var(--color-danger)) 40%, transparent);
+  background: color-mix(in srgb, hsl(var(--color-danger)) 5%, hsl(var(--color-surface)));
+}
+
 .empty-state h2,
 .error-state h2 {
   margin: 0;
@@ -877,11 +884,19 @@ textarea.ui-control {
   font-weight: 600;
 }
 
+.error-state h2 {
+  color: hsl(var(--color-danger));
+}
+
 .empty-state p,
 .error-state p {
   max-width: 60ch;
   margin: 0;
   color: hsl(var(--color-muted));
+}
+
+.error-state p {
+  color: hsl(var(--color-danger));
 }
 
 .definition-list {
@@ -1092,6 +1107,19 @@ textarea.ui-control {
   color: hsl(var(--color-muted));
   font-size: 0.75rem;
   font-weight: 600;
+}
+
+.bottom-nav-icon {
+  display: inline-grid;
+  width: 1.5rem;
+  height: 1.5rem;
+  place-items: center;
+}
+
+.bottom-nav-icon svg {
+  display: block;
+  width: 24px;
+  height: 24px;
 }
 
 .bottom-nav a[aria-current="page"] {

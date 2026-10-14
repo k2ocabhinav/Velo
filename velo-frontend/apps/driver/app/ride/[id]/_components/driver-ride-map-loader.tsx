@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { Skeleton } from "@velo/ui/feedback";
 import type { MapPoint } from "../../../_lib/map/routing";
 
 const DriverRideMapLazy = dynamic(
@@ -9,8 +10,8 @@ const DriverRideMapLazy = dynamic(
     ssr: false,
     loading: () => (
       <div className="driver-ride-map">
-        <div className="driver-ride-map-inner driver-ride-map-placeholder">
-          <p className="helper">Loading map...</p>
+        <div className="driver-ride-map-inner driver-ride-map-placeholder" role="status" aria-label="Loading map" aria-busy="true">
+          <Skeleton className="driver-map-skeleton" />
         </div>
       </div>
     ),

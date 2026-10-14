@@ -1,0 +1,55 @@
+"use client";
+
+import Link from "next/link";
+import { useState } from "react";
+import { performClientLogout } from "@velo/app-core/logout";
+import { Button, PageHeader, Section } from "@velo/ui";
+import { DarkModeToggle } from "@velo/ui/theme";
+import { clearRememberedWalletBalance } from "../_lib/wallet-balance";
+
+export default function RiderAccountPage() {
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  async function signOut(): Promise<void> {
+    setLoggingOut(true);
+    clearRememberedWalletBalance();
+    try {
+      await performClientLogout({ logoutPath: "/api/auth/logout", loginPath: "/login" });
+    } finally {
+      setLoggingOut(false);
+    }
+  }
+
+  return (
+    <main className="app-shell rider-page stack">
+      <PageHeader title="Account" description="Manage your preferences and saved trip options." />
+
+      <Section title="Your shortcuts">
+        <div className="account-link-list">
+          <Link className="account-link-row" href="/promos">
+            <span><strong>Offers</strong><small>Find a code for your next trip</small></span>
+            <span aria-hidden="true">›</span>
+          </Link>
+          <Link className="account-link-row" href="/scheduled">
+            <span><strong>Scheduled trips</strong><small>Plan or update a future trip</small></span>
+            <span aria-hidden="true">›</span>
+          </Link>
+        </div>
+      </Section>
+
+      <Section title="Appearance">
+        <div className="account-preference-row">
+          <div><strong>Theme</strong><p className="helper">Choose light or dark mode for this device.</p></div>
+          <DarkModeToggle className="account-theme-toggle" />
+        </div>
+      </Section>
+
+      <Section title="Session">
+        <p className="helper">Sign out of this device.</p>
+        <Button variant="secondary" loading={loggingOut} onClick={() => void signOut()}>
+          Sign out
+        </Button>
+      </Section>
+    </main>
+  );
+}

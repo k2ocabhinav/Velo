@@ -52,6 +52,7 @@ describe("shared UI foundation", () => {
     }));
     expect(markup).toContain('aria-invalid="true"');
     expect(markup).toContain('aria-describedby="');
+    expect(markup).toContain('class="ui-control"');
     expect(markup).toContain("Enter a valid email.");
   });
 
@@ -135,10 +136,11 @@ describe("shared UI foundation", () => {
   it("marks the active bottom navigation item and unread count", () => {
     const markup = html(h(BottomNav, {
       currentPath: "/trips",
-      items: [{ href: "/trips", label: "Trips", badgeCount: 3 }, { href: "/me", label: "Me" }],
+      items: [{ href: "/trips", label: "Trips", icon: "trips", badgeCount: 3 }, { href: "/me", label: "Me" }],
     }));
     expect(markup).toContain('aria-current="page"');
     expect(markup).toContain('aria-label="3 unread"');
+    expect(markup).toContain('<svg aria-hidden="true" focusable="false" width="24" height="24"');
   });
 
   it("renders an application top bar", () => {

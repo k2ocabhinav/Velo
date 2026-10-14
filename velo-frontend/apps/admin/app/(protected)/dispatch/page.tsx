@@ -1,87 +1,41 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { isActionPending, setActionPending } from "@velo/app-core/async-actions";
-import { PageFrame } from "../_components/page-frame";
+import { useEffect, useState, type FormEvent } from "react";
 import {
-  adminClient,
-  type AdminActiveRide,
-  type AdminDispatchAudit,
-  type AdminOpsHealth,
-  type AdminPendingRideRequest,
-  type AdminRideOffer,
-  type BrandingSettings,
-} from "../_lib/admin-client";
+  Button, ConfirmDialog, DataTable, DateTime, DefinitionList, EmptyState, ErrorState, Field, Menu, PageHeader, RouteStrip, Section, Select, Sheet, Skeleton, StatusBadge, Textarea,
+  type DataTableColumn,
+} from "@velo/ui";
+import { isActionPending, setActionPending } from "@velo/app-core/async-actions";
+import { adminClient, type AdminActiveRide, type AdminDispatchAudit, type AdminPendingRideRequest, type AdminRideOffer, type BrandingSettings, type CreateDispatchRequestInput } from "../_lib/admin-client";
 import { toActionErrorMessage } from "../_lib/ui-state";
 import { executeDispatchOperation } from "../../_lib/dispatch-action";
 
 const PAGE_SIZE = 10;
+type DispatchForm = Pick<CreateDispatchRequestInput, "paymentMethod"> & {
+  pickupLat: string; pickupLng: string; dropOffLat: string; dropOffLng: string;
+  customerName: string; customerPhone: string; pickupAddress: string; dropOffAddress: string; externalReference: string;
+};
+type AssignmentTarget = { kind: "request" | "ride"; id: number; label: string };
+type CancelTarget = { kind: "request" | "ride"; id: number; label: string; reason: string };
 
-function formatDateTime(value: string | null | undefined): string {
-  if (!value) {
-    return "Unavailable";
-  }
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.valueOf())) {
-    return "Unavailable";
-  }
-  return parsed.toLocaleString();
-}
-
-function normalizeReason(value: string | null): string | null {
-  if (!value) {
-    return null;
-  }
-
-  const normalized = value.trim();
-  return normalized.length === 0 ? null : normalized;
-}
-
-function askDriverId(label: string): number | null {
-  const input = window.prompt(label);
-  if (!input) {
-    return null;
-  }
-  const parsed = Number(input.trim());
-  if (!Number.isInteger(parsed) || parsed <= 0) {
-    return null;
-  }
-  return parsed;
-}
-
-function askReason(label: string): string | null {
-  return normalizeReason(window.prompt(label));
-}
-
-type DispatchFormState = {
-  pickupLat: string;
-  pickupLng: string;
-  dropOffLat: string;
-  dropOffLng: string;
-  paymentMethod: "CASH" | "WALLET";
-  customerName: string;
-  customerPhone: string;
-  pickupAddress: string;
-  dropOffAddress: string;
-  externalReference: string;
+const INITIAL_FORM: DispatchForm = {
+  pickupLat: "", pickupLng: "", dropOffLat: "", dropOffLng: "", paymentMethod: "CASH",
+  customerName: "", customerPhone: "", pickupAddress: "", dropOffAddress: "", externalReference: "",
 };
 
-const INITIAL_DISPATCH_FORM: DispatchFormState = {
-  pickupLat: "",
-  pickupLng: "",
-  dropOffLat: "",
-  dropOffLng: "",
-  paymentMethod: "CASH",
-  customerName: "",
-  customerPhone: "",
-  pickupAddress: "",
-  dropOffAddress: "",
-  externalReference: "",
-};
+function safeReason(value: string): string | null { return value.trim() || null; }
+function parseCoordinate(value: string): number | null { const number = Number(value); return Number.isFinite(number) ? number : null; }
 
-function toFiniteNumber(value: string): number | null {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
+function readableAuditAction(action: string | null | undefined): string {
+  const labels: Record<string, string> = {
+    ASSIGN_REQUEST: "Assigned a driver",
+    REASSIGN_RIDE: "Changed the assigned driver",
+    CANCEL_REQUEST: "Cancelled a request",
+    CANCEL_RIDE: "Cancelled a trip",
+    CREATE_REQUEST: "Created a request",
+  };
+  if (!action) return "Dispatch action";
+  return labels[action.toUpperCase()] ?? action.toLowerCase().replace(/[_-]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 export default function AdminDispatchPage() {
@@ -90,483 +44,302 @@ export default function AdminDispatchPage() {
   const [auditRows, setAuditRows] = useState<AdminDispatchAudit[]>([]);
   const [offersByRequest, setOffersByRequest] = useState<Record<number, AdminRideOffer[]>>({});
   const [branding, setBranding] = useState<BrandingSettings | null>(null);
-  const [dispatchForm, setDispatchForm] = useState<DispatchFormState>(INITIAL_DISPATCH_FORM);
-  const [opsHealth, setOpsHealth] = useState<AdminOpsHealth | null>(null);
+  const [dispatchForm, setDispatchForm] = useState<DispatchForm>(INITIAL_FORM);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [pendingActions, setPendingActions] = useState<Record<string, boolean>>({});
-
-  const redisTone: "success" | "warning" = opsHealth?.redisAvailable ? "success" : "warning";
-  const riderLabel = branding?.riderLabel ?? "Requester";
-  const driverLabel = branding?.driverLabel ?? "Driver";
-  const tripLabel = branding?.tripLabel ?? "Trip";
-  const dispatchMode = branding?.dispatchMode ?? "RIDE_HAILING";
-  const dispatchSnapshot = useMemo(() => {
-    if (!opsHealth) {
-      return "Loading operations health...";
-    }
-    return `${opsHealth.pendingRideRequests} pending requests · ${opsHealth.dispatchQueueDepth} open offers · ${opsHealth.expiredOfferCount} expired offers`;
-  }, [opsHealth]);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [assignmentTarget, setAssignmentTarget] = useState<AssignmentTarget | null>(null);
+  const [assignment, setAssignment] = useState({ driverId: "", reason: "" });
+  const [cancelTarget, setCancelTarget] = useState<CancelTarget | null>(null);
+  const [cancelConfirm, setCancelConfirm] = useState<CancelTarget | null>(null);
+  const [gettingLocation, setGettingLocation] = useState(false);
 
   async function loadAll(): Promise<void> {
     setLoading(true);
     setError(null);
     try {
-      const [pendingPage, activePage, auditPage, health, brandingSettings] = await Promise.all([
+      const [requests, rides, audit, brand] = await Promise.all([
         adminClient.getPendingRideRequests(0, PAGE_SIZE),
         adminClient.getActiveRides(0, PAGE_SIZE),
         adminClient.getDispatchAudit(0, PAGE_SIZE),
-        adminClient.getOpsHealth(),
         adminClient.getBranding(),
       ]);
-      setPendingRequests(pendingPage.content ?? []);
-      setActiveRides(activePage.content ?? []);
-      setAuditRows(auditPage.content ?? []);
-      setOpsHealth(health);
-      setBranding(brandingSettings);
+      setPendingRequests(requests.content ?? []);
+      setActiveRides(rides.content ?? []);
+      setAuditRows(audit.content ?? []);
+      setBranding(brand);
     } catch (loadError) {
-      setError(toActionErrorMessage(loadError, "Unable to load dispatch console data."));
+      setError(toActionErrorMessage(loadError, "Couldn't load dispatch."));
     } finally {
       setLoading(false);
     }
   }
 
-  useEffect(() => {
-    void loadAll();
-  }, []);
+  useEffect(() => { void loadAll(); }, []);
 
-  async function runAction(actionKey: string, operation: () => Promise<void>, successMessage: string): Promise<boolean> {
-    if (isActionPending(pendingActions, actionKey)) {
-      return false;
-    }
-
+  async function runAction(actionKey: string, operation: () => Promise<void>, success: string): Promise<boolean> {
+    if (isActionPending(pendingActions, actionKey)) return false;
     setPendingActions((current) => setActionPending(current, actionKey, true));
     setError(null);
     setStatusMessage(null);
     try {
       const result = await executeDispatchOperation(operation);
       if (!result.ok) {
-        setError(toActionErrorMessage(result.error, "Unable to complete dispatch action."));
+        setError(toActionErrorMessage(result.error, "Couldn't complete that dispatch action."));
         return false;
       }
       await loadAll();
-      setStatusMessage(successMessage);
+      setStatusMessage(success);
       return true;
     } finally {
       setPendingActions((current) => setActionPending(current, actionKey, false));
     }
   }
 
-  async function toggleOffers(rideRequestId: number): Promise<void> {
-    if (offersByRequest[rideRequestId]) {
-      setOffersByRequest((current) => {
-        const next = { ...current };
-        delete next[rideRequestId];
-        return next;
-      });
+  async function toggleOffers(request: AdminPendingRideRequest): Promise<void> {
+    const requestId = request.rideRequestId;
+    if (offersByRequest[requestId]) {
+      setOffersByRequest((current) => { const next = { ...current }; delete next[requestId]; return next; });
       return;
     }
+    await runAction(`offers:${requestId}`, async () => {
+      const offers = await adminClient.getRideRequestOffers(requestId);
+      setOffersByRequest((current) => ({ ...current, [requestId]: offers }));
+    }, "Available driver offers loaded.");
+  }
 
-    const actionKey = `offers:${rideRequestId}`;
+  function openAssignment(target: AssignmentTarget): void {
+    setAssignmentTarget(target);
+    setAssignment({ driverId: "", reason: "" });
+  }
+
+  async function submitAssignment(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!assignmentTarget) return;
+    const driverId = Number(assignment.driverId);
+    const reason = assignment.reason.trim();
+    if (!Number.isInteger(driverId) || driverId <= 0 || !reason) {
+      setError("Enter a valid driver ID and a reason.");
+      return;
+    }
+    const target = assignmentTarget;
+    const succeeded = await runAction(
+      `${target.kind === "request" ? "assign" : "reassign"}:${target.id}`,
+      () => target.kind === "request"
+        ? adminClient.assignPendingRideRequest(target.id, driverId, reason)
+        : adminClient.reassignRide(target.id, driverId, reason),
+      target.kind === "request" ? "Driver assigned." : "Driver reassigned.",
+    );
+    if (succeeded) setAssignmentTarget(null);
+  }
+
+  function openCancellation(target: Omit<CancelTarget, "reason">): void {
+    setCancelTarget({ ...target, reason: "" });
+  }
+
+  function stageCancellation(event: FormEvent<HTMLFormElement>): void {
+    event.preventDefault();
+    if (!cancelTarget || !cancelTarget.reason.trim()) return;
+    setCancelConfirm(cancelTarget);
+    setCancelTarget(null);
+  }
+
+  async function confirmCancellation(): Promise<void> {
+    if (!cancelConfirm) return;
+    const target = cancelConfirm;
     await runAction(
-      actionKey,
-      async () => {
-        const offers = await adminClient.getRideRequestOffers(rideRequestId);
-        setOffersByRequest((current) => ({ ...current, [rideRequestId]: offers }));
+      `${target.kind === "request" ? "cancel-request" : "cancel-ride"}:${target.id}`,
+      () => target.kind === "request"
+        ? adminClient.cancelPendingRideRequest(target.id, target.reason)
+        : adminClient.cancelRide(target.id, target.reason),
+      target.kind === "request" ? "Request cancelled." : "Trip cancelled.",
+    );
+    setCancelConfirm(null);
+  }
+
+  function useCurrentLocation(): void {
+    if (!navigator.geolocation) {
+      setError("Location is not available in this browser. Enter coordinates to continue.");
+      return;
+    }
+    setGettingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setDispatchForm((form) => ({ ...form, pickupLat: String(position.coords.latitude), pickupLng: String(position.coords.longitude) }));
+        setGettingLocation(false);
+        setStatusMessage("Pickup coordinates set from your current location.");
       },
-      "Offer lifecycle loaded.",
+      () => {
+        setGettingLocation(false);
+        setError("Couldn't get your location. Enter pickup coordinates manually.");
+      },
+      { enableHighAccuracy: true, timeout: 10_000 },
     );
   }
 
-  async function assignRequest(rideRequestId: number): Promise<void> {
-    const driverId = askDriverId(`Assign ${tripLabel.toLowerCase()} request to ${driverLabel.toLowerCase()} ID:`);
-    if (!driverId) {
-      setError("Please enter a valid driver ID.");
-      return;
-    }
-    const reason = askReason("Reason for assignment:");
-    if (!reason) {
-      setError("Reason is required for assignment.");
-      return;
-    }
-
-    await runAction(
-      `assign:${rideRequestId}`,
-      async () => adminClient.assignPendingRideRequest(rideRequestId, driverId, reason),
-      `${tripLabel} request #${rideRequestId} assigned to ${driverLabel.toLowerCase()} #${driverId}.`,
-    );
-  }
-
-  async function cancelPendingRequest(rideRequestId: number): Promise<void> {
-    const reason = askReason("Reason for forced cancellation:");
-    if (!reason) {
-      setError("Reason is required for force cancellation.");
-      return;
-    }
-
-    await runAction(
-      `cancel-request:${rideRequestId}`,
-      async () => adminClient.cancelPendingRideRequest(rideRequestId, reason),
-      `${tripLabel} request #${rideRequestId} cancelled.`,
-    );
-  }
-
-  async function reassignRide(rideId: number): Promise<void> {
-    const driverId = askDriverId(`Reassign ${tripLabel.toLowerCase()} to ${driverLabel.toLowerCase()} ID:`);
-    if (!driverId) {
-      setError("Please enter a valid driver ID.");
-      return;
-    }
-    const reason = askReason("Reason for reassignment:");
-    if (!reason) {
-      setError("Reason is required for reassignment.");
-      return;
-    }
-
-    await runAction(
-      `reassign:${rideId}`,
-      async () => adminClient.reassignRide(rideId, driverId, reason),
-      `${tripLabel} #${rideId} reassigned to ${driverLabel.toLowerCase()} #${driverId}.`,
-    );
-  }
-
-  async function cancelRide(rideId: number): Promise<void> {
-    const reason = askReason(`Reason for force-cancelling this ${tripLabel.toLowerCase()}:`);
-    if (!reason) {
-      setError("Reason is required for ride cancellation.");
-      return;
-    }
-
-    await runAction(
-      `cancel-ride:${rideId}`,
-      async () => adminClient.cancelRide(rideId, reason),
-      `${tripLabel} #${rideId} cancelled by operations.`,
-    );
-  }
-
-  async function createDispatchRequest(): Promise<void> {
-    const pickupLat = toFiniteNumber(dispatchForm.pickupLat);
-    const pickupLng = toFiniteNumber(dispatchForm.pickupLng);
-    const dropOffLat = toFiniteNumber(dispatchForm.dropOffLat);
-    const dropOffLng = toFiniteNumber(dispatchForm.dropOffLng);
+  async function createDispatchRequest(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    const pickupLat = parseCoordinate(dispatchForm.pickupLat);
+    const pickupLng = parseCoordinate(dispatchForm.pickupLng);
+    const dropOffLat = parseCoordinate(dispatchForm.dropOffLat);
+    const dropOffLng = parseCoordinate(dispatchForm.dropOffLng);
     if (pickupLat === null || pickupLng === null || dropOffLat === null || dropOffLng === null) {
-      setError("Pickup and drop-off coordinates are required.");
+      setError("Set pickup and drop-off coordinates to create a trip.");
       return;
     }
-
-    const created = await runAction(
-      "create-dispatch-request",
-      async () =>
-        adminClient.createDispatchRequest({
-          pickupLat,
-          pickupLng,
-          dropOffLat,
-          dropOffLng,
-          paymentMethod: dispatchForm.paymentMethod,
-          customerName: normalizeReason(dispatchForm.customerName) ?? undefined,
-          customerPhone: normalizeReason(dispatchForm.customerPhone) ?? undefined,
-          pickupAddress: normalizeReason(dispatchForm.pickupAddress) ?? undefined,
-          dropOffAddress: normalizeReason(dispatchForm.dropOffAddress) ?? undefined,
-          externalReference: normalizeReason(dispatchForm.externalReference) ?? undefined,
-        }),
-      "Dispatch request created and offered to nearby drivers.",
-    );
+    const payload: CreateDispatchRequestInput = {
+      pickupLat, pickupLng, dropOffLat, dropOffLng, paymentMethod: dispatchForm.paymentMethod,
+      customerName: safeReason(dispatchForm.customerName) ?? undefined,
+      customerPhone: safeReason(dispatchForm.customerPhone) ?? undefined,
+      pickupAddress: safeReason(dispatchForm.pickupAddress) ?? undefined,
+      dropOffAddress: safeReason(dispatchForm.dropOffAddress) ?? undefined,
+      externalReference: safeReason(dispatchForm.externalReference) ?? undefined,
+    };
+    const created = await runAction("create-dispatch-request", () => adminClient.createDispatchRequest(payload), "Trip request created and offered to nearby drivers.");
     if (created) {
-      setDispatchForm(INITIAL_DISPATCH_FORM);
+      setDispatchForm(INITIAL_FORM);
+      setCreateOpen(false);
     }
   }
+
+  const auditColumns: DataTableColumn<AdminDispatchAudit>[] = [
+    { header: "Time", cell: (row) => <DateTime value={row.createdAt} /> },
+    { header: "By", cell: () => "Operations" },
+    { header: "Action", cell: (row) => readableAuditAction(row.actionType) },
+    { header: "Trip", cell: (row) => <span className="admin-code">{row.rideId || row.rideRequestId ? `Trip ${row.rideId ?? row.rideRequestId}` : "—"}</span> },
+    { header: "Reason", cell: (row) => row.reason || "—" },
+  ];
+
+  const riderLabel = branding?.riderLabel ?? "Rider";
+  const driverLabel = branding?.driverLabel ?? "Driver";
+  const tripLabel = branding?.tripLabel ?? "trip";
 
   return (
     <div className="stack">
-      <PageFrame
-        title={`${tripLabel} Dispatch Console`}
-        description={`Override ${tripLabel.toLowerCase()} assignments, resolve stuck requests, and review operational audit trails.`}
-      />
+      <PageHeader title="Dispatch" description="Resolve requests and manage trips in progress." actions={<Button onClick={() => setCreateOpen(true)}>New trip</Button>} />
+      {error ? <ErrorState title="Couldn't update dispatch" description={error} onRetry={() => void loadAll()} /> : null}
+      {statusMessage ? <p role="status" className="helper">{statusMessage}</p> : null}
 
-      <section className="panel metric-card stack">
-        <div className="split-row">
-          <strong>Create Dispatch Request</strong>
-          <span className="badge">{dispatchMode === "DELIVERY_MERCHANT" ? "Delivery Merchant Mode" : "Ride Hailing Mode"}</span>
-        </div>
-        <p className="helper">
-          Use this form to create a manual dispatch request with address and customer details for operations.
-        </p>
-        <div className="cards-grid">
-          <label className="field">
-            <span>Pickup latitude</span>
-            <input
-              value={dispatchForm.pickupLat}
-              onChange={(event) => setDispatchForm((current) => ({ ...current, pickupLat: event.target.value }))}
-              placeholder="12.9716"
-              inputMode="decimal"
-            />
-          </label>
-          <label className="field">
-            <span>Pickup longitude</span>
-            <input
-              value={dispatchForm.pickupLng}
-              onChange={(event) => setDispatchForm((current) => ({ ...current, pickupLng: event.target.value }))}
-              placeholder="77.5946"
-              inputMode="decimal"
-            />
-          </label>
-          <label className="field">
-            <span>Drop-off latitude</span>
-            <input
-              value={dispatchForm.dropOffLat}
-              onChange={(event) => setDispatchForm((current) => ({ ...current, dropOffLat: event.target.value }))}
-              placeholder="12.9352"
-              inputMode="decimal"
-            />
-          </label>
-          <label className="field">
-            <span>Drop-off longitude</span>
-            <input
-              value={dispatchForm.dropOffLng}
-              onChange={(event) => setDispatchForm((current) => ({ ...current, dropOffLng: event.target.value }))}
-              placeholder="77.6245"
-              inputMode="decimal"
-            />
-          </label>
-        </div>
-        <div className="cards-grid">
-          <label className="field">
-            <span>{riderLabel} name</span>
-            <input
-              value={dispatchForm.customerName}
-              onChange={(event) => setDispatchForm((current) => ({ ...current, customerName: event.target.value }))}
-              placeholder="Customer / consignee"
-            />
-          </label>
-          <label className="field">
-            <span>{riderLabel} phone</span>
-            <input
-              value={dispatchForm.customerPhone}
-              onChange={(event) => setDispatchForm((current) => ({ ...current, customerPhone: event.target.value }))}
-              placeholder="+91..."
-            />
-          </label>
-          <label className="field">
-            <span>Pickup address</span>
-            <input
-              value={dispatchForm.pickupAddress}
-              onChange={(event) => setDispatchForm((current) => ({ ...current, pickupAddress: event.target.value }))}
-              placeholder="Street, area"
-            />
-          </label>
-          <label className="field">
-            <span>Drop-off address</span>
-            <input
-              value={dispatchForm.dropOffAddress}
-              onChange={(event) => setDispatchForm((current) => ({ ...current, dropOffAddress: event.target.value }))}
-              placeholder="Street, area"
-            />
-          </label>
-        </div>
-        <div className="row-actions">
-          <label className="field">
-            <span>Payment method</span>
-            <select
-              value={dispatchForm.paymentMethod}
-              onChange={(event) =>
-                setDispatchForm((current) => ({
-                  ...current,
-                  paymentMethod: event.target.value === "WALLET" ? "WALLET" : "CASH",
-                }))
-              }
-            >
-              <option value="CASH">Cash</option>
-              <option value="WALLET">Wallet</option>
-            </select>
-          </label>
-          <label className="field">
-            <span>External reference</span>
-            <input
-              value={dispatchForm.externalReference}
-              onChange={(event) => setDispatchForm((current) => ({ ...current, externalReference: event.target.value }))}
-              placeholder="Order/booking id"
-            />
-          </label>
-          <button
-            className="primary-button"
-            type="button"
-            disabled={isActionPending(pendingActions, "create-dispatch-request")}
-            onClick={() => void createDispatchRequest()}
-          >
-            {isActionPending(pendingActions, "create-dispatch-request") ? "Creating..." : "Create dispatch request"}
-          </button>
-        </div>
-      </section>
-
-      <section className="metric-grid">
-        <article className="panel metric-card">
-          <small>Redis connectivity</small>
-          <strong>{opsHealth?.redisAvailable ? "Connected" : "Degraded"}</strong>
-          <span>{dispatchSnapshot}</span>
-          <span className="badge" data-tone={redisTone}>
-            {opsHealth?.redisAvailable ? "Healthy" : "Fallback to DB"}
-          </span>
-        </article>
-        <article className="panel metric-card">
-          <small>Cache counters</small>
-          <strong>{Math.trunc(opsHealth?.cacheHits ?? 0)}</strong>
-          <span>Hits · {Math.trunc(opsHealth?.cacheMisses ?? 0)} misses · {Math.trunc(opsHealth?.cacheErrors ?? 0)} errors</span>
-        </article>
-        <article className="panel metric-card">
-          <small>Platform entities</small>
-          <strong>{opsHealth?.totalRides ?? 0}</strong>
-          <span>{opsHealth?.totalDrivers ?? 0} drivers · {opsHealth?.totalRiders ?? 0} riders</span>
-        </article>
-        <article className="panel metric-card">
-          <small>Updated</small>
-          <strong>{loading ? "..." : formatDateTime(opsHealth?.updatedAt)}</strong>
-          <span>Operations health refresh timestamp</span>
-        </article>
-      </section>
-
-      {error ? (
-        <div className="row-actions">
-          <p className="error-text">{error}</p>
-          <button className="secondary-button" type="button" onClick={() => void loadAll()}>
-            Retry
-          </button>
-        </div>
-      ) : null}
-      {statusMessage ? <p className="helper">{statusMessage}</p> : null}
-      {loading ? (
-        <div className="admin-loading" aria-live="polite" aria-label="Loading dispatch console">
-          <div className="admin-skeleton" data-size="lg" />
-          <div className="admin-skeleton" data-size="md" />
-          <div className="admin-skeleton" data-size="sm" />
-        </div>
-      ) : null}
-
-      <section className="cards-grid">
-        <article className="panel metric-card">
-          <small>Pending {tripLabel.toLowerCase()} requests</small>
-          <div className="list">
-            {pendingRequests.length === 0 ? <p className="helper">No pending requests in the queue.</p> : null}
-            {pendingRequests.map((request) => {
-              const offerRows = offersByRequest[request.rideRequestId] ?? null;
-              return (
-                <article key={request.rideRequestId} className="list-item list-item-stack">
-                  <div>
-                    <strong>Request #{request.rideRequestId}</strong>
-                    <p>
-                      {riderLabel}: {request.riderName ?? request.customerName ?? "Unknown"} · Fare: {request.fare ?? "N/A"} · Offers:{" "}
-                      {request.offeredDriverCount ?? 0}
-                    </p>
-                    {request.customerPhone ? <p>Contact: {request.customerPhone}</p> : null}
-                    {request.pickupAddress || request.dropOffAddress ? (
-                      <p>
-                        Pickup: {request.pickupAddress ?? "—"} · Drop-off: {request.dropOffAddress ?? "—"}
-                      </p>
-                    ) : null}
-                    <p>Status: {request.status ?? "PENDING"} · Requested at {formatDateTime(request.requestedTime)}</p>
-                  </div>
-                  <div className="row-actions">
-                    <button
-                      className="secondary-button"
-                      type="button"
-                      disabled={isActionPending(pendingActions, `offers:${request.rideRequestId}`)}
-                      onClick={() => void toggleOffers(request.rideRequestId)}
-                    >
-                      {offerRows ? "Hide offers" : "Show offers"}
-                    </button>
-                    <button
-                      className="primary-button"
-                      type="button"
-                      disabled={isActionPending(pendingActions, `assign:${request.rideRequestId}`)}
-                      onClick={() => void assignRequest(request.rideRequestId)}
-                    >
-                      {isActionPending(pendingActions, `assign:${request.rideRequestId}`) ? "Assigning..." : "Assign"}
-                    </button>
-                    <button
-                      className="danger-button"
-                      type="button"
-                      disabled={isActionPending(pendingActions, `cancel-request:${request.rideRequestId}`)}
-                      onClick={() => void cancelPendingRequest(request.rideRequestId)}
-                    >
-                      {isActionPending(pendingActions, `cancel-request:${request.rideRequestId}`) ? "Cancelling..." : "Force cancel"}
-                    </button>
-                  </div>
-                  {offerRows ? (
-                    <div className="stack">
-                      {offerRows.length === 0 ? <p className="helper">No offers found.</p> : null}
-                      {offerRows.map((offer) => (
-                        <div key={offer.offerId} className="dispatch-offer-row">
-                          <span>
-                            #{offer.offerId} · {driverLabel} #{offer.driverId ?? "?"} ({offer.driverName ?? "Unknown"})
-                          </span>
-                          <span>{offer.status ?? "UNKNOWN"}</span>
-                          <span>Expires: {formatDateTime(offer.expiresAt)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-                </article>
-              );
-            })}
-          </div>
-        </article>
-
-        <article className="panel metric-card">
-          <small>Active {tripLabel.toLowerCase()}s</small>
-          <div className="list">
-            {activeRides.length === 0 ? <p className="helper">No active rides currently.</p> : null}
-            {activeRides.map((ride) => (
-              <article key={ride.rideId} className="list-item">
-                <div>
-                  <strong>{tripLabel} #{ride.rideId}</strong>
-                  <p>
-                    {riderLabel}: {ride.riderName ?? "Unknown"} · {driverLabel}: {ride.driverName ?? "Unassigned"} · Status:{" "}
-                    {ride.status ?? "UNKNOWN"}
-                  </p>
-                  <p>Started at {formatDateTime(ride.startedAt)} · Created {formatDateTime(ride.createdTime)}</p>
-                </div>
-                <div className="row-actions">
-                  <button
-                    className="secondary-button"
-                    type="button"
-                    disabled={isActionPending(pendingActions, `reassign:${ride.rideId}`)}
-                    onClick={() => void reassignRide(ride.rideId)}
-                  >
-                    {isActionPending(pendingActions, `reassign:${ride.rideId}`) ? "Reassigning..." : "Reassign"}
-                  </button>
-                  <button
-                    className="danger-button"
-                    type="button"
-                    disabled={isActionPending(pendingActions, `cancel-ride:${ride.rideId}`)}
-                    onClick={() => void cancelRide(ride.rideId)}
-                  >
-                    {isActionPending(pendingActions, `cancel-ride:${ride.rideId}`) ? "Cancelling..." : "Force cancel"}
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
-        </article>
-      </section>
-
-      <section className="panel metric-card">
-        <small>Dispatch audit trail</small>
-        <div className="list">
-          {auditRows.length === 0 ? <p className="helper">No admin overrides recorded yet.</p> : null}
-          {auditRows.map((audit) => (
-            <div key={audit.id} className="list-item">
-              <div>
-                <strong>{audit.actionType ?? "ACTION"}</strong>
-                <p>
-                  Actor #{audit.actorUserId ?? "?"} · Request #{audit.rideRequestId ?? "—"} · Ride #{audit.rideId ?? "—"}
-                </p>
-                <p>{audit.reason ?? "No reason provided."}</p>
+      <div className="dispatch-columns">
+        <Section title="Pending requests" actions={<span className="helper">{pendingRequests.length} shown</span>}>
+          {loading ? <div aria-label="Loading pending requests" aria-busy="true" className="stack">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-24" />)}</div> : pendingRequests.length === 0 ? (
+            <EmptyState title="No pending requests" description="New requests will appear here while a driver is being matched." action={<Button variant="secondary" onClick={() => void loadAll()}>Refresh requests</Button>} />
+          ) : pendingRequests.map((request) => (
+            <article className="dispatch-request" key={request.rideRequestId}>
+              <div className="dispatch-meta">
+                <strong>{request.customerName ?? request.riderName ?? `${riderLabel} request`}</strong>
+                <StatusBadge domain="request" status={request.status} />
               </div>
-              <span className="helper">{formatDateTime(audit.createdAt)}</span>
-            </div>
+              <RouteStrip stage={request.status ?? "PENDING"} pickupLabel="Pickup" dropoffLabel="Drop-off" />
+              <DefinitionList items={[
+                { label: "Pickup", value: request.pickupAddress || "Location available when assigned" },
+                { label: "Drop-off", value: request.dropOffAddress || "Destination not provided" },
+                { label: "Requested", value: <DateTime value={request.requestedTime} /> },
+              ]} />
+              {offersByRequest[request.rideRequestId] ? (
+                <DataTable
+                  data={offersByRequest[request.rideRequestId]}
+                  ariaLabel="Driver offers"
+                  columns={[
+                    { header: driverLabel, cell: (offer: AdminRideOffer) => offer.driverName || "Nearby driver" },
+                    { header: "Status", cell: (offer: AdminRideOffer) => <StatusBadge domain="request" status={offer.status} /> },
+                    { header: "Expires", cell: (offer: AdminRideOffer) => <DateTime value={offer.expiresAt} /> },
+                  ]}
+                  getRowKey={(offer: AdminRideOffer) => offer.offerId}
+                  emptyState={<p className="helper">No driver offers for this request.</p>}
+                />
+              ) : null}
+              <div className="dispatch-actions">
+                <Menu
+                  triggerLabel={`Actions for ${request.customerName ?? request.riderName ?? riderLabel}`}
+                  items={[
+                    { label: offersByRequest[request.rideRequestId] ? "Hide offers" : "Show offers", onSelect: () => void toggleOffers(request) },
+                    { label: "Assign driver", onSelect: () => openAssignment({ kind: "request", id: request.rideRequestId, label: "pending request" }) },
+                    { label: "Cancel request", destructive: true, onSelect: () => openCancellation({ kind: "request", id: request.rideRequestId, label: "pending request" }) },
+                  ]}
+                />
+              </div>
+            </article>
           ))}
-        </div>
-      </section>
+        </Section>
+
+        <Section title="Active trips" actions={<span className="helper">{activeRides.length} shown</span>}>
+          {loading ? <div aria-label="Loading active trips" aria-busy="true" className="stack">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-24" />)}</div> : activeRides.length === 0 ? (
+            <EmptyState title="No active trips" description="Trips with a driver assigned will appear here." action={<Button variant="secondary" onClick={() => void loadAll()}>Refresh trips</Button>} />
+          ) : activeRides.map((ride) => (
+            <article className="dispatch-ride" key={ride.rideId}>
+              <div className="dispatch-meta">
+                <strong>{ride.riderName ?? riderLabel}</strong>
+                <StatusBadge domain="ride" status={ride.status} />
+              </div>
+              <RouteStrip stage={ride.status ?? "CONFIRMED"} />
+              <DefinitionList items={[
+                { label: driverLabel, value: ride.driverName || "Awaiting driver" },
+                { label: "Started", value: <DateTime value={ride.startedAt ?? ride.createdTime} /> },
+              ]} />
+              <div className="dispatch-actions">
+                <Menu
+                  triggerLabel={`Actions for ${ride.riderName ?? riderLabel}`}
+                  items={[
+                    { label: "Reassign driver", onSelect: () => openAssignment({ kind: "ride", id: ride.rideId, label: "active trip" }) },
+                    { label: "Cancel trip", destructive: true, onSelect: () => openCancellation({ kind: "ride", id: ride.rideId, label: "active trip" }) },
+                  ]}
+                />
+              </div>
+            </article>
+          ))}
+        </Section>
+      </div>
+
+      <Section title="Dispatch audit" actions={<Button size="sm" variant="secondary" onClick={() => void loadAll()}>Refresh</Button>}>
+        {loading ? <div aria-label="Loading dispatch audit" aria-busy="true" className="stack">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-10" />)}</div> : (
+          <DataTable className="dispatch-audit-table" data={auditRows} columns={auditColumns} getRowKey={(row) => row.id} ariaLabel="Dispatch audit" emptyState={<EmptyState title="No dispatch actions yet" description="Assignments and cancellations will appear here." action={<Button variant="secondary" onClick={() => setCreateOpen(true)}>Create a trip request</Button>} />} />
+        )}
+      </Section>
+
+      <Sheet open={createOpen} onOpenChange={setCreateOpen} title="New trip" description="Create a request and offer it to nearby drivers.">
+        <form className="stack" onSubmit={(event) => void createDispatchRequest(event)}>
+          <Field label="Pickup address"><input className="ui-control" value={dispatchForm.pickupAddress} onChange={(event) => setDispatchForm((form) => ({ ...form, pickupAddress: event.target.value }))} placeholder="Street, city" /></Field>
+          <Field label="Drop-off address"><input className="ui-control" value={dispatchForm.dropOffAddress} onChange={(event) => setDispatchForm((form) => ({ ...form, dropOffAddress: event.target.value }))} placeholder="Street, city" /></Field>
+          <Button type="button" variant="secondary" loading={gettingLocation} onClick={useCurrentLocation}>Use current location for pickup</Button>
+          <p className="helper">Location access sets pickup coordinates. Enter precise coordinates below when available.</p>
+          <details>
+            <summary>Enter coordinates</summary>
+            <div className="admin-form-grid" style={{ marginTop: "var(--space-3)" }}>
+              <Field label="Pickup latitude"><input className="ui-control" inputMode="decimal" value={dispatchForm.pickupLat} onChange={(event) => setDispatchForm((form) => ({ ...form, pickupLat: event.target.value }))} required /></Field>
+              <Field label="Pickup longitude"><input className="ui-control" inputMode="decimal" value={dispatchForm.pickupLng} onChange={(event) => setDispatchForm((form) => ({ ...form, pickupLng: event.target.value }))} required /></Field>
+              <Field label="Drop-off latitude"><input className="ui-control" inputMode="decimal" value={dispatchForm.dropOffLat} onChange={(event) => setDispatchForm((form) => ({ ...form, dropOffLat: event.target.value }))} required /></Field>
+              <Field label="Drop-off longitude"><input className="ui-control" inputMode="decimal" value={dispatchForm.dropOffLng} onChange={(event) => setDispatchForm((form) => ({ ...form, dropOffLng: event.target.value }))} required /></Field>
+            </div>
+          </details>
+          <div className="admin-form-grid">
+            <Field label={`${riderLabel} name`}><input className="ui-control" value={dispatchForm.customerName} onChange={(event) => setDispatchForm((form) => ({ ...form, customerName: event.target.value }))} /></Field>
+            <Field label={`${riderLabel} phone`}><input className="ui-control" type="tel" value={dispatchForm.customerPhone} onChange={(event) => setDispatchForm((form) => ({ ...form, customerPhone: event.target.value }))} /></Field>
+            <Field label="Payment method"><Select value={dispatchForm.paymentMethod} onChange={(event) => setDispatchForm((form) => ({ ...form, paymentMethod: event.target.value as DispatchForm["paymentMethod"] }))}><option value="CASH">Cash</option><option value="WALLET">Wallet</option></Select></Field>
+            <Field label="External reference"><input className="ui-control" value={dispatchForm.externalReference} onChange={(event) => setDispatchForm((form) => ({ ...form, externalReference: event.target.value }))} /></Field>
+          </div>
+          <Button type="submit">Create trip request</Button>
+        </form>
+      </Sheet>
+
+      <Sheet open={Boolean(assignmentTarget)} onOpenChange={(open) => { if (!open) setAssignmentTarget(null); }} title={assignmentTarget?.kind === "ride" ? "Reassign driver" : "Assign driver"} description={`Choose a driver for this ${assignmentTarget?.label ?? tripLabel.toLowerCase()}.`}>
+        <form className="stack" onSubmit={(event) => void submitAssignment(event)}>
+          <Field label={`${driverLabel} ID`} hint="Use the driver account ID from the driver record."><input className="ui-control" type="number" min="1" step="1" value={assignment.driverId} onChange={(event) => setAssignment((current) => ({ ...current, driverId: event.target.value }))} required /></Field>
+          <Field label="Reason"><Textarea value={assignment.reason} onChange={(event) => setAssignment((current) => ({ ...current, reason: event.target.value }))} required rows={3} /></Field>
+          <Button type="submit" loading={Boolean(assignmentTarget && isActionPending(pendingActions, `${assignmentTarget.kind === "request" ? "assign" : "reassign"}:${assignmentTarget.id}`))}>{assignmentTarget?.kind === "ride" ? "Reassign driver" : "Assign driver"}</Button>
+        </form>
+      </Sheet>
+
+      <Sheet open={Boolean(cancelTarget)} onOpenChange={(open) => { if (!open) setCancelTarget(null); }} title="Cancel trip" description="Add a reason before confirming this cancellation.">
+        <form className="stack" onSubmit={(event) => stageCancellation(event)}>
+          <Field label="Cancellation reason"><Textarea value={cancelTarget?.reason ?? ""} onChange={(event) => setCancelTarget((current) => current ? { ...current, reason: event.target.value } : current)} required rows={3} /></Field>
+          <Button type="submit" variant="danger">Continue to confirmation</Button>
+        </form>
+      </Sheet>
+
+      <ConfirmDialog open={Boolean(cancelConfirm)} onOpenChange={(open) => { if (!open) setCancelConfirm(null); }} title="Cancel this trip?" description={cancelConfirm ? `The ${cancelConfirm.label} will be cancelled. Reason: ${cancelConfirm.reason}` : "This cancellation cannot be undone."} confirmLabel="Cancel trip" onConfirm={confirmCancellation} />
     </div>
   );
 }

@@ -1,275 +1,141 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { PageFrame } from "../_components/page-frame";
-import { adminClient, type DriverStatus, type PendingDriver } from "../_lib/admin-client";
 import {
-  normalizePageNumber,
-  normalizeTotalPages,
-  pageFallbackAfterMutation,
-  toActionErrorMessage,
-} from "../_lib/ui-state";
+  Button, ConfirmDialog, DataTable, EmptyState, ErrorState, Field, PageHeader, Pagination, Section, SegmentedControl, Sheet, Skeleton, StatusBadge, Textarea,
+  type DataTableColumn,
+} from "@velo/ui";
+import { DateTime } from "@velo/ui";
+import { adminClient, type DriverStatus, type PendingDriver } from "../_lib/admin-client";
+import { normalizePageNumber, normalizeTotalPages, pageFallbackAfterMutation, toActionErrorMessage } from "../_lib/ui-state";
 
 const PAGE_SIZE = 10;
-const REJECT_REASON = "Rejected via admin review queue.";
-
-const STATUS_TABS: Array<{ label: string; value: DriverStatus }> = [
-  { label: "Pending review", value: "PENDING" },
-  { label: "Active / Approved", value: "APPROVED" },
+const STATUSES: Array<{ label: string; value: DriverStatus }> = [
+  { label: "Pending", value: "PENDING" },
+  { label: "Active", value: "APPROVED" },
   { label: "Suspended", value: "SUSPENDED" },
 ];
 
-function formatAppliedAt(value: string): string {
-  const time = new Date(value);
-  if (Number.isNaN(time.valueOf())) {
-    return "Applied date unavailable";
-  }
-  return `Applied ${time.toLocaleString()}`;
-}
-
-function statusTone(status: string | null | undefined): "warning" | "success" | "muted" {
-  const normalized = (status ?? "").toUpperCase();
-  if (normalized === "APPROVED") {
-    return "success";
-  }
-  if (normalized === "PENDING") {
-    return "warning";
-  }
-  return "muted";
-}
+type ConfirmAction = { title: string; description: string; label: string; run: () => Promise<void> };
 
 export default function DriversPage() {
   const [drivers, setDrivers] = useState<PendingDriver[]>([]);
   const [selectedStatus, setSelectedStatus] = useState<DriverStatus>("PENDING");
+  const [counts, setCounts] = useState<Record<DriverStatus, number>>({ PENDING: 0, APPROVED: 0, SUSPENDED: 0, REJECTED: 0 });
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<number | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<PendingDriver | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
 
   async function load(targetStatus = selectedStatus, targetPage = page, allowFallback = true): Promise<void> {
     setLoading(true);
     setError(null);
-
     try {
-      const response = await adminClient.getDriversByStatus(targetStatus, targetPage, PAGE_SIZE);
+      const [response, pending, active, suspended] = await Promise.all([
+        adminClient.getDriversByStatus(targetStatus, targetPage, PAGE_SIZE),
+        adminClient.getDriversByStatus("PENDING", 0, 1),
+        adminClient.getDriversByStatus("APPROVED", 0, 1),
+        adminClient.getDriversByStatus("SUSPENDED", 0, 1),
+      ]);
       const content = response.content ?? [];
       const nextPage = normalizePageNumber(response.number, targetPage);
       const nextTotalPages = normalizeTotalPages(response.totalPages);
-      const fallbackPage = allowFallback
-        ? pageFallbackAfterMutation({
-            requestedPage: targetPage,
-            returnedPage: nextPage,
-            totalPages: nextTotalPages,
-            itemCount: content.length,
-          })
-        : null;
-
-      if (fallbackPage !== null && fallbackPage !== targetPage) {
-        await load(targetStatus, fallbackPage, false);
-        return;
-      }
-
+      const fallbackPage = allowFallback ? pageFallbackAfterMutation({ requestedPage: targetPage, returnedPage: nextPage, totalPages: nextTotalPages, itemCount: content.length }) : null;
+      if (fallbackPage !== null && fallbackPage !== targetPage) return await load(targetStatus, fallbackPage, false);
       setDrivers(content);
       setPage(nextPage);
       setTotalPages(nextTotalPages);
+      setCounts({ PENDING: pending.totalElements, APPROVED: active.totalElements, SUSPENDED: suspended.totalElements, REJECTED: 0 });
     } catch (loadError) {
-      setError(toActionErrorMessage(loadError, "Unable to load driver queue."));
+      setError(toActionErrorMessage(loadError, "Couldn't load the driver list."));
     } finally {
       setLoading(false);
     }
   }
 
-  useEffect(() => {
-    void load("PENDING", 0);
-  }, []);
+  useEffect(() => { void load("PENDING", 0); }, []);
 
-  async function changeTab(nextStatus: DriverStatus): Promise<void> {
-    setSelectedStatus(nextStatus);
-    setPage(0);
-    setStatusMessage(null);
-    await load(nextStatus, 0);
-  }
-
-  async function approve(driverId: number): Promise<void> {
-    if (!window.confirm("Approve this driver application?")) {
-      return;
-    }
-
-    setProcessingId(driverId);
+  async function runAction(driver: PendingDriver, operation: () => Promise<void>, success: string): Promise<void> {
+    setProcessingId(driver.driverId);
     setError(null);
     setStatusMessage(null);
     try {
-      await adminClient.approveDriver(driverId);
+      await operation();
       await load(selectedStatus, page);
-      setStatusMessage("Driver approved.");
-    } catch (approveError) {
-      setError(toActionErrorMessage(approveError, "Unable to approve driver."));
+      setStatusMessage(success);
+    } catch (actionError) {
+      setError(toActionErrorMessage(actionError, "Couldn't update this driver."));
     } finally {
       setProcessingId(null);
     }
   }
 
-  async function reject(driverId: number): Promise<void> {
-    if (!window.confirm("Reject this driver application?")) {
-      return;
-    }
-
-    setProcessingId(driverId);
-    setError(null);
-    setStatusMessage(null);
-    try {
-      await adminClient.rejectDriver(driverId, REJECT_REASON);
-      await load(selectedStatus, page);
-      setStatusMessage("Driver rejected.");
-    } catch (rejectError) {
-      setError(toActionErrorMessage(rejectError, "Unable to reject driver."));
-    } finally {
-      setProcessingId(null);
-    }
+  async function approve(driver: PendingDriver): Promise<void> {
+    await runAction(driver, () => adminClient.approveDriver(driver.driverId), "Driver approved.");
   }
 
-  async function suspend(driverId: number): Promise<void> {
-    if (!window.confirm("Suspend this approved driver?")) {
-      return;
-    }
-    setProcessingId(driverId);
-    setError(null);
-    setStatusMessage(null);
-    try {
-      await adminClient.suspendDriver(driverId);
-      await load(selectedStatus, page);
-      setStatusMessage("Driver suspended.");
-    } catch (suspendError) {
-      setError(toActionErrorMessage(suspendError, "Unable to suspend driver."));
-    } finally {
-      setProcessingId(null);
-    }
+  async function submitReject(event: React.FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!rejectTarget || !rejectReason.trim()) return;
+    const driver = rejectTarget;
+    const reason = rejectReason.trim();
+    setRejectTarget(null);
+    setRejectReason("");
+    setConfirmAction({
+      title: "Reject driver application?",
+      description: `The application for ${driver.name} will be rejected. Reason: ${reason}`,
+      label: "Reject application",
+      run: () => runAction(driver, () => adminClient.rejectDriver(driver.driverId, reason), "Driver application rejected."),
+    });
   }
+
+  const columns: DataTableColumn<PendingDriver>[] = [
+    { header: "Name", cell: (driver) => <><strong>{driver.name}</strong><br /><span className="helper">{driver.email}</span></> },
+    { header: "Vehicle", accessorKey: "vehicleId" },
+    { header: "Applied", cell: (driver) => <DateTime value={driver.appliedAt} /> },
+    { header: "Rating", cell: (driver) => Number.isFinite(driver.rating) ? driver.rating.toFixed(1) : "—" },
+    { header: "Status", cell: (driver) => <StatusBadge domain="driver" status={driver.onboardingStatus ?? selectedStatus} /> },
+    { header: "", cell: (driver) => selectedStatus === "PENDING" ? <Button size="sm" loading={processingId === driver.driverId} onClick={() => void approve(driver)}>Approve driver</Button> : null },
+  ];
 
   return (
     <div className="stack">
-      <PageFrame
-        title="Drivers"
-        description="Review onboarding, move approved drivers into active service, and suspend when needed."
-      />
+      <PageHeader title="Drivers" description="Review applications and manage driver access." />
+      {error ? <ErrorState title="Couldn't update the driver list" description={error} onRetry={() => void load(selectedStatus, page)} /> : null}
+      {statusMessage ? <p role="status" className="helper">{statusMessage}</p> : null}
 
-      <div className="actions">
-        {STATUS_TABS.map((tab) => (
-          <button
-            key={tab.value}
-            className={selectedStatus === tab.value ? "primary-button" : "secondary-button"}
-            type="button"
-            disabled={loading}
-            onClick={() => void changeTab(tab.value)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <Section title="Driver applications" actions={<SegmentedControl ariaLabel="Driver status" value={selectedStatus} onValueChange={(value) => { const status = value as DriverStatus; setSelectedStatus(status); setPage(0); setStatusMessage(null); void load(status, 0); }} options={STATUSES.map((tab) => ({ ...tab, count: counts[tab.value] }))} />}>
+        {loading ? <div aria-label="Loading drivers" aria-busy="true" className="stack">{Array.from({ length: 5 }, (_, index) => <Skeleton className="h-12" key={index} />)}</div> : (
+          <DataTable
+            data={drivers}
+            columns={columns}
+            getRowKey={(driver) => driver.driverId}
+            ariaLabel="Drivers"
+            emptyState={<EmptyState title={selectedStatus === "PENDING" ? "No applications to review" : `No ${selectedStatus === "APPROVED" ? "active" : "suspended"} drivers`} description={selectedStatus === "PENDING" ? "New driver applications will appear here." : "Choose another status to review more drivers."} action={<Button variant="secondary" onClick={() => { const next = selectedStatus === "PENDING" ? "APPROVED" : "PENDING"; setSelectedStatus(next); setPage(0); void load(next, 0); }}>View {selectedStatus === "PENDING" ? "active drivers" : "pending applications"}</Button>} />}
+            rowActions={(driver) => selectedStatus === "PENDING"
+              ? [{ label: "Reject", destructive: true, onSelect: () => { setRejectTarget(driver); setRejectReason(""); } }]
+              : selectedStatus === "APPROVED"
+                ? [{ label: "Suspend", destructive: true, onSelect: () => setConfirmAction({ title: "Suspend driver?", description: `${driver.name} will no longer receive new trips.`, label: "Suspend driver", run: () => runAction(driver, () => adminClient.suspendDriver(driver.driverId), "Driver suspended.") }) }]
+                : [{ label: "Reinstate", onSelect: () => void runAction(driver, () => adminClient.approveDriver(driver.driverId), "Driver reinstated.") }]}
+            rowActionsLabel={(driver) => `Actions for ${driver.name}`}
+          />
+        )}
+        {!loading ? <Pagination page={page + 1} totalPages={totalPages} onPageChange={(next) => void load(selectedStatus, next - 1)} /> : null}
+      </Section>
 
-      {error ? (
-        <div className="row-actions">
-          <p className="error-text">{error}</p>
-          <button className="secondary-button" type="button" onClick={() => void load(selectedStatus, page)}>
-            Retry
-          </button>
-        </div>
-      ) : null}
-      {statusMessage ? <p className="helper">{statusMessage}</p> : null}
-      {loading ? (
-        <div className="admin-loading" aria-live="polite" aria-label="Loading drivers">
-          <div className="admin-skeleton" data-size="lg" />
-          <div className="admin-skeleton" data-size="md" />
-          <div className="admin-skeleton" data-size="sm" />
-        </div>
-      ) : null}
+      <Sheet open={Boolean(rejectTarget)} onOpenChange={(open) => { if (!open) setRejectTarget(null); }} title="Reject application" description={rejectTarget ? `Add a reason for rejecting ${rejectTarget.name}.` : undefined}>
+        <form className="stack" onSubmit={(event) => void submitReject(event)}>
+          <Field label="Reason"><Textarea value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} required rows={4} /></Field>
+          <Button type="submit" variant="danger">Continue to confirmation</Button>
+        </form>
+      </Sheet>
 
-      <section className="panel metric-card">
-        {!loading && drivers.length === 0 ? (
-          <p className="helper">No drivers found for this status.</p>
-        ) : null}
-
-        {!loading && drivers.length > 0 ? (
-          <div className="list">
-            {drivers.map((driver) => (
-              <div key={driver.driverId} className="list-item">
-                <div>
-                  <strong>{driver.name}</strong>
-                  <p>{driver.email} · {driver.vehicleId}</p>
-                  <p>{formatAppliedAt(driver.appliedAt)}</p>
-                </div>
-                <div className="row-actions">
-                  <span className="badge" data-tone={statusTone(driver.onboardingStatus)}>
-                    {(driver.onboardingStatus ?? selectedStatus).toUpperCase()}
-                  </span>
-                  {selectedStatus === "PENDING" ? (
-                    <>
-                      <button
-                        className="secondary-button"
-                        type="button"
-                        disabled={processingId === driver.driverId}
-                        onClick={() => void approve(driver.driverId)}
-                      >
-                        {processingId === driver.driverId ? "Working..." : "Approve"}
-                      </button>
-                      <button
-                        className="danger-button"
-                        type="button"
-                        disabled={processingId === driver.driverId}
-                        onClick={() => void reject(driver.driverId)}
-                      >
-                        {processingId === driver.driverId ? "Working..." : "Reject"}
-                      </button>
-                    </>
-                  ) : null}
-                  {selectedStatus === "APPROVED" ? (
-                    <button
-                      className="danger-button"
-                      type="button"
-                      disabled={processingId === driver.driverId}
-                      onClick={() => void suspend(driver.driverId)}
-                    >
-                      {processingId === driver.driverId ? "Working..." : "Suspend"}
-                    </button>
-                  ) : null}
-                  {selectedStatus === "SUSPENDED" ? (
-                    <button
-                      className="secondary-button"
-                      type="button"
-                      disabled={processingId === driver.driverId}
-                      onClick={() => void approve(driver.driverId)}
-                    >
-                      {processingId === driver.driverId ? "Working..." : "Reinstate"}
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : null}
-
-        <div className="pager">
-          <button
-            className="secondary-button"
-            type="button"
-            disabled={loading || page <= 0}
-            onClick={() => void load(selectedStatus, page - 1)}
-          >
-            Previous
-          </button>
-          <p className="helper">Page {page + 1} of {totalPages}</p>
-          <button
-            className="secondary-button"
-            type="button"
-            disabled={loading || page + 1 >= totalPages}
-            onClick={() => void load(selectedStatus, page + 1)}
-          >
-            Next
-          </button>
-        </div>
-      </section>
+      <ConfirmDialog open={Boolean(confirmAction)} onOpenChange={(open) => { if (!open) setConfirmAction(null); }} title={confirmAction?.title ?? "Confirm driver change"} description={confirmAction?.description ?? "This changes driver access."} confirmLabel={confirmAction?.label ?? "Confirm"} onConfirm={async () => { await confirmAction?.run(); setConfirmAction(null); }} />
     </div>
   );
 }

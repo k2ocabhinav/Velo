@@ -4,11 +4,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { isActionPending, setActionPending } from "@velo/app-core/async-actions";
-import { CountdownBadge, LiveStatusPill, MatchingIndicator } from "@velo/ui/feedback";
+import { Button } from "@velo/ui/primitives";
+import { DateTime, EmptyState, ErrorState, Money, PageHeader, RouteStrip, Section, StatusBadge } from "@velo/ui/composed";
+import { CountdownBadge, LiveStatusPill, MatchingIndicator, Skeleton } from "@velo/ui/feedback";
 import {
   requestDriverProxy,
-  toCurrency,
-  toRelativeTimestamp,
   type DriverNotification,
   type DriverProfile,
   type DriverRideRequestPreview,
@@ -18,14 +18,10 @@ import {
 import { mapApiError } from "./_lib/driver-forms";
 import {
   getDriverRideFareValue,
-  getDriverRideStatusLabel,
-  getDriverRideTimeLabel,
-  isDriverRideActive,
   normalizeDriverRidePage,
   selectCurrentDriverRide,
 } from "./_lib/driver-ride-state";
 import {
-  getDriverRealtimeStatusText,
   useDriverNotificationSubscription,
   type DriverNotificationEvent,
 } from "./_lib/driver-ws";
@@ -70,15 +66,21 @@ function getIncomingCardContent(
   const tripNoun = tripLabel.toLowerCase();
   if (notification.type === "RIDE_DISPATCHED") {
     return {
-      title: `${tripLabel} Request Received`,
-      message: `A scheduled ${tripNoun} request is ready for your response.`,
+      title: `Scheduled ${tripNoun} offer`,
+      message: "A scheduled trip is ready for your response.",
     };
   }
 
   return {
-    title: `${tripLabel} Request Received`,
-    message: `A ${tripNoun} request is waiting for your response.`,
+    title: `New ${tripNoun} offer`,
+    message: "A trip request is waiting for your response.",
   };
+}
+
+function getNextTripActionLabel(status: string): string {
+  if (status.toUpperCase() === "CONFIRMED") return "Start trip";
+  if (status.toUpperCase() === "ONGOING") return "Complete trip";
+  return "Continue trip";
 }
 
 function toMapPoint(point: DriverRideRequestPreview["pickupLocation"]): { lat: number; lng: number } | null {
@@ -117,7 +119,6 @@ function toExpiryMs(createdTime: string | null | undefined): number | null {
 
 type TenantBranding = {
   riderLabel?: string;
-  driverLabel?: string;
   tripLabel?: string;
 };
 
@@ -126,11 +127,13 @@ export default function DriverHomePage() {
 
   const [profile, setProfile] = useState<DriverProfile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [togglingAvailability, setTogglingAvailability] = useState(false);
 
   const [incoming, setIncoming] = useState<DriverNotification[]>([]);
   const [rideRequestPreviews, setRideRequestPreviews] = useState<Record<number, DriverRideRequestPreview | null>>({});
   const [loadingIncoming, setLoadingIncoming] = useState(true);
+  const [incomingError, setIncomingError] = useState<string | null>(null);
   const [refreshingIncoming, setRefreshingIncoming] = useState(false);
   const [activeRide, setActiveRide] = useState<DriverRide | null>(null);
   const [loadingActiveRide, setLoadingActiveRide] = useState(true);
@@ -142,19 +145,19 @@ export default function DriverHomePage() {
   const [pendingActions, setPendingActions] = useState<Record<string, boolean>>({});
 
   const [error, setError] = useState<string | null>(null);
+  const [retryAction, setRetryAction] = useState<(() => void) | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [branding, setBranding] = useState<TenantBranding | null>(null);
 
-  const riderLabel = branding?.riderLabel ?? "Rider";
-  const driverLabel = branding?.driverLabel ?? "Driver";
   const tripLabel = branding?.tripLabel ?? "Trip";
 
   const loadProfile = useCallback(async () => {
+    setProfileError(null);
     try {
       const response = await requestDriverProxy<DriverProfile>("drivers/getMyProfile");
       setProfile(response);
     } catch (profileError) {
-      setError(profileError instanceof Error ? profileError.message : "Unable to load profile.");
+      setProfileError(profileError instanceof Error ? profileError.message : "Unable to load profile.");
     } finally {
       setLoadingProfile(false);
     }
@@ -166,7 +169,7 @@ export default function DriverHomePage() {
     } else {
       setLoadingIncoming(true);
     }
-    setError(null);
+    setIncomingError(null);
 
     try {
       const page = await requestDriverProxy<SpringPage<DriverNotification>>("notifications?page=0&size=25");
@@ -194,7 +197,7 @@ export default function DriverHomePage() {
       setRideRequestPreviews((current) => ({ ...current, ...previewUpdates }));
       setIncoming(actionable);
     } catch (incomingError) {
-      setError(incomingError instanceof Error ? incomingError.message : "Unable to load incoming requests.");
+      setIncomingError(incomingError instanceof Error ? incomingError.message : "Unable to load trip offers.");
     } finally {
       setLoadingIncoming(false);
       setRefreshingIncoming(false);
@@ -284,13 +287,7 @@ export default function DriverHomePage() {
   const realtime = useDriverNotificationSubscription(true, handleIncomingNotification);
 
   const queuedRequestCount = useMemo(() => incoming.length, [incoming]);
-  const incomingRealtimeMessage = useMemo(() => {
-    const base = getDriverRealtimeStatusText(realtime.state, realtime.reconnectAttempts);
-    if (realtime.state === "error" && realtime.lastError) {
-      return `${base} ${realtime.lastError}`;
-    }
-    return base;
-  }, [realtime.lastError, realtime.reconnectAttempts, realtime.state]);
+  const activeRideFare = getDriverRideFareValue(activeRide);
 
   async function toggleAvailability(): Promise<void> {
     if (!profile) {
@@ -303,6 +300,7 @@ export default function DriverHomePage() {
     setPendingActions((current) => setActionPending(current, "availability", true));
     setTogglingAvailability(true);
     setError(null);
+    setRetryAction(null);
     setMessage(null);
 
     try {
@@ -319,6 +317,7 @@ export default function DriverHomePage() {
           ? mapApiError({ error: availabilityError.message }, "Unable to update availability.")
           : "Unable to update availability.",
       );
+      setRetryAction(() => () => { void toggleAvailability(); });
     } finally {
       setTogglingAvailability(false);
       setPendingActions((current) => setActionPending(current, "availability", false));
@@ -328,7 +327,8 @@ export default function DriverHomePage() {
   async function acceptRide(notification: DriverNotification): Promise<void> {
     const rideRequestId = getRideRequestId(notification);
     if (!rideRequestId) {
-      setError("This request is missing a ride reference. Please refresh.");
+      setError("This offer is no longer available. Refresh to check for new offers.");
+      setRetryAction(() => () => { void loadIncoming(true); });
       return;
     }
     const actionKey = `accept:${rideRequestId}`;
@@ -339,6 +339,7 @@ export default function DriverHomePage() {
     setPendingActions((current) => setActionPending(current, actionKey, true));
     setAcceptingRequestId(rideRequestId);
     setError(null);
+    setRetryAction(null);
     setMessage(null);
 
     try {
@@ -353,7 +354,7 @@ export default function DriverHomePage() {
       }
 
       setIncoming((current) => current.filter((item) => item.id !== notification.id));
-      setMessage(`Ride request #${rideRequestId} accepted.`);
+      setMessage("Offer accepted.");
       setActiveRide(ride);
       router.push(`/ride/${ride.id}`);
     } catch (acceptError) {
@@ -362,6 +363,7 @@ export default function DriverHomePage() {
           ? mapApiError({ error: acceptError.message }, "Unable to accept this ride request.")
           : "Unable to accept this ride request.";
       setError(nextMessage);
+      setRetryAction(() => () => { void acceptRide(notification); });
       if (nextMessage.toLowerCase().includes("already been assigned") || nextMessage.toLowerCase().includes("cancelled")) {
         setIncoming((current) => current.filter((item) => item.id !== notification.id));
       }
@@ -380,6 +382,7 @@ export default function DriverHomePage() {
     setPendingActions((current) => setActionPending(current, actionKey, true));
     setMarkingNotificationId(notification.id);
     setError(null);
+    setRetryAction(null);
     setMessage(null);
 
     try {
@@ -387,9 +390,10 @@ export default function DriverHomePage() {
         method: "POST",
       });
       setIncoming((current) => current.filter((item) => item.id !== notification.id));
-      setMessage(`Notification #${notification.id} marked as read.`);
+      setMessage("Offer declined.");
     } catch (markError) {
       setError(markError instanceof Error ? markError.message : "Unable to mark notification as read.");
+      setRetryAction(() => () => { void markRead(notification); });
     } finally {
       setMarkingNotificationId(null);
       setPendingActions((current) => setActionPending(current, actionKey, false));
@@ -398,86 +402,89 @@ export default function DriverHomePage() {
 
   return (
     <main className="stack">
-      <section className="hero">
-        <p className="badge">{driverLabel} Home</p>
-        <h1>Stay available and respond to {tripLabel.toLowerCase()} requests quickly</h1>
-        <p>Use this screen to manage availability, incoming requests, and active {tripLabel.toLowerCase()} transitions.</p>
-      </section>
+      <PageHeader
+        title="Ready for your next trip"
+        description={`Manage availability and respond to ${tripLabel.toLowerCase()} offers from here.`}
+      />
 
-      <section className="card stack">
-        <div className="split-row">
-          <div className="stack compact">
-            <strong>Status</strong>
-            {loadingProfile ? (
-              <div className="lane-loading" aria-live="polite" aria-label="Loading driver profile">
-                <div className="lane-skeleton" data-size="md" />
-                <div className="lane-skeleton" data-size="sm" />
-              </div>
-            ) : (
-              <>
-                <p className="helper">
-                  Driver #{profile?.id ?? "--"} • Vehicle {profile?.vehicleId ?? "--"} •{" "}
-                  {profile?.available ? "Online" : "Offline"}
-                </p>
-                <div className="lane-status-row">
-                  <LiveStatusPill state={profile?.available ? "connected" : "idle"} label={profile?.available ? "Online" : "Offline"} />
-                </div>
-              </>
-            )}
+      {error ? (
+        <ErrorState
+          title="Couldn't complete that action"
+          description={error}
+          onRetry={retryAction ?? (() => { void Promise.all([loadProfile(), loadIncoming(true), loadActiveRide(true)]); })}
+          retryLabel={retryAction ? "Retry action" : "Refresh"}
+        />
+      ) : null}
+      {message ? <p role="status" className="helper">{message}</p> : null}
+
+      <Section title="Availability">
+        {loadingProfile ? (
+          <div className="stack compact" role="status" aria-label="Loading driver profile" aria-busy="true">
+            <Skeleton className="h-5 w-36" />
+            <Skeleton className="h-4 w-48" />
+            <Skeleton className="h-14 w-full" />
           </div>
-          <button
-            className="primary-button"
-            type="button"
-            disabled={loadingProfile || togglingAvailability || !profile || isActionPending(pendingActions, "availability")}
-            onClick={() => void toggleAvailability()}
-          >
-            {togglingAvailability
-              ? "Updating..."
-              : profile?.available
-                ? "Go offline"
-                : "Go online"}
-          </button>
-        </div>
-        {error ? <p className="error-text">{error}</p> : null}
-        {message ? <p className="helper">{message}</p> : null}
-      </section>
-
-      <section className="card stack">
-        <div className="split-row">
-          <div className="stack compact">
-            <strong>Incoming {tripLabel.toLowerCase()} requests</strong>
-            <div className="lane-status-row">
-              <span className="badge">Unread {queuedRequestCount}</span>
-              <LiveStatusPill
-                state={realtime.state}
-                label={realtime.state === "connected" ? "Actively listening" : undefined}
-              />
-              <span className={realtime.state === "error" ? "error-text" : "helper"}>{incomingRealtimeMessage}</span>
+        ) : null}
+        {!loadingProfile && profileError ? (
+          <ErrorState title="Couldn't load your profile" description={profileError} onRetry={() => void loadProfile()} />
+        ) : null}
+        {!loadingProfile && !profileError && profile ? (
+          <div className="driver-availability">
+            <div className="driver-availability-copy">
+              <strong>{profile.available ? "You're online" : "You're offline"}</strong>
+              <p>{profile.available ? "New trip offers can reach you." : "Go online when you're ready to drive."}</p>
+              {profile.vehicleId ? <p>Vehicle {profile.vehicleId}</p> : null}
             </div>
+            <Button
+              className="driver-availability-toggle"
+              data-online={profile.available || undefined}
+              role="switch"
+              aria-checked={profile.available}
+              aria-label={profile.available ? "Go offline" : "Go online"}
+              disabled={togglingAvailability || isActionPending(pendingActions, "availability")}
+              onClick={() => void toggleAvailability()}
+            >
+              {togglingAvailability ? "Updating…" : profile.available ? "Go offline" : "Go online"}
+            </Button>
           </div>
-          <button
-            className="primary-button"
-            type="button"
-            disabled={refreshingIncoming}
-            onClick={() => void loadIncoming(true)}
-          >
-            {refreshingIncoming ? "Refreshing..." : "Refresh"}
-          </button>
-        </div>
+        ) : null}
+      </Section>
 
+      <Section
+        title="Trip offers"
+        actions={(
+          <Button variant="secondary" disabled={refreshingIncoming} onClick={() => void loadIncoming(true)}>
+            {refreshingIncoming ? "Refreshing…" : "Refresh offers"}
+          </Button>
+        )}
+      >
+        {realtime.state === "error" ? (
+          <p className="driver-realtime-notice" role="status">Live offers paused. Showing the latest list; refresh to check again.</p>
+        ) : (
+          <div className="driver-row-meta">
+            <LiveStatusPill state={realtime.state} label={realtime.state === "connected" ? "Listening for offers" : undefined} />
+            {queuedRequestCount > 0 ? <span className="badge" data-tone="attention">{queuedRequestCount} waiting</span> : null}
+          </div>
+        )}
+        {incomingError ? (
+          <ErrorState title="Couldn't load trip offers" description={incomingError} onRetry={() => void loadIncoming()} />
+        ) : null}
         {loadingIncoming ? (
-          <div className="lane-loading" aria-live="polite" aria-label="Loading incoming requests">
-            <div className="lane-skeleton" data-size="lg" />
-            <div className="lane-skeleton" data-size="md" />
-            <div className="lane-skeleton" data-size="sm" />
+          <div className="driver-offer-list" role="status" aria-label="Loading trip offers" aria-busy="true">
+            {[0, 1].map((item) => <Skeleton key={item} className="h-32 w-full" />)}
           </div>
         ) : null}
-        {!loadingIncoming && incoming.length === 0 ? (
-          <p className="helper">No incoming {tripLabel.toLowerCase()} requests right now.</p>
+        {!loadingIncoming && !incomingError && incoming.length === 0 ? (
+          <EmptyState
+            title="No trip offers yet"
+            description={profile?.available ? "Keep your availability on and new offers will appear here." : "Go online when you're ready to receive trip offers."}
+            action={!profile?.available
+              ? <Button onClick={() => void toggleAvailability()} disabled={!profile || togglingAvailability}>Go online</Button>
+              : undefined}
+          />
         ) : null}
-
-        {!loadingIncoming && incoming.length > 0 ? (
-          <div className="list">
+        {!loadingIncoming && !incomingError && incoming.length > 0 ? (
+          <div className="driver-offer-list">
             {incoming.map((notification) => {
               const requestId = getRideRequestId(notification);
               const busy = requestId !== null && acceptingRequestId === requestId;
@@ -485,128 +492,95 @@ export default function DriverHomePage() {
               const pickup = toMapPoint(preview?.pickupLocation);
               const cardContent = getIncomingCardContent(notification, tripLabel);
               return (
-                <article className="list-item" key={notification.id}>
+                <article className="driver-offer" key={notification.id}>
                   <div className="stack compact">
-                    <strong>{cardContent.title}</strong>
-                    <p>{cardContent.message}</p>
-                    <p className="helper">
-                      Request #{requestId ?? "--"} • {toRelativeTimestamp(notification.createdTime)}
-                    </p>
-                    <div className="lane-status-row">
-                      <MatchingIndicator
-                        label={`${tripLabel} request window`}
-                        expiresAtMs={toExpiryMs(notification.createdTime)}
-                      />
-                      <CountdownBadge expiresAtMs={toExpiryMs(notification.createdTime)} prefix="Request expires in" />
+                    <div className="driver-offer-meta">
+                      <h3>{cardContent.title}</h3>
+                      {preview?.fare !== undefined && preview.fare !== null ? <Money amount={preview.fare} emphasis /> : null}
+                    </div>
+                    <p className="driver-section-copy">{cardContent.message}</p>
+                    <RouteStrip stage={preview?.rideRequestStatus ?? "requested"} variant="static" showDriverMarker={false} />
+                    <div className="driver-row-meta">
+                      <DateTime value={notification.createdTime} />
+                      <MatchingIndicator label="Offer response window" expiresAtMs={toExpiryMs(notification.createdTime)} />
+                      <CountdownBadge expiresAtMs={toExpiryMs(notification.createdTime)} prefix="Offer expires in" />
                     </div>
                     {pickup ? (
-                      <div className="stack compact">
-                        <p className="helper">
-                          Pickup: {pickup.lat.toFixed(5)}, {pickup.lng.toFixed(5)}
-                        </p>
-                        <iframe
-                          title={`Pickup map preview ${requestId ?? "unknown"}`}
-                          className="incoming-map-preview"
-                          src={buildPickupPreviewUrl(pickup)}
-                          loading="lazy"
-                        />
-                      </div>
+                      <iframe
+                        title="Pickup map preview"
+                        className="incoming-map-preview"
+                        src={buildPickupPreviewUrl(pickup)}
+                        loading="lazy"
+                      />
                     ) : (
-                      <div className="lane-loading" aria-live="polite" aria-label="Loading pickup preview">
-                        <div className="lane-skeleton" data-size="lg" />
-                        <div className="lane-skeleton" data-size="sm" />
-                      </div>
+                      <p className="helper">Pickup map unavailable.</p>
                     )}
                   </div>
-                  <div className="actions">
-                    <button
-                      className="primary-button"
-                      type="button"
+                  <div className="driver-offer-actions">
+                    <Button
                       disabled={busy || requestId === null || (requestId !== null && isActionPending(pendingActions, `accept:${requestId}`))}
                       onClick={() => void acceptRide(notification)}
                     >
-                      {busy ? "Accepting..." : "Accept"}
-                    </button>
-                    <button
-                      className="secondary-button"
-                      type="button"
+                      {busy ? "Accepting…" : "Accept trip"}
+                    </Button>
+                    <Button
+                      variant="secondary"
                       disabled={markingNotificationId === notification.id || isActionPending(pendingActions, `dismiss:${notification.id}`)}
                       onClick={() => void markRead(notification)}
                     >
-                      {markingNotificationId === notification.id ? "Saving..." : "Dismiss"}
-                    </button>
+                      {markingNotificationId === notification.id ? "Declining…" : "Decline"}
+                    </Button>
                   </div>
                 </article>
               );
             })}
           </div>
         ) : null}
-      </section>
+      </Section>
 
-      <section className="card stack">
-        <div className="split-row">
-          <div className="stack compact">
-            <strong>Current ride lane</strong>
-            <p className="helper">Keep this lane open for active ride continuity.</p>
-          </div>
-          <button
-            className="secondary-button"
-            type="button"
-            disabled={refreshingActiveRide}
-            onClick={() => void loadActiveRide(true)}
-          >
-            {refreshingActiveRide ? "Refreshing..." : "Refresh"}
-          </button>
-        </div>
-
+      <Section
+        title="Current trip"
+        actions={(
+          <Button variant="secondary" disabled={refreshingActiveRide} onClick={() => void loadActiveRide(true)}>
+            {refreshingActiveRide ? "Refreshing…" : "Refresh"}
+          </Button>
+        )}
+      >
         {loadingActiveRide ? (
-          <div className="lane-loading" aria-live="polite" aria-label="Loading active ride lane">
-            <div className="lane-skeleton" data-size="lg" />
-            <div className="lane-skeleton" data-size="md" />
-            <div className="lane-skeleton" data-size="sm" />
+          <div className="stack compact" role="status" aria-label="Loading current trip" aria-busy="true">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-14 w-full" />
+            <Skeleton className="h-20 w-full" />
           </div>
         ) : null}
-        {activeRideError ? <p className="error-text">{activeRideError}</p> : null}
-        {!loadingActiveRide && !activeRideError && !activeRide ? (
-          <p className="helper">No active ride currently. New accepted rides will appear here automatically.</p>
+        {!loadingActiveRide && activeRideError ? (
+          <ErrorState title="Couldn't load your current trip" description={activeRideError} onRetry={() => void loadActiveRide()} />
         ) : null}
-
+        {!loadingActiveRide && !activeRideError && !activeRide ? (
+          <EmptyState
+            title="No active trip"
+            description="Your accepted trip will appear here with the next action when one is assigned."
+            action={<Link href="/rides" className="ui-button" data-variant="secondary">View trips</Link>}
+          />
+        ) : null}
         {!loadingActiveRide && !activeRideError && activeRide ? (
-          <article className="list-item">
-            <div className="stack compact">
-              <strong>Ride #{activeRide.id}</strong>
-              <p className="helper">
-                {getDriverRideStatusLabel(activeRide.rideStatus)} • {getDriverRideTimeLabel(activeRide)}
-              </p>
-              <p className="helper">
-                {riderLabel}: {activeRide.rider?.user?.name ?? activeRide.rider?.user?.email ?? `Assigned ${riderLabel.toLowerCase()}`}
-              </p>
+          <div className="driver-trip-summary">
+            <div className="driver-row-meta">
+              <code className="driver-reference">Trip {activeRide.id}</code>
+              <StatusBadge domain="ride" status={activeRide.rideStatus} />
+              <DateTime value={activeRide.startedAt ?? activeRide.createdTime} />
             </div>
-            <div className="stack compact" style={{ justifyItems: "end" }}>
-              <span className="badge">{toCurrency(getDriverRideFareValue(activeRide))}</span>
-              <span className="helper">{isDriverRideActive(activeRide.rideStatus) ? "Action required" : "Recent"}</span>
-              <Link className="primary-button" href={`/ride/${activeRide.id}`}>
-                Open control center
+            <RouteStrip stage={activeRide.rideStatus} />
+            <p>{activeRide.rider?.user?.name?.trim() || "Rider"}</p>
+            <div className="driver-row-meta">
+              {activeRideFare !== null && activeRideFare !== undefined ? <Money amount={activeRideFare} emphasis /> : null}
+              <Link href={`/ride/${activeRide.id}`} className="ui-button" data-variant="primary">
+                {getNextTripActionLabel(activeRide.rideStatus)}
               </Link>
             </div>
-          </article>
+          </div>
         ) : null}
-      </section>
-
-      <section className="card stack">
-        <strong>Shortcuts</strong>
-        <div className="actions">
-          <Link className="secondary-button" href="/rides">
-            View ride history
-          </Link>
-          <Link className="secondary-button" href="/earnings">
-            Open earnings
-          </Link>
-          <Link className="secondary-button" href="/notifications">
-            View all notifications
-          </Link>
-        </div>
-      </section>
+      </Section>
     </main>
   );
 }

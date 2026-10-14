@@ -196,9 +196,24 @@ export function AppTopBar({
 export interface BottomNavItem {
   href: string;
   label: string;
-  icon?: ReactNode;
+  icon?: BottomNavIconName;
   badgeCount?: number;
   current?: boolean;
+}
+
+export type BottomNavIconName = "book" | "trips" | "wallet" | "account" | "home" | "earnings";
+
+function BottomNavIcon({ name }: { name: BottomNavIconName }) {
+  return (
+    <svg aria-hidden="true" focusable="false" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      {name === "book" ? <><path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Z" /><circle cx="12" cy="10" r="2.25" /></> : null}
+      {name === "trips" ? <><circle cx="6" cy="5" r="2" /><circle cx="18" cy="19" r="2" /><path d="M6 7v3a4 4 0 0 0 4 4h4a4 4 0 0 1 4 4v1" /></> : null}
+      {name === "wallet" ? <><rect x="3" y="5" width="18" height="15" rx="2" /><path d="M3 9h18" /><path d="M16 14h2" /></> : null}
+      {name === "account" ? <><circle cx="12" cy="8" r="3.25" /><path d="M5 20a7 7 0 0 1 14 0" /></> : null}
+      {name === "home" ? <><path d="m3 10 9-7 9 7" /><path d="M5 9v11h14V9" /><path d="M9 20v-6h6v6" /></> : null}
+      {name === "earnings" ? <><path d="M4 19V5" /><path d="M4 19h17" /><path d="m7 15 4-4 3 2 5-6" /><path d="M16 7h3v3" /></> : null}
+    </svg>
+  );
 }
 
 /** Mobile tab navigation with safe-area spacing and current-page semantics. */
@@ -223,7 +238,7 @@ export function BottomNav({
         const current = item.current || currentPath === item.href;
         return (
           <a key={item.href} href={item.href} aria-current={current ? "page" : undefined}>
-            {item.icon ? <span aria-hidden="true">{item.icon}</span> : null}
+            {item.icon ? <span className="bottom-nav-icon" aria-hidden="true"><BottomNavIcon name={item.icon} /></span> : null}
             <span>{item.label}</span>
             {item.badgeCount && item.badgeCount > 0 ? (
               <span className="bottom-nav-badge" aria-label={`${item.badgeCount} unread`}>

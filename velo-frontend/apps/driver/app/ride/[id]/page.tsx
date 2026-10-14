@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { requestDriverProxy, toCurrency, toRelativeTimestamp, type DriverRide, type SpringPage } from "../../_lib/driver-client";
+import { Button } from "@velo/ui/primitives";
+import { ConfirmDialog, DateTime, EmptyState, ErrorState, Field, Money, PageHeader, RouteStrip, Section, Select, StatusBadge } from "@velo/ui/composed";
+import { requestDriverProxy, type DriverRide, type SpringPage } from "../../_lib/driver-client";
 import {
   canSubmitCancelRide,
   canSubmitEndRide,
@@ -14,15 +16,7 @@ import {
   validateRatingInput,
 } from "../../_lib/driver-forms";
 import { useDriverLocationPublisher } from "../../_lib/driver-location-publisher";
-import {
-  formatMapPoint,
-  getDriverRideFareValue,
-  getDriverRideStatusLabel,
-  isDriverRideActive,
-  normalizeDriverRidePage,
-  toDriverRideTimeline,
-  toMapPoint,
-} from "../../_lib/driver-ride-state";
+import { normalizeDriverRidePage, toMapPoint, getDriverRideFareValue } from "../../_lib/driver-ride-state";
 import { fetchRoutePath, type RoutePath } from "../../_lib/map/routing";
 import { getDriverRealtimeStatusText, useDriverNotificationSubscription, type DriverNotificationEvent } from "../../_lib/driver-ws";
 import { DriverRideMapLoader } from "./_components/driver-ride-map-loader";
@@ -30,10 +24,21 @@ import { DriverRideMapLoader } from "./_components/driver-ride-map-loader";
 const ACTIVE_RIDE_REFRESH_INTERVAL_MS = 10_000;
 const BACKGROUND_REFRESH_INTERVAL_MS = 30_000;
 
+function getPaymentMethodLabel(value: string | null | undefined): string {
+  const labels: Record<string, string> = { CASH: "Cash", WALLET: "Wallet", CARD: "Card" };
+  if (!value) return "Not provided";
+  return labels[value.toUpperCase()] ?? value.toLowerCase().replace(/[_-]+/g, " ").replace(/^\w/, (letter) => letter.toUpperCase());
+}
+
+function getNavigationUrl(point: { lat: number; lng: number } | null): string | null {
+  if (!point) return null;
+  const destination = `${point.lat},${point.lng}`;
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`;
+}
+
 export default function DriverRidePage() {
   const params = useParams<{ id: string }>();
   const rideId = Number(params?.id);
-
   const [ride, setRide] = useState<DriverRide | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -42,147 +47,97 @@ export default function DriverRidePage() {
   const [ratingValue, setRatingValue] = useState("5");
   const [submittingRating, setSubmittingRating] = useState(false);
   const [ratedRideId, setRatedRideId] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [notFound, setNotFound] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [retryAction, setRetryAction] = useState<(() => void) | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [routePath, setRoutePath] = useState<RoutePath | null>(null);
   const [loadingRoute, setLoadingRoute] = useState(false);
 
-  const loadRide = useCallback(
-    async (refresh = false): Promise<void> => {
-      if (!Number.isFinite(rideId) || rideId <= 0) {
-        setError("Ride id is invalid.");
-        setLoading(false);
-        setRefreshing(false);
-        return;
-      }
+  const loadRide = useCallback(async (refresh = false): Promise<void> => {
+    if (!Number.isFinite(rideId) || rideId <= 0) {
+      setNotFound(true);
+      setLoadError(null);
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+    if (refresh) setRefreshing(true);
+    else setLoading(true);
+    setLoadError(null);
+    setNotFound(false);
 
-      if (refresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
-      setError(null);
-
-      try {
-        const page = await requestDriverProxy<SpringPage<DriverRide>>("drivers/getMyRides?pageOffset=0&pageSize=50");
-        const rides = normalizeDriverRidePage(page);
-        const selectedRide = rides.find((item) => item.id === rideId) ?? null;
-
-        if (!selectedRide) {
-          setError(`Ride #${rideId} was not found in your recent history.`);
-        }
-        setRide(selectedRide);
-      } catch (loadError) {
-        setError(loadError instanceof Error ? loadError.message : "Unable to load ride details.");
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    },
-    [rideId],
-  );
+    try {
+      const page = await requestDriverProxy<SpringPage<DriverRide>>("drivers/getMyRides?pageOffset=0&pageSize=50");
+      const selectedRide = normalizeDriverRidePage(page).find((item) => item.id === rideId) ?? null;
+      setNotFound(!selectedRide);
+      setRide(selectedRide);
+    } catch (loadErrorValue) {
+      setLoadError(loadErrorValue instanceof Error ? loadErrorValue.message : "Unable to load trip details.");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [rideId]);
 
   useEffect(() => {
     void loadRide();
   }, [loadRide]);
 
   const status = ride?.rideStatus ?? null;
-  const statusLabel = getDriverRideStatusLabel(status);
   const locationPublisher = useDriverLocationPublisher(status);
-
   const pickupPoint = useMemo(() => toMapPoint(ride?.pickupLocation), [ride?.pickupLocation]);
   const dropOffPoint = useMemo(() => toMapPoint(ride?.dropOffLocation), [ride?.dropOffLocation]);
   const driverPoint = locationPublisher.lastPublishedPoint;
-  const timeline = toDriverRideTimeline(status);
 
   useEffect(() => {
     if (!pickupPoint || !dropOffPoint) {
       setRoutePath(null);
       return;
     }
-
     let cancelled = false;
     setLoadingRoute(true);
-
     void fetchRoutePath(pickupPoint, dropOffPoint)
-      .then((nextRoute) => {
-        if (!cancelled) {
-          setRoutePath(nextRoute);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoadingRoute(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
+      .then((nextRoute) => { if (!cancelled) setRoutePath(nextRoute); })
+      .finally(() => { if (!cancelled) setLoadingRoute(false); });
+    return () => { cancelled = true; };
   }, [dropOffPoint, pickupPoint, ride?.id]);
 
-  const handleRealtimeNotification = useCallback(
-    (event: DriverNotificationEvent) => {
-      if (!event.type?.toUpperCase().startsWith("RIDE_")) {
-        return;
-      }
-
-      void loadRide(true);
-    },
-    [loadRide],
-  );
-
+  const handleRealtimeNotification = useCallback((event: DriverNotificationEvent) => {
+    if (event.type?.toUpperCase().startsWith("RIDE_")) void loadRide(true);
+  }, [loadRide]);
   const realtime = useDriverNotificationSubscription(true, handleRealtimeNotification);
 
   useEffect(() => {
-    if (!Number.isFinite(rideId) || rideId <= 0) {
-      return;
-    }
-
-    const refreshIntervalMs = isDriverRideActive(status)
-      ? ACTIVE_RIDE_REFRESH_INTERVAL_MS
-      : BACKGROUND_REFRESH_INTERVAL_MS;
-    const intervalId = window.setInterval(() => {
-      void loadRide(true);
-    }, refreshIntervalMs);
-
-    return () => {
-      window.clearInterval(intervalId);
-    };
+    if (!Number.isFinite(rideId) || rideId <= 0) return;
+    const interval = isActiveStatus(status) ? ACTIVE_RIDE_REFRESH_INTERVAL_MS : BACKGROUND_REFRESH_INTERVAL_MS;
+    const intervalId = window.setInterval(() => { void loadRide(true); }, interval);
+    return () => window.clearInterval(intervalId);
   }, [loadRide, rideId, status]);
 
   const ratingAlreadySubmitted = ratedRideId === ride?.id;
   const otpRequired = Boolean(ride?.rider);
-  const riderRatingAvailable = Boolean(ride?.rider);
-
-  const canStart = useMemo(
-    () => canSubmitStartRide(status, otp, pendingAction !== null, otpRequired),
-    [status, otp, otpRequired, pendingAction],
-  );
-  const canEnd = useMemo(() => canSubmitEndRide(status, pendingAction !== null), [status, pendingAction]);
-  const canCancel = useMemo(() => canSubmitCancelRide(status, pendingAction !== null), [status, pendingAction]);
-  const canRate = useMemo(
-    () =>
-      riderRatingAvailable &&
-      canSubmitRateRider(status, ratingValue, pendingAction !== null || submittingRating, ratingAlreadySubmitted),
-    [pendingAction, riderRatingAvailable, ratingAlreadySubmitted, ratingValue, status, submittingRating],
-  );
+  const canEnterStartDetails = status === "CONFIRMED" && pendingAction === null;
+  const canStart = canSubmitStartRide(status, otp, pendingAction !== null, otpRequired);
+  const canEnd = canSubmitEndRide(status, pendingAction !== null);
+  const canCancel = canSubmitCancelRide(status, pendingAction !== null);
+  const canRate = Boolean(ride?.rider) && canSubmitRateRider(status, ratingValue, pendingAction !== null || submittingRating, ratingAlreadySubmitted);
+  const navigationPoint = status === "ONGOING" ? dropOffPoint : pickupPoint;
+  const navigationUrl = getNavigationUrl(navigationPoint);
 
   async function startRide(): Promise<void> {
-    if (!ride) {
-      return;
-    }
-
+    if (!ride) return;
     const otpValidation = otpRequired ? validateOtpInput(otp) : { ok: true as const, value: "" };
     if (!otpValidation.ok) {
-      setError(otpValidation.error);
+      setActionError(otpValidation.error);
       return;
     }
-
     setPendingAction("START");
-    setError(null);
+    setActionError(null);
+    setRetryAction(null);
     setMessage(null);
-
     try {
       const updated = await requestDriverProxy<DriverRide>(`drivers/startRide/${ride.id}`, {
         method: "POST",
@@ -190,102 +145,73 @@ export default function DriverRidePage() {
         body: JSON.stringify({ otp: otpValidation.value }),
       });
       setRide(updated);
-      setMessage("Ride started.");
-    } catch (actionError) {
-      setError(
-        actionError instanceof Error
-          ? mapApiError({ error: actionError.message }, "Unable to start ride.")
-          : "Unable to start ride.",
-      );
+      setMessage("Trip started.");
+    } catch (actionErrorValue) {
+      setActionError(actionErrorValue instanceof Error ? mapApiError({ error: actionErrorValue.message }, "Unable to start trip.") : "Unable to start trip.");
+      setRetryAction(() => () => { void startRide(); });
     } finally {
       setPendingAction(null);
     }
   }
 
   async function endRide(): Promise<void> {
-    if (!ride) {
-      return;
-    }
-
+    if (!ride) return;
     setPendingAction("END");
-    setError(null);
+    setActionError(null);
+    setRetryAction(null);
     setMessage(null);
-
     try {
-      const updated = await requestDriverProxy<DriverRide>(`drivers/endRide/${ride.id}`, {
-        method: "POST",
-      });
+      const updated = await requestDriverProxy<DriverRide>(`drivers/endRide/${ride.id}`, { method: "POST" });
       setRide(updated);
-      setMessage(ride.rider ? "Ride ended successfully. Please rate the rider." : "Ride ended successfully.");
-    } catch (actionError) {
-      setError(
-        actionError instanceof Error
-          ? mapApiError({ error: actionError.message }, "Unable to end ride.")
-          : "Unable to end ride.",
-      );
+      setMessage(ride.rider ? "Trip completed. Please rate the rider." : "Trip completed.");
+    } catch (actionErrorValue) {
+      setActionError(actionErrorValue instanceof Error ? mapApiError({ error: actionErrorValue.message }, "Unable to complete trip.") : "Unable to complete trip.");
+      setRetryAction(() => () => { void endRide(); });
     } finally {
       setPendingAction(null);
     }
   }
 
   async function cancelRide(): Promise<void> {
-    if (!ride) {
-      return;
-    }
-
+    if (!ride) return;
     setPendingAction("CANCEL");
-    setError(null);
+    setActionError(null);
+    setRetryAction(null);
     setMessage(null);
-
     try {
-      const updated = await requestDriverProxy<DriverRide>(`drivers/cancelRide/${ride.id}`, {
-        method: "POST",
-      });
+      const updated = await requestDriverProxy<DriverRide>(`drivers/cancelRide/${ride.id}`, { method: "POST" });
       setRide(updated);
-      setMessage("Ride cancelled.");
-    } catch (actionError) {
-      setError(
-        actionError instanceof Error
-          ? mapApiError({ error: actionError.message }, "Unable to cancel ride.")
-          : "Unable to cancel ride.",
-      );
+      setMessage("Trip cancelled.");
+    } catch (actionErrorValue) {
+      setActionError(actionErrorValue instanceof Error ? mapApiError({ error: actionErrorValue.message }, "Unable to cancel trip.") : "Unable to cancel trip.");
+      setRetryAction(() => () => { void cancelRide(); });
     } finally {
       setPendingAction(null);
     }
   }
 
   async function rateRider(): Promise<void> {
-    if (!ride) {
-      return;
-    }
-
+    if (!ride) return;
     const validation = validateRatingInput(ratingValue);
     if (!validation.ok) {
-      setError(validation.error);
+      setActionError(validation.error);
       return;
     }
-
     setSubmittingRating(true);
-    setError(null);
+    setActionError(null);
+    setRetryAction(null);
     setMessage(null);
-
     try {
       await requestDriverProxy("drivers/rateRider", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          rideId: ride.id,
-          rating: validation.value,
-        }),
+        body: JSON.stringify({ rideId: ride.id, rating: validation.value }),
       });
       setRatedRideId(ride.id);
-      setMessage(`Rider rated ${validation.value} star${validation.value === 1 ? "" : "s"} for ride #${ride.id}.`);
+      setMessage("Rider rating submitted.");
     } catch (ratingError) {
-      setError(
-        ratingError instanceof Error
-          ? mapApiError({ error: ratingError.message }, "Unable to submit rider rating.")
-          : "Unable to submit rider rating.",
-      );
+      setActionError(ratingError instanceof Error ? mapApiError({ error: ratingError.message }, "Unable to submit rider rating.") : "Unable to submit rider rating.");
+      setRetryAction(() => () => { void rateRider(); });
     } finally {
       setSubmittingRating(false);
     }
@@ -293,162 +219,125 @@ export default function DriverRidePage() {
 
   return (
     <main className="stack">
-      <section className="hero">
-        <p className="badge">Ride Control</p>
-        <h1>Manage ride #{Number.isFinite(rideId) ? rideId : "--"} end-to-end</h1>
-        <p>Start, track, complete, and close the trip with deterministic feedback at every step.</p>
-      </section>
+      <PageHeader title="Trip details" description="Follow the route and complete the next action when you’re ready." />
 
-      <section className="card stack">
-        <div className="split-row">
-          <strong>Ride details</strong>
-          <button className="secondary-button" type="button" disabled={loading || refreshing} onClick={() => void loadRide(true)}>
-            {refreshing ? "Refreshing..." : "Refresh"}
-          </button>
-        </div>
-
-        {loading ? <p className="helper">Loading ride...</p> : null}
-        {!loading && !ride && !error ? <p className="helper">Ride details are unavailable.</p> : null}
-
-        {ride ? (
-          <div className="list">
-            <div className="list-item">
-              <div className="stack compact">
-                <strong>Status</strong>
-                <p className="helper">{statusLabel}</p>
-                <p className="helper">{getDriverRealtimeStatusText(realtime.state, realtime.reconnectAttempts)}</p>
-              </div>
-              <span className="badge">{ride.paymentMethod}</span>
-            </div>
-            <div className="list-item">
-              <div className="stack compact">
-                <strong>Requester</strong>
-                <p className="helper">{ride.rider?.user?.name ?? "Dispatch request"}</p>
-                <p className="helper">{ride.rider?.user?.email ?? "--"}</p>
-              </div>
-              <span className="badge">Ride #{ride.id}</span>
-            </div>
-            <div className="list-item">
-              <div className="stack compact">
-                <strong>Fare</strong>
-                <p className="helper">Promo: {ride.promoCode ?? "--"}</p>
-              </div>
-              <span className="badge">{toCurrency(getDriverRideFareValue(ride))}</span>
-            </div>
-            <div className="list-item">
-              <div className="stack compact">
-                <strong>Route coordinates</strong>
-                <p className="helper">Pickup: {formatMapPoint(pickupPoint)}</p>
-                <p className="helper">Drop-off: {formatMapPoint(dropOffPoint)}</p>
-                <p className="helper">Driver location: {formatMapPoint(driverPoint)}</p>
-              </div>
-              <span className="helper">{loadingRoute ? "Routing..." : "Route ready"}</span>
-            </div>
-            <div className="list-item">
-              <div className="stack compact">
-                <strong>Timeline</strong>
-                <p className="helper">Created: {toRelativeTimestamp(ride.createdTime)}</p>
-                <p className="helper">Started: {toRelativeTimestamp(ride.startedAt)}</p>
-                <p className="helper">Ended: {toRelativeTimestamp(ride.endedAt)}</p>
-              </div>
-            </div>
-          </div>
-        ) : null}
-
-        {ride ? (
-          <div className="timeline">
-            {timeline.map((step) => (
-              <div className="timeline-item" key={step.label}>
-                <span className={`timeline-dot${step.done ? " done" : ""}`} />
-                <p>{step.label}</p>
-              </div>
-            ))}
-          </div>
-        ) : null}
-
-        {error ? <p className="error-text">{error}</p> : null}
-        {message ? <p className="helper">{message}</p> : null}
-      </section>
-
-      <section className="card stack">
-        <div className="split-row">
-          <strong>Live map</strong>
-          <p className="helper">{locationPublisher.message}</p>
-        </div>
-        {realtime.lastError ? <p className="helper">{realtime.lastError}</p> : null}
-        <p className="helper">
-          Last publish: {locationPublisher.lastPublishedAt ? toRelativeTimestamp(locationPublisher.lastPublishedAt) : "--"}
-        </p>
-        <DriverRideMapLoader
-          pickup={pickupPoint}
-          dropOff={dropOffPoint}
-          driver={driverPoint}
-          routePoints={routePath?.points ?? []}
+      {actionError ? (
+        <ErrorState
+          title="Couldn't update this trip"
+          description={actionError}
+          onRetry={retryAction ?? (() => void loadRide(true))}
+          retryLabel={retryAction ? "Retry action" : "Refresh trip"}
         />
-      </section>
+      ) : null}
+      {message ? <p role="status" className="helper">{message}</p> : null}
 
-      <section className="card stack">
-        <strong>Ride actions</strong>
-        {ride ? (
-          <>
-            {otpRequired ? (
-              <label className="field">
-                <span>Ride OTP</span>
+      {loading ? (
+        <Section title="Loading trip">
+          <div className="stack compact" role="status" aria-label="Loading trip details" aria-busy="true">
+            <div className="h-5 w-32 animate-pulse rounded-md bg-[hsl(var(--color-surface-hover))]" />
+            <div className="h-14 w-full animate-pulse rounded-md bg-[hsl(var(--color-surface-hover))]" />
+            <div className="h-64 w-full animate-pulse rounded-md bg-[hsl(var(--color-surface-hover))]" />
+          </div>
+        </Section>
+      ) : null}
+      {!loading && !ride && loadError ? (
+        <ErrorState title="Couldn't load this trip" description={loadError} onRetry={() => void loadRide()} />
+      ) : null}
+      {!loading && !ride && !loadError ? (
+        <EmptyState title={notFound ? "Trip unavailable" : "No trip selected"} description={notFound ? "This trip isn’t in your recent history." : "Open a trip from your history to see its details."} action={<Link href="/rides" className="ui-button" data-variant="secondary">Back to trips</Link>} />
+      ) : null}
+
+      {!loading && ride ? (
+        <>
+          <Section title="Trip progress" actions={<Button variant="secondary" disabled={refreshing} onClick={() => void loadRide(true)}>{refreshing ? "Refreshing…" : "Refresh"}</Button>}>
+            <div className="driver-trip-summary">
+              <div className="driver-row-meta">
+                <code className="driver-reference">Trip {ride.id}</code>
+                <StatusBadge domain="ride" status={ride.rideStatus} />
+                <DateTime value={ride.startedAt ?? ride.createdTime ?? ride.endedAt} />
+              </div>
+              <RouteStrip stage={status ?? "requested"} />
+              <dl className="driver-money-breakdown">
+                <div><dt>Rider</dt><dd>{ride.rider?.user?.name ?? "Dispatch rider"}</dd></div>
+                <div><dt>Fare</dt><dd><Money amount={getDriverRideFareValue(ride)} emphasis /></dd></div>
+                <div><dt>Payment</dt><dd>{getPaymentMethodLabel(ride.paymentMethod)}</dd></div>
+                {ride.promoCode ? <div><dt>Promotion</dt><dd>{ride.promoCode}</dd></div> : null}
+              </dl>
+              <div className="driver-map-actions">
+                {navigationUrl ? <a className="ui-button" data-variant="secondary" href={navigationUrl} target="_blank" rel="noreferrer">Navigate to {status === "ONGOING" ? "drop-off" : "pickup"}</a> : null}
+                {ride.rider?.user?.phoneNumber ? <a className="ui-button" data-variant="secondary" href={`tel:${ride.rider.user.phoneNumber}`}>Call rider</a> : null}
+                {loadingRoute ? <span className="helper" role="status">Updating route…</span> : null}
+              </div>
+            </div>
+          </Section>
+
+          <Section title="Live map">
+            {realtime.state === "error" ? (
+              <ErrorState
+                title="Live updates are paused"
+                description={`${getDriverRealtimeStatusText(realtime.state, realtime.reconnectAttempts)} Trip details will refresh automatically.`}
+                onRetry={() => void loadRide(true)}
+                retryLabel="Refresh trip"
+              />
+            ) : null}
+            {locationPublisher.mode === "degraded" ? (
+              <p className="driver-error-text" role="alert">{locationPublisher.message}</p>
+            ) : <p className="helper">{locationPublisher.message}</p>}
+            <DriverRideMapLoader pickup={pickupPoint} dropOff={dropOffPoint} driver={driverPoint} routePoints={routePath?.points ?? []} />
+          </Section>
+
+          <Section title="Next action">
+            {canEnterStartDetails && otpRequired ? (
+              <Field label="Rider OTP" hint="Enter the 4-digit code from the rider to start the trip.">
                 <input
+                  className="ui-control driver-otp-input"
                   value={otp}
                   onChange={(event) => setOtp(event.target.value)}
-                  placeholder="Enter 4-digit OTP"
+                  placeholder="••••"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  aria-label="4-digit rider OTP"
                   maxLength={4}
                 />
-              </label>
-            ) : (
-              <p className="helper">OTP verification is disabled for admin-created dispatch requests.</p>
-            )}
-            <div className="actions">
-              <button className="primary-button" type="button" disabled={!canStart} onClick={() => void startRide()}>
-                {pendingAction === "START" ? "Starting..." : "Start ride"}
-              </button>
-              <button className="primary-button" type="button" disabled={!canEnd} onClick={() => void endRide()}>
-                {pendingAction === "END" ? "Ending..." : "End ride"}
-              </button>
-              <button className="secondary-button" type="button" disabled={!canCancel} onClick={() => void cancelRide()}>
-                {pendingAction === "CANCEL" ? "Cancelling..." : "Cancel ride"}
-              </button>
-            </div>
-
-            {riderRatingAvailable ? (
-              <>
-                <label className="field-inline">
-                  <span>Rate rider</span>
-                  <select value={ratingValue} onChange={(event) => setRatingValue(event.target.value)}>
-                    <option value="5">5</option>
-                    <option value="4">4</option>
-                    <option value="3">3</option>
-                    <option value="2">2</option>
-                    <option value="1">1</option>
-                  </select>
-                  <button className="secondary-button" type="button" disabled={!canRate} onClick={() => void rateRider()}>
-                    {submittingRating ? "Submitting..." : ratingAlreadySubmitted ? "Rated" : "Rate rider"}
-                  </button>
-                </label>
-                {status !== "ENDED" ? <p className="helper">Rider rating unlocks after the trip is completed.</p> : null}
-              </>
+              </Field>
             ) : null}
-          </>
-        ) : null}
-      </section>
+            {canEnterStartDetails && !otpRequired ? <p className="helper">This dispatch trip does not require an OTP.</p> : null}
+            {canEnterStartDetails ? <Button className="driver-action-button" disabled={!canStart} loading={pendingAction === "START"} onClick={() => void startRide()}>Start trip</Button> : null}
+            {canEnd ? <Button className="driver-action-button" loading={pendingAction === "END"} onClick={() => void endRide()}>Complete trip</Button> : null}
+            {!canEnterStartDetails && !canEnd ? <p className="helper">No trip action is needed right now.</p> : null}
+            {canCancel ? <Button variant="secondary" className="driver-action-button" onClick={() => setCancelDialogOpen(true)}>Cancel trip</Button> : null}
+            {ride.rider && status === "ENDED" ? (
+              <div className="driver-actions">
+                <Field label="Rate rider">
+                  <Select value={ratingValue} onChange={(event) => setRatingValue(event.target.value)}>
+                    <option value="5">5 stars</option>
+                    <option value="4">4 stars</option>
+                    <option value="3">3 stars</option>
+                    <option value="2">2 stars</option>
+                    <option value="1">1 star</option>
+                  </Select>
+                </Field>
+                <Button variant="secondary" disabled={!canRate} loading={submittingRating} onClick={() => void rateRider()}>
+                  {ratingAlreadySubmitted ? "Rated" : "Submit rating"}
+                </Button>
+              </div>
+            ) : null}
+          </Section>
 
-      <section className="card stack">
-        <strong>Next</strong>
-        <div className="actions">
-          <Link className="secondary-button" href="/rides">
-            Back to rides
-          </Link>
-          <Link className="secondary-button" href="/earnings">
-            View earnings
-          </Link>
-        </div>
-      </section>
+          <ConfirmDialog
+            open={cancelDialogOpen}
+            onOpenChange={setCancelDialogOpen}
+            title="Cancel this trip?"
+            description="The trip will be cancelled and removed from your active work."
+            confirmLabel="Cancel trip"
+            onConfirm={cancelRide}
+          />
+        </>
+      ) : null}
     </main>
   );
+}
+
+function isActiveStatus(status: string | null): boolean {
+  return status === "CONFIRMED" || status === "ONGOING";
 }

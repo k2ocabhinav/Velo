@@ -7,5 +7,6 @@ describe("driver shell public routes", () => {
     expect(isPublicDriverRoute("/register/details")).toBe(true);
     expect(isPublicDriverRoute("/login")).toBe(true);
     expect(isPublicDriverRoute("/")).toBe(false);
+    expect(isPublicDriverRoute("/me")).toBe(false);
   });
 });

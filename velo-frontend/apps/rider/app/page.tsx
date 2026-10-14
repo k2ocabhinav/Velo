@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { CountdownBadge, LiveStatusPill, MatchingIndicator } from "@velo/ui/feedback";
+import { CountdownBadge, MatchingIndicator } from "@velo/ui/feedback";
+import { formatDateTime } from "@velo/app-core/formatters";
 import {
   requestRiderProxy,
-  toCurrency,
   type DecimalValue,
   type SpringPage,
 } from "./_lib/rider-client";
@@ -39,6 +39,20 @@ import {
 } from "./_lib/booking-map-state";
 import { fetchRoutePath, type MapPoint, type RoutePath } from "./_lib/map/routing";
 import { BookingMapLoader } from "./_components/booking-map-loader";
+import { rememberWalletBalance } from "./_lib/wallet-balance";
+import {
+  DefinitionList,
+  ErrorState,
+  Field,
+  Money,
+  RouteStrip,
+  Select,
+  Sheet,
+  Skeleton,
+  StatusBadge,
+  ConfirmDialog,
+} from "@velo/ui";
+import { Button } from "@velo/ui/primitives";
 
 type FareEstimate = {
   estimatedFare: DecimalValue;
@@ -108,6 +122,9 @@ const INITIAL_TRIP_LANE: RiderHomeTripLane = {
 export default function RiderHomePage() {
   useActiveRideRedirect("/");
 
+  const [bookingOpen, setBookingOpen] = useState(false);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+
   const [pickupLat, setPickupLat] = useState("");
   const [pickupLng, setPickupLng] = useState("");
   const [dropLat, setDropLat] = useState("");
@@ -139,7 +156,6 @@ export default function RiderHomePage() {
 
   const pickupPoint = useMemo(() => inputStringsToMapPoint(pickupLat, pickupLng), [pickupLat, pickupLng]);
   const dropOffPoint = useMemo(() => inputStringsToMapPoint(dropLat, dropLng), [dropLat, dropLng]);
-  const bookingStep = !pickupPoint ? 1 : !dropOffPoint ? 2 : 3;
   const hasSelectedLocations = hasCompleteLocationSelection(pickupPoint, dropOffPoint);
   const currentDraftSignature = useMemo(
     () =>
@@ -240,6 +256,7 @@ export default function RiderHomePage() {
       if (target === "pickup") {
         setActiveTarget("dropoff");
       }
+      setBookingOpen(true);
     },
     [],
   );
@@ -289,8 +306,8 @@ export default function RiderHomePage() {
         if (failedResult?.status === "rejected") {
           setTripLaneError(
             failedResult.reason instanceof Error
-              ? mapApiError({ error: failedResult.reason.message }, "Unable to load your trip lane right now.")
-              : "Unable to load your trip lane right now.",
+              ? mapApiError({ error: failedResult.reason.message }, "Couldn't check your current trip.")
+              : "Couldn't check your current trip.",
           );
         } else {
           setLastTripLaneSyncAt(new Date().toISOString());
@@ -350,8 +367,8 @@ export default function RiderHomePage() {
 
     if (lastTripLaneSyncAt) {
       const syncedAt = new Date(lastTripLaneSyncAt);
-      const syncLabel = Number.isNaN(syncedAt.getTime()) ? "recently" : syncedAt.toLocaleTimeString();
-      return `Last lane sync ${syncLabel}.`;
+      const syncLabel = Number.isNaN(syncedAt.getTime()) ? "recently" : formatDateTime(syncedAt);
+      return `Trip status updated ${syncLabel}.`;
     }
 
     return base;
@@ -461,6 +478,7 @@ export default function RiderHomePage() {
         body: JSON.stringify(payload),
       });
       setEstimate(response);
+      rememberWalletBalance(response.walletBalance);
       setEstimateSignature(currentDraftSignature);
       setMessage("Fare estimate updated.");
     } catch (estimateError) {
@@ -550,7 +568,7 @@ export default function RiderHomePage() {
       setEstimate(null);
       setEstimateSignature(null);
       setActiveTarget("pickup");
-      setMessage(`${tripLabel} #${ride.id} cancelled. Request a new ${tripLabel.toLowerCase()}.`);
+      setMessage(`${tripLabel} cancelled. Request a new ${tripLabel.toLowerCase()} when ready.`);
       await loadTripLane(true, updatedRequest);
     } catch (cancelError) {
       const nextMessage =
@@ -582,56 +600,20 @@ export default function RiderHomePage() {
 
   if (!loadingBranding && !riderPortalEnabled) {
     return (
-      <main
-        className="app-shell stack"
-        style={branding?.primaryColor ? ({ "--accent": branding.primaryColor } as CSSProperties) : undefined}
-      >
-        <section className="hero">
-          <p className="badge">Portal unavailable</p>
-          <h1>{riderLabel} portal is disabled for this tenant</h1>
-          <p>This tenant uses merchant dispatch mode. Please contact your operations admin.</p>
-        </section>
+      <main className="app-shell rider-page">
+        <ErrorState
+          title={`${riderLabel} booking is unavailable`}
+          description="This service is not available for this account. Contact the operations team for help."
+          retryLabel="Check again"
+          onRetry={() => window.location.reload()}
+        />
       </main>
     );
   }
 
   return (
-    <main
-      className="app-shell stack"
-      style={branding?.primaryColor ? ({ "--accent": branding.primaryColor } as CSSProperties) : undefined}
-    >
-      <section className="hero">
-        <p className="badge">Booking</p>
-        <h1>Request your next {tripLabel.toLowerCase()}</h1>
-        <p>Estimate fares, apply promo codes, and request an immediate {tripLabel.toLowerCase()}.</p>
-      </section>
-
-      <section className="card stack">
-        <strong>Select on map</strong>
-        <p className="helper">Tap the map to place a marker. Drag markers to fine-tune pickup and drop-off.</p>
-        <div className="lane-status-row">
-          <LiveStatusPill
-            state={loadingRoute ? "connecting" : routePath && routePath.points.length > 1 ? "connected" : "idle"}
-            label={loadingRoute ? "Calculating route" : routePath && routePath.points.length > 1 ? "Route ready" : "Pick locations"}
-          />
-        </div>
-        <p className="helper">Active selection: {activeTarget === "pickup" ? "Pickup" : "Drop-off"}.</p>
-        <div className="booking-map-controls">
-          <button
-            className={activeTarget === "pickup" ? "primary-button" : "secondary-button"}
-            type="button"
-            onClick={() => setActiveTarget("pickup")}
-          >
-            Set pickup
-          </button>
-          <button
-            className={activeTarget === "dropoff" ? "primary-button" : "secondary-button"}
-            type="button"
-            onClick={() => setActiveTarget("dropoff")}
-          >
-            Set drop-off
-          </button>
-        </div>
+    <main className="booking-page">
+      <div className="booking-map-stage">
         <BookingMapLoader
           pickup={pickupPoint}
           dropOff={dropOffPoint}
@@ -639,301 +621,211 @@ export default function RiderHomePage() {
           activeTarget={activeTarget}
           onPointSelected={handleMapPointSelected}
         />
-      </section>
-
-      <section className="card stack">
-        <div className="split-row">
-          <div className="stack compact">
-            <strong>{tripLane.mode === "active" ? `Active ${tripLabel.toLowerCase()}` : tripLane.title}</strong>
-            <p className="helper">{tripLane.description}</p>
-            <div className="lane-status-row">
-              <LiveStatusPill
-                state={realtime.state}
-                label={realtime.state === "connected" ? "Actively listening" : undefined}
-              />
-              <span className={realtime.state === "error" ? "error-text" : "helper"}>{tripLaneSyncMessage}</span>
-            </div>
-          </div>
-          <button
-            className="secondary-button"
-            type="button"
-            disabled={loadingTripLane || refreshingTripLane}
-            onClick={() => void loadTripLane(true)}
-          >
-            {refreshingTripLane ? "Refreshing..." : "Refresh trip lane"}
-          </button>
-        </div>
-
-        {loadingTripLane ? (
-          <div className="lane-loading" aria-live="polite" aria-label="Loading trip lane">
-            <div className="lane-skeleton" data-size="lg" />
-            <div className="lane-skeleton" data-size="md" />
-            <div className="lane-skeleton" data-size="sm" />
-          </div>
-        ) : null}
-        {tripLaneError ? <p className="error-text">{tripLaneError}</p> : null}
-
-        {!loadingTripLane && !tripLaneError && tripLane.ride ? (
-          <div className="list-item">
-            <div className="stack compact">
-              <strong>Ride #{tripLane.ride.id}</strong>
-              <p className="helper">
-                {tripLane.statusLabel ?? tripLane.ride.rideStatus} • {tripLane.ride.paymentMethod}
-              </p>
-              <p className="helper">Updated: {tripLane.timeLabel ?? "--"}</p>
-            </div>
-            <div className="stack compact" style={{ justifyItems: "end" }}>
-              <span className="badge">{toCurrency(getRideFareValue(tripLane.ride))}</span>
-              <div className="actions">
-                {isRideCancelableFromTripLane(tripLane.ride.rideStatus) ? (
-                  <button
-                    className="secondary-button"
-                    type="button"
-                    disabled={cancelingRideId === tripLane.ride.id}
-                    onClick={() => void cancelActiveRide()}
-                  >
-                    {cancelingRideId === tripLane.ride.id ? "Canceling..." : "Cancel ride"}
-                  </button>
-                ) : null}
-                {tripLane.mode === "active" ? (
-                  <Link className="secondary-button" href="/ride/active">
-                    Open live {tripLabel.toLowerCase()}
-                  </Link>
-                ) : null}
-                <Link className="secondary-button" href="/rides">
-                  Open {tripLabel.toLowerCase()} history
-                </Link>
-              </div>
-            </div>
-          </div>
-        ) : null}
-
-        {!loadingTripLane && !tripLaneError && !tripLane.ride && tripLane.mode === "pending" ? (
-          <div className="list-item">
-            <div className="stack compact">
-              <strong>Request #{lastRequest?.id ?? "pending id"}</strong>
-              <p className="helper">
-                {tripLane.statusLabel ?? lastRequest?.rideRequestStatus ?? "PENDING"} •{" "}
-                {lastRequest?.paymentMethod ?? paymentMethod}
-              </p>
-              <p className="helper">Updated: {tripLane.timeLabel ?? "--"}</p>
-            </div>
-            <div className="stack compact" style={{ justifyItems: "end" }}>
-              <MatchingIndicator
-                label={`Matching nearby ${driverLabel.toLowerCase()}s`}
-                expiresAtMs={pendingRequestExpiresAtMs}
-              />
-              <CountdownBadge expiresAtMs={pendingRequestExpiresAtMs} prefix="Request expires in" />
-              <Link className="secondary-button" href="/rides">
-                Open {tripLabel.toLowerCase()} history
-              </Link>
-            </div>
-          </div>
-        ) : null}
-
-        {!loadingTripLane && !tripLaneError && !tripLane.ride ? (
-          tripLane.mode === "pending" ? null : <p className="helper">Your active {tripLabel.toLowerCase()} lane is empty for now.</p>
-        ) : null}
-        {!loadingTripLane && !tripLaneError && tripLane.mode !== "active" && tripLane.mode !== "pending" ? (
-          <div className="actions">
-            <button className="secondary-button" type="button" onClick={clearLocations}>
-              Request new {tripLabel.toLowerCase()}
+        <div className="booking-map-toolbar">
+          <div className="booking-selection-control" role="group" aria-label="Choose a map location">
+            <button
+              className={activeTarget === "pickup" ? "map-target is-active" : "map-target"}
+              type="button"
+              aria-pressed={activeTarget === "pickup"}
+              onClick={() => setActiveTarget("pickup")}
+            >
+              Pickup
+            </button>
+            <button
+              className={activeTarget === "dropoff" ? "map-target is-active" : "map-target"}
+              type="button"
+              aria-pressed={activeTarget === "dropoff"}
+              onClick={() => setActiveTarget("dropoff")}
+            >
+              Where to?
             </button>
           </div>
-        ) : null}
-      </section>
-
-      <section className="card stack">
-        <strong>{tripLabel} details</strong>
-        <p className="helper">
-          Step {bookingStep} of 3:
-          {" "}
-          {bookingStep === 1
-            ? "Set pickup on the map."
-            : bookingStep === 2
-              ? "Set drop-off on the map."
-              : "Estimate fare and confirm request."}
+          <Button variant="secondary" onClick={() => setBookingOpen(true)}>Plan a trip</Button>
+        </div>
+        <p className="map-instruction" aria-live="polite">
+          {loadingRoute ? "Updating route" : routePath ? "Route ready" : `Tap the map to set ${activeTarget === "pickup" ? "pickup" : "destination"}`}
         </p>
+      </div>
 
-        <div className="grid grid-2">
-          <label className="field">
-            <span>Payment method</span>
-            <select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}>
-              <option value="WALLET">Wallet</option>
-              <option value="CASH">Cash</option>
-              <option value="CARD" disabled>Card (Coming soon)</option>
-              <option value="UPI" disabled>UPI (Coming soon)</option>
-            </select>
-          </label>
-          <label className="field">
-            <span>Promo code (optional)</span>
-            <input
-              value={promoCode}
-              placeholder="SAVE10"
-              onChange={(event) => setPromoCode(event.target.value)}
+      <div className="booking-overlay-content">
+        {loadingTripLane ? (
+          <div className="trip-banner-skeleton" aria-label="Checking for an active trip">
+            <Skeleton className="skeleton-line skeleton-line-wide" />
+            <Skeleton className="skeleton-line" />
+          </div>
+        ) : tripLaneError ? (
+          <ErrorState
+            className="trip-banner-error"
+            title="Couldn't check your current trip"
+            description="Refresh to check for a trip in progress."
+            onRetry={() => void loadTripLane(true)}
+          />
+        ) : tripLane.ride || tripLane.mode === "pending" ? (
+          <section className="trip-banner" aria-label="Trip in progress">
+            <div className="trip-banner-copy">
+              <StatusBadge
+                domain={tripLane.ride ? "ride" : "request"}
+                status={tripLane.ride?.rideStatus ?? lastRequest?.rideRequestStatus ?? "PENDING"}
+              />
+              <strong>{tripLane.ride ? "Your trip is underway" : "Finding a driver nearby"}</strong>
+              <p className={realtime.state === "error" ? "error-text" : undefined}>
+                {realtime.state === "error" ? "Live updates paused. Checking for updates in the background." : tripLaneSyncMessage}
+              </p>
+              {tripLane.ride ? <Money className="trip-banner-fare" amount={getRideFareValue(tripLane.ride)} /> : null}
+              {tripLane.ride ? (
+                <RouteStrip stage={tripLane.ride.rideStatus} variant="static" />
+              ) : (
+                <div className="trip-matching-row">
+                  <MatchingIndicator label={`Matching you with a nearby ${driverLabel.toLowerCase()}`} expiresAtMs={pendingRequestExpiresAtMs} />
+                  <CountdownBadge expiresAtMs={pendingRequestExpiresAtMs} prefix="Request expires in" />
+                </div>
+              )}
+            </div>
+            <div className="trip-banner-actions">
+              {realtime.state === "error" ? (
+                <Button variant="ghost" loading={refreshingTripLane} onClick={() => void loadTripLane(true)}>Retry</Button>
+              ) : null}
+              <Link className="ui-button" data-variant="secondary" href={tripLane.ride ? "/ride/active" : "/rides"}>
+                View trip
+              </Link>
+              {tripLane.ride && isRideCancelableFromTripLane(tripLane.ride.rideStatus) ? (
+                <Button variant="ghost" disabled={cancelingRideId !== null} onClick={() => setCancelDialogOpen(true)}>
+                  Cancel trip
+                </Button>
+              ) : null}
+            </div>
+          </section>
+        ) : null}
+        {message ? <p className="booking-feedback" role="status">{message}</p> : null}
+      </div>
+
+      {!bookingOpen ? (
+        <button className="booking-sheet-launcher" type="button" onClick={() => setBookingOpen(true)}>
+          <span className="booking-peek-locations">
+            <span className="booking-peek-location"><span>Pickup</span><strong>{pickupPoint ? "Selected" : "Choose location"}</strong></span>
+            <span className="booking-peek-location"><span>Destination</span><strong>{dropOffPoint ? "Selected" : "Where to?"}</strong></span>
+          </span>
+          <span className="booking-peek-chevron" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></svg>
+          </span>
+        </button>
+      ) : null}
+
+      <Sheet
+        open={bookingOpen}
+        onOpenChange={setBookingOpen}
+        side="bottom"
+        title={`Plan a ${tripLabel.toLowerCase()}`}
+        description="Choose locations on the map, then review your fare."
+      >
+        <div className="stack booking-form">
+          <div className="booking-location-row">
+            <div className="booking-location-summary">
+              <span className="location-dot" aria-hidden="true" />
+              <div>
+                <strong>Pickup</strong>
+                <p>{pickupPoint ? "Location selected" : "Choose a point on the map"}</p>
+              </div>
+              <Button variant="secondary" size="sm" onClick={() => { setActiveTarget("pickup"); setBookingOpen(false); }}>
+                Choose on map
+              </Button>
+            </div>
+            <div className="booking-location-summary">
+              <span className="location-dot destination" aria-hidden="true" />
+              <div>
+                <strong>Where to?</strong>
+                <p>{dropOffPoint ? "Destination selected" : "Choose a point on the map"}</p>
+              </div>
+              <Button variant="secondary" size="sm" onClick={() => { setActiveTarget("dropoff"); setBookingOpen(false); }}>
+                Choose on map
+              </Button>
+            </div>
+          </div>
+
+          <div className="cluster">
+            <Button variant="secondary" loading={resolvingPickupLocation} disabled={estimating || requesting} onClick={() => void setPickupToCurrentLocation()}>
+              Use current location
+            </Button>
+            <Button variant="ghost" disabled={estimating || requesting} onClick={clearLocations}>Clear locations</Button>
+          </div>
+
+          <div className="booking-compact-fields">
+            <Field label="Payment">
+              <Select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}>
+                <option value="WALLET">Wallet</option>
+                <option value="CASH">Cash</option>
+                <option value="CARD" disabled>Card (coming soon)</option>
+                <option value="UPI" disabled>UPI (coming soon)</option>
+              </Select>
+            </Field>
+            <Field label="Promo code" hint="Optional">
+              <input value={promoCode} autoComplete="off" placeholder="Enter a code" onChange={(event) => setPromoCode(event.target.value)} />
+            </Field>
+          </div>
+
+          <details className="advanced-fields">
+            <summary>Enter coordinates</summary>
+            <div className="grid grid-2">
+              <Field label="Pickup latitude"><input value={pickupLat} onChange={(event) => setPickupLat(event.target.value)} /></Field>
+              <Field label="Pickup longitude"><input value={pickupLng} onChange={(event) => setPickupLng(event.target.value)} /></Field>
+              <Field label="Destination latitude"><input value={dropLat} onChange={(event) => setDropLat(event.target.value)} /></Field>
+              <Field label="Destination longitude"><input value={dropLng} onChange={(event) => setDropLng(event.target.value)} /></Field>
+            </div>
+          </details>
+
+          {estimate ? (
+            <div className="fare-summary" aria-live="polite">
+              <div className="fare-summary-total">
+                <div>
+                  <span className="helper">Estimated fare</span>
+                  {estimate.promoApplied && estimate.originalFare !== undefined ? (
+                    <span className="helper fare-original"><Money amount={estimate.originalFare} /></span>
+                  ) : null}
+                </div>
+                <Money amount={estimate.discountedFare ?? estimate.estimatedFare} emphasis />
+              </div>
+              <DefinitionList items={[
+                { label: "Distance", value: `${estimate.distanceKm} km` },
+                { label: "Estimated time", value: `${estimate.durationMinutes} min` },
+                { label: "Base fare", value: <Money amount={estimate.baseFare} /> },
+                ...(estimate.discountAmount ? [{ label: "Discount", value: <Money amount={estimate.discountAmount} /> }] : []),
+              ]} />
+              {estimate.promoMessage ? <p className={estimate.promoApplied ? "helper" : "error-text"} role={estimate.promoApplied ? undefined : "alert"}>{estimate.promoMessage}</p> : null}
+            </div>
+          ) : null}
+
+          {estimate?.walletSufficient === false && paymentMethod === "WALLET" ? (
+            <p className="error-text" role="alert">Your wallet balance is too low for this fare. Choose cash or check your wallet.</p>
+          ) : null}
+          {error ? (
+            <ErrorState
+              title={error}
+              retryLabel={failedAction === "estimate" ? "Retry fare estimate" : failedAction === "request" ? "Retry trip request" : "Retry location"}
+              onRetry={() => void (failedAction ? retryLastAction() : setPickupToCurrentLocation())}
             />
-          </label>
+          ) : null}
+
+          {!hasSelectedLocations ? <p className="helper">Choose a pickup and destination on the map to estimate your fare.</p> : null}
+          {estimate && !hasFreshEstimate ? <p className="helper">Trip details changed. Update the estimate before you request.</p> : null}
+          {hasInFlightTrip ? <p className="helper">Finish or cancel your current trip before requesting another.</p> : null}
+
+          <Button variant="secondary" loading={estimating} disabled={!canEstimate} onClick={() => void estimateFare()}>
+            {estimate && !hasFreshEstimate ? "Update estimate" : "Estimate fare"}
+          </Button>
+          <Button loading={requesting} disabled={!canRequest} onClick={() => void requestRide()}>
+            Request trip
+          </Button>
         </div>
+      </Sheet>
 
-        <div className="actions">
-          <button
-            className="secondary-button"
-            type="button"
-            disabled={resolvingPickupLocation || estimating || requesting}
-            onClick={() => void setPickupToCurrentLocation()}
-          >
-            {resolvingPickupLocation ? "Locating..." : "Use current location"}
-          </button>
-          <button
-            className="secondary-button"
-            type="button"
-            disabled={estimating || requesting}
-            onClick={clearLocations}
-          >
-            Clear locations
-          </button>
-        </div>
-        <details>
-          <summary>Advanced coordinates</summary>
-          <div className="grid grid-2">
-            <label className="field">
-              <span>Pickup latitude</span>
-              <input value={pickupLat} onChange={(event) => setPickupLat(event.target.value)} />
-            </label>
-            <label className="field">
-              <span>Pickup longitude</span>
-              <input value={pickupLng} onChange={(event) => setPickupLng(event.target.value)} />
-            </label>
-            <label className="field">
-              <span>Drop-off latitude</span>
-              <input value={dropLat} onChange={(event) => setDropLat(event.target.value)} />
-            </label>
-            <label className="field">
-              <span>Drop-off longitude</span>
-              <input value={dropLng} onChange={(event) => setDropLng(event.target.value)} />
-            </label>
-          </div>
-        </details>
-
-        {!hasSelectedLocations ? (
-          <p className="helper">Select pickup and drop-off to unlock fare estimation and {tripLabel.toLowerCase()} request.</p>
-        ) : (
-          <div className="actions">
-            <button
-              className="primary-button"
-              type="button"
-              disabled={!canEstimate}
-              onClick={() => void estimateFare()}
-            >
-              {estimating ? "Estimating..." : "Estimate fare"}
-            </button>
-            <button
-              className="primary-button"
-              type="button"
-              disabled={!canRequest}
-              onClick={() => void requestRide()}
-            >
-              {requesting ? "Requesting..." : hasFreshEstimate ? `Request ${tripLabel.toLowerCase()}` : "Estimate to unlock request"}
-            </button>
-          </div>
-        )}
-        {estimate && !hasFreshEstimate ? (
-          <p className="helper">Trip details changed. Re-estimate fare to refresh price before requesting.</p>
-        ) : null}
-        {hasInFlightTrip ? (
-          <p className="helper">You already have an active or pending {tripLabel.toLowerCase()}. Complete or cancel it before requesting another one.</p>
-        ) : null}
-        {estimate?.walletSufficient === false && paymentMethod === "WALLET" ? (
-          <p className="error-text">Wallet balance is insufficient for this estimated fare. Choose Cash or top up your wallet.</p>
-        ) : null}
-        {error ? <p className="error-text">{error}</p> : null}
-        {message ? <p className="helper">{message}</p> : null}
-        {failedAction ? (
-          <button className="secondary-button" type="button" onClick={() => void retryLastAction()}>
-            {failedAction === "estimate" ? "Retry fare estimate" : "Retry ride request"}
-          </button>
-        ) : null}
-      </section>
-
-      <section className="card stack">
-        <strong>Latest estimate</strong>
-        {!estimate ? (
-          <p className="helper">No estimate yet.</p>
-        ) : (
-          <div className="list">
-            <div className="list-item">
-              <div>
-                <strong>Total</strong>
-                <p>Distance: {estimate.distanceKm} km • Duration: {estimate.durationMinutes} min</p>
-              </div>
-              <div className="stack compact" style={{ justifyItems: "end" }}>
-                {estimate.originalFare !== undefined && estimate.discountedFare !== undefined && estimate.promoApplied ? (
-                  <>
-                    <span className="helper" style={{ textDecoration: "line-through" }}>
-                      {toCurrency(estimate.originalFare)}
-                    </span>
-                    <span className="badge">{toCurrency(estimate.discountedFare)}</span>
-                    <span className="helper">You save {toCurrency(estimate.savings ?? estimate.discountAmount)}</span>
-                  </>
-                ) : (
-                  <span className="badge">{toCurrency(estimate.estimatedFare)}</span>
-                )}
-              </div>
-            </div>
-            <div className="list-item">
-              <div>
-                <strong>Base fare</strong>
-                <p>Surge multiplier: {estimate.surgeMultiplier}x</p>
-              </div>
-              <span className="badge">{toCurrency(estimate.baseFare)}</span>
-            </div>
-            <div className="list-item">
-              <div>
-                <strong>Discount</strong>
-                <p>Promo adjustments</p>
-              </div>
-              <span className="badge">{toCurrency(estimate.discountAmount)}</span>
-            </div>
-            <div className="list-item">
-              <div>
-                <strong>Wallet status</strong>
-                <p>Current balance for wallet payments.</p>
-              </div>
-              <span className="badge">
-                {estimate.walletBalance !== undefined && estimate.walletBalance !== null
-                  ? toCurrency(estimate.walletBalance)
-                  : "—"}
-              </span>
-            </div>
-            {estimate.promoMessage ? (
-              <p className={estimate.promoApplied ? "helper" : "error-text"}>{estimate.promoMessage}</p>
-            ) : null}
-          </div>
-        )}
-      </section>
-
-      <section className="card stack">
-        <strong>Latest {tripLabel.toLowerCase()} request</strong>
-        {!lastRequest ? (
-          <p className="helper">No {tripLabel.toLowerCase()} request submitted yet.</p>
-        ) : (
-          <div className="list-item">
-            <div>
-              <strong>Request #{lastRequest.id ?? "pending id"}</strong>
-              <p>Status: {lastRequest.rideRequestStatus ?? "PENDING"}</p>
-            </div>
-            <span className="badge">{lastRequest.paymentMethod}</span>
-          </div>
-        )}
-        <div className="actions">
-          <Link href="/rides" className="primary-button">
-            View {tripLabel.toLowerCase()} history
-          </Link>
-          <Link href="/scheduled" className="primary-button">
-            Manage scheduled rides
-          </Link>
-        </div>
-      </section>
+      <ConfirmDialog
+        open={cancelDialogOpen}
+        onOpenChange={setCancelDialogOpen}
+        title="Cancel this trip?"
+        description="Your driver will be notified that the trip is cancelled."
+        confirmLabel="Cancel trip"
+        onConfirm={cancelActiveRide}
+      />
     </main>
   );
 }
