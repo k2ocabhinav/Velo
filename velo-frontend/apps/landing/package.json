@@ -3,14 +3,14 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 4100",
-    "build": "next build",
+    "build": "next build && node scripts/generate-netlify-headers.mjs",
+    "measure:initial-js": "node scripts/measure-initial-js.mjs",
     "lint": "eslint . --ignore-pattern 'out/**'",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@velo/config": "*",
     "@velo/ui": "*",
-    "lenis": "^1.1.0",
     "motion": "^12.0.0",
     "next": "^15.5.27",
     "react": "^19.0.0",
