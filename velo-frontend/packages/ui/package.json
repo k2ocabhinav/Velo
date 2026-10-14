@@ -5,7 +5,8 @@
   "type": "module",
   "sideEffects": [
     "./src/theme/tokens.css",
-    "./src/styles.css"
+    "./src/styles.css",
+    "./src/landing/dispatch/**/*.css"
   ],
   "main": "./src/index.ts",
   "module": "./src/index.ts",
@@ -18,6 +19,7 @@
     "./leaflet-map": "./src/composed/leaflet-location-picker.tsx",
     "./feedback": "./src/feedback/index.ts",
     "./motion": "./src/motion/index.ts",
+    "./landing": "./src/landing/dispatch/index.ts",
     "./theme": "./src/theme/index.ts",
     "./lib": "./src/lib/index.ts",
     "./tokens.css": "./src/theme/tokens.css"
@@ -35,9 +37,11 @@
   "dependencies": {
     "@velo/app-core": "*",
     "leaflet": "^1.9.4",
-    "react-leaflet": "^5.0.0"
+    "react-leaflet": "^5.0.0",
+    "three": "0.180.0"
   },
   "devDependencies": {
-    "@types/leaflet": "^1.9.22"
+    "@types/leaflet": "^1.9.22",
+    "@types/three": "0.180.0"
   }
 }

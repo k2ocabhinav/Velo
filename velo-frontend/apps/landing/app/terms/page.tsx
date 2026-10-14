@@ -2,22 +2,34 @@ import type { Metadata } from "next";
 import { Footer } from "../components/Footer";
 import { Navbar } from "../components/Navbar";
 
+const contactEmail = process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim();
+
 export const metadata: Metadata = {
-  title: "Terms — Velo",
-  description: "Pre-launch terms information for the Velo landing site.",
+  title: "Terms",
+  description: "Terms for using the Velo pre-launch website and requesting a demo.",
+  alternates: { canonical: "/terms/" },
 };
 
 export default function TermsPage() {
   return (
     <>
       <Navbar home={false} />
-      <main className="legal-page section section-light">
+      <main className="legal-page section-light">
         <div className="container legal-content">
-          <p className="section-kicker">Pre-launch policy</p>
+          <p className="section-kicker">Velo pre-launch</p>
           <h1 className="section-heading">Terms</h1>
-          <p>Velo is pre-launch software. This site describes a product under development; requesting a demo does not create an account or a service agreement.</p>
-          <p>The site collects no personal information beyond details you choose to submit through the contact form. Any pilot or paid service will have written terms agreed directly with the operator before use.</p>
-          <p>For questions about these terms, email <a href={`mailto:${process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() || "hello@velo.dev"}`}>{process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() || "hello@velo.dev"}</a>.</p>
+          <p>
+            Velo is pre-launch software. This site describes a working demo and a product in
+            development. A demo request does not create an account, subscription, or service
+            agreement.
+          </p>
+          <p>
+            Product details, availability, and early-access pricing may change. Any pilot or paid
+            use will be covered by written terms agreed with Velo before it begins.
+          </p>
+          {contactEmail
+            ? <p>For questions about these terms, email <a href={`mailto:${contactEmail}`}>{contactEmail}</a>.</p>
+            : <p>No contact email is published in this build.</p>}
         </div>
       </main>
       <Footer home={false} />

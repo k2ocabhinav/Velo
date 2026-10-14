@@ -1,6 +1,6 @@
 # Velo
 
-Velo is a branded dispatch desk for small fleets running pre-booked business and hotel transfers. It is an India-first, white-label platform: each fleet gets its own name, color, and operating labels while using the same rider, driver, and dispatch workflows.
+Velo is a branded dispatch desk for small fleets running pre-booked business and hotel transfers worldwide. It is a white-label platform: each fleet gets its own name, color, and operating labels while using the same rider, driver, and dispatch workflows.
 
 ## Demo screenshots
 

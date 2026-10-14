@@ -4,7 +4,7 @@ const nextConfig = {
   trailingSlash: true,
   devIndicators: false,
   images: { unoptimized: true },
-  transpilePackages: ["@velo/ui", "motion", "lenis"],
+  transpilePackages: ["@velo/ui", "motion"],
 };
 
 export default nextConfig;

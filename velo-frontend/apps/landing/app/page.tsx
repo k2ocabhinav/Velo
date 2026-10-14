@@ -1,35 +1,37 @@
-import { ContactForm } from "./components/ContactForm";
 import { Footer } from "./components/Footer";
-import { Hero } from "./components/Hero";
-import { HowItWorks } from "./components/HowItWorks";
 import { Navbar } from "./components/Navbar";
-import { Pricing } from "./components/Pricing";
-import { ProductScreens } from "./components/ProductScreens";
-import { ProblemSolution } from "./components/ProblemSolution";
+import { BrandSwitcher } from "./sections/BrandSwitcher";
+import { DemoContact } from "./sections/DemoContact";
+import { FAQ } from "./sections/FAQ";
+import { FollowTransfer } from "./sections/FollowTransfer";
+import { FounderNote } from "./sections/FounderNote";
+import { GettingStarted } from "./sections/GettingStarted";
+import { Hero } from "./sections/Hero";
+import { MorningOfTransfers } from "./sections/MorningOfTransfers";
+import { Pricing } from "./sections/Pricing";
+import { TimeSpine } from "./sections/TimeSpine";
+import { VerifyToday } from "./sections/VerifyToday";
+import styles from "./sections/sections.module.css";
 
 export default function LandingPage() {
   return (
-    <>
+    <div className={styles.page}>
       <a className="skip-link" href="#main">Skip to content</a>
       <Navbar />
+      <TimeSpine />
       <main id="main">
         <Hero />
-        <ProblemSolution />
-        <ProductScreens />
-        <HowItWorks />
+        <MorningOfTransfers />
+        <FollowTransfer />
+        <BrandSwitcher />
+        <GettingStarted />
+        <VerifyToday />
         <Pricing />
-        <section className="contact-section section-dark" id="contact" aria-labelledby="contact-title">
-          <div className="container contact-layout">
-            <div className="contact-intro">
-              <p className="section-kicker">Talk to the team</p>
-              <h2 className="section-heading" id="contact-title">Tell us about your fleet.</h2>
-              <p className="section-copy">Share how you handle pre-booked transfers today. We’ll arrange a walkthrough around your dispatch workflow.</p>
-            </div>
-            <ContactForm />
-          </div>
-        </section>
+        <FounderNote />
+        <FAQ />
+        <DemoContact />
       </main>
       <Footer />
-    </>
+    </div>
   );
 }

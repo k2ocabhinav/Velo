@@ -1,0 +1,1449 @@
+/*
+ * Landing sections — §10.7. Paper ground, full-width hairlines between sections,
+ * document surfaces only where the content is literally a document (price docket,
+ * certificate), and one earned warm ink-black band at the end of the day.
+ */
+.page {
+  --lp-ground: var(--landing-paper);
+  --lp-card: var(--landing-card);
+  --lp-ink: var(--landing-ink);
+  --lp-muted: var(--landing-ink-muted);
+  --lp-line: var(--landing-rule);
+  --lp-border-ui: var(--landing-border-ui);
+  --lp-accent: var(--landing-livery);
+  --lp-accent-hover: var(--landing-livery-hover);
+  --lp-on-accent: var(--landing-on-livery);
+  --lp-signal: var(--landing-signal);
+  --lp-signal-ink: var(--landing-signal-ink);
+  color: var(--lp-ink);
+  background: var(--lp-ground);
+  font-family: var(--font-body), Inter, system-ui, sans-serif;
+  font-size: 1.0625rem;
+  line-height: 1.6;
+}
+
+.container {
+  width: min(100%, 1200px);
+  margin-inline: auto;
+  padding-inline: clamp(16px, 4vw, 48px);
+}
+
+.section {
+  padding-block: clamp(48px, 5vw, 80px);
+  border-top: 1px solid var(--lp-line);
+  background: var(--lp-ground);
+  color: var(--lp-ink);
+}
+
+.sectionIntro {
+  max-width: 760px;
+  margin-bottom: clamp(28px, 4vw, 44px);
+}
+
+.sectionTitle {
+  max-width: 19ch;
+  margin: 0;
+  font-family: var(--font-display), "Barlow Condensed", system-ui, sans-serif;
+  font-size: clamp(2.375rem, 4.6vw, 4.25rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 0.94;
+}
+
+.sectionDescription {
+  max-width: 64ch;
+  margin: 18px 0 0;
+  color: var(--lp-muted);
+  font-size: clamp(1.0625rem, 1.2vw, 1.1875rem);
+  line-height: 1.6;
+}
+
+.eyebrow {
+  margin: 0 0 12px;
+  color: var(--lp-accent);
+  font-family: var(--font-display), "Barlow Condensed", system-ui, sans-serif;
+  font-size: 1.0625rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+/* Buttons: solid livery primary, hairline secondary. */
+.primaryButton,
+.secondaryButton {
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 18px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.3;
+  text-align: center;
+  transition: transform var(--duration-fast) var(--ease-out-expo);
+}
+
+.primaryButton {
+  background: var(--lp-accent);
+  color: var(--lp-on-accent);
+}
+
+.primaryButton:hover {
+  background: var(--lp-accent-hover);
+}
+
+.secondaryButton {
+  border-color: var(--lp-border-ui);
+  background: transparent;
+  color: var(--lp-ink);
+}
+
+.secondaryButton:hover {
+  border-color: var(--lp-ink);
+}
+
+.primaryButton:hover,
+.secondaryButton:hover {
+  transform: translateY(-1px);
+}
+
+.primaryButton:active,
+.secondaryButton:active {
+  transform: scale(0.98);
+}
+
+/* ---------- 2. A morning of transfers: the trip sheet as data-viz ---------- */
+.morningSection {
+  position: relative;
+  padding-block: clamp(56px, 6vw, 88px);
+}
+
+.timeline {
+  border-top: 1px solid var(--lp-line);
+}
+
+.timelineContext {
+  margin: 0;
+  padding: 12px 0 14px;
+  color: var(--lp-muted);
+  font-family: var(--font-display), "Barlow Condensed", system-ui, sans-serif;
+  font-size: 0.9375rem;
+  letter-spacing: 0.03em;
+}
+
+.timelineRow {
+  display: grid;
+  grid-template-columns: minmax(170px, 0.72fr) minmax(0, 1.28fr);
+  align-items: center;
+  gap: clamp(20px, 4vw, 54px);
+  min-height: 96px;
+  border-top: 1px solid var(--lp-line);
+}
+
+.timelineTrip {
+  display: grid;
+  gap: 5px;
+}
+
+.timelineTime {
+  font-family: var(--font-display), "Barlow Condensed", system-ui, sans-serif;
+  font-size: 1.625rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.timelineRoute {
+  color: var(--lp-muted);
+  font-size: 0.875rem;
+}
+
+.tripProgress {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.progressSegment {
+  position: relative;
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.progressBar {
+  position: relative;
+  height: 10px;
+  overflow: hidden;
+  border: 1px solid var(--lp-line);
+  border-radius: 2px;
+  background: var(--lp-ground);
+}
+
+.progressFill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--fill, 0%);
+  background: color-mix(in srgb, var(--lp-accent) 88%, var(--lp-ground));
+}
+
+.progressSegment[data-state="active"] .progressFill {
+  background: var(--lp-signal);
+}
+
+.progressLabel {
+  color: var(--lp-muted);
+  font-size: 0.8125rem;
+  line-height: 1.3;
+}
+
+.progressSegment[data-state="done"] .progressLabel {
+  color: var(--lp-ink);
+}
+
+.progressSegment[data-state="active"] .progressLabel {
+  color: var(--lp-ink);
+  font-weight: 600;
+}
+
+.sampleNote {
+  margin: 18px 0 0;
+  color: var(--lp-muted);
+  font-size: 0.8125rem;
+}
+
+/* ---------- 3. Follow one transfer ---------- */
+.followSection {
+  border-top: 1px solid var(--lp-line);
+  padding-block: clamp(56px, 6vw, 88px);
+}
+
+.followLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.86fr) minmax(0, 1.14fr);
+  align-items: start;
+  gap: clamp(28px, 6vw, 84px);
+}
+
+.stepList {
+  display: grid;
+  border-top: 1px solid var(--lp-line);
+}
+
+.stepButton {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr);
+  gap: 16px;
+  width: 100%;
+  min-height: 90px;
+  padding: 18px 4px;
+  border: 0;
+  border-bottom: 1px solid var(--lp-line);
+  background: transparent;
+  color: var(--lp-muted);
+  cursor: pointer;
+  text-align: left;
+}
+
+.stepMarker {
+  width: 10px;
+  height: 10px;
+  margin-top: 6px;
+  border: 1px solid var(--lp-border-ui);
+  border-radius: 50%;
+}
+
+.activeStepButton {
+  color: var(--lp-ink);
+}
+
+.activeStepButton .stepMarker {
+  border-color: var(--lp-accent);
+  background: var(--lp-accent);
+}
+
+.stepText {
+  display: grid;
+  gap: 5px;
+}
+
+.stepText strong {
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.stepText > span {
+  max-width: 42ch;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.productPanel {
+  position: sticky;
+  top: 24px;
+  min-width: 0;
+}
+
+.mobileStepScreens {
+  display: none;
+}
+
+.productFigure,
+.brandFigure {
+  margin: 0;
+}
+
+.productFigure img,
+.brandFigure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--lp-line);
+  border-radius: var(--radius-screenshot);
+  background: var(--lp-ground);
+}
+
+.productFigure img {
+  max-height: 610px;
+  object-fit: contain;
+  object-position: center;
+}
+
+.productWideImage {
+  width: 100%;
+}
+
+.productFigure figcaption,
+.brandFigure figcaption {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px 16px;
+  padding-top: 12px;
+  color: var(--lp-muted);
+  font-size: 0.8125rem;
+}
+
+.productFigure figcaption strong,
+.brandFigure figcaption strong {
+  color: var(--lp-ink);
+  font-weight: 600;
+}
+
+.productPhoneImage {
+  width: auto !important;
+  max-width: 100%;
+  max-height: 610px;
+  margin-inline: auto;
+}
+
+/* ---------- 4. Your fleet's name on it ---------- */
+.brandSection {
+  border-top: 1px solid var(--lp-line);
+}
+
+.brandDemo {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.6fr) minmax(0, 1.4fr);
+  align-items: stretch;
+  gap: clamp(24px, 5vw, 64px);
+  margin-bottom: clamp(44px, 6vw, 72px);
+}
+
+.brandChoices,
+.currencySwitch {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.brandChoices legend,
+.currencySwitch legend {
+  width: 100%;
+  margin-bottom: 12px;
+  color: var(--lp-muted);
+  font-size: 0.875rem;
+}
+
+.brandChoice,
+.currencyOption {
+  position: relative;
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  padding: 9px 14px;
+  border: 1px solid var(--lp-border-ui);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.brandChoice input,
+.currencyOption input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+.brandChoice:has(input:checked),
+.currencyOption:has(input:checked) {
+  border-color: var(--lp-accent);
+  background: color-mix(in srgb, var(--lp-accent) 10%, transparent);
+  color: var(--lp-ink);
+}
+
+.brandChoice:has(input:focus-visible),
+.currencyOption:has(input:focus-visible) {
+  outline: 3px solid var(--lp-accent);
+  outline-offset: 3px;
+}
+
+.bookingMock {
+  --mock-accent: var(--lp-accent);
+  padding: clamp(20px, 4vw, 36px);
+  border: 1px solid var(--lp-border-ui);
+  border-radius: 4px;
+  background: var(--lp-card);
+}
+
+.bookingMockHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--lp-line);
+  color: var(--lp-muted);
+  font-size: 0.8125rem;
+}
+
+.brandWordmark {
+  color: var(--lp-ink);
+  font-family: var(--font-display), "Barlow Condensed", system-ui, sans-serif;
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.bookingMock h3 {
+  margin: 22px 0 16px;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.bookingFields {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 10px;
+}
+
+.bookingFields > span:not(.mockButton) {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--lp-border-ui);
+  border-radius: var(--radius-control);
+  color: var(--lp-muted);
+  font-size: 0.875rem;
+}
+
+.bookingFields i {
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--mock-accent);
+  border-radius: 50%;
+}
+
+.mockButton {
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 14px;
+  border-radius: var(--radius-control);
+  background: var(--mock-accent);
+  color: var(--lp-on-accent);
+  font-weight: 600;
+}
+
+.brandScreens {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: clamp(20px, 3vw, 36px);
+  max-width: 960px;
+  margin-inline: auto;
+}
+
+/* ---------- 5. Getting started ---------- */
+.startSection {
+  border-top: 1px solid var(--lp-line);
+}
+
+.startGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(24px, 6vw, 80px);
+  padding-block: 26px 34px;
+  border-top: 1px solid var(--lp-line);
+}
+
+.startColumn h3,
+.priceDetails h3 {
+  margin: 0 0 18px;
+  font-family: var(--font-display), "Barlow Condensed", system-ui, sans-serif;
+  font-size: 1.375rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.startColumn ul,
+.priceDetails ul {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.startColumn li,
+.priceDetails li {
+  position: relative;
+  padding-inline-start: 20px;
+  color: var(--lp-muted);
+  line-height: 1.5;
+}
+
+.startColumn li::before,
+.priceDetails li::before {
+  position: absolute;
+  top: 0.65em;
+  left: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--lp-accent);
+  content: "";
+}
+
+.textLink,
+.contactEmail {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  color: var(--lp-accent);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+/* ---------- 6. Pricing: a price docket ---------- */
+.pricingSection {
+  border-top: 1px solid var(--lp-line);
+}
+
+.pricingHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.pricingHeader .sectionIntro {
+  margin-bottom: 0;
+}
+
+.currencySwitch {
+  flex: 0 0 auto;
+  padding-bottom: 2px;
+}
+
+.priceLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: clamp(28px, 6vw, 82px);
+  margin-top: clamp(38px, 5vw, 60px);
+  padding-top: clamp(28px, 4vw, 46px);
+  border-top: 1px solid var(--lp-line);
+}
+
+.priceMain {
+  max-width: 440px;
+}
+
+.priceValue {
+  margin: 0;
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-size: clamp(3.5rem, 7vw, 6rem);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.priceUnit {
+  margin: 8px 0 0;
+  color: var(--lp-muted);
+}
+
+.activeVehicleNote {
+  margin: 8px 0 0;
+  color: var(--lp-muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.priceMinimum {
+  margin: 22px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--lp-line);
+  font-weight: 600;
+}
+
+.priceExampleLabel {
+  margin: 28px 0 0;
+  color: var(--lp-muted);
+  font-size: 0.875rem;
+}
+
+.priceExample {
+  margin: 5px 0 0;
+  font-size: 1.375rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.priceCaveat {
+  max-width: 34ch;
+  margin: 18px 0 24px;
+  color: var(--lp-muted);
+  font-size: 0.875rem;
+}
+
+.priceDetails {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(22px, 4vw, 48px);
+}
+
+.priceDetails > div {
+  padding-top: 15px;
+  border-top: 1px solid var(--lp-line);
+}
+
+/* Perforated price docket: a document, not a floating card. */
+.priceCard {
+  position: relative;
+  max-width: 460px;
+  padding: clamp(26px, 3vw, 38px) clamp(22px, 3vw, 34px) clamp(24px, 3vw, 32px);
+  border: 1px solid var(--lp-border-ui);
+  border-radius: 4px;
+  background: var(--lp-card);
+  box-shadow: 0 1px 0 rgb(22 24 27 / 0.05);
+}
+
+.priceCard::before {
+  position: absolute;
+  top: -1px;
+  right: 0;
+  left: 0;
+  height: 9px;
+  background-image: radial-gradient(circle at 5px 0, var(--lp-ground) 4px, transparent 4.4px);
+  background-repeat: repeat-x;
+  background-size: 12px 9px;
+  content: "";
+}
+
+.priceCard .currencySwitch {
+  margin: 0 0 20px;
+}
+
+.priceCard .priceValue {
+  margin-top: 4px;
+}
+
+/* ---------- 9. The night shift: founder, FAQ, contact, footer ---------- */
+.tintNight {
+  --lp-ground: #14120f;
+  --lp-card: #1f1c17;
+  --lp-ink: #f3efe6;
+  --lp-muted: #b0aa9c;
+  --lp-line: rgb(243 239 230 / 0.14);
+  --lp-border-ui: #8c8370;
+  --lp-accent: #6fc29b;
+  --lp-accent-hover: #8ad3ae;
+  --lp-on-accent: #14120f;
+  --lp-signal: #e8a552;
+  --lp-signal-ink: #e8a552;
+  background: var(--lp-ground);
+  color: var(--lp-ink);
+}
+
+.tintNight .sectionDescription,
+.tintNight .timelineRoute,
+.tintNight .sampleNote {
+  color: var(--lp-muted);
+}
+
+.founderSection {
+  border-top: 1px solid var(--lp-line);
+}
+
+.founderCopy {
+  max-width: 780px;
+}
+
+.founderCopy .sectionTitle {
+  max-width: 16ch;
+}
+
+.founderNote {
+  max-width: 64ch;
+  margin: 24px 0 0;
+  color: var(--lp-muted);
+  font-size: clamp(1.125rem, 1.5vw, 1.375rem);
+  line-height: 1.65;
+}
+
+.founderDetails {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 28px;
+}
+
+.founderPhoto {
+  width: 72px;
+  height: 72px;
+  border: 1px solid var(--lp-line);
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.founderName,
+.founderCity {
+  margin: 0;
+}
+
+.founderName {
+  font-weight: 600;
+}
+
+.founderCity {
+  margin-top: 3px;
+  color: var(--lp-muted);
+  font-size: 0.875rem;
+}
+
+.faqSection {
+  border-top: 1px solid var(--lp-line);
+}
+
+.faqLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr);
+  gap: clamp(30px, 7vw, 96px);
+}
+
+.faqLayout .sectionIntro {
+  margin-bottom: 0;
+}
+
+.faqList {
+  border-top: 1px solid var(--lp-line);
+}
+
+.faqItem {
+  border-bottom: 1px solid var(--lp-line);
+}
+
+.faqItem summary {
+  display: flex;
+  min-height: 64px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+  list-style: none;
+}
+
+.faqItem summary::-webkit-details-marker {
+  display: none;
+}
+
+.faqItem summary span {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+}
+
+.faqItem summary span::before,
+.faqItem summary span::after {
+  position: absolute;
+  top: 7px;
+  left: 1px;
+  width: 14px;
+  height: 1px;
+  background: currentColor;
+  content: "";
+}
+
+.faqItem summary span::after {
+  transform: rotate(90deg);
+  transition: transform 150ms ease;
+}
+
+.faqItem[open] summary span::after {
+  transform: rotate(0);
+}
+
+.faqItem p {
+  max-width: 65ch;
+  margin: -2px 28px 20px 0;
+  color: var(--lp-muted);
+  line-height: 1.6;
+}
+
+.contactSection .sectionTitle {
+  max-width: 15ch;
+}
+
+.contactIntro {
+  min-width: 0;
+}
+
+.contactLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  align-items: start;
+  gap: clamp(32px, 7vw, 96px);
+}
+
+.contactNextStep {
+  max-width: 52ch;
+  margin: 20px 0 0;
+  color: var(--lp-muted);
+  line-height: 1.6;
+}
+
+.contactLinks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.contactSection .secondaryButton,
+.contactSection .contactEmail {
+  color: var(--lp-ink);
+}
+
+.contactSection .secondaryButton {
+  border-color: var(--lp-border-ui);
+}
+
+.contactForm {
+  padding: clamp(20px, 3.5vw, 36px);
+  border: 1px solid var(--lp-border-ui);
+  border-radius: 4px;
+  background: var(--lp-card);
+}
+
+.noContactNotice {
+  grid-column: 2;
+  margin: 0;
+  padding: 16px 18px;
+  border-inline-start: 3px solid var(--lp-signal);
+  background: color-mix(in srgb, var(--lp-ink) 5%, var(--lp-ground));
+  color: var(--lp-ink);
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 16px;
+}
+
+.formField {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+}
+
+.formField label {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.formField input,
+.formField select {
+  width: 100%;
+  min-height: 48px;
+  padding: 11px 12px;
+  border: 1px solid var(--lp-border-ui);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--lp-ink) 5%, var(--lp-card));
+  color: var(--lp-ink);
+}
+
+.formField input::placeholder,
+.formField select:invalid {
+  color: var(--lp-muted);
+}
+
+.formSubmit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 22px;
+  margin-top: 22px;
+}
+
+.formSubmit button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.formSubmit p {
+  flex: 1 1 220px;
+  margin: 0;
+  color: var(--lp-muted);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.formError,
+.formSuccess {
+  margin: 18px 0 0;
+  padding: 12px;
+  border: 1px solid var(--lp-border-ui);
+  border-radius: var(--radius-control);
+  font-size: 0.875rem;
+}
+
+.formError {
+  color: var(--lp-signal-ink);
+}
+
+.formSuccess {
+  color: var(--lp-accent);
+}
+
+/* ---------- "What you can verify today": a stamped certificate ---------- */
+.verifySection {
+  padding-block: clamp(56px, 6.5vw, 88px);
+}
+
+.verifyHead {
+  max-width: 720px;
+}
+
+.verifyCertificate {
+  position: relative;
+  margin-top: clamp(28px, 4vw, 44px);
+  padding: clamp(24px, 3vw, 36px);
+  border: 1px solid var(--lp-border-ui);
+  border-radius: 4px;
+  background: var(--lp-card);
+}
+
+.verifyCertificate::before {
+  position: absolute;
+  inset: 6px;
+  border: 1px solid var(--lp-line);
+  border-radius: 2px;
+  content: "";
+  pointer-events: none;
+}
+
+.verifyStamp {
+  position: absolute;
+  top: clamp(14px, 2vw, 22px);
+  right: clamp(14px, 2vw, 22px);
+  padding: 5px 10px;
+  transform: rotate(-4deg);
+  border: 1px solid var(--lp-signal);
+  border-radius: 2px;
+  color: var(--lp-signal-ink);
+  font-family: var(--font-display), "Barlow Condensed", system-ui, sans-serif;
+  font-size: 0.875rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.verifyFacts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(18px, 2.6vw, 34px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.verifyValue {
+  display: block;
+  color: var(--lp-ink);
+  font-family: var(--font-display), "Barlow Condensed", system-ui, sans-serif;
+  font-size: clamp(2.25rem, 3.6vw, 3.5rem);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.verifyLabel {
+  display: block;
+  max-width: 22ch;
+  margin-top: 10px;
+  color: var(--lp-muted);
+  font-size: 0.9375rem;
+  line-height: 1.45;
+}
+
+/* ---------- Device frames: flat ink hairlines, no coloured glow ---------- */
+.device {
+  position: relative;
+}
+
+.deviceLaptop,
+.devicePhone {
+  width: 100%;
+}
+
+.deviceTilt {
+  transform: perspective(1600px) rotateY(-3.4deg) rotateX(1deg);
+  transform-origin: center;
+  transition: transform var(--duration-base) var(--ease-out-expo);
+}
+
+.deviceGentle .deviceTilt {
+  transform: perspective(1700px) rotateY(-1.8deg) rotateX(0.6deg);
+}
+
+.device:hover .deviceTilt,
+.device:focus-within .deviceTilt {
+  transform: none;
+}
+
+.brandFigure .deviceTilt {
+  transform: none;
+  transition: none;
+}
+
+.laptopFrame {
+  position: relative;
+  padding: 3px;
+  border: 1px solid var(--landing-border-ui);
+  border-radius: 10px;
+  background: var(--landing-card);
+}
+
+.laptopFrame::after {
+  position: absolute;
+  right: -2%;
+  bottom: -2px;
+  left: -2%;
+  height: 2px;
+  border-radius: 0 0 3px 3px;
+  background: var(--landing-border-ui);
+  content: "";
+}
+
+.laptopFrame img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 0;
+  border-radius: 6px;
+  background: var(--lp-ground);
+}
+
+.phoneFrame {
+  position: relative;
+  width: fit-content;
+  margin-inline: auto;
+  padding: 10px;
+  border: 1px solid var(--lp-border-ui);
+  border-radius: 26px;
+  background: color-mix(in srgb, var(--lp-ink) 88%, var(--lp-ground));
+}
+
+.phoneFrame::before {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  width: 34%;
+  height: 4px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--lp-ground) 45%, transparent);
+  content: "";
+}
+
+.phoneFrame img {
+  display: block;
+  border: 0;
+  border-radius: 18px;
+  background: transparent;
+}
+
+@media (max-width: 900px) {
+  .followLayout,
+  .faqLayout {
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    gap: 28px;
+  }
+
+  .bookingFields {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .bookingFields button {
+    grid-column: 1 / -1;
+  }
+
+  .verifyFacts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 22px;
+  }
+}
+
+@media (max-width: 767px) {
+  .followLayout,
+  .brandDemo,
+  .pricingHeader,
+  .priceLayout,
+  .faqLayout,
+  .contactLayout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .noContactNotice {
+    grid-column: auto;
+  }
+
+  .timelineRow {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding-block: 16px;
+  }
+
+  .progressLabel {
+    font-size: 0.75rem;
+  }
+
+  .stepList {
+    display: none;
+  }
+
+  .stepButton {
+    min-height: 78px;
+    padding: 14px 8px 14px 2px;
+  }
+
+  .stepText > span {
+    display: none;
+  }
+
+  .productPanel {
+    display: none;
+  }
+
+  .mobileStepScreens {
+    display: grid;
+    gap: 38px;
+  }
+
+  .mobileProductStep {
+    padding-top: 22px;
+    border-top: 1px solid var(--lp-line);
+  }
+
+  .mobileProductStep h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+
+  .mobileProductStep > p {
+    margin: 8px 0 18px;
+    color: var(--lp-muted);
+    line-height: 1.5;
+  }
+
+  .productFigure img {
+    max-height: 510px;
+  }
+
+  .brandDemo {
+    gap: 20px;
+  }
+
+  .bookingFields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .bookingFields button {
+    grid-column: auto;
+  }
+
+  .brandScreens {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pricingHeader {
+    display: grid;
+    align-items: start;
+    gap: 28px;
+  }
+
+  .priceLayout {
+    gap: 36px;
+  }
+
+  .priceDetails {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .faqLayout .sectionIntro {
+    margin-bottom: 4px;
+  }
+
+  .contactLayout {
+    gap: 34px;
+  }
+}
+
+.imageFullSizeLink {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  margin-top: 8px;
+  color: var(--lp-accent);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-underline-offset: 4px;
+}
+
+@media (max-width: 480px) {
+  .timelineRoute {
+    font-size: 0.8125rem;
+  }
+
+  .progressLabel {
+    font-size: 0.6875rem;
+  }
+
+  .stepButton {
+    min-height: 58px;
+    padding-block: 12px;
+  }
+
+  .stepText > span {
+    display: initial;
+  }
+
+  .currencySwitch {
+    width: 100%;
+  }
+
+  .currencyOption {
+    flex: 1 1 0;
+    justify-content: center;
+  }
+
+  .formGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .formSubmit .primaryButton {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .primaryButton,
+  .secondaryButton,
+  .stepButton,
+  .deviceTilt,
+  .device:hover .deviceTilt,
+  .device:focus-within .deviceTilt {
+    transition: none;
+  }
+
+  .primaryButton:hover,
+  .secondaryButton:hover,
+  .primaryButton:active,
+  .secondaryButton:active,
+  .device:hover .deviceTilt,
+  .device:focus-within .deviceTilt {
+    transform: none;
+  }
+
+  .faqItem[open] p {
+    animation: none;
+  }
+}
+
+/* Desktop time spine: a hairline route in the left gutter, stopping at five times. */
+.timeSpine {
+  --time-spine-height: min(56vh, 540px);
+  position: fixed;
+  z-index: 6;
+  top: 20vh;
+  left: max(8px, calc((100vw - 1200px) / 2 + 8px));
+  display: none;
+  width: 2px;
+  height: var(--time-spine-height);
+  pointer-events: none;
+}
+
+@media (min-width: 1200px) {
+  .timeSpine {
+    display: block;
+  }
+}
+
+.timeSpineLine {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    color-mix(in srgb, var(--landing-border-ui) 72%, transparent) 14%,
+    color-mix(in srgb, var(--landing-border-ui) 72%, transparent) 86%,
+    transparent
+  );
+}
+
+.timeSpineStop {
+  position: absolute;
+  left: 0;
+  width: 0;
+  height: 0;
+}
+
+.timeSpineDot {
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--landing-border-ui);
+  border-radius: 50%;
+  background: var(--landing-paper);
+}
+
+.timeSpineTime {
+  position: absolute;
+  top: 0;
+  right: 12px;
+  transform: translateY(-50%);
+  padding: 1px 6px;
+  border: 1px solid var(--landing-border-ui);
+  border-radius: 3px;
+  background: var(--landing-card);
+  color: var(--landing-ink);
+  font-family: var(--font-display), "Barlow Condensed", system-ui, sans-serif;
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.timeSpineMarker {
+  position: absolute;
+  top: 0;
+  left: -5px;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--landing-livery);
+  border-radius: 50%;
+  background: var(--landing-paper);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--landing-livery) 20%, transparent);
+}
+
+.timeSpineMarkerLabel {
+  position: absolute;
+  top: 50%;
+  left: 16px;
+  transform: translateY(-50%);
+  padding: 1px 6px;
+  border: 1px solid var(--landing-livery);
+  border-radius: 3px;
+  background: var(--landing-card);
+  color: var(--landing-livery);
+  font-family: var(--font-display), "Barlow Condensed", system-ui, sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+@media (max-width: 1299px) {
+  .timeSpineTime {
+    display: none;
+  }
+}
+
+@keyframes timeSpineTravel {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(calc(var(--time-spine-height) - 10px));
+  }
+}
+
+@supports (animation-timeline: scroll()) {
+  @media (min-width: 1200px) and (prefers-reduced-motion: no-preference) {
+    .timeSpineMarker {
+      animation: timeSpineTravel linear both;
+      animation-timeline: scroll(root block);
+      animation-range: 8% 92%;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .timeSpine,
+  .timeSpineTime {
+    display: none;
+  }
+}
+
+/* FAQ open animation (≤ 180 ms). */
+.faqItem[open] p {
+  animation: faqReveal 180ms var(--ease-out-expo);
+}
+
+@keyframes faqReveal {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}

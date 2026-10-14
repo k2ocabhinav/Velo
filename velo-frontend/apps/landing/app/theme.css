@@ -1,0 +1,44 @@
+/*
+ * Global theme rules for the landing (§10.3).
+ * The header is paper with a bottom hairline in every theme and follows the
+ * landing tokens, so day is cream and night is warm ink-black. No translucency,
+ * no backdrop blur — the v2 navy glass is gone.
+ */
+.site-header {
+  box-shadow: 0 1px 0 rgb(0 0 0 / 0.02);
+}
+
+.theme-toggle {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  margin-inline: 4px 8px;
+  border: 1px solid var(--landing-border-ui);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--landing-ink);
+  cursor: pointer;
+  transition: transform var(--duration-fast) var(--ease-out-expo);
+}
+
+.theme-toggle:hover {
+  border-color: var(--landing-ink);
+  color: var(--landing-livery);
+}
+
+.theme-toggle:active {
+  transform: scale(0.94);
+}
+
+.theme-toggle:focus-visible {
+  outline: 3px solid var(--landing-livery);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-toggle {
+    transition: none;
+  }
+}
