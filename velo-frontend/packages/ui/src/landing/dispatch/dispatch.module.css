@@ -1,0 +1,266 @@
+.root {
+  --dispatch-asphalt: var(--landing-asphalt, var(--velo-black));
+  --dispatch-dawn: var(--landing-dawn, hsl(var(--color-background)));
+  --dispatch-signal: var(--landing-signal-blue, var(--velo-blue));
+  --dispatch-teal: var(--landing-route-teal, hsl(var(--color-accent)));
+  --dispatch-sodium: var(--landing-sodium, hsl(var(--color-warning)));
+  --dispatch-concrete: var(--landing-concrete, hsl(var(--color-border)));
+  position: relative;
+  display: grid;
+  gap: 0.75rem;
+  width: 100%;
+  color: var(--dispatch-asphalt);
+  font-family: var(--font-body), "Inter", system-ui, sans-serif;
+}
+
+.scene {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  aspect-ratio: 1.38;
+  min-height: 17rem;
+  border: 1px solid var(--dispatch-concrete);
+  border-radius: 10px;
+  background: var(--dispatch-dawn);
+}
+
+.fallback,
+.canvasLayer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.fallback {
+  z-index: 0;
+  display: block;
+  transition: opacity 120ms ease-out;
+}
+
+.fallbackHidden {
+  opacity: 0;
+}
+
+.canvasLayer {
+  z-index: 1;
+  display: block;
+}
+
+.canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  outline: none;
+  touch-action: pan-y;
+  cursor: grab;
+}
+
+.canvas:active {
+  cursor: grabbing;
+}
+
+.tripCard {
+  position: absolute;
+  z-index: 2;
+  top: 0.75rem;
+  left: 0.75rem;
+  width: min(15rem, calc(100% - 1.5rem));
+  padding: 0.875rem 1rem 0.8rem;
+  border: 1px solid var(--dispatch-concrete);
+  border-radius: 10px;
+  background: var(--dispatch-dawn);
+  box-shadow: var(--landing-shadow-md, var(--shadow-md));
+}
+
+.cardTopline {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.tripTime {
+  margin: 0;
+  color: var(--dispatch-asphalt);
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.bookedLabel {
+  color: var(--dispatch-asphalt);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.tripRoute {
+  margin: 0.55rem 0 0;
+  font-size: 0.84rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.driverLine {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.55rem;
+  color: var(--dispatch-asphalt);
+  font-size: 0.7rem;
+  line-height: 1.3;
+}
+
+.driverLine span:last-child {
+  color: var(--dispatch-teal);
+  font-weight: 600;
+}
+
+.statusSteps {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.22rem 0.5rem;
+  margin: 0.65rem 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--dispatch-asphalt);
+  font-size: 0.625rem;
+}
+
+.statusStep {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.statusMarker {
+  width: 0.34rem;
+  height: 0.34rem;
+  flex: 0 0 auto;
+  border: 1px solid var(--dispatch-concrete);
+  border-radius: 50%;
+  background: var(--dispatch-dawn);
+}
+
+.statusStepActive .statusMarker {
+  border-color: var(--dispatch-sodium);
+  background: var(--dispatch-sodium);
+}
+
+.mapLabel {
+  fill: var(--dispatch-asphalt);
+  font-family: var(--font-body), "Inter", system-ui, sans-serif;
+  font-size: 7px;
+  font-weight: 600;
+  paint-order: stroke;
+  stroke: var(--dispatch-dawn);
+  stroke-linejoin: round;
+  stroke-width: 2.5px;
+}
+
+.controls {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.tripButtons {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.tripButton,
+.actionButton {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--dispatch-concrete);
+  border-radius: 6px;
+  background: var(--dispatch-dawn);
+  color: var(--dispatch-asphalt);
+  font: inherit;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  line-height: 1.15;
+  cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
+}
+
+.tripButton:hover,
+.actionButton:hover:not(:disabled) {
+  border-color: var(--dispatch-asphalt);
+}
+
+.tripButton[aria-pressed="true"] {
+  border-color: var(--dispatch-signal);
+  background: var(--dispatch-signal);
+  color: var(--landing-dawn, white);
+}
+
+.actionRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.actionButton {
+  flex: 1 1 7rem;
+}
+
+.actionButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.dragHint {
+  margin: 0;
+  color: var(--dispatch-asphalt);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.liveStatus {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 480px) {
+  .scene {
+    aspect-ratio: 1.22;
+    min-height: 18rem;
+  }
+
+  .tripCard {
+    top: 0.625rem;
+    left: 0.625rem;
+    width: min(14rem, calc(100% - 1.25rem));
+  }
+
+  .tripButton,
+  .actionButton {
+    padding-inline: 0.4rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fallback,
+  .tripButton,
+  .actionButton {
+    transition: none;
+  }
+}

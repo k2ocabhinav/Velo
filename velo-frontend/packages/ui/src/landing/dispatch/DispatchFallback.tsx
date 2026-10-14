@@ -1,0 +1,207 @@
+import { useEffect, useRef } from "react";
+import { generateDispatchCoordinates, type BuildingCoordinate, type Point2 } from "./scene/coordinates";
+import type { PreviewPhase } from "./scene/DispatchCanvas";
+import type { SampleTrip } from "./sample-trips";
+import styles from "./dispatch.module.css";
+
+const coordinates = generateDispatchCoordinates();
+
+type ProjectionPoint = { x: number; y: number };
+
+function project(point: Point2, height = 0): ProjectionPoint {
+  return {
+    x: 320 + (point.x - point.z) * 15,
+    y: 190 + (point.x + point.z) * 7 - height * 14,
+  };
+}
+
+function pointString(point: ProjectionPoint): string {
+  return `${point.x.toFixed(1)},${point.y.toFixed(1)}`;
+}
+
+function projectLine(points: readonly Point2[], origin?: ProjectionPoint): string {
+  const projected = points.map((point) => project(point));
+  if (!origin) return projected.map(pointString).join(" ");
+  return projected.map((point) => pointString({ x: point.x - origin.x, y: point.y - origin.y })).join(" ");
+}
+
+function buildingFaces(building: BuildingCoordinate) {
+  const { x, z, width, depth, height } = building;
+  const groundCorners = [
+    { x: x + width / 2, z: z + depth / 2 },
+    { x: x + width / 2, z: z - depth / 2 },
+    { x: x - width / 2, z: z - depth / 2 },
+    { x: x - width / 2, z: z + depth / 2 },
+  ];
+  const topCorners = groundCorners.map((point) => project(point, height));
+  const baseCorners = groundCorners.map((point) => project(point));
+  const top = topCorners.map(pointString).join(" ");
+  const faces = [
+    [topCorners[0], topCorners[1], baseCorners[1], baseCorners[0]],
+    [topCorners[0], topCorners[3], baseCorners[3], baseCorners[0]],
+  ].map((face) => face.map(pointString).join(" "));
+  return { top, faces };
+}
+
+function routeMotionPath(points: readonly Point2[]): { start: ProjectionPoint; path: string } {
+  const start = project(points[0]);
+  return { start, path: projectLine(points, start) };
+}
+
+export type DispatchFallbackProps = {
+  selectedTripId?: SampleTrip["id"];
+  previewRunId?: number;
+  previewPhase?: PreviewPhase;
+  reducedMotion?: boolean;
+  className?: string;
+};
+
+export function DispatchFallback({
+  selectedTripId = "05:40",
+  previewRunId = 0,
+  previewPhase = "idle",
+  reducedMotion = false,
+  className,
+}: DispatchFallbackProps) {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const motionRef = useRef<SVGAnimateMotionElement>(null);
+  const lastRunId = useRef(0);
+  const lastPhase = useRef<PreviewPhase>("idle");
+  const selectedRoute = coordinates.routes[selectedTripId];
+  const motion = routeMotionPath(selectedRoute);
+  const buildingOrder = [...coordinates.buildings, ...coordinates.landmarks].sort((a, b) => a.x + a.z - (b.x + b.z));
+
+  useEffect(() => {
+    const svg = svgRef.current;
+    const animation = motionRef.current;
+    if (!svg || !animation) return;
+
+    if (previewRunId !== lastRunId.current) {
+      lastRunId.current = previewRunId;
+      svg.pauseAnimations();
+      svg.setCurrentTime(0);
+    }
+
+    if (reducedMotion) {
+      svg.pauseAnimations();
+      if (previewPhase === "travel") lastPhase.current = "paused";
+      return;
+    }
+
+    if (previewPhase === "travel" && lastPhase.current === "paused") {
+      svg.unpauseAnimations();
+    } else if (previewPhase === "travel" && lastPhase.current !== "travel") {
+      svg.unpauseAnimations();
+      animation.beginElement();
+    } else if (previewPhase !== "travel") {
+      svg.pauseAnimations();
+    }
+
+    lastPhase.current = previewPhase;
+  }, [previewRunId, previewPhase, reducedMotion, selectedTripId]);
+
+  return (
+    <svg
+      ref={svgRef}
+      className={[styles.fallback, className].filter(Boolean).join(" ")}
+      viewBox="0 0 640 360"
+      preserveAspectRatio="xMidYMid meet"
+      aria-hidden="true"
+      focusable="false"
+      data-dispatch-fallback="true"
+    >
+      <rect width="640" height="360" fill="var(--dispatch-dawn)" />
+      <g fill="none" stroke="var(--dispatch-concrete)" strokeWidth="10" strokeLinecap="round" opacity="0.55">
+        {coordinates.streets.map((street, index) => (
+          <polyline key={`street-${index}`} points={projectLine(street)} />
+        ))}
+      </g>
+      <g fill="none" stroke="var(--dispatch-dawn)" strokeWidth="1.4" strokeDasharray="3 5" opacity="0.95">
+        {coordinates.streets.map((street, index) => (
+          <polyline key={`lane-${index}`} points={projectLine(street)} />
+        ))}
+      </g>
+      <g>
+        {buildingOrder.map((building, index) => {
+          const faces = buildingFaces(building);
+          const landmark = building.kind !== "building";
+          return (
+            <g key={`${building.kind}-${index}`}>
+              {faces.faces.map((face, faceIndex) => (
+                <polygon
+                  key={faceIndex}
+                  points={face}
+                  fill={landmark ? "var(--dispatch-concrete)" : "var(--dispatch-concrete)"}
+                  stroke="var(--dispatch-dawn)"
+                  strokeWidth="0.45"
+                />
+              ))}
+              <polygon points={faces.top} fill="var(--dispatch-asphalt)" opacity={landmark ? 0.92 : 0.7} />
+              {building.label && (() => {
+                const labelPoint = project(building, building.height + 0.26);
+                return (
+                  <text
+                    key="label"
+                    x={labelPoint.x}
+                    y={labelPoint.y - 4}
+                    textAnchor="middle"
+                    className={styles.mapLabel}
+                  >
+                    {building.label}
+                  </text>
+                );
+              })()}
+            </g>
+          );
+        })}
+      </g>
+      <g fill="none" strokeLinecap="round" strokeLinejoin="round">
+        {Object.entries(coordinates.routes).map(([tripId, route]) => {
+          const active = tripId === selectedTripId;
+          return (
+            <polyline
+              key={tripId}
+              points={projectLine(route)}
+              stroke={active ? "var(--dispatch-signal)" : "var(--dispatch-teal)"}
+              strokeWidth={active ? 3.6 : 1.7}
+              opacity={active ? previewPhase === "assign" ? 0.36 : 0.95 : 0.34}
+            />
+          );
+        })}
+      </g>
+      <g>
+        {coordinates.vehicles.map((vehicle, index) => {
+          const point = project(vehicle);
+          const selected = vehicle.tripId === selectedTripId && vehicle.routeProgress < 0.5;
+          if (selected) {
+            const selectedMotion = routeMotionPath(selectedRoute);
+            return (
+              <g key={`vehicle-${index}`} transform={`translate(${selectedMotion.start.x} ${selectedMotion.start.y})`}>
+                <circle r="5.4" fill="var(--dispatch-teal)" stroke="var(--dispatch-dawn)" strokeWidth="2">
+                  <animateMotion
+                    ref={motionRef}
+                    path={selectedMotion.path}
+                    begin="indefinite"
+                    dur="2.36s"
+                    fill="freeze"
+                  />
+                </circle>
+              </g>
+            );
+          }
+          return (
+            <circle
+              key={`vehicle-${index}`}
+              cx={point.x}
+              cy={point.y - 1.5}
+              r={vehicle.tripId === selectedTripId ? 4.4 : 3.2}
+              fill={vehicle.tripId === selectedTripId ? "var(--dispatch-teal)" : "var(--dispatch-asphalt)"}
+              stroke="var(--dispatch-dawn)"
+              strokeWidth="1.5"
+            />
+          );
+        })}
+      </g>
+    </svg>
+  );
+}
