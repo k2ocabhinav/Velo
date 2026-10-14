@@ -286,6 +286,21 @@ export interface PaymentMethodDto {
   isDefault: boolean;
 }
 
+export interface RiderWalletTransactionDto {
+  id: number;
+  type: "CREDIT" | "DEBIT" | string;
+  amount: DecimalValue;
+  method: "BANKING" | "RIDE" | "WALLET" | string;
+  rideReference?: number | null;
+  timestamp: ISODateTime;
+}
+
+export interface RiderWalletDto {
+  balance: DecimalValue;
+  currency: string;
+  transactions: SpringPage<RiderWalletTransactionDto>;
+}
+
 export interface PayoutRequestDto {
   id: number;
   amount: DecimalValue;
@@ -366,6 +381,15 @@ export interface RevenueReportDto {
   platformCommission: DecimalValue;
   driverEarnings: DecimalValue;
   rideCount: number;
+}
+
+export interface TopDriverRevenueDto {
+  driverId: number;
+  driverName: string;
+  trips: number;
+  gross: DecimalValue;
+  commission: DecimalValue;
+  net: DecimalValue;
 }
 
 export interface AdminPendingRideRequestDto {

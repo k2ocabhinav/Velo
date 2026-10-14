@@ -8,15 +8,21 @@ import com.velo.platform.entities.Ride;
 import com.velo.platform.entities.RideRequest;
 import com.velo.platform.entities.Rider;
 import com.velo.platform.entities.User;
+import com.velo.platform.entities.Wallet;
+import com.velo.platform.entities.WalletTransaction;
 import com.velo.platform.entities.enums.PaymentMethod;
 import com.velo.platform.entities.enums.RideRequestStatus;
 import com.velo.platform.entities.enums.Role;
+import com.velo.platform.entities.enums.TransactionMethod;
+import com.velo.platform.entities.enums.TransactionType;
 import com.velo.platform.repositories.DriverRepository;
 import com.velo.platform.repositories.RatingRepository;
 import com.velo.platform.repositories.RideRepository;
 import com.velo.platform.repositories.RideRequestRepository;
 import com.velo.platform.repositories.RiderRepository;
 import com.velo.platform.repositories.UserRepository;
+import com.velo.platform.repositories.WalletRepository;
+import com.velo.platform.repositories.WalletTransactionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -52,6 +58,8 @@ class RiderControllerIntegrationTest {
     @Autowired private RideRepository rideRepository;
     @Autowired private RideRequestRepository rideRequestRepository;
     @Autowired private RatingRepository ratingRepository;
+    @Autowired private WalletRepository walletRepository;
+    @Autowired private WalletTransactionRepository walletTransactionRepository;
 
     private Rider testRider;
     private Driver testDriver;
@@ -60,6 +68,8 @@ class RiderControllerIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        walletTransactionRepository.deleteAll();
+        walletRepository.deleteAll();
         rideRequestRepository.deleteAll();
         ratingRepository.deleteAll();
         rideRepository.deleteAll();
@@ -131,7 +141,7 @@ class RiderControllerIntegrationTest {
         return builder
                 .header("X-Test-User-Id", testRider.getUser().getId())
                 .header("X-Test-Email", testRider.getUser().getEmail())
-                .header("X-Test-Role", Role.RIDER.name());
+                .header("X-Test-Role", "ROLE_" + Role.RIDER.name());
     }
 
     @Test
@@ -208,5 +218,71 @@ class RiderControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.id").value(pendingRequest.getId()))
                 .andExpect(jsonPath("$.data.rideRequestStatus").value("PENDING"));
+    }
+
+    @Test
+    @DisplayName("GET /riders/wallet returns the current tenant's balance and paginated transactions")
+    void getMyWallet_ShouldReturnBalanceAndTenantScopedTransactions() throws Exception {
+        Wallet wallet = walletRepository.saveAndFlush(Wallet.builder()
+                .user(testRider.getUser())
+                .tenantId(1L)
+                .balance(new BigDecimal("125.50"))
+                .build());
+        walletTransactionRepository.saveAndFlush(WalletTransaction.builder()
+                .tenantId(1L)
+                .wallet(wallet)
+                .ride(endedRide)
+                .transactionType(TransactionType.DEBIT)
+                .transactionMethod(TransactionMethod.RIDE)
+                .amount(new BigDecimal("18.00"))
+                .build());
+        walletTransactionRepository.saveAndFlush(WalletTransaction.builder()
+                .tenantId(1L)
+                .wallet(wallet)
+                .transactionType(TransactionType.CREDIT)
+                .transactionMethod(TransactionMethod.BANKING)
+                .amount(new BigDecimal("20.00"))
+                .build());
+
+        User otherTenantUser = userRepository.save(User.builder()
+                .email("other-tenant-rider@test.com")
+                .password("password123")
+                .tenantId(2L)
+                .roles(Set.of(Role.RIDER))
+                .active(true)
+                .build());
+        Wallet otherTenantWallet = walletRepository.saveAndFlush(Wallet.builder()
+                .user(otherTenantUser)
+                .tenantId(2L)
+                .balance(new BigDecimal("999.00"))
+                .build());
+        walletTransactionRepository.saveAndFlush(WalletTransaction.builder()
+                .tenantId(2L)
+                .wallet(otherTenantWallet)
+                .transactionType(TransactionType.CREDIT)
+                .transactionMethod(TransactionMethod.BANKING)
+                .amount(new BigDecimal("999.00"))
+                .build());
+
+        mockMvc.perform(withRiderAuth(get("/riders/wallet")
+                        .param("page", "0")
+                        .param("size", "1")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.balance").value(125.50))
+                .andExpect(jsonPath("$.data.currency").value("USD"))
+                .andExpect(jsonPath("$.data.transactions.content", org.hamcrest.Matchers.hasSize(1)))
+                .andExpect(jsonPath("$.data.transactions.totalElements").value(2))
+                .andExpect(jsonPath("$.data.transactions.content[0].type").value("CREDIT"))
+                .andExpect(jsonPath("$.data.transactions.content[0].method").value("BANKING"))
+                .andExpect(jsonPath("$.data.transactions.content[0].amount").value(20.00))
+                .andExpect(jsonPath("$.data.transactions.content[0].timestamp").isNotEmpty());
+
+        mockMvc.perform(withRiderAuth(get("/riders/wallet")
+                        .param("page", "1")
+                        .param("size", "1")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.balance").value(125.50))
+                .andExpect(jsonPath("$.data.transactions.content[0].type").value("DEBIT"))
+                .andExpect(jsonPath("$.data.transactions.content[0].rideReference").value(endedRide.getId()));
     }
 }

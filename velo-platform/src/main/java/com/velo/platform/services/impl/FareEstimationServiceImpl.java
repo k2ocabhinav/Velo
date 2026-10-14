@@ -97,7 +97,6 @@ public class FareEstimationServiceImpl implements FareEstimationService {
                 .discountAmount(discountAmount)
                 .distanceKm(distanceKm)
                 .durationMinutes(durationMins)
-                .walletBalance(walletBalance)
                 .walletSufficient(walletSufficient)
                 .estimatedPickupTime(LocalDateTime.now().plusMinutes(10)) // Static stub for v1.1.0
                 .applicablePromos(promoCodeService.getActivePromoCodes())

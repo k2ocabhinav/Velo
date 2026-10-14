@@ -12,6 +12,7 @@ import type {
   RideTrackingDto,
   RideRequestDto,
   RiderDto,
+  RiderWalletDto,
   ScheduledRideDto,
 } from "./types";
 
@@ -23,6 +24,7 @@ export interface RidesApi {
   rateDriverByRide(rideId: number, rating: number): Promise<DriverDto>;
   getMyProfile(): Promise<RiderDto>;
   getMyRides(params?: OffsetPageRequestInput): Promise<PaginatedResponse<RideDto>>;
+  getWalletSummary(params?: PageRequestInput): Promise<RiderWalletDto>;
   getCurrentRideRequest(): Promise<RideRequestDto | null>;
   getActiveRide(): Promise<RideTrackingDto | null>;
   scheduleRide(input: RideRequestDto): Promise<ScheduledRideDto>;
@@ -71,6 +73,12 @@ export function createRidesApi(client: AxiosInstance = createVeloClient()): Ride
         method: "GET",
         url: "/riders/getMyRides",
         params,
+      }),
+    getWalletSummary: (params) =>
+      requestData<RiderWalletDto>(client, {
+        method: "GET",
+        url: "/riders/wallet",
+        params: { page: params?.page ?? 0, size: params?.size ?? 10 },
       }),
     getCurrentRideRequest: () =>
       requestData<RideRequestDto | null>(client, {

@@ -13,6 +13,7 @@ import com.velo.platform.dto.admin.AdminRideOfferDto;
 import com.velo.platform.dto.admin.DashboardDto;
 import com.velo.platform.dto.admin.PendingDriverDto;
 import com.velo.platform.dto.admin.RevenueReportDto;
+import com.velo.platform.dto.admin.TopDriverRevenueDto;
 import com.velo.platform.entities.enums.DriverOnboardingStatus;
 import com.velo.platform.services.AdminDispatchService;
 import com.velo.platform.services.AdminService;
@@ -27,8 +28,11 @@ import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -39,6 +43,7 @@ import java.util.List;
 @Tag(name = "Admin", description = "Admin management and analytics")
 @SecurityRequirement(name = "bearerAuth")
 @PreAuthorize("hasRole('ADMIN')")
+@Validated
 public class AdminController {
 
     private final AdminService adminService;
@@ -65,6 +70,13 @@ public class AdminController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         return ResponseEntity.ok(adminService.getRevenueReport(startDate, endDate));
+    }
+
+    @GetMapping("/stats/revenue/top-drivers")
+    @Operation(summary = "Get the top drivers by net earnings for the last 30 days or selected period")
+    public ResponseEntity<List<TopDriverRevenueDto>> getTopDriversByRevenue(
+            @RequestParam(defaultValue = "30") @Min(1) @Max(90) int days) {
+        return ResponseEntity.ok(adminService.getTopDriversByRevenue(days));
     }
 
     @GetMapping("/drivers/pending")
