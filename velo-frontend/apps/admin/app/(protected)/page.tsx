@@ -14,6 +14,7 @@ type DashboardData = {
   pendingDrivers: number;
   openPayouts: number;
   inactivePromos: number;
+  unassignedScheduledTrips: number;
   health: AdminOpsHealth;
 };
 
@@ -34,13 +35,14 @@ export default function DashboardPage() {
       setError(null);
       try {
         const dateKey = new Date().toISOString().slice(0, 10);
-        const [stats, daily, drivers, payouts, promos, health] = await Promise.all([
+        const [stats, daily, drivers, payouts, promos, health, unassignedScheduledTrips] = await Promise.all([
           adminClient.getDashboardStats(),
           adminClient.getDailyStats(dateKey),
           adminClient.getPendingDrivers(0, 1),
           adminClient.getPendingPayouts(0, 1),
           adminClient.getPromoCodes(),
           adminClient.getOpsHealth(),
+          adminClient.getTripsNeedingAttentionCount(),
         ]);
         if (!isMounted) return;
         setData({
@@ -50,6 +52,7 @@ export default function DashboardPage() {
           pendingDrivers: drivers.totalElements || stats.pendingApprovals || 0,
           openPayouts: payouts.totalElements || 0,
           inactivePromos: promos.filter((promo) => !promo.active).length,
+          unassignedScheduledTrips,
           health,
         });
       } catch (loadError) {
@@ -62,7 +65,7 @@ export default function DashboardPage() {
     return () => { isMounted = false; };
   }, [reloadVersion]);
 
-  const hasAttention = Boolean(data && (data.pendingDrivers || data.openPayouts || data.inactivePromos));
+  const hasAttention = Boolean(data && (data.pendingDrivers || data.openPayouts || data.inactivePromos || data.unassignedScheduledTrips));
   const degraded = Boolean(data && (!data.health.redisAvailable || data.health.cacheErrors > 0));
 
   return (
@@ -98,7 +101,7 @@ export default function DashboardPage() {
             {!hasAttention ? (
               <EmptyState
                 title="You're all caught up"
-                description="There are no driver applications, payouts, or inactive promos waiting for review."
+                description="There are no driver applications, payouts, inactive promos, or near-term trips waiting for action."
                 action={<Link className="secondary-button" href="/dispatch">Review dispatch</Link>}
               />
             ) : (
@@ -107,6 +110,7 @@ export default function DashboardPage() {
                   { label: "Driver approvals", count: data.pendingDrivers, href: "/drivers", action: "Review drivers" },
                   { label: "Payout review", count: data.openPayouts, href: "/payouts", action: "Review payouts" },
                   { label: "Inactive promo codes", count: data.inactivePromos, href: "/promo-codes", action: "Review promos" },
+                  { label: "Unassigned scheduled trips", count: data.unassignedScheduledTrips, href: "/trip-sheet", action: "Assign drivers" },
                 ].filter((item) => item.count > 0).map((item) => (
                   <div className="needs-attention-item" key={item.label}>
                     <div><strong>{item.label}</strong><p>{formatCount(item.count, "item")} {item.count === 1 ? "needs" : "need"} review</p></div>

@@ -74,6 +74,43 @@ describe("admin endpoints", () => {
     });
   });
 
+  it("loads and exports the trip sheet and creates recurring templates", async () => {
+    const rows = createRecordingClient([]);
+    const count = createRecordingClient(2);
+    const csv = createRecordingClient("date,time,booking reference\r\n2026-10-16,09:00,HTL-24\r\n");
+    const templates = createRecordingClient({ content: [], number: 0, size: 50, totalElements: 0, totalPages: 1 } satisfies SpringPage<unknown>);
+    const mutation = createRecordingClient({ id: 44, active: true, daysOfWeek: ["MONDAY"] });
+
+    const sheetApi = createAdminApi(rows.client);
+    await sheetApi.getTripSheet("2026-10-16", "UNASSIGNED");
+    expect(rows.requests[0]).toMatchObject({ method: "GET", url: "/api/v1/admin/trip-sheet", params: { date: "2026-10-16", assignment: "UNASSIGNED" } });
+
+    const countApi = createAdminApi(count.client);
+    await countApi.getTripsNeedingAttentionCount();
+    expect(count.requests[0]).toMatchObject({ method: "GET", url: "/api/v1/admin/trip-sheet/attention/count" });
+
+    const exportApi = createAdminApi(csv.client);
+    await exportApi.exportTripSheet("2026-10-16");
+    expect(csv.requests[0]).toMatchObject({ method: "GET", url: "/api/v1/admin/trip-sheet/export", params: { date: "2026-10-16" }, responseType: "text" });
+
+    const templateApi = createAdminApi(templates.client);
+    await templateApi.getRecurringTripTemplates({ page: 1, size: 50 });
+    expect(templates.requests[0]).toMatchObject({ method: "GET", url: "/api/v1/admin/recurring-trip-templates", params: { page: 1, size: 50 } });
+
+    const mutationApi = createAdminApi(mutation.client);
+    await mutationApi.createRecurringTripTemplate({
+      riderId: 7,
+      daysOfWeek: ["MONDAY"],
+      localTime: "09:00",
+      startDate: "2026-10-19",
+      endDate: "2026-11-19",
+      pickupLocation: { type: "Point", coordinates: [77.5, 12.9] },
+      dropOffLocation: { type: "Point", coordinates: [77.6, 12.95] },
+      paymentMethod: "CASH",
+    });
+    expect(mutation.requests[0]).toMatchObject({ method: "POST", url: "/api/v1/admin/recurring-trip-templates" });
+  });
+
   it("unwraps spring pages for admin lists", async () => {
     const { client, requests } = createRecordingClient({
       content: [
@@ -387,6 +424,31 @@ describe("auth and driver endpoints", () => {
 });
 
 describe("rider and supporting domains", () => {
+  it("creates and manages the current rider's recurring trip templates", async () => {
+    const page = createRecordingClient({ content: [], number: 0, size: 10, totalElements: 0, totalPages: 1 } satisfies SpringPage<unknown>);
+    const mutation = createRecordingClient({ id: 9, active: true, daysOfWeek: ["TUESDAY"] });
+    const api = createRidesApi(page.client);
+    await api.getRecurringTripTemplates({ page: 0, size: 10 });
+    expect(page.requests[0]).toMatchObject({ method: "GET", url: "/riders/recurring-trip-templates", params: { page: 0, size: 10 } });
+
+    const mutationApi = createRidesApi(mutation.client);
+    const input = {
+      daysOfWeek: ["TUESDAY"],
+      localTime: "09:00",
+      startDate: "2026-10-20",
+      endDate: "2026-11-20",
+      pickupLocation: { type: "Point" as const, coordinates: [77.5, 12.9] },
+      dropOffLocation: { type: "Point" as const, coordinates: [77.6, 12.95] },
+      paymentMethod: "WALLET",
+    };
+    await mutationApi.createRecurringTripTemplate(input);
+    await mutationApi.setRecurringTripTemplateActive(9, false);
+    await mutationApi.deleteRecurringTripTemplate(9);
+    expect(mutation.requests[0]).toMatchObject({ method: "POST", url: "/riders/recurring-trip-templates", data: input });
+    expect(mutation.requests[1]).toMatchObject({ method: "POST", url: "/riders/recurring-trip-templates/9/pause" });
+    expect(mutation.requests[2]).toMatchObject({ method: "DELETE", url: "/riders/recurring-trip-templates/9" });
+  });
+
   it("loads the rider wallet with paginated transaction parameters", async () => {
     const { client, requests } = createRecordingClient({
       balance: "125.50",

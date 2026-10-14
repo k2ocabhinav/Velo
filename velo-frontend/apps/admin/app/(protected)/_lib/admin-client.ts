@@ -85,6 +85,43 @@ export type ScheduledRide = {
   status: string;
 };
 
+export type RecurringTripTemplate = {
+  id: number;
+  riderId: number;
+  riderName: string;
+  daysOfWeek: string[];
+  localTime: string;
+  startDate: string;
+  endDate: string;
+  pickupLocation: { coordinates: [number, number]; type: "Point" };
+  dropOffLocation: { coordinates: [number, number]; type: "Point" };
+  pickupAddress?: string | null;
+  dropOffAddress?: string | null;
+  paymentMethod: "WALLET" | "CASH";
+  notes?: string | null;
+  bookingReference?: string | null;
+  active: boolean;
+};
+
+export type RecurringTripTemplateInput = Omit<RecurringTripTemplate, "id" | "riderName" | "active">;
+
+export type TripSheetRiderOption = { riderId: number; name: string; email: string };
+
+export type TripSheetRow = {
+  rideRequestId: number;
+  scheduledTime: string;
+  bookingReference?: string | null;
+  riderName?: string | null;
+  pickupAddress?: string | null;
+  dropOffAddress?: string | null;
+  driverName?: string | null;
+  assigned: boolean;
+  needsAttention: boolean;
+  status: string;
+  reasonCode?: string | null;
+  reasonNote?: string | null;
+};
+
 export type PayoutItem = {
   id: number;
   amount: number | string;
@@ -401,6 +438,81 @@ export const adminClient = {
       `api/v1/admin/scheduled-rides?page=${page}&size=${size}`
     );
     return toPage<ScheduledRide>(payload);
+  },
+
+  async getTripSheet(date: string, assignment = "ALL"): Promise<TripSheetRow[]> {
+    const payload = await requestAdminProxy<unknown>(
+      `api/v1/admin/trip-sheet?date=${encodeURIComponent(date)}&assignment=${assignment}`
+    );
+    return toList<TripSheetRow>(payload);
+  },
+
+  async getTripsNeedingAttentionCount(): Promise<number> {
+    const payload = await requestAdminProxy<unknown>("api/v1/admin/trip-sheet/attention/count");
+    const value = unwrapData(payload);
+    if (typeof value === "number") return value;
+    if (isRecord(value)) return toInt(value.count, 0);
+    return 0;
+  },
+
+  async exportTripSheet(date: string): Promise<string> {
+    return requestAdminProxy<string>(`api/v1/admin/trip-sheet/export?date=${encodeURIComponent(date)}`, {
+      headers: { Accept: "text/csv" }
+    });
+  },
+
+  async cancelTripSheetRide(id: number, reasonCode = "OPERATOR_CANCELLED", note?: string): Promise<void> {
+    await requestAdminProxy<void>(`api/v1/admin/trip-sheet/${id}/cancel`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reasonCode, note })
+    });
+  },
+
+  async markTripSheetNoShow(id: number, reasonCode = "CUSTOMER_NO_SHOW", note?: string): Promise<void> {
+    await requestAdminProxy<void>(`api/v1/admin/trip-sheet/${id}/no-show`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reasonCode, note })
+    });
+  },
+
+  async getRecurringTripTemplates(page = 0, size = 50): Promise<ApiPage<RecurringTripTemplate>> {
+    const payload = await requestAdminProxy<unknown>(
+      `api/v1/admin/recurring-trip-templates?page=${page}&size=${size}`
+    );
+    return toPage<RecurringTripTemplate>(payload);
+  },
+
+  async getTripSheetRiders(): Promise<TripSheetRiderOption[]> {
+    return toList<TripSheetRiderOption>(await requestAdminProxy<unknown>("api/v1/admin/recurring-trip-templates/riders"));
+  },
+
+  async createRecurringTripTemplate(input: RecurringTripTemplateInput): Promise<RecurringTripTemplate> {
+    return requestAdminProxy<RecurringTripTemplate>("api/v1/admin/recurring-trip-templates", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input)
+    });
+  },
+
+  async updateRecurringTripTemplate(id: number, input: RecurringTripTemplateInput): Promise<RecurringTripTemplate> {
+    return requestAdminProxy<RecurringTripTemplate>(`api/v1/admin/recurring-trip-templates/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input)
+    });
+  },
+
+  async setRecurringTripTemplateActive(id: number, active: boolean): Promise<RecurringTripTemplate> {
+    return requestAdminProxy<RecurringTripTemplate>(
+      `api/v1/admin/recurring-trip-templates/${id}/${active ? "resume" : "pause"}`,
+      { method: "POST" }
+    );
+  },
+
+  async deleteRecurringTripTemplate(id: number): Promise<void> {
+    await requestAdminProxy<void>(`api/v1/admin/recurring-trip-templates/${id}`, { method: "DELETE" });
   },
 
   async getPendingPayouts(page = 0, size = 10): Promise<ApiPage<PayoutItem>> {

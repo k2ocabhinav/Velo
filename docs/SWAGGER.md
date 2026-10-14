@@ -4,7 +4,7 @@
 
 - Swagger UI: `http://localhost:8080/swagger-ui/index.html`
 - OpenAPI JSON: `http://localhost:8080/v3/api-docs`
-- Controller inventory: **81 HTTP operations across 9 groups**
+- Controller inventory: **100 HTTP operations across 10 groups**
 
 ## Security
 
@@ -17,11 +17,16 @@
 - `POST /auth/login`, `/auth/signup`, `/auth/onBoardNewDriver/{userId}`, `/auth/forgot-password`, `/auth/reset-password`
 - `PUT /auth/profile`
 
-## Rider (14)
+## Rider (20)
 
 - `POST /riders/fare-estimate`, `/riders/requestRide`, `/riders/cancelRide/{rideId}`, `/riders/endRide/{rideId}`
 - `POST /riders/rateDriver`, `/riders/rateDriver/{rideId}/{rating}`, `/riders/schedule-ride`
 - `GET /riders/getMyProfile`, `/riders/getMyRides`, `/riders/active-ride`, `/riders/scheduled-rides`
+- `GET /riders/recurring-trip-templates`
+- `POST /riders/recurring-trip-templates`
+- `PUT /riders/recurring-trip-templates/{id}`
+- `POST /riders/recurring-trip-templates/{id}/pause`, `/resume`
+- `DELETE /riders/recurring-trip-templates/{id}`
 - `GET /riders/wallet?page=0&size=10` — current rider balance and paginated recent transactions
 - `PUT /riders/scheduled-rides/{id}/reschedule`
 - `DELETE /riders/scheduled-rides/{id}`
@@ -63,7 +68,7 @@
 - `GET /api/v1/public/tenant/branding`, `/api/v1/tenant/branding`, `/api/v1/admin/branding`
 - `PUT /api/v1/admin/branding`
 
-## Admin (28)
+## Admin (34)
 
 - `GET /api/v1/admin/stats/dashboard`, `/api/v1/admin/stats/daily`, `/api/v1/admin/stats/revenue`
 - `GET /api/v1/admin/stats/revenue/top-drivers?days=30` — top drivers by gross, commission, net earnings, and trips (1–90 days)
@@ -73,7 +78,18 @@
 - `GET /api/v1/admin/payouts/pending`
 - `POST /api/v1/admin/payouts/{id}/approve`, `/api/v1/admin/payouts/{id}/reject`, `/api/v1/admin/payouts/{id}/process`
 - `GET /api/v1/admin/scheduled-rides`
+- `GET /api/v1/admin/trip-sheet?date=YYYY-MM-DD&assignment=ALL|ASSIGNED|UNASSIGNED`
+- `GET /api/v1/admin/trip-sheet/attention`, `/attention/count`
+- `GET /api/v1/admin/trip-sheet/export?date=YYYY-MM-DD` — CSV includes booking and reason fields
+- `POST /api/v1/admin/trip-sheet/{rideRequestId}/cancel`, `/no-show`
 - `GET /api/v1/admin/dispatch/requests`, `/api/v1/admin/dispatch/active-rides`, `/api/v1/admin/dispatch/requests/{rideRequestId}/offers`, `/api/v1/admin/dispatch/audit`
 - `POST /api/v1/admin/dispatch/requests`, `/api/v1/admin/dispatch/requests/{rideRequestId}/assign`, `/api/v1/admin/dispatch/requests/{rideRequestId}/cancel`
 - `POST /api/v1/admin/dispatch/rides/{rideId}/reassign`, `/api/v1/admin/dispatch/rides/{rideId}/cancel`
 - `GET /api/v1/admin/ops-health`
+
+## Recurring trips (13)
+
+- Admin: `GET /api/v1/admin/recurring-trip-templates`, `/riders`; `POST /api/v1/admin/recurring-trip-templates`; `PUT /api/v1/admin/recurring-trip-templates/{id}`; `POST /api/v1/admin/recurring-trip-templates/{id}/pause`, `/resume`; `DELETE /api/v1/admin/recurring-trip-templates/{id}`
+- Rider: `GET`, `POST /api/v1/riders/recurring-trip-templates`; `PUT /api/v1/riders/recurring-trip-templates/{id}`; `POST /api/v1/riders/recurring-trip-templates/{id}/pause`, `/resume`; `DELETE /api/v1/riders/recurring-trip-templates/{id}`
+- Weekly materialization defaults to seven days ahead. The unique template/date key makes retries safe; generated requests enter the existing scheduled dispatcher.
+- Reason codes: `RIDER_CANCELLED`, `DRIVER_CANCELLED`, `OPERATOR_CANCELLED`, `WEATHER`, `VEHICLE_ISSUE`, `CUSTOMER_NO_SHOW`, `OTHER`.

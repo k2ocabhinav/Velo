@@ -16,7 +16,9 @@ const NAV_GROUPS = [
     items: [
       { href: "/", label: "Dashboard" },
       { href: "/dispatch", label: "Dispatch" },
+      { href: "/trip-sheet", label: "Trip sheet", countKey: "scheduled" as const },
       { href: "/scheduled-rides", label: "Scheduled rides" },
+      { href: "/recurring-trips", label: "Recurring trips" },
     ],
   },
   {
@@ -40,13 +42,13 @@ const NAV_GROUPS = [
   },
 ] as const;
 
-type CountKey = "drivers" | "payouts" | "promos";
+type CountKey = "drivers" | "payouts" | "promos" | "scheduled";
 type NavCounts = Record<CountKey, number>;
 
 export function AdminShell({ children }: Readonly<{ children: ReactNode }>) {
   const pathname = usePathname();
   const [loggingOut, setLoggingOut] = useState(false);
-  const [counts, setCounts] = useState<NavCounts>({ drivers: 0, payouts: 0, promos: 0 });
+  const [counts, setCounts] = useState<NavCounts>({ drivers: 0, payouts: 0, promos: 0, scheduled: 0 });
   const { isDark, toggle } = useDarkMode();
   const { brandName } = useTenantBranding();
 
@@ -56,12 +58,14 @@ export function AdminShell({ children }: Readonly<{ children: ReactNode }>) {
       adminClient.getDriversByStatus("PENDING", 0, 1),
       adminClient.getPendingPayouts(0, 1),
       adminClient.getPromoCodes(),
-    ]).then(([drivers, payouts, promos]) => {
+      adminClient.getTripsNeedingAttentionCount(),
+    ]).then(([drivers, payouts, promos, attention]) => {
       if (cancelled) return;
       setCounts({
         drivers: drivers.status === "fulfilled" ? drivers.value.totalElements : 0,
         payouts: payouts.status === "fulfilled" ? payouts.value.totalElements : 0,
         promos: promos.status === "fulfilled" ? promos.value.filter((promo) => !promo.active).length : 0,
+        scheduled: attention.status === "fulfilled" ? attention.value : 0,
       });
     });
 

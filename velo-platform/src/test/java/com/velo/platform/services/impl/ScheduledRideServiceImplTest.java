@@ -183,8 +183,8 @@ class ScheduledRideServiceImplTest {
         @Test
         @DisplayName("Should cancel a scheduled ride owned by the current rider")
         void shouldCancelScheduledRide() {
-            when(rideRequestRepository.findById(1L)).thenReturn(Optional.of(testRideRequest));
             when(riderService.getCurrentRider()).thenReturn(testRider);
+            when(rideRequestRepository.findByIdAndTenantIdAndRider_Id(1L, 1L, 1L)).thenReturn(Optional.of(testRideRequest));
             when(rideRequestRepository.save(any(RideRequest.class))).thenReturn(testRideRequest);
             when(modelMapper.map(any(RideRequest.class), eq(ScheduledRideDto.class)))
                     .thenReturn(new ScheduledRideDto());
@@ -201,8 +201,8 @@ class ScheduledRideServiceImplTest {
         @DisplayName("Should throw when cancelling non-SCHEDULED ride request")
         void shouldRejectCancelNonScheduledRide() {
             testRideRequest.setRideRequestStatus(RideRequestStatus.PENDING);
-            when(rideRequestRepository.findById(1L)).thenReturn(Optional.of(testRideRequest));
             when(riderService.getCurrentRider()).thenReturn(testRider);
+            when(rideRequestRepository.findByIdAndTenantIdAndRider_Id(1L, 1L, 1L)).thenReturn(Optional.of(testRideRequest));
 
             assertThatThrownBy(() -> scheduledRideService.cancelScheduledRide(1L))
                     .isInstanceOf(RuntimeConflictException.class)
@@ -212,7 +212,8 @@ class ScheduledRideServiceImplTest {
         @Test
         @DisplayName("Should throw when ride request not found")
         void shouldThrowNotFound() {
-            when(rideRequestRepository.findById(999L)).thenReturn(Optional.empty());
+            when(riderService.getCurrentRider()).thenReturn(testRider);
+            when(rideRequestRepository.findByIdAndTenantIdAndRider_Id(999L, 1L, 1L)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> scheduledRideService.cancelScheduledRide(999L))
                     .isInstanceOf(ResourceNotFoundException.class);
@@ -227,8 +228,8 @@ class ScheduledRideServiceImplTest {
         @DisplayName("Should reschedule and recalculate fare")
         void shouldRescheduleAndRecalculateFare() {
             LocalDateTime newTime = LocalDateTime.now(ZoneId.of("UTC")).plusHours(5);
-            when(rideRequestRepository.findById(1L)).thenReturn(Optional.of(testRideRequest));
             when(riderService.getCurrentRider()).thenReturn(testRider);
+            when(rideRequestRepository.findByIdAndTenantIdAndRider_Id(1L, 1L, 1L)).thenReturn(Optional.of(testRideRequest));
             when(rideStrategyManager.rideFareCalculationStrategy()).thenReturn(fareCalculationStrategy);
             when(fareCalculationStrategy.calculateFare(any())).thenReturn(BigDecimal.valueOf(180.0));
             when(rideRequestRepository.save(any(RideRequest.class))).thenReturn(testRideRequest);

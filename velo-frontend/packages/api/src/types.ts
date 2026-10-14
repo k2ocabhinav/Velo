@@ -202,6 +202,53 @@ export interface ScheduledRideDto {
   scheduledTime: ISODateTime;
   status: string;
   requestedTime?: ISODateTime | null;
+  externalReference?: string | null;
+  reasonCode?: string | null;
+  reasonNote?: string | null;
+}
+
+export interface RecurringTripTemplateDto {
+  id: number;
+  riderId?: number | null;
+  riderName?: string | null;
+  daysOfWeek: string[];
+  localTime: string;
+  startDate: ISODate;
+  endDate: ISODate;
+  pickupLocation: PointDto;
+  dropOffLocation: PointDto;
+  pickupAddress?: string | null;
+  dropOffAddress?: string | null;
+  paymentMethod: string;
+  notes?: string | null;
+  bookingReference?: string | null;
+  active: boolean;
+}
+
+export type RecurringTripTemplateRequestDto = Omit<RecurringTripTemplateDto, "id" | "riderName" | "active"> & {
+  riderId?: number | null;
+};
+
+export interface TripSheetRowDto {
+  rideRequestId: number;
+  recurringTemplateId?: number | null;
+  scheduledTime: ISODateTime;
+  bookingReference?: string | null;
+  riderName?: string | null;
+  pickupAddress?: string | null;
+  dropOffAddress?: string | null;
+  driverName?: string | null;
+  assigned: boolean;
+  needsAttention: boolean;
+  status: string;
+  reasonCode?: string | null;
+  reasonNote?: string | null;
+}
+
+export interface TripSheetRiderOptionDto {
+  riderId: number;
+  name: string;
+  email: string;
 }
 
 export interface RideRequestDto {
