@@ -40,7 +40,7 @@
 - [x] EP-4 Docker images build (backend 143 MiB, frontends ~72 MiB), readiness without Redis, scripts/docker-smoke.sh
 - [ ] EP-5 Demo readiness: two branded demo tenants, one-command local demo, tunnel guide, README with screenshots (in progress)
 - [ ] EP-6 Recurring scheduled trips + trip sheet + unassigned alerts (in progress)
-- [ ] Queued: landing page rewritten for the niche (small fleets, pre-booked transfers), pricing hypothesis, contact form; Netlify-free-tier deployable
+- [ ] LP Landing page rewritten for the niche (in progress) (small fleets, pre-booked transfers), pricing hypothesis, contact form; Netlify-free-tier deployable
 
 ### After program acceptance (parked; depth features)
 - Corporate accounts + contract tariffs + monthly statements; driver/vehicle document readiness + incidents; DPDP features (consent, export/deletion, retention); PWA + web push; OSRM road-based ETA dispatch; Hindi localization
