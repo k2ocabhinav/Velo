@@ -358,7 +358,7 @@ export function DispatchCanvas({
     });
     const routeMeshes = routes.map((route) => {
       const mesh = new THREE.Mesh(
-        ribbonGeometry([route], 0.16, 0.04),
+        ribbonGeometry([route], 0.2, 0.04),
         makeRibbonMaterial(palette.route, 0.95),
       );
       mesh.renderOrder = 3;
@@ -446,7 +446,7 @@ export function DispatchCanvas({
         material.color.copy(color);
         material.opacity = selected
           ? phase === "assign" ? 0.45 : 1
-          : 0.42;
+          : 0.55;
         if (halo) {
           halo.color.copy(color);
           // A single thin halo under the core: cartographic, not neon.

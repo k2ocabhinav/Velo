@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ComponentType } from "react";
 import { browserSupportsDispatchCanvas } from "./eligibility";
 import { DispatchFallback } from "./DispatchFallback";
-import { SAMPLE_TRIPS, getSampleTrip, type SampleTrip } from "./sample-trips";
+import { SAMPLE_TRIPS, TRIP_STATUS_STEPS, getSampleTrip, type SampleTrip, type TripStatusStep } from "./sample-trips";
 import styles from "./dispatch.module.css";
 import type { DispatchCanvasProps, PreviewPhase } from "./scene/DispatchCanvas";
 
@@ -34,7 +34,7 @@ export function DispatchIllustration({ className, forceSvg = false }: DispatchIl
   const [webglReady, setWebglReady] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [resetVersion, setResetVersion] = useState(0);
-  const [selectedTripId, setSelectedTripId] = useState<SampleTrip["id"]>("05:40");
+  const [selectedTripId, setSelectedTripId] = useState<SampleTrip["id"]>("09:15");
   const [preview, setPreview] = useState<PreviewState>({ phase: "idle", runId: 0 });
   const previewClock = useRef<{ remaining: Record<keyof typeof PREVIEW_DURATIONS, number> }>({ remaining: { ...PREVIEW_DURATIONS } });
 
@@ -138,15 +138,21 @@ export function DispatchIllustration({ className, forceSvg = false }: DispatchIl
 
   const selectedTrip = getSampleTrip(selectedTripId);
   const canvasActive = eligible && Boolean(canvasModule) && !canvasFailed;
-  const statusMessage = preview.phase === "assign"
+  const activePreviewPhase = preview.phase === "paused" ? preview.pausedPhase : preview.phase;
+  const previewStatus = activePreviewPhase === "assign"
     ? "Assigning a driver"
-    : preview.phase === "route"
+    : activePreviewPhase === "route"
       ? "Lighting the route"
-      : preview.phase === "travel"
-        ? "Driver is on trip"
-        : preview.phase === "complete"
-          ? "Preview complete"
-          : "Driver assigned";
+      : activePreviewPhase === "travel"
+        ? "On trip"
+        : selectedTrip.status;
+  const activeStatus: TripStatusStep = activePreviewPhase === "assign" || activePreviewPhase === "route"
+    ? "Driver assigned"
+    : activePreviewPhase === "travel"
+      ? "On trip"
+      : selectedTrip.status;
+  const activeStatusIndex = TRIP_STATUS_STEPS.indexOf(activeStatus);
+  const statusMessage = previewStatus;
   const previewLabel = preview.phase === "assign" || preview.phase === "route" || preview.phase === "travel"
     ? "Pause preview"
     : preview.phase === "paused"
@@ -217,7 +223,7 @@ export function DispatchIllustration({ className, forceSvg = false }: DispatchIl
           </div>
           <ol className={styles.statusSteps} aria-label="Trip status steps">
             {selectedTrip.statusSteps.map((step, index) => (
-              <li className={`${styles.statusStep} ${index === 1 ? styles.statusStepActive : ""}`} key={step}>
+              <li className={`${styles.statusStep} ${index === activeStatusIndex ? styles.statusStepActive : ""}`} key={step}>
                 <span className={styles.statusMarker} aria-hidden="true" />
                 {step}
               </li>

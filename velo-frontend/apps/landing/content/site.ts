@@ -10,6 +10,9 @@ export const siteConfig = {
     photoUrl: envValue(process.env.NEXT_PUBLIC_FOUNDER_PHOTO_URL),
     city: envValue(process.env.NEXT_PUBLIC_FOUNDER_CITY),
   },
+  get demoContactAvailable() {
+    return Boolean(this.contactFormAction || this.contactEmail || this.whatsappNumber);
+  },
 } as const;
 
 /**
@@ -17,7 +20,8 @@ export const siteConfig = {
  * Keep these accurate: they are a claim on the page.
  */
 export const verifyFacts = {
-  demoTenants: 2,
+  landingChecksPassed: 6,
+  demoTenants: ["Velo Business", "Saffron Routes"],
 } as const;
 
 export const landingCopy = {
@@ -90,10 +94,10 @@ export const landingCopy = {
     title: "What you can verify today.",
     description: "Check the current test scope and branded demo tenants.",
     groupLabel: "Verification facts",
-    backend: "backend test suite",
+    backend: "Automated backend test suite",
     backendScope: "Unit + integration",
-    endToEnd: "landing E2E checks, including axe",
-    endToEndScope: "Chromium",
+    endToEnd: "Chromium landing checks · axe included",
+    endToEndScope: `${verifyFacts.landingChecksPassed} passed`,
     tenants: "branded demo tenants",
   },
   pricing: {
@@ -102,6 +106,7 @@ export const landingCopy = {
     description: "One proposed rate for small transfer fleets. We'll confirm fit and terms together before a pilot.",
     currencies: ["USD", "EUR", "INR"] as const,
     perVehicle: "per active vehicle / month",
+    activeVehicleNote: "We’ll confirm the active-vehicle count and monthly minimum with you before a pilot.",
     minimum: "monthly minimum",
     exampleLabel: "Worked example for 15 active vehicles",
     examplePrefix: "15 vehicles ×",
@@ -113,9 +118,9 @@ export const landingCopy = {
     notIncluded: ["Corporate billing and monthly statements", "Native iOS or Android apps", "Payment gateway integration"],
   },
   founder: {
-    eyebrow: "Why Velo is being built",
+    eyebrow: "A note from the founder",
     title: "Built around the work between booking and pickup.",
-    note: "Velo is being built to give small transfer fleets one place to prepare a day of work, assign drivers and keep trip progress visible. The next milestone is working with the first pilot fleets and learning where the product needs to go next.",
+    note: "I’m building Velo for small transfer fleets that need one place to plan pre-booked work, assign drivers and follow trip progress. The next step is working with the first pilot fleets.",
   },
   faq: {
     eyebrow: "Questions",

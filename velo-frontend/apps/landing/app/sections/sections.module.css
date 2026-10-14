@@ -29,7 +29,7 @@
 }
 
 .section {
-  padding-block: clamp(72px, 9vw, 128px);
+  padding-block: clamp(56px, 7vw, 104px);
   border-top: 1px solid var(--lp-line);
   background: var(--lp-ground);
   color: var(--lp-ink);
@@ -116,6 +116,7 @@
 /* ---------- 2. A morning of transfers: the trip sheet as data-viz ---------- */
 .morningSection {
   position: relative;
+  padding-block: clamp(72px, 9vw, 128px);
 }
 
 .timeline {
@@ -218,6 +219,7 @@
 /* ---------- 3. Follow one transfer ---------- */
 .followSection {
   border-top: 1px solid var(--lp-line);
+  padding-block: clamp(72px, 9vw, 128px);
 }
 
 .followLayout {
@@ -596,6 +598,13 @@
 .priceUnit {
   margin: 8px 0 0;
   color: var(--lp-muted);
+}
+
+.activeVehicleNote {
+  margin: 8px 0 0;
+  color: var(--lp-muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
 }
 
 .priceMinimum {
@@ -1217,6 +1226,17 @@
   .contactLayout {
     gap: 34px;
   }
+}
+
+.imageFullSizeLink {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  margin-top: 8px;
+  color: var(--lp-accent);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-underline-offset: 4px;
 }
 
 @media (max-width: 480px) {

@@ -9,7 +9,14 @@ test.describe("landing dispatch hero", () => {
     const illustration = page.getByRole("group", { name: "Interactive sample dispatch" });
     await expect(illustration).toHaveAttribute("data-renderer", "svg");
     await expect(illustration.locator("[data-dispatch-fallback='true']")).toBeVisible();
+    await expect(illustration).toContainText("Grand Hotel to Business park");
+    await expect(illustration).toContainText("On trip");
+
+    const airportTrip = illustration.getByRole("button", { name: "05:40" });
+    await airportTrip.focus();
+    await page.keyboard.press("Enter");
     await expect(illustration).toContainText("Airport to Grand Hotel");
+    await expect(illustration).toContainText("Completed");
 
     const hotelTrip = illustration.getByRole("button", { name: "09:15" });
     await hotelTrip.focus();

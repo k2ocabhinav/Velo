@@ -1,4 +1,6 @@
-const contactEmail = process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim();
+import { landingCopy, siteConfig } from "../../content/site";
+
+const contactEmail = siteConfig.contactEmail;
 
 export function Footer({ home = true }: { home?: boolean }) {
   const sectionLink = (id: string) => home ? `#${id}` : `/#${id}`;
@@ -24,7 +26,7 @@ export function Footer({ home = true }: { home?: boolean }) {
 
           <div className="footer-links-group">
             <span className="footer-label">Contact</span>
-            <a href={sectionLink("contact")}>Book a demo</a>
+            {siteConfig.demoContactAvailable && <a href={sectionLink("contact")}>{landingCopy.hero.bookDemo}</a>}
             {contactEmail && <a href={`mailto:${contactEmail}`}>{contactEmail}</a>}
           </div>
 

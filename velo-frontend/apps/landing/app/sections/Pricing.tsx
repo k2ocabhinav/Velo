@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { landingCopy } from "../../content/site";
+import { landingCopy, siteConfig } from "../../content/site";
 import styles from "./sections.module.css";
 
 type Currency = (typeof landingCopy.pricing.currencies)[number];
@@ -74,12 +74,13 @@ export function Pricing() {
             <div aria-live="polite" aria-atomic="true">
               <p className={styles.priceValue}>{money(prices.unit, currency)}</p>
               <p className={styles.priceUnit}>{copy.perVehicle}</p>
+              <p className={styles.activeVehicleNote}>{copy.activeVehicleNote}</p>
               <p className={styles.priceMinimum}>{money(prices.minimum, currency)} {copy.minimum}</p>
               <p className={styles.priceExampleLabel}>{copy.exampleLabel}</p>
               <p className={styles.priceExample}>{copy.examplePrefix} {money(prices.unit, currency)} = {money(exampleTotal, currency)} per month</p>
             </div>
             <p className={styles.priceCaveat}>{copy.taxes} {copy.caveat}</p>
-            <a className={styles.primaryButton} href="#contact">{landingCopy.hero.bookDemo}</a>
+            {siteConfig.demoContactAvailable && <a className={styles.primaryButton} href="#contact">{landingCopy.hero.bookDemo}</a>}
           </div>
           <div className={styles.priceDetails}>
             <div><h3>{copy.includedTitle}</h3><ul>{copy.included.map((item) => <li key={item}>{item}</li>)}</ul></div>

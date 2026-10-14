@@ -6,7 +6,10 @@ export function VerifyToday() {
   const facts = [
     { value: copy.backendScope, label: copy.backend },
     { value: copy.endToEndScope, label: copy.endToEnd },
-    { value: String(verifyFacts.demoTenants), label: copy.tenants },
+    {
+      value: String(verifyFacts.demoTenants.length),
+      label: `${copy.tenants}: ${verifyFacts.demoTenants.join(" + ")}`,
+    },
   ];
 
   return (
@@ -17,7 +20,7 @@ export function VerifyToday() {
           <p className={styles.sectionDescription}>{copy.description}</p>
         </div>
         <div className={styles.verifyCertificate}>
-          <span className={styles.verifyStamp} aria-hidden="true">Verified</span>
+          <span className={styles.verifyStamp} aria-hidden="true">Build checks</span>
           <ul className={styles.verifyFacts} aria-label={copy.groupLabel}>
             {facts.map((fact) => (
               <li key={fact.label}>

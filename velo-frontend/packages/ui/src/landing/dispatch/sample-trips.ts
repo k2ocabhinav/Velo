@@ -14,6 +14,8 @@ export type SampleTrip = {
   dropOff: string;
   driver: string;
   statusSteps: readonly TripStatusStep[];
+  status: TripStatusStep;
+  progress: number;
 };
 
 const FIRST_TRIP: SampleTrip = {
@@ -23,6 +25,8 @@ const FIRST_TRIP: SampleTrip = {
   dropOff: "Grand Hotel",
   driver: "Maya Chen",
   statusSteps: TRIP_STATUS_STEPS,
+  status: "Completed",
+  progress: 1,
 };
 
 export const SAMPLE_TRIPS: readonly SampleTrip[] = [
@@ -34,6 +38,8 @@ export const SAMPLE_TRIPS: readonly SampleTrip[] = [
     dropOff: "Business park",
     driver: "Sofia Duarte",
     statusSteps: TRIP_STATUS_STEPS,
+    status: "On trip",
+    progress: 0.75,
   },
   {
     id: "18:30",
@@ -42,6 +48,8 @@ export const SAMPLE_TRIPS: readonly SampleTrip[] = [
     dropOff: "Airport",
     driver: "Noah Martin",
     statusSteps: TRIP_STATUS_STEPS,
+    status: "Booked",
+    progress: 0.25,
   },
 ] as const;
 

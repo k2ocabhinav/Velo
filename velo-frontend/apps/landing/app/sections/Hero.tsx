@@ -20,7 +20,7 @@ export function Hero() {
             <h1 className={styles.title} id="hero-title">{landingCopy.hero.title}</h1>
             <p className={styles.description}>{landingCopy.hero.description}</p>
             <div className={styles.actions}>
-              <a className={styles.primary} href="#contact">{landingCopy.hero.bookDemo}</a>
+              {siteConfig.demoContactAvailable && <a className={styles.primary} href="#contact">{landingCopy.hero.bookDemo}</a>}
               <a
                 className={styles.voucher}
                 href={demoLink.href}

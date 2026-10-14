@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { landingCopy, siteConfig } from "../../content/site";
 
 type Theme = "day" | "night";
 
@@ -57,11 +58,13 @@ export function Navbar({ home = true }: { home?: boolean }) {
           )}
         </button>
 
-        <div className="nav-cta">
-          <a className="button button-small button-primary" href={sectionLink("contact")} onClick={closeMenu}>
-            Book a demo
-          </a>
-        </div>
+        {siteConfig.demoContactAvailable && (
+          <div className="nav-cta">
+            <a className="button button-small button-primary" href={sectionLink("contact")} onClick={closeMenu}>
+              {landingCopy.hero.bookDemo}
+            </a>
+          </div>
+        )}
       </nav>
     </header>
   );

@@ -73,7 +73,7 @@ export type DispatchFallbackProps = {
 };
 
 export function DispatchFallback({
-  selectedTripId = "05:40",
+  selectedTripId = "09:15",
   previewRunId = 0,
   previewPhase = "idle",
   reducedMotion = false,
@@ -181,7 +181,7 @@ export function DispatchFallback({
           );
         })}
       </g>
-      {/* Wide, low-opacity halo under every route: the night glow. Day recolours it via the tokens. */}
+      {/* Thin cartographic halo under every route. */}
       <g className={styles.routeHalo} fill="none" strokeLinecap="round" strokeLinejoin="round">
         {Object.entries(coordinates.routes).map(([tripId, route]) => {
           const active = tripId === selectedTripId;
@@ -203,8 +203,8 @@ export function DispatchFallback({
               key={tripId}
               points={projectLine(route)}
               stroke={active ? "var(--dispatch-route)" : "var(--dispatch-route-alt)"}
-              strokeWidth={active ? 3.6 : 1.7}
-              opacity={active ? previewPhase === "assign" ? 0.36 : 0.95 : 0.34}
+              strokeWidth={active ? 3.6 : 2.2}
+              opacity={active ? previewPhase === "assign" ? 0.36 : 0.95 : 0.55}
             />
           );
         })}

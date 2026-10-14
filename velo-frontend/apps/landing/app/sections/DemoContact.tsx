@@ -85,9 +85,9 @@ export function DemoContact() {
               </div>
               {status && <p className={status.type === "error" ? styles.formError : styles.formSuccess} role={status.type === "error" ? "alert" : "status"}>{status.message}</p>}
             </form>
-          ) : (
+          ) : !whatsapp ? (
             <p className={styles.noContactNotice} role="status">{copy.noContact}</p>
-          )}
+          ) : null}
         </div>
       </div>
     </section>
