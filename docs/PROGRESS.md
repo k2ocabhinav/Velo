@@ -78,10 +78,10 @@
 - [x] `packages/ws`: visual "Reconnecting..." indicator component
 - [x] `packages/ui`: skeleton variants (DataTable/StatCard/Section `.Skeleton`)
 - [x] Rider: real-time ride tracking (WebSocket + map) — already implemented on `/ride/active`
-- [ ] Rider: "Finding driver" animation/loading state
-- [ ] Admin: loading skeletons for all data pages (users and payouts done)
-- [ ] Admin: error states with retry for all API-backed pages
-- [ ] Loading/skeleton states for every data component
+- [x] Rider: "Finding driver" animation/loading state (verified in code 2026-10-15)
+- [x] Admin: loading skeletons for all data pages (users and payouts done) (verified in code 2026-10-15)
+- [x] Admin: error states with retry for all API-backed pages (verified in code 2026-10-15)
+- [x] Loading/skeleton states for every data component (verified in code 2026-10-15)
 
 ### Frontend — testing
 - [x] Admin action E2E tests (approve/reject/process flows)
