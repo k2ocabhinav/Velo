@@ -14,14 +14,15 @@ export function LenisProvider({ children }: { children: ReactNode }) {
       smoothWheel: true,
     });
 
+    let frame = 0;
     function raf(time: number) {
       lenis.raf(time);
-      requestAnimationFrame(raf);
+      frame = requestAnimationFrame(raf);
     }
-    const id = requestAnimationFrame(raf);
+    frame = requestAnimationFrame(raf);
 
     return () => {
-      cancelAnimationFrame(id);
+      cancelAnimationFrame(frame);
       lenis.destroy();
     };
   }, []);
