@@ -38,7 +38,7 @@
 - [x] EP-2 Geocoding proxy (decision 0021) + search-on-submit address search + rider saved places (V9)
 - [x] EP-3 Refresh-token cleanup + grace window (decision 0022); tenant brand in wordmarks
 - [x] EP-4 Docker images build (backend 143 MiB, frontends ~72 MiB), readiness without Redis, scripts/docker-smoke.sh
-- [ ] EP-5 Demo readiness: two branded demo tenants, one-command local demo, tunnel guide, README with screenshots (in progress)
+- [x] EP-5 Demo readiness: second branded tenant (Saffron Routes), `scripts/demo-up.sh`, README with screenshots, `docs/DEMO_SCRIPT.md`
 - [ ] EP-6 Recurring scheduled trips + trip sheet + unassigned alerts (in progress)
 - [ ] LP Landing page rewritten for the niche (in progress) (small fleets, pre-booked transfers), pricing hypothesis, contact form; Netlify-free-tier deployable
 
