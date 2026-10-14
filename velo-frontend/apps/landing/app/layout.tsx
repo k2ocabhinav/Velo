@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Barlow_Condensed, Inter } from "next/font/google";
-import { DEFAULT_TENANT_BRANDING, fetchTenantBranding, getDefaultTenantSlug, TENANT_SLUG_HEADER } from "@velo/app-core/tenant";
-import { resolveTenantPrimaryStyle, TenantBrandingProvider } from "@velo/ui/theme";
 import { LenisProvider } from "./components/LenisProvider";
 import "@velo/ui/tokens.css";
 import "./globals.css";
@@ -22,36 +19,37 @@ const inter = Inter({
   display: "swap",
 });
 
+const siteTitle = "Velo — branded dispatch for transfer fleets";
+const siteDescription = "A branded dispatch desk for Indian fleets running pre-booked business and hotel transfers. Schedule jobs, dispatch drivers, and track every trip.";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "https://velo.app";
+
 export const metadata: Metadata = {
-  title: "Velo — White-Label Dispatch Infrastructure",
-  description:
-    "Velo is the dispatch infrastructure that powers your mobility product. Your fleet, your brand, zero backend.",
+  metadataBase: new URL(siteUrl),
+  title: siteTitle,
+  description: siteDescription,
+  alternates: { canonical: "/" },
+  applicationName: "Velo",
+  openGraph: {
+    type: "website",
+    locale: "en_IN",
+    siteName: "Velo",
+    url: siteUrl,
+    title: siteTitle,
+    description: siteDescription,
+  },
+  twitter: {
+    card: "summary",
+    title: siteTitle,
+    description: siteDescription,
+  },
+  robots: { index: true, follow: true },
 };
 
-export default async function RootLayout({
-  children,
-}: Readonly<{
-  children: ReactNode;
-}>) {
-  const requestHeaders = await headers();
-  const tenantSlug = requestHeaders.get(TENANT_SLUG_HEADER) ?? getDefaultTenantSlug();
-  const branding = await fetchTenantBranding(tenantSlug) ?? DEFAULT_TENANT_BRANDING;
-
+export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <html
-      lang="en"
-      className={`${barlowCondensed.variable} ${inter.variable}`}
-      style={resolveTenantPrimaryStyle(branding.primaryColor) as CSSProperties}
-      data-tenant-slug={tenantSlug}
-      data-tenant-brand-name={branding.brandName}
-      data-tenant-rider-label={branding.riderLabel}
-      data-tenant-driver-label={branding.driverLabel}
-      data-tenant-trip-label={branding.tripLabel}
-    >
+    <html lang="en" className={`${barlowCondensed.variable} ${inter.variable}`}>
       <body>
-        <TenantBrandingProvider branding={branding}>
-          <LenisProvider>{children}</LenisProvider>
-        </TenantBrandingProvider>
+        <LenisProvider>{children}</LenisProvider>
       </body>
     </html>
   );

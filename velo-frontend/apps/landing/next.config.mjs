@@ -1,14 +1,10 @@
-import path from "node:path";
-import { createSecurityHeaders } from "@velo/config/security-headers";
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: "standalone",
-  outputFileTracingRoot: path.join(process.cwd(), "../.."),
+  output: "export",
+  trailingSlash: true,
+  devIndicators: false,
+  images: { unoptimized: true },
   transpilePackages: ["@velo/ui", "motion", "lenis"],
-  async headers() {
-    return [{ source: "/:path*", headers: createSecurityHeaders() }];
-  },
 };
 
 export default nextConfig;
