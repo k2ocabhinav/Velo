@@ -1,6 +1,7 @@
 package com.velo.platform.configs;
 
 import com.velo.platform.security.JwtAuthenticationFilter;
+import com.velo.platform.security.ForwardedHttpsEnforcementFilter;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -126,7 +127,16 @@ public class SecurityConfig {
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
+        if (requiresForwardedHttps()) {
+            http.addFilterBefore(new ForwardedHttpsEnforcementFilter(), JwtAuthenticationFilter.class);
+        }
+
         return http.build();
+    }
+
+    private boolean requiresForwardedHttps() {
+        return Arrays.stream(environment.getActiveProfiles())
+                .anyMatch(profile -> profile.equals("prod") || profile.equals("staging"));
     }
 
     @Bean
