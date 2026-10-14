@@ -34,21 +34,21 @@
 - [x] Backend suite: 240 tests, 0 failures (was 197 claimed / 196 actual)
 
 ### Follow-ups found during the 2026-10-14 rounds
-- [ ] Rider wallet balance endpoint (wallet page has no real balance source)
-- [ ] Admin revenue per-driver breakdown endpoint
-- [ ] Geocoding/map picker for admin "New trip"
-- [ ] Refresh-token cleanup job; cross-instance refresh single-flight
-- [ ] Validate Docker images build (Docker daemon was off) and apply Terraform with a real AWS account
+- [ ] EP-1 Rider wallet balance/transactions endpoint + admin revenue per driver (in progress)
+- [ ] EP-2 Geocoding proxy + address search in admin New trip and rider booking (in progress)
+- [ ] EP-3 Refresh-token cleanup + grace window for cross-instance refresh; tenant brand in wordmarks (in progress)
+- [ ] EP-4 Docker image build + container smoke test (in progress)
+- [ ] Apply Terraform with a real AWS account (needs owner: account, ACM cert, DNS, secrets)
 
-### UI/UX improvement round (merged; e2e 28/28)
+### UI/UX improvement round (merged; e2e 32/32)
 - [x] Plan written: `docs/UX_REFINEMENT_PLAN.md`
 - [x] UI-0 shared foundation (styles, components, formatters, RouteStrip)
 - [x] UI-1 admin pages
 - [x] UI-2 rider pages
 - [x] UI-3 driver pages
 - [x] UI-4a auth screens (AuthLayout) and landing reduced-motion
-- [ ] UI-4b polish: rider Book banner shows completed trips as underway; Follow-driver control styling
-- [ ] UI-4c WCAG 2.1 AA pass (axe in e2e)
+- [x] UI-4b polish: rider Book banner shows completed trips as underway; Follow-driver control styling
+- [x] UI-4c WCAG 2.1 AA pass (axe in e2e)
 
 ### Security & production readiness (highest priority)
 - [x] HTTPS enforcement config for production (forwarded proto + HSTS)
@@ -66,9 +66,9 @@
 - [x] Auth endpoint integration tests (profile, password reset, refresh, logout, rate limits)
 
 ### Frontend — reliability & UX
-- [ ] `packages/ws`: exponential backoff reconnection strategy
-- [ ] `packages/ws`: visual "Reconnecting..." indicator component
-- [ ] `packages/ui`: skeleton variants for each composed component (`.Skeleton` exports)
+- [x] `packages/ws`: exponential backoff reconnection strategy
+- [x] `packages/ws`: visual "Reconnecting..." indicator component
+- [x] `packages/ui`: skeleton variants (DataTable/StatCard/Section `.Skeleton`)
 - [x] Rider: real-time ride tracking (WebSocket + map) — already implemented on `/ride/active`
 - [ ] Rider: "Finding driver" animation/loading state
 - [ ] Admin: loading skeletons for all data pages (users and payouts done)
@@ -76,12 +76,12 @@
 - [ ] Loading/skeleton states for every data component
 
 ### Frontend — testing
-- [ ] Admin action E2E tests (approve/reject/process flows)
-- [ ] Rider booking E2E tests
+- [x] Admin action E2E tests (approve/reject/process flows)
+- [x] Rider booking E2E tests
 
 ### Accessibility & theming
-- [ ] Multi-tenant theme loading (middleware → Redis → inline CSS)
-- [ ] WCAG 2.1 AA accessibility audit
+- [x] Multi-tenant theme loading (decision 0020)
+- [x] WCAG 2.1 AA: axe checks in e2e, 0 serious/critical
 
 ---
 
