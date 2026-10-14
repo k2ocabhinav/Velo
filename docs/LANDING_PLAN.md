@@ -99,3 +99,15 @@ Pre-booked transfer work is organised by time: a 05:40 airport pickup, a 09:15 h
 - axe: 0 serious/critical. Keyboard path through every control.
 - The production static export builds; `_headers` present; JS budgets measured from emitted chunks; LCP element = h1 (Playwright `PerformanceObserver`).
 - No claim on the page outside `PROGRESS.md`; every CTA works with and without the optional env vars.
+
+## 9. Elevation round (v2): "From pre-dawn to dusk"
+The page follows a day of transfers, and its colours follow the time of day: the hero is pre-dawn, the sections move through morning and daylight, and the contact area and footer are dusk. Colour carries meaning, which is what makes the page rich rather than decorative.
+- **Hero (pre-dawn, full-bleed):** a dark night-sky ground (`#0E1524` → Asphalt) with a low dawn horizon glow (Sodium → soft rose `#F4A6A0` → Signal blue) in the lower right. The 3D neighbourhood is large and unboxed, bleeding off the right edge. Buildings are deep navy with lit window bands in sodium; streets are dim slate; routes are glowing ribbons (a wide additive halo under a crisp core) in Signal blue (selected) and teal (others); vehicles carry a soft headlight halo. A short intro camera drift (≤ 4 s), then still. Light text, with the trip card as a translucent panel and the trip buttons as a slim "dispatch ticker" under the scene. The mobile SVG fallback uses the same night palette.
+- **Sunrise transition:** a tall gradient band (night → sodium/rose haze → Dawn) carries the hero into the light sections. No hard edge.
+- **Time spine (desktop ≥ 1200px):** a thin route line in the left gutter linking the sections, with time stops (05:40, 09:15, 13:00, 18:30, 21:00) and a marker that follows scroll position (CSS scroll-driven animation where supported, otherwise static). Hidden on smaller screens; static under reduced motion.
+- **Section tints:** morning (Dawn with a warm top wash), midday (pure surface `#FFFFFF` panels), afternoon (cool slate tint), dusk (Asphalt with sodium accents) for the founder note, contact and footer.
+- **Product shots in frames:** a laptop frame for dispatch and a phone frame for rider and driver, with soft coloured shadows (blue/teal at 20% alpha) and a slight perspective tilt that flattens on hover or focus (CSS only; none under reduced motion).
+- **"What you can verify today" strip (true facts only):** automated backend tests, end-to-end tests including accessibility checks, two branded demo tenants, a public decision log. The numbers come from one config constant, which must be kept accurate.
+- **Pricing card:** an elevated surface with a thin gradient border (blue → teal), the price as the key figure, and a currency switch.
+- **Micro-interactions:** button hover lift of 1px, focus rings, an FAQ open animation (≤ 200 ms, none under reduced motion).
+- **Budgets are unchanged** (initial JS, deferred scene ≤ 200 kB gz, LCP = h1, CLS 0, axe 0 serious). The glow is done with extra geometry layers and additive blending; no post-processing or bloom passes.
