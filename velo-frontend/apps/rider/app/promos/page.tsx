@@ -1,7 +1,19 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { toCurrency, type DecimalValue, requestRiderProxy } from "../_lib/rider-client";
+import {
+  Button,
+  DateTime,
+  EmptyState,
+  ErrorState,
+  Money,
+  PageHeader,
+  Section,
+  Skeleton,
+  StatusBadge,
+} from "@velo/ui";
+import { requestRiderProxy, type DecimalValue } from "../_lib/rider-client";
 
 type PromoCode = {
   id: number;
@@ -17,123 +29,87 @@ type PromoCode = {
   description?: string | null;
 };
 
-function formatDate(value: string | null | undefined): string {
-  if (!value) {
-    return "—";
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleDateString();
-}
-
-function formatDiscount(promo: PromoCode): string {
-  if (/PERCENT/i.test(promo.discountType)) {
-    return `${promo.discountValue}% off`;
-  }
-
-  return `${toCurrency(promo.discountValue)} off`;
-}
-
 export default function RiderPromosPage() {
   const [promos, setPromos] = useState<PromoCode[]>([]);
   const [loading, setLoading] = useState(true);
   const [copyingId, setCopyingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   const loadPromos = useCallback(async () => {
     setLoading(true);
     setError(null);
-
     try {
       const rows = await requestRiderProxy<PromoCode[]>("promo-codes/active");
       setPromos(Array.isArray(rows) ? rows : []);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Unable to load promo codes.");
+      setError(loadError instanceof Error ? loadError.message : "Couldn't load available offers.");
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    void loadPromos();
-  }, [loadPromos]);
+  useEffect(() => { void loadPromos(); }, [loadPromos]);
 
   const sortedPromos = useMemo(() => [...promos].sort((a, b) => a.code.localeCompare(b.code)), [promos]);
 
   async function copyPromoCode(id: number, code: string): Promise<void> {
     setCopyingId(id);
     setMessage(null);
-    setError(null);
-
+    setActionError(null);
     try {
       await navigator.clipboard.writeText(code);
-      setMessage(`Copied "${code}" to clipboard.`);
+      setMessage("Offer code copied.");
     } catch {
-      setError("Unable to copy promo code.");
+      setActionError("Couldn't copy the offer code. You can select and copy it manually.");
     } finally {
       setCopyingId(null);
     }
   }
 
   return (
-    <main className="app-shell stack">
-      <section className="hero">
-        <p className="badge">Promos</p>
-        <h1>Use active offers on your next ride</h1>
-        <p>{sortedPromos.length} active promo code(s) available.</p>
-      </section>
-
-      <section className="card stack">
-        <div className="actions" style={{ justifyContent: "space-between", alignItems: "center" }}>
-          <strong>Active promo codes</strong>
-          <button className="primary-button" type="button" disabled={loading} onClick={() => void loadPromos()}>
-            Refresh
-          </button>
-        </div>
-
-        {loading ? <p className="helper">Loading promo codes...</p> : null}
-        {error ? <p className="error-text">{error}</p> : null}
-        {message ? <p className="helper">{message}</p> : null}
-
-        {!loading && !error && sortedPromos.length === 0 ? <p className="helper">No active promo codes right now.</p> : null}
-
+    <main className="app-shell rider-page stack">
+      <PageHeader title="Offers" description="Save an offer and apply it when you book your next trip." />
+      <Section title="Available offers" actions={<Button variant="secondary" disabled={loading} onClick={() => void loadPromos()}>Refresh</Button>}>
+        {message ? <p className="booking-feedback" role="status">{message}</p> : null}
+        {actionError ? <p className="error-text" role="alert">{actionError}</p> : null}
+        {error ? <ErrorState title={error} onRetry={() => void loadPromos()} /> : null}
+        {loading ? <div className="stack" aria-label="Loading offers">{[0, 1, 2].map((row) => <Skeleton className="promo-skeleton-row" key={row} />)}</div> : null}
+        {!loading && !error && sortedPromos.length === 0 ? (
+          <EmptyState
+            title="No offers available right now"
+            description="Check again later or plan your next trip."
+            action={<Link className="ui-button" data-variant="primary" href="/">Book a trip</Link>}
+          />
+        ) : null}
         {!loading && !error && sortedPromos.length > 0 ? (
-          <div className="list">
+          <div className="promo-list">
             {sortedPromos.map((promo) => (
-              <article className="list-item" key={promo.id}>
-                <div className="stack" style={{ gap: 4 }}>
-                  <strong>{promo.code}</strong>
-                  <p>
-                    {formatDiscount(promo)}
-                    {promo.minRideFare ? ` • min fare ${toCurrency(promo.minRideFare)}` : ""}
+              <article className="promo-row" key={promo.id}>
+                <div className="promo-row-main">
+                  <div className="promo-row-heading">
+                    <strong>{promo.code}</strong>
+                    <StatusBadge domain="promo" status={promo.active ? "ACTIVE" : "INACTIVE"} />
+                  </div>
+                  <p className="promo-value">
+                    {/PERCENT/i.test(promo.discountType) ? `${promo.discountValue}% off` : <><Money amount={promo.discountValue} /> off</>}
                   </p>
-                  <p className="helper">
-                    {promo.description ?? "No description"} • {formatDate(promo.startDate)} to {formatDate(promo.endDate)}
-                  </p>
+                  <p className="helper">{promo.description || "Use this offer on an eligible trip."}</p>
+                  <div className="promo-details">
+                    {promo.minRideFare ? <span>Minimum fare <Money amount={promo.minRideFare} /></span> : null}
+                    <span>{promo.currentUses ?? 0}{promo.maxUses == null ? " used" : ` of ${promo.maxUses} used`}</span>
+                    {promo.endDate ? <span>Ends <DateTime value={promo.endDate} /></span> : null}
+                  </div>
                 </div>
-                <div className="actions">
-                  <span className="badge">
-                    {promo.currentUses ?? 0}/{promo.maxUses ?? "∞"} used
-                  </span>
-                  <button
-                    className="primary-button"
-                    type="button"
-                    disabled={copyingId === promo.id}
-                    onClick={() => void copyPromoCode(promo.id, promo.code)}
-                  >
-                    {copyingId === promo.id ? "Copying..." : "Copy code"}
-                  </button>
-                </div>
+                <Button variant="secondary" disabled={copyingId === promo.id} onClick={() => void copyPromoCode(promo.id, promo.code)}>
+                  {copyingId === promo.id ? "Copying…" : "Copy code"}
+                </Button>
               </article>
             ))}
           </div>
         ) : null}
-      </section>
+      </Section>
     </main>
   );
 }

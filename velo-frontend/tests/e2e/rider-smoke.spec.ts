@@ -90,9 +90,22 @@ test.describe("rider smoke", () => {
       });
     });
 
-    await page.goto("/");
-    await expect(page.getByRole("button", { name: "Logout" })).toBeVisible();
-    await page.getByRole("button", { name: "Logout" }).click();
+    await page.goto("/account");
+    await expect(page.getByRole("heading", { name: "Account" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Velo home" })).toContainText("VELO");
+    await expect(page.getByRole("link", { name: "Notifications" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Offers" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Scheduled trips" })).toBeVisible();
+    const mainNavigation = page.getByRole("navigation", { name: "Main navigation" });
+    await expect(mainNavigation.getByRole("link", { name: "Book" })).toBeVisible();
+    await expect(mainNavigation.getByRole("link", { name: "Trips" })).toBeVisible();
+    await expect(mainNavigation.getByRole("link", { name: "Wallet" })).toBeVisible();
+    await expect(mainNavigation.getByRole("link", { name: "Me" })).toHaveAttribute("aria-current", "page");
+    await page.getByRole("button", { name: "Switch to dark mode" }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await page.getByRole("button", { name: "Switch to light mode" }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    await page.getByRole("button", { name: "Sign out" }).click();
 
     await page.waitForURL("**/login");
 
@@ -145,15 +158,20 @@ test.describe("rider smoke", () => {
 
     await page.goto("/scheduled");
 
-    await expect(page.getByRole("heading", { name: "Plan future trips" })).toBeVisible();
-    await expect(page.getByText("No scheduled rides yet.")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Scheduled trips" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "No scheduled trips yet" })).toBeVisible();
 
     const scheduledTime = formatDateTimeLocal(new Date(Date.now() + 90 * 60 * 1000));
     await page.getByLabel("Scheduled time").fill(scheduledTime);
-    await page.getByRole("button", { name: "Schedule ride" }).click();
+    await page.getByText("Enter coordinates").click();
+    await page.getByLabel("Pickup latitude").fill("12.9716");
+    await page.getByLabel("Pickup longitude").fill("77.5946");
+    await page.getByLabel("Destination latitude").fill("12.9352");
+    await page.getByLabel("Destination longitude").fill("77.6245");
+    await page.getByRole("button", { name: "Schedule trip" }).click();
 
-    await expect(page.getByText("Ride scheduled successfully.")).toBeVisible();
-    await expect(page.getByText("Ride #91")).toBeVisible();
+    await expect(page.getByText("Trip scheduled.")).toBeVisible();
+    await expect(page.getByText("Scheduled", { exact: true })).toBeVisible();
   });
 
   test("rider booking supports fare estimate and request ride with map visible", async ({ baseURL, context, page }) => {
@@ -242,35 +260,131 @@ test.describe("rider smoke", () => {
       });
     });
 
+    await page.route("**/api/backend/riders/active-ride", async (route) => {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: null }) });
+    });
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: /Request your next/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Plan a trip" })).toBeVisible();
 
     // Verify booking map and selection controls are visible
     await expect(page.locator(".booking-map")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Set pickup" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Set drop-off" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Pickup" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Where to?" })).toBeVisible();
     const mapCanvas = page.locator(".booking-map .leaflet-container");
     await mapCanvas.click({ position: { x: 120, y: 110 } });
+    await page.getByRole("button", { name: "Choose on map" }).nth(1).click();
+    await mapCanvas.click({ position: { x: 230, y: 170 } });
+    await page.getByText("Enter coordinates").click();
     await expect(page.getByLabel("Pickup latitude")).not.toHaveValue("");
     await expect(page.getByLabel("Pickup longitude")).not.toHaveValue("");
-    await mapCanvas.click({ position: { x: 230, y: 170 } });
     await expect(page.getByLabel("Drop-off latitude")).not.toHaveValue("");
     await expect(page.getByLabel("Drop-off longitude")).not.toHaveValue("");
 
     // Manual inputs still work as fallback
-    await page.getByText("Advanced coordinates").click();
     await page.getByLabel("Pickup latitude").fill("12.9716");
     await page.getByLabel("Pickup longitude").fill("77.5946");
     await page.getByLabel("Drop-off latitude").fill("12.9352");
     await page.getByLabel("Drop-off longitude").fill("77.6245");
-    await expect(page.getByRole("button", { name: "Estimate to unlock request" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Request trip" })).toBeDisabled();
     await page.getByRole("button", { name: "Estimate fare" }).click();
     await expect(page.getByText("$210.00")).toBeVisible();
 
-    await page.getByRole("button", { name: /Request (ride|trip)/i }).click();
+    await page.getByRole("button", { name: "Request trip" }).click();
     await expect(page.getByText(/requested\. We are now matching you with a nearby/i)).toBeVisible();
-    await expect(page.getByText("Request #501").first()).toBeVisible();
-    await expect(page.getByText(/Matching nearby/i)).toBeVisible();
+    await expect(page.getByText(/Matching you with a nearby driver/i)).toBeVisible();
+    expect(rideRequested).toBe(true);
+  });
+
+  test("rider wallet adds, selects, and removes saved payment methods", async ({ baseURL, context, page }) => {
+    const riderBaseUrl = baseURL ?? "http://127.0.0.1:4102";
+    await context.addCookies([{ name: "velo_rider_token", value: "e2e-rider-token", url: riderBaseUrl }]);
+    await mockUnreadCount(page);
+
+    let methods = [
+      { id: 4, type: "CARD", lastFourDigits: "1111", expiryDate: "10/28", isDefault: true },
+    ];
+    await page.route("**/api/backend/payment-methods", async (route) => {
+      if (route.request().method() === "POST") {
+        methods = [...methods, { id: 5, type: "CARD", lastFourDigits: "4242", expiryDate: "08/29", isDefault: false }];
+      }
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: methods }) });
+    });
+    await page.route("**/api/backend/payment-methods/5/default", async (route) => {
+      methods = methods.map((method) => ({ ...method, isDefault: method.id === 5 }));
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: methods[1] }) });
+    });
+    await page.route("**/api/backend/payment-methods/5", async (route) => {
+      methods = methods.filter((method) => method.id !== 5);
+      await route.fulfill({ status: 204, body: "" });
+    });
+
+    await page.goto("/wallet");
+    await expect(page.getByRole("heading", { name: "Wallet" })).toBeVisible();
+    await page.getByRole("button", { name: "Add method" }).first().click();
+    const addDialog = page.getByRole("dialog", { name: "Add payment method" });
+    await addDialog.getByLabel("Last four digits").fill("4242");
+    await addDialog.getByLabel("Expiry date").fill("08/29");
+    await addDialog.getByRole("button", { name: "Add method" }).click();
+    await expect(page.getByText("Ending in 4242")).toBeVisible();
+
+    const addedMethod = page.locator(".payment-method-row").filter({ hasText: "Ending in 4242" });
+    await addedMethod.getByRole("button", { name: "Set default" }).click();
+    await expect(addedMethod.getByText("Default", { exact: true })).toBeVisible();
+
+    await addedMethod.getByRole("button", { name: "Remove" }).click();
+    const removeDialog = page.getByRole("dialog", { name: "Remove this payment method?" });
+    await removeDialog.getByRole("button", { name: "Remove method" }).click();
+    await expect(page.getByText("Ending in 4242")).toHaveCount(0);
+  });
+
+  test("rider offers copy codes and notifications support read actions", async ({ baseURL, context, page }) => {
+    const riderBaseUrl = baseURL ?? "http://127.0.0.1:4102";
+    await context.addCookies([{ name: "velo_rider_token", value: "e2e-rider-token", url: riderBaseUrl }]);
+    await mockUnreadCount(page);
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: { writeText: async (text: string) => { window.sessionStorage.setItem("e2e-copied-code", text); } },
+      });
+    });
+
+    await page.route("**/api/backend/promo-codes/active", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ data: [{ id: 12, code: "RIDE15", discountType: "PERCENTAGE", discountValue: 15, active: true, currentUses: 2, maxUses: 20, description: "A saving on your next trip" }] }),
+      });
+    });
+    await page.goto("/promos");
+    await expect(page.getByRole("heading", { name: "Offers" })).toBeVisible();
+    await page.getByRole("button", { name: "Copy code" }).click();
+    await expect(page.getByText("Offer code copied.")).toBeVisible();
+    expect(await page.evaluate(() => window.sessionStorage.getItem("e2e-copied-code"))).toBe("RIDE15");
+
+    let notifications = [
+      { id: 3, title: "Trip update", message: "Your driver accepted the request.", type: "RIDE_ACCEPTED", read: false, createdTime: new Date().toISOString() },
+      { id: 4, title: "Payment update", message: "Your payment was received.", type: "PAYMENT_RECEIVED", read: false, createdTime: new Date(Date.now() - 60_000).toISOString() },
+    ];
+    await page.route("**/api/backend/notifications?page=0&size=25", async (route) => {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { content: notifications } }) });
+    });
+    await page.route("**/api/backend/notifications/3/read", async (route) => {
+      notifications = notifications.map((item) => item.id === 3 ? { ...item, read: true } : item);
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: notifications[0] }) });
+    });
+    await page.route("**/api/backend/notifications/read-all", async (route) => {
+      notifications = notifications.map((item) => ({ ...item, read: true }));
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: null }) });
+    });
+
+    await page.goto("/notifications");
+    await expect(page.getByRole("heading", { name: "Notifications" })).toBeVisible();
+    const firstNotification = page.locator(".notification-row").filter({ hasText: "Trip update" });
+    await firstNotification.getByRole("button", { name: "Mark read" }).click();
+    await expect(page.getByText("Notification marked as read.")).toBeVisible();
+    await page.getByRole("button", { name: "Mark all read" }).click();
+    await expect(page.getByText("All notifications marked as read.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Mark all read" })).toBeDisabled();
   });
 
   test("rider ride history keeps active ride continuity and accepts rating API calls", async ({ baseURL, context, page }) => {
@@ -346,23 +460,26 @@ test.describe("rider smoke", () => {
         }),
       });
     });
+    await page.route("**/api/backend/riders/active-ride", async (route) => {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: null }) });
+    });
 
     await page.goto("/rides");
 
-    await expect(page.getByRole("heading", { name: "Your ride history" })).toBeVisible();
-    await expect(page.getByText("Ride #55")).toBeVisible();
-    await expect(page.getByText(/^Status: ONGOING$/)).toBeVisible();
-    await expect(page.getByText("Ride #77")).toBeVisible();
-    await expect(page.getByText(/^Status: ENDED$/)).toBeVisible();
-    await expect(page.getByRole("button", { name: "Cancel ride" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Your trips" })).toBeVisible();
+    await expect(page.getByText("Trip in progress", { exact: true }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Cancel trip" })).toBeVisible();
 
-    await page.getByRole("button", { name: "Cancel ride" }).first().click();
-    await expect(page.getByText("Ride #55 canceled.")).toBeVisible();
-    await expect(page.getByText(/^Status: CANCELLED$/)).toBeVisible();
+    await page.getByRole("button", { name: "Cancel trip" }).click();
+    const cancelDialog = page.getByRole("dialog", { name: "Cancel this trip?" });
+    await cancelDialog.getByRole("button", { name: "Cancel trip" }).click();
+    await expect(page.getByText("Trip cancelled.")).toBeVisible();
 
-    const endedRideCard = page.locator("article.list-item").filter({ hasText: "Ride #77" });
+    await page.getByRole("radio", { name: "Past" }).click();
+    await expect(page.getByText("Cancelled", { exact: true })).toBeVisible();
+    const endedRideCard = page.getByTestId("trip-row").last();
     await endedRideCard.getByRole("button", { name: "Rate driver" }).click();
-    await expect(page.getByText("Driver rated 5 stars for ride #77.")).toBeVisible();
+    await expect(page.getByText("Thanks for your rating.")).toBeVisible();
     expect(ratingCalled).toBe(true);
   });
 
@@ -464,17 +581,19 @@ test.describe("rider smoke", () => {
     });
 
     await page.goto("/ride/active");
-    await expect(page.getByText("Live trip continuity")).toBeVisible();
-    await expect(page.getByText("Ride #501 • Request #—")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Your trip" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Your trip is in progress" })).toBeVisible();
     await expect(page.locator(".active-ride-map")).toBeVisible();
+    await page.getByRole("button", { name: "Follow driver" }).click();
+    await expect(page.getByRole("button", { name: "Stop following" })).toHaveAttribute("aria-pressed", "true");
 
     activeRideVisible = false;
-    await page.getByRole("button", { name: "Refresh now" }).click();
-    await expect(page.getByText("No active trip right now.")).toBeVisible();
-    await expect(page.getByText("Trip summary and rating")).toBeVisible();
+    await page.getByRole("button", { name: "Refresh", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "No active trip" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Rate your last trip" })).toBeVisible();
 
     await page.getByRole("button", { name: "Submit rating" }).click();
-    await expect(page.getByText("Rated ride #777 with 5 stars.")).toBeVisible();
+    await expect(page.getByText("Thanks for rating your driver.")).toBeVisible();
     expect(ratingSubmitted).toBe(true);
   });
 
@@ -528,7 +647,7 @@ test.describe("rider smoke", () => {
 
     await page.goto("/scheduled");
     await page.waitForURL("**/ride/active");
-    await expect(page.getByText("Live trip continuity")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Your trip" })).toBeVisible();
   });
 
   test("rider session expiry redirects protected routes to login", async ({ context, page }) => {
