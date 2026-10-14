@@ -8,6 +8,7 @@ import com.velo.platform.entities.RideRequest;
 import com.velo.platform.entities.Rider;
 import com.velo.platform.entities.enums.NotificationType;
 import com.velo.platform.entities.enums.RideRequestStatus;
+import com.velo.platform.entities.enums.ScheduledTripReasonCode;
 import com.velo.platform.events.RideRequestedEvent;
 import com.velo.platform.events.ScheduledRideCancelledEvent;
 import com.velo.platform.events.ScheduledRideCreatedEvent;
@@ -84,9 +85,17 @@ public class ScheduledRideServiceImpl implements ScheduledRideService {
     @Override
     @Transactional
     public ScheduledRideDto cancelScheduledRide(Long rideRequestId) {
+        return cancelScheduledRide(rideRequestId, ScheduledTripReasonCode.RIDER_CANCELLED, null);
+    }
+
+    @Override
+    @Transactional
+    public ScheduledRideDto cancelScheduledRide(Long rideRequestId, ScheduledTripReasonCode reasonCode, String reasonNote) {
         RideRequest rideRequest = findOwnedScheduledRequest(rideRequestId);
 
         rideRequest.setRideRequestStatus(RideRequestStatus.CANCELLED);
+        rideRequest.setReasonCode(reasonCode == null ? ScheduledTripReasonCode.RIDER_CANCELLED : reasonCode);
+        rideRequest.setReasonNote(reasonNote == null || reasonNote.isBlank() ? null : reasonNote.trim());
         RideRequest saved = rideRequestRepository.save(rideRequest);
         eventPublisher.publishEvent(new ScheduledRideCancelledEvent(this, saved));
         log.info("Scheduled ride cancelled: id={}", rideRequestId);
@@ -117,7 +126,8 @@ public class ScheduledRideServiceImpl implements ScheduledRideService {
     public Page<ScheduledRideDto> getMyScheduledRides(PageRequest pageRequest) {
         Rider rider = riderService.getCurrentRider();
         return rideRequestRepository
-                .findByRiderAndRideRequestStatusOrderByScheduledTimeAsc(rider, RideRequestStatus.SCHEDULED, pageRequest)
+                .findByTenantIdAndRiderAndRideRequestStatusOrderByScheduledTimeAsc(
+                        tenantScopeService.requireCurrentTenantId(), rider, RideRequestStatus.SCHEDULED, pageRequest)
                 .map(this::toScheduledRideDto);
     }
 
@@ -218,17 +228,10 @@ public class ScheduledRideServiceImpl implements ScheduledRideService {
     }
 
     private RideRequest findOwnedScheduledRequest(Long rideRequestId) {
-        RideRequest rideRequest = rideRequestRepository.findById(rideRequestId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Ride request not found with id: " + rideRequestId));
-
         Rider rider = riderService.getCurrentRider();
-        if (!rider.equals(rideRequest.getRider())) {
-            throw new RuntimeConflictException("You do not own this ride request");
-        }
-        if (!resolveTenantId(rider.getTenantId()).equals(resolveTenantId(rideRequest.getTenantId()))) {
-            throw new RuntimeConflictException("Cross-tenant ride request access is not allowed.");
-        }
+        Long tenantId = tenantScopeService.requireCurrentTenantId();
+        RideRequest rideRequest = rideRequestRepository.findByIdAndTenantIdAndRider_Id(rideRequestId, tenantId, rider.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Ride request not found with id: " + rideRequestId));
 
         if (rideRequest.getRideRequestStatus() != RideRequestStatus.SCHEDULED) {
             throw new RuntimeConflictException(

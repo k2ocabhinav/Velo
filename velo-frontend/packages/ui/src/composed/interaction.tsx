@@ -119,6 +119,7 @@ export function Menu({
 /** Confirm a consequential action with the action verb on the destructive button. */
 export function ConfirmDialog({
   cancelLabel = "Cancel",
+  children,
   confirmLabel,
   description,
   onConfirm,
@@ -132,6 +133,7 @@ export function ConfirmDialog({
   title: string;
   description: string;
   confirmLabel: string;
+  children?: ReactNode;
   cancelLabel?: string;
   destructive?: boolean;
   onConfirm: () => void | Promise<void>;
@@ -154,6 +156,7 @@ export function ConfirmDialog({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
+        {children ? <div className="stack compact">{children}</div> : null}
         <DialogFooter>
           <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={loading}>{cancelLabel}</Button>
           <Button variant={destructive ? "danger" : "primary"} onClick={() => void confirm()} loading={loading}>

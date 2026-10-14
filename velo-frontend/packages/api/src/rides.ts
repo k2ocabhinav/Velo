@@ -14,6 +14,8 @@ import type {
   RiderDto,
   RiderWalletDto,
   ScheduledRideDto,
+  RecurringTripTemplateDto,
+  RecurringTripTemplateRequestDto,
 } from "./types";
 
 export interface RidesApi {
@@ -31,6 +33,11 @@ export interface RidesApi {
   getScheduledRides(params?: PageRequestInput): Promise<PaginatedResponse<ScheduledRideDto>>;
   cancelScheduledRide(rideId: number): Promise<ScheduledRideDto>;
   rescheduleScheduledRide(rideId: number, newTime: string): Promise<ScheduledRideDto>;
+  getRecurringTripTemplates(params?: PageRequestInput): Promise<PaginatedResponse<RecurringTripTemplateDto>>;
+  createRecurringTripTemplate(input: RecurringTripTemplateRequestDto): Promise<RecurringTripTemplateDto>;
+  updateRecurringTripTemplate(id: number, input: RecurringTripTemplateRequestDto): Promise<RecurringTripTemplateDto>;
+  setRecurringTripTemplateActive(id: number, active: boolean): Promise<RecurringTripTemplateDto>;
+  deleteRecurringTripTemplate(id: number): Promise<void>;
 }
 
 export function createRidesApi(client: AxiosInstance = createVeloClient()): RidesApi {
@@ -113,5 +120,33 @@ export function createRidesApi(client: AxiosInstance = createVeloClient()): Ride
         url: `/riders/scheduled-rides/${rideId}/reschedule`,
         params: { newTime },
       }),
+    getRecurringTripTemplates: (params) =>
+      requestPageData<RecurringTripTemplateDto>(client, {
+        method: "GET",
+        url: "/riders/recurring-trip-templates",
+        params,
+      }),
+    createRecurringTripTemplate: (input) =>
+      requestData<RecurringTripTemplateDto>(client, {
+        method: "POST",
+        url: "/riders/recurring-trip-templates",
+        data: input,
+      }),
+    updateRecurringTripTemplate: (id, input) =>
+      requestData<RecurringTripTemplateDto>(client, {
+        method: "PUT",
+        url: `/riders/recurring-trip-templates/${id}`,
+        data: input,
+      }),
+    setRecurringTripTemplateActive: (id, active) =>
+      requestData<RecurringTripTemplateDto>(client, {
+        method: "POST",
+        url: `/riders/recurring-trip-templates/${id}/${active ? "resume" : "pause"}`,
+      }),
+    deleteRecurringTripTemplate: (id) =>
+      requestData<void>(client, {
+        method: "DELETE",
+        url: `/riders/recurring-trip-templates/${id}`,
+      }).then(() => undefined),
   };
 }

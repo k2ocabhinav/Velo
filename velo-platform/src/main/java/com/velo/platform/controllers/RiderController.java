@@ -133,7 +133,9 @@ public class RiderController {
 
     @DeleteMapping("/scheduled-rides/{id}")
     @Operation(summary = "Cancel a scheduled ride")
-    public ResponseEntity<ScheduledRideDto> cancelScheduledRide(@PathVariable Long id) {
-        return ResponseEntity.ok(scheduledRideService.cancelScheduledRide(id));
+    public ResponseEntity<ScheduledRideDto> cancelScheduledRide(
+            @PathVariable Long id, @RequestBody(required = false) ScheduledTripReasonRequestDto request) {
+        return ResponseEntity.ok(scheduledRideService.cancelScheduledRide(id,
+                request == null ? null : request.getReasonCode(), request == null ? null : request.getNote()));
     }
 }

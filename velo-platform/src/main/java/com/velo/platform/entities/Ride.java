@@ -66,6 +66,11 @@ public class Ride{
 
     private String otp;
 
+    @ToString.Exclude
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "ride_request_id", unique = true)
+    private RideRequest rideRequest;
+
     @Version
     private Long version;
 

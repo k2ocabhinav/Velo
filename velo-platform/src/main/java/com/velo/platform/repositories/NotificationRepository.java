@@ -2,6 +2,7 @@ package com.velo.platform.repositories;
 
 import com.velo.platform.entities.Notification;
 import com.velo.platform.entities.User;
+import com.velo.platform.entities.enums.NotificationType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -20,6 +21,8 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     Page<Notification> findByUser(User user, Pageable pageable);
 
     long countByUserAndReadFalse(User user);
+
+    boolean existsByTenantIdAndUserAndTypeAndReferenceId(Long tenantId, User user, NotificationType type, Long referenceId);
 
     @Modifying
     @Query("UPDATE Notification n SET n.read = true WHERE n.user = :user AND n.read = false")

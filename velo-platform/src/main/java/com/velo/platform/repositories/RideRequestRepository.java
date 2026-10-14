@@ -51,6 +51,8 @@ public interface RideRequestRepository extends JpaRepository<RideRequest, Long> 
     Optional<RideRequest> findByIdAndRideRequestStatusForUpdate(
             @Param("id") Long id, @Param("status") RideRequestStatus status);
 
+    Optional<RideRequest> findByIdAndTenantIdAndRider_Id(Long id, Long tenantId, Long riderId);
+
     Optional<RideRequest> findTopByRiderAndRideRequestStatusInOrderByRequestedTimeDesc(
             Rider rider,
             List<RideRequestStatus> statuses
@@ -61,6 +63,12 @@ public interface RideRequestRepository extends JpaRepository<RideRequest, Long> 
             Long tenantId,
             List<RideRequestStatus> statuses
     );
+
+    Optional<RideRequest> findTopByRiderAndTenantIdAndRideRequestStatusOrderByRequestedTimeDesc(
+            Rider rider, Long tenantId, RideRequestStatus status);
+
+    Page<RideRequest> findByTenantIdAndRiderAndRideRequestStatusOrderByScheduledTimeAsc(
+            Long tenantId, Rider rider, RideRequestStatus status, Pageable pageable);
 
     boolean existsByRiderAndTenantIdAndRideRequestStatusIn(
             Rider rider,
@@ -74,6 +82,24 @@ public interface RideRequestRepository extends JpaRepository<RideRequest, Long> 
     );
 
     long countByTenantIdAndRideRequestStatus(Long tenantId, RideRequestStatus rideRequestStatus);
+
+    @EntityGraph(attributePaths = {"rider.user", "ride.driver.user", "recurringTemplate"})
+    List<RideRequest> findByTenantIdAndScheduledTimeGreaterThanEqualAndScheduledTimeLessThanOrderByScheduledTimeAsc(
+            Long tenantId, LocalDateTime start, LocalDateTime end);
+
+    @EntityGraph(attributePaths = {"rider.user", "ride.driver.user", "recurringTemplate"})
+    List<RideRequest> findByTenantIdAndRideRequestStatusInAndScheduledTimeBetweenOrderByScheduledTimeAsc(
+            Long tenantId, List<RideRequestStatus> statuses, LocalDateTime start, LocalDateTime end);
+
+    @EntityGraph(attributePaths = {"rider.user"})
+    List<RideRequest> findByTenantIdAndRecurringTemplate_IdAndRideRequestStatusAndScheduledTimeAfter(
+            Long tenantId, Long templateId, RideRequestStatus status, LocalDateTime after);
+
+    boolean existsByTenantIdAndRecurringTemplate_IdAndOccurrenceDate(Long tenantId, Long templateId, java.time.LocalDate date);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT r FROM RideRequest r WHERE r.id = :id AND r.tenantId = :tenantId")
+    Optional<RideRequest> findByIdAndTenantIdForUpdate(@Param("id") Long id, @Param("tenantId") Long tenantId);
 
     @Modifying(flushAutomatically = true)
     @Query("""

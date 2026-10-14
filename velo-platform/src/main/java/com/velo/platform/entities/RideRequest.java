@@ -2,12 +2,14 @@ package com.velo.platform.entities;
 
 import com.velo.platform.entities.enums.PaymentMethod;
 import com.velo.platform.entities.enums.RideRequestStatus;
+import com.velo.platform.entities.enums.ScheduledTripReasonCode;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.locationtech.jts.geom.Point;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 @Entity
 @Getter
@@ -70,6 +72,26 @@ public class RideRequest {
 
     @Enumerated(EnumType.STRING)
     private RideRequestStatus rideRequestStatus;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "recurring_template_id")
+    private RecurringTripTemplate recurringTemplate;
+
+    @Column(name = "occurrence_date")
+    private LocalDate occurrenceDate;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "reason_code", length = 64)
+    private ScheduledTripReasonCode reasonCode;
+
+    @Column(name = "reason_note", length = 1024)
+    private String reasonNote;
+
+    @Column(name = "booking_notes", length = 1024)
+    private String bookingNotes;
+
+    @OneToOne(mappedBy = "rideRequest", fetch = FetchType.LAZY)
+    private Ride ride;
 
     @Column(precision = 10, scale = 2)
     private java.math.BigDecimal fare;

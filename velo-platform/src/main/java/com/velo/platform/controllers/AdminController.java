@@ -15,9 +15,12 @@ import com.velo.platform.dto.admin.DashboardDto;
 import com.velo.platform.dto.admin.PendingDriverDto;
 import com.velo.platform.dto.admin.RevenueReportDto;
 import com.velo.platform.dto.admin.TopDriverRevenueDto;
+import com.velo.platform.dto.admin.TripSheetReasonRequestDto;
+import com.velo.platform.dto.admin.TripSheetRowDto;
 import com.velo.platform.entities.enums.DriverOnboardingStatus;
 import com.velo.platform.services.AdminDispatchService;
 import com.velo.platform.services.AdminService;
+import com.velo.platform.services.TripSheetService;
 import com.velo.platform.services.PayoutService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -28,6 +31,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ContentDisposition;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -36,6 +42,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 
 import java.time.LocalDate;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @RestController
@@ -51,6 +58,7 @@ public class AdminController {
     private final AdminDispatchService adminDispatchService;
     private final PayoutService payoutService;
     private final com.velo.platform.services.ScheduledRideService scheduledRideService;
+    private final TripSheetService tripSheetService;
 
     @GetMapping("/stats/dashboard")
     @Operation(summary = "Get dashboard overview")
@@ -187,6 +195,53 @@ public class AdminController {
             @RequestParam(defaultValue = "10") int size) {
         PageRequest pageRequest = PageRequest.of(page, size);
         return ResponseEntity.ok(scheduledRideService.getAllScheduledRides(pageRequest));
+    }
+
+    @GetMapping("/trip-sheet")
+    @Operation(summary = "Get scheduled trips for a selected date")
+    public ResponseEntity<List<TripSheetRowDto>> getTripSheet(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(defaultValue = "ALL") String assignment) {
+        return ResponseEntity.ok(tripSheetService.getTripSheet(date, assignment));
+    }
+
+    @GetMapping("/trip-sheet/attention")
+    @Operation(summary = "Get scheduled trips starting soon without a driver")
+    public ResponseEntity<List<TripSheetRowDto>> getTripsNeedingAttention() {
+        return ResponseEntity.ok(tripSheetService.getNeedsAttentionTrips());
+    }
+
+    @GetMapping("/trip-sheet/attention/count")
+    @Operation(summary = "Count scheduled trips starting soon without a driver")
+    public ResponseEntity<Integer> getTripsNeedingAttentionCount() {
+        return ResponseEntity.ok(tripSheetService.getNeedsAttentionCount());
+    }
+
+    @GetMapping(value = "/trip-sheet/export", produces = "text/csv")
+    @Operation(summary = "Export scheduled trips for a selected date as CSV")
+    public ResponseEntity<byte[]> exportTripSheet(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("text/csv"))
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment().filename("trip-sheet-" + date + ".csv").build().toString())
+                .body(tripSheetService.exportCsv(date));
+    }
+
+    @PostMapping("/trip-sheet/{rideRequestId}/cancel")
+    @Operation(summary = "Cancel an unassigned scheduled trip with a reason")
+    public ResponseEntity<TripSheetRowDto> cancelTripSheetRide(
+            @PathVariable Long rideRequestId,
+            @Valid @RequestBody(required = false) TripSheetReasonRequestDto request) {
+        return ResponseEntity.ok(tripSheetService.cancel(rideRequestId, request));
+    }
+
+    @PostMapping("/trip-sheet/{rideRequestId}/no-show")
+    @Operation(summary = "Mark an assigned scheduled trip as a no-show")
+    public ResponseEntity<TripSheetRowDto> markTripSheetNoShow(
+            @PathVariable Long rideRequestId,
+            @Valid @RequestBody(required = false) TripSheetReasonRequestDto request) {
+        return ResponseEntity.ok(tripSheetService.markNoShow(rideRequestId, request));
     }
 
     @GetMapping("/dispatch/requests")

@@ -16,7 +16,11 @@ import type {
   RideDto,
   RideRequestDto,
   RevenueReportDto,
+  RecurringTripTemplateDto,
+  RecurringTripTemplateRequestDto,
   ScheduledRideDto,
+  TripSheetRowDto,
+  TripSheetRiderOptionDto,
   TopDriverRevenueDto,
 } from "./types";
 
@@ -36,6 +40,14 @@ export interface AdminApi {
   rejectPayout(payoutId: number, adminNote: string): Promise<PayoutRequestDto>;
   processPayout(payoutId: number): Promise<PayoutRequestDto>;
   getScheduledRides(params?: PageRequestInput): Promise<PaginatedResponse<ScheduledRideDto>>;
+  getTripSheet(date: string, assignment?: "ALL" | "ASSIGNED" | "UNASSIGNED"): Promise<TripSheetRowDto[]>;
+  getTripsNeedingAttentionCount(): Promise<number>;
+  exportTripSheet(date: string): Promise<string>;
+  getRecurringTripTemplates(params?: PageRequestInput): Promise<PaginatedResponse<RecurringTripTemplateDto>>;
+  getTripSheetRiders(): Promise<TripSheetRiderOptionDto[]>;
+  createRecurringTripTemplate(input: RecurringTripTemplateRequestDto): Promise<RecurringTripTemplateDto>;
+  setRecurringTripTemplateActive(id: number, active: boolean): Promise<RecurringTripTemplateDto>;
+  deleteRecurringTripTemplate(id: number): Promise<void>;
   getPendingRideRequests(params?: PageRequestInput): Promise<PaginatedResponse<AdminPendingRideRequestDto>>;
   getActiveRides(params?: PageRequestInput): Promise<PaginatedResponse<AdminActiveRideDto>>;
   getRideRequestOffers(rideRequestId: number): Promise<AdminRideOfferDto[]>;
@@ -146,6 +158,51 @@ export function createAdminApi(client: AxiosInstance = createVeloClient()): Admi
         url: "/api/v1/admin/scheduled-rides",
         params,
       }),
+    getTripSheet: (date, assignment = "ALL") =>
+      requestData<TripSheetRowDto[]>(client, {
+        method: "GET",
+        url: "/api/v1/admin/trip-sheet",
+        params: { date, assignment },
+      }),
+    getTripsNeedingAttentionCount: () =>
+      requestData<number>(client, {
+        method: "GET",
+        url: "/api/v1/admin/trip-sheet/attention/count",
+      }),
+    exportTripSheet: (date) =>
+      requestData<string>(client, {
+        method: "GET",
+        url: "/api/v1/admin/trip-sheet/export",
+        params: { date },
+        responseType: "text",
+      }),
+    getRecurringTripTemplates: (params) =>
+      requestPageData<RecurringTripTemplateDto>(client, {
+        method: "GET",
+        url: "/api/v1/admin/recurring-trip-templates",
+        params,
+      }),
+    getTripSheetRiders: () =>
+      requestData<TripSheetRiderOptionDto[]>(client, {
+        method: "GET",
+        url: "/api/v1/admin/recurring-trip-templates/riders",
+      }),
+    createRecurringTripTemplate: (input) =>
+      requestData<RecurringTripTemplateDto>(client, {
+        method: "POST",
+        url: "/api/v1/admin/recurring-trip-templates",
+        data: input,
+      }),
+    setRecurringTripTemplateActive: (id, active) =>
+      requestData<RecurringTripTemplateDto>(client, {
+        method: "POST",
+        url: `/api/v1/admin/recurring-trip-templates/${id}/${active ? "resume" : "pause"}`,
+      }),
+    deleteRecurringTripTemplate: (id) =>
+      requestData<void>(client, {
+        method: "DELETE",
+        url: `/api/v1/admin/recurring-trip-templates/${id}`,
+      }).then(() => undefined),
     getPendingRideRequests: (params) =>
       requestPageData<AdminPendingRideRequestDto>(client, {
         method: "GET",

@@ -20,6 +20,9 @@ public class GlobalResponseHandler implements ResponseBodyAdvice<Object> {
 
     @Override
     public Object beforeBodyWrite(Object body, MethodParameter returnType, MediaType selectedContentType, Class<? extends HttpMessageConverter<?>> selectedConverterType, ServerHttpRequest request, ServerHttpResponse response) {
+        if (MediaType.parseMediaType("text/csv").isCompatibleWith(selectedContentType)) {
+            return body;
+        }
         List<String> allowedRoutes = List.of("/v3/api-docs", "/actuator");
 
         boolean isAllowed = allowedRoutes

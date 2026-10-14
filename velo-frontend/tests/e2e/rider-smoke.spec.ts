@@ -150,6 +150,14 @@ test.describe("rider smoke", () => {
       });
     });
 
+    await page.route("**/api/backend/riders/recurring-trip-templates*", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ data: { content: [] } }),
+      });
+    });
+
     await page.route("**/api/backend/riders/schedule-ride", async (route) => {
       hasScheduledRide = true;
       await route.fulfill({

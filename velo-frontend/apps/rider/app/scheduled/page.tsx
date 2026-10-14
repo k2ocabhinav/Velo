@@ -28,10 +28,40 @@ type ScheduledRide = {
   fare?: number | string;
 };
 
+type RecurringTemplate = {
+  id: number;
+  daysOfWeek: string[];
+  localTime: string;
+  startDate: string;
+  endDate: string;
+  pickupAddress?: string | null;
+  dropOffAddress?: string | null;
+  paymentMethod: string;
+  pickupLocation: { coordinates: [number, number]; type: "Point" };
+  dropOffLocation: { coordinates: [number, number]; type: "Point" };
+  bookingReference?: string | null;
+  notes?: string | null;
+  active: boolean;
+};
+
+const WEEKDAYS = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"] as const;
+
+function dateAfter(daysAhead: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() + daysAhead);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
 function unwrapPage(payload: unknown): ScheduledRide[] {
   const root = payload as Record<string, unknown> | null;
   const raw = (root?.data as Record<string, unknown> | undefined) ?? root ?? {};
   return (raw.content as ScheduledRide[] | undefined) ?? [];
+}
+
+function unwrapTemplates(payload: unknown): RecurringTemplate[] {
+  const root = payload as Record<string, unknown> | null;
+  const raw = (root?.data as Record<string, unknown> | undefined) ?? root ?? {};
+  return (raw.content as RecurringTemplate[] | undefined) ?? [];
 }
 
 export default function RiderScheduledPage() {
@@ -53,6 +83,25 @@ export default function RiderScheduledPage() {
   const [scheduledTime, setScheduledTime] = useState("");
   const [rescheduleTime, setRescheduleTime] = useState("");
   const [cancelRideId, setCancelRideId] = useState<number | null>(null);
+  const [templates, setTemplates] = useState<RecurringTemplate[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(true);
+  const [templateError, setTemplateError] = useState<string | null>(null);
+  const [templateMessage, setTemplateMessage] = useState<string | null>(null);
+  const [templatePending, setTemplatePending] = useState(false);
+  const [repeatDays, setRepeatDays] = useState<string[]>(["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"]);
+  const [repeatTime, setRepeatTime] = useState("09:00");
+  const [repeatStartDate, setRepeatStartDate] = useState(() => dateAfter(1));
+  const [repeatEndDate, setRepeatEndDate] = useState(() => dateAfter(30));
+  const [repeatPickupLat, setRepeatPickupLat] = useState("");
+  const [repeatPickupLng, setRepeatPickupLng] = useState("");
+  const [repeatDropLat, setRepeatDropLat] = useState("");
+  const [repeatDropLng, setRepeatDropLng] = useState("");
+  const [repeatPickupAddress, setRepeatPickupAddress] = useState("");
+  const [repeatDropAddress, setRepeatDropAddress] = useState("");
+  const [repeatReference, setRepeatReference] = useState("");
+  const [repeatNotes, setRepeatNotes] = useState("");
+  const [deleteTemplateId, setDeleteTemplateId] = useState<number | null>(null);
+  const [editingTemplateId, setEditingTemplateId] = useState<number | null>(null);
 
   const loadRides = useCallback(async () => {
     setLoading(true);
@@ -67,9 +116,24 @@ export default function RiderScheduledPage() {
     }
   }, []);
 
+  const loadTemplates = useCallback(async () => {
+    setTemplatesLoading(true);
+    setTemplateError(null);
+    try {
+      const payload = await requestRiderProxy<SpringPage<RecurringTemplate>>("riders/recurring-trip-templates?page=0&size=50");
+      setTemplates(unwrapTemplates(payload));
+    } catch (loadError) {
+      setTemplateError(loadError instanceof Error ? loadError.message : "Couldn't load weekly trips.");
+    } finally {
+      setTemplatesLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     void loadRides();
   }, [loadRides]);
+
+  useEffect(() => { void loadTemplates(); }, [loadTemplates]);
 
   async function scheduleRide() {
     setError(null);
@@ -96,6 +160,104 @@ export default function RiderScheduledPage() {
       setError(scheduleError instanceof Error ? scheduleError.message : "Couldn't schedule this trip.");
     } finally {
       setPending(false);
+    }
+  }
+
+  function toggleRepeatDay(day: string): void {
+    setRepeatDays((current) => current.includes(day) ? current.filter((value) => value !== day) : [...current, day]);
+  }
+
+  function editRecurringTrip(template: RecurringTemplate): void {
+    setEditingTemplateId(template.id);
+    setRepeatDays(template.daysOfWeek);
+    setRepeatTime(template.localTime.slice(0, 5));
+    setRepeatStartDate(template.startDate);
+    setRepeatEndDate(template.endDate);
+    setRepeatPickupLat(String(template.pickupLocation.coordinates[1]));
+    setRepeatPickupLng(String(template.pickupLocation.coordinates[0]));
+    setRepeatDropLat(String(template.dropOffLocation.coordinates[1]));
+    setRepeatDropLng(String(template.dropOffLocation.coordinates[0]));
+    setRepeatPickupAddress(template.pickupAddress ?? "");
+    setRepeatDropAddress(template.dropOffAddress ?? "");
+    setPaymentMethod(template.paymentMethod);
+    setRepeatReference(template.bookingReference ?? "");
+    setRepeatNotes(template.notes ?? "");
+    document.getElementById("weekly-trip-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function cancelRecurringEdit(): void {
+    setEditingTemplateId(null);
+    setRepeatDays(["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"]);
+    setRepeatTime("09:00");
+    setRepeatStartDate(dateAfter(1));
+    setRepeatEndDate(dateAfter(30));
+    setRepeatPickupLat("");
+    setRepeatPickupLng("");
+    setRepeatDropLat("");
+    setRepeatDropLng("");
+    setRepeatPickupAddress("");
+    setRepeatDropAddress("");
+    setRepeatReference("");
+    setRepeatNotes("");
+  }
+
+  async function createRecurringTrip(): Promise<void> {
+    setTemplateError(null);
+    setTemplateMessage(null);
+    const pickup = validatePointInput({ lat: repeatPickupLat, lng: repeatPickupLng }, "Pickup");
+    const drop = validatePointInput({ lat: repeatDropLat, lng: repeatDropLng }, "Destination");
+    if (repeatDays.length === 0) { setTemplateError("Choose at least one day of the week."); return; }
+    if (!pickup.ok) { setTemplateError(pickup.error); return; }
+    if (!drop.ok) { setTemplateError(drop.error); return; }
+    if (repeatEndDate < repeatStartDate) { setTemplateError("End date must be on or after start date."); return; }
+
+    setTemplatePending(true);
+    try {
+      await requestRiderProxy(editingTemplateId === null ? "riders/recurring-trip-templates" : `riders/recurring-trip-templates/${editingTemplateId}`, {
+        method: editingTemplateId === null ? "POST" : "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          daysOfWeek: repeatDays,
+          localTime: repeatTime,
+          startDate: repeatStartDate,
+          endDate: repeatEndDate,
+          pickupLocation: pickup.point,
+          dropOffLocation: drop.point,
+          pickupAddress: repeatPickupAddress,
+          dropOffAddress: repeatDropAddress,
+          paymentMethod,
+          bookingReference: repeatReference,
+          notes: repeatNotes,
+        }),
+      });
+      setTemplateMessage(editingTemplateId === null ? "Weekly trip created." : "Weekly trip updated.");
+      setEditingTemplateId(null);
+      await loadTemplates();
+    } catch (createError) {
+      setTemplateError(createError instanceof Error ? createError.message : "Couldn't create this weekly trip.");
+    } finally {
+      setTemplatePending(false);
+    }
+  }
+
+  async function toggleRecurringTrip(template: RecurringTemplate): Promise<void> {
+    setTemplateError(null);
+    try {
+      await requestRiderProxy(`riders/recurring-trip-templates/${template.id}/${template.active ? "pause" : "resume"}`, { method: "POST" });
+      await loadTemplates();
+    } catch (actionError) {
+      setTemplateError(actionError instanceof Error ? actionError.message : "Couldn't update this weekly trip.");
+    }
+  }
+
+  async function deleteRecurringTrip(id: number): Promise<void> {
+    setTemplateError(null);
+    try {
+      await requestRiderProxy(`riders/recurring-trip-templates/${id}`, { method: "DELETE" });
+      setTemplateMessage("Weekly trip deleted.");
+      await loadTemplates();
+    } catch (actionError) {
+      setTemplateError(actionError instanceof Error ? actionError.message : "Couldn't delete this weekly trip.");
     }
   }
 
@@ -174,6 +336,63 @@ export default function RiderScheduledPage() {
         </Section>
       </div>
 
+      <Section title="Repeat every week">
+        <div className="stack">
+          <p className="helper">Create recurring trips for your own account. Changes apply to future trips that have not entered dispatch.</p>
+          {templateError ? <ErrorState title="Couldn't update weekly trips" description={templateError} onRetry={() => void loadTemplates()} /> : null}
+          {templateMessage ? <p className="booking-feedback" role="status">{templateMessage}</p> : null}
+          <div id="weekly-trip-form" className="recurring-trip-form">
+            <fieldset className="recurring-days">
+              <legend>Days of week</legend>
+              <div className="recurring-day-list">{WEEKDAYS.map((day) => <label key={day}>
+                <input type="checkbox" checked={repeatDays.includes(day)} onChange={() => toggleRepeatDay(day)} />
+                <span>{day.slice(0, 3)}</span>
+              </label>)}</div>
+            </fieldset>
+            <div className="grid grid-2">
+              <Field label="Pickup time"><input type="time" value={repeatTime} onChange={(event) => setRepeatTime(event.target.value)} /></Field>
+              <Field label="Start date"><input type="date" value={repeatStartDate} onChange={(event) => setRepeatStartDate(event.target.value)} /></Field>
+              <Field label="End date"><input type="date" value={repeatEndDate} onChange={(event) => setRepeatEndDate(event.target.value)} /></Field>
+              <Field label="Booking reference"><input value={repeatReference} onChange={(event) => setRepeatReference(event.target.value)} /></Field>
+              <Field label="Pickup address"><input value={repeatPickupAddress} onChange={(event) => setRepeatPickupAddress(event.target.value)} /></Field>
+              <Field label="Drop-off address"><input value={repeatDropAddress} onChange={(event) => setRepeatDropAddress(event.target.value)} /></Field>
+              <Field label="Notes"><input value={repeatNotes} onChange={(event) => setRepeatNotes(event.target.value)} /></Field>
+            </div>
+            <details className="advanced-fields">
+              <summary>Enter pickup and drop-off coordinates</summary>
+              <div className="grid grid-2">
+                <Field label="Latitude for weekly pickup"><input inputMode="decimal" value={repeatPickupLat} onChange={(event) => setRepeatPickupLat(event.target.value)} /></Field>
+                <Field label="Longitude for weekly pickup"><input inputMode="decimal" value={repeatPickupLng} onChange={(event) => setRepeatPickupLng(event.target.value)} /></Field>
+                <Field label="Latitude for weekly destination"><input inputMode="decimal" value={repeatDropLat} onChange={(event) => setRepeatDropLat(event.target.value)} /></Field>
+                <Field label="Longitude for weekly destination"><input inputMode="decimal" value={repeatDropLng} onChange={(event) => setRepeatDropLng(event.target.value)} /></Field>
+              </div>
+            </details>
+            <div className="cluster">
+              <Button loading={templatePending} onClick={() => void createRecurringTrip()}>{editingTemplateId === null ? "Create weekly trip" : "Save weekly trip changes"}</Button>
+              {editingTemplateId !== null ? <Button variant="secondary" onClick={cancelRecurringEdit}>Cancel edit</Button> : null}
+            </div>
+          </div>
+          <div className="stack">
+            <h3 className="section-subheading">Your weekly trips</h3>
+            {templatesLoading ? <div className="stack" role="status" aria-label="Loading weekly trips" aria-busy="true">{[0, 1].map((row) => <Skeleton className="schedule-skeleton-row" key={row} />)}</div> : null}
+            {!templatesLoading && !templateError && templates.length === 0 ? <EmptyState title="No weekly trips yet" description="Your recurring trips will appear here once you create one." /> : null}
+            {!templatesLoading && templates.length > 0 ? <div className="recurring-template-list">{templates.map((template) => <article className="recurring-template-row" key={template.id}>
+              <div className="stack compact">
+                <strong>{template.daysOfWeek.map((day) => day.slice(0, 3)).join(", ")} · {template.localTime.slice(0, 5)}</strong>
+                <span>{template.pickupAddress || "Pickup"} → {template.dropOffAddress || "Drop-off"}</span>
+                <span className="helper">{template.startDate} to {template.endDate}{template.bookingReference ? ` · ${template.bookingReference}` : ""}</span>
+              </div>
+              <div className="scheduled-trip-actions">
+                <StatusBadge domain="request" status={template.active ? "ACTIVE" : "PAUSED"} />
+                <Button variant="secondary" size="sm" disabled={templatePending} onClick={() => editRecurringTrip(template)}>Edit</Button>
+                <Button variant="secondary" size="sm" disabled={templatePending} onClick={() => void toggleRecurringTrip(template)}>{template.active ? "Pause" : "Resume"}</Button>
+                <Button variant="ghost" size="sm" disabled={templatePending} onClick={() => setDeleteTemplateId(template.id)}>Delete</Button>
+              </div>
+            </article>)}</div> : null}
+          </div>
+        </div>
+      </Section>
+
       <Section title="Upcoming trips" actions={<Button variant="secondary" loading={loading} onClick={() => void loadRides()}>Refresh</Button>}>
         {message ? <p className="booking-feedback" role="status">{message}</p> : null}
         {loadError ? <ErrorState title={loadError} onRetry={() => void loadRides()} /> : null}
@@ -232,6 +451,14 @@ export default function RiderScheduledPage() {
         description="This scheduled trip will be cancelled."
         confirmLabel="Cancel trip"
         onConfirm={async () => { if (cancelRideId !== null) await cancelRide(cancelRideId); }}
+      />
+      <ConfirmDialog
+        open={deleteTemplateId !== null}
+        onOpenChange={(open) => { if (!open) setDeleteTemplateId(null); }}
+        title="Delete this weekly trip?"
+        description="Trips already scheduled will stay booked. No new trips will be created from this template."
+        confirmLabel="Delete weekly trip"
+        onConfirm={async () => { if (deleteTemplateId !== null) await deleteRecurringTrip(deleteTemplateId); }}
       />
     </main>
   );

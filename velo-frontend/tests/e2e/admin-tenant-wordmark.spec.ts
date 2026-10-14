@@ -1,6 +1,7 @@
 import { expect, test } from "./fixtures";
 
-const tenantBrandName = process.env.PLAYWRIGHT_TENANT_BRAND_NAME ?? "Northstar Mobility";
+const tenantBrandName = process.env.PLAYWRIGHT_TENANT_BRAND_NAME ?? "Velo";
+const tenantWordmark = tenantBrandName === "Velo" ? "VELO" : tenantBrandName;
 
 async function captureBrandScreens(page: import("@playwright/test").Page, name: string): Promise<void> {
   for (const viewport of [
@@ -14,7 +15,7 @@ async function captureBrandScreens(page: import("@playwright/test").Page, name: 
 
 test("admin auth and sidebar show the tenant wordmark", async ({ baseURL, context, page }) => {
   await page.goto("/login");
-  await expect(page.locator(".auth-tenant-wordmark")).toHaveText(tenantBrandName);
+  await expect(page.locator(".auth-tenant-wordmark")).toHaveText(tenantWordmark);
   await captureBrandScreens(page, "auth");
 
   const appBaseUrl = baseURL ?? "http://127.0.0.1:5501";
@@ -31,6 +32,6 @@ test("admin auth and sidebar show the tenant wordmark", async ({ baseURL, contex
   });
 
   await page.goto("/users");
-  await expect(page.locator(".admin-brand strong")).toHaveText(tenantBrandName);
+  await expect(page.locator(".admin-brand strong")).toHaveText(tenantWordmark);
   await captureBrandScreens(page, "shell");
 });

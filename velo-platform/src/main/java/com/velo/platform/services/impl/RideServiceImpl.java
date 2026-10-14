@@ -49,6 +49,7 @@ public class RideServiceImpl implements RideService {
         ride.setTenantId(rideRequest.getTenantId());
         ride.setRideStatus(RideStatus.CONFIRMED);
         ride.setDriver(driver);
+        ride.setRideRequest(rideRequest);
         ride.setOtp(rideRequest.getRider() == null ? null : generateRandomOTP());
         ride.setId(null);
 
@@ -115,8 +116,14 @@ public class RideServiceImpl implements RideService {
                 ? RideRequestStatus.CANCELLED
                 : RideRequestStatus.EXPIRED; // DEMO_STUB: dedicated COMPLETED request status can replace this in a follow-up sprint.
 
-        rideRequestRepository
-                .findTopByRiderAndRideRequestStatusOrderByRequestedTimeDesc(ride.getRider(), RideRequestStatus.CONFIRMED)
+        if (ride.getRideRequest() != null
+                && java.util.Objects.equals(ride.getRideRequest().getTenantId(), ride.getTenantId())) {
+            ride.getRideRequest().setRideRequestStatus(nextRequestStatus);
+            rideRequestRepository.save(ride.getRideRequest());
+            return;
+        }
+        rideRequestRepository.findTopByRiderAndTenantIdAndRideRequestStatusOrderByRequestedTimeDesc(
+                        ride.getRider(), ride.getTenantId(), RideRequestStatus.CONFIRMED)
                 .ifPresent(rideRequest -> {
                     rideRequest.setRideRequestStatus(nextRequestStatus);
                     rideRequestRepository.save(rideRequest);

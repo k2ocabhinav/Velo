@@ -1,9 +1,12 @@
 package com.velo.platform.repositories;
 
 import com.velo.platform.entities.User;
+import com.velo.platform.entities.enums.Role;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
@@ -22,4 +25,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     long countByTenantId(Long tenantId);
 
     long countByTenantIdAndCreatedTimeAfterAndCreatedTimeBefore(Long tenantId, LocalDateTime start, LocalDateTime end);
+
+    @Query("select distinct u from User u join u.roles role where u.tenantId = :tenantId and role = :role")
+    java.util.List<User> findTenantUsersByRole(@Param("tenantId") Long tenantId, @Param("role") Role role);
 }

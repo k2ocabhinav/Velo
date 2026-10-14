@@ -4,6 +4,7 @@ import com.velo.platform.entities.Rider;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -24,4 +25,9 @@ public interface RiderRepository extends JpaRepository<Rider, Long> {
     Optional<Rider> findByUserIdAndTenantIdForUpdate(@Param("userId") Long userId, @Param("tenantId") Long tenantId);
 
     long countByTenantId(Long tenantId);
+
+    Optional<Rider> findByIdAndTenantId(Long id, Long tenantId);
+
+    @EntityGraph(attributePaths = "user")
+    java.util.List<Rider> findByTenantIdOrderByIdAsc(Long tenantId);
 }

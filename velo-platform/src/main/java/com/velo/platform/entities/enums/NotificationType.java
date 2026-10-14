@@ -14,5 +14,6 @@ public enum NotificationType {
     RIDE_REASSIGNED,
     PAYMENT_PROCESSED,
     DRIVER_ARRIVING,
-    GENERAL
+    GENERAL,
+    SCHEDULED_TRIP_UNASSIGNED
 }
