@@ -1,6 +1,9 @@
+import { fixupPluginRules } from "@eslint/compat";
 import js from "@eslint/js";
 import nextPlugin from "@next/eslint-plugin-next";
 import tseslint from "typescript-eslint";
+
+const compatibleNextPlugin = fixupPluginRules(nextPlugin);
 
 const ignoredPaths = [
   "**/node_modules/**",
@@ -13,6 +16,11 @@ const ignoredPaths = [
 
 export default tseslint.config(
   { ignores: ignoredPaths },
+  {
+    plugins: {
+      "@next/next": compatibleNextPlugin
+    }
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
@@ -38,16 +46,10 @@ export default tseslint.config(
   },
   {
     files: ["apps/**/*.{js,jsx,mjs,ts,tsx}"],
-    ...nextPlugin.configs.recommended,
-    settings: {
-      next: {
-        rootDir: ["apps/*/"]
-      }
-    }
-  },
-  {
-    files: ["apps/**/*.{js,jsx,mjs,ts,tsx}"],
-    ...nextPlugin.configs["core-web-vitals"],
+    rules: {
+      ...nextPlugin.configs.recommended.rules,
+      ...nextPlugin.configs["core-web-vitals"].rules
+    },
     settings: {
       next: {
         rootDir: ["apps/*/"]
