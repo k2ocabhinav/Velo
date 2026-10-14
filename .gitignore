@@ -12,11 +12,6 @@ ai_instructions/
 .DS_Store
 .vscode/
 
-# Local instruction files
-CLAUDE.md
-claude.md
-AGENTS.md
-agents.md
 
 # Local reference artifacts
 DFD Level 1 - New Page - Uber_UML_Diagram_6bee8f589b.pdf

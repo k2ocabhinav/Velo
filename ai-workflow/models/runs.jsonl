@@ -1,0 +1,3 @@
+{"date":"2026-10-14","harness":"cmd","role":"research","model":"deepseek/deepseek-v4-flash","status":"no-result","quality":4,"precision":"-","notes":"plugin/memory research 2026-10-14; accurate, sourced, good recommendations"}
+{"date":"2026-10-14","harness":"cmd","role":"review-backend","model":"qwen/qwen3.8-max-0902","status":"no-result","quality":0,"precision":"-","notes":"exit: --effort high unsupported (use xhigh)"}
+{"date":"2026-10-14","harness":"cmd","role":"test-ops","model":"xiaomi/mimo-v2.6-pro","status":"no-result","quality":0,"precision":"-","notes":"exit: --effort not supported"}
