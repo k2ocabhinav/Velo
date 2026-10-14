@@ -111,3 +111,147 @@ The page follows a day of transfers, and its colours follow the time of day: the
 - **Pricing card:** an elevated surface with a thin gradient border (blue → teal), the price as the key figure, and a currency switch.
 - **Micro-interactions:** button hover lift of 1px, focus rings, an FAQ open animation (≤ 200 ms, none under reduced motion).
 - **Budgets are unchanged** (initial JS, deferred scene ≤ 200 kB gz, LCP = h1, CLS 0, axe 0 serious). The glow is done with extra geometry layers and additive blending; no post-processing or bloom passes.
+
+## 10. Visual direction v3 — "Livery"
+
+**Diagnosis.** The v2 hero (pre-dawn navy + additive blue glow, glass panel, radial nebula) is the exact "AI slop" cluster: distributional convergence on dark-navy-and-neon behind a centered, blurred card, with decorative gradients doing no work. **The fix is polarity, not polish — a light-first, type-led, inked document rooted in the paper and signage of chauffeured transfers, with its one dark moment earned at the end of the day.** Every choice below is also a decision against a named tell.
+
+### 10.1 Concept
+The page is a chauffeur company's printed day at the dispatch desk: warm document paper, dense black ink, tabular times, cartographic route linework and the real paper artefacts of the job (docket, voucher, ticket stub, stamp), with one livery colour carrying the meaning. Light-first by default — the page is the bright desk and only turns to a warm ink-black "night shift" for the founder note, contact and footer, so the single dark moment reads as a turn of the day, not a default skin.
+
+### 10.2 Palette (landing layer only; extends `tokens.css`, no raw colours in components)
+"Day" is the default theme; "Night" is `[data-theme="night"]`.
+
+**DAY — "the desk in daylight"**
+| Token | Hex | Role | Contrast |
+|---|---|---|---|
+| `--landing-paper` | `#F4F1E9` | Page ground (warm tinted neutral, hue ≈ 42°) | — |
+| `--landing-card` | `#FCFBF7` | Raised document surface | separation by rule, not shadow |
+| `--landing-ink` | `#16181B` | Body / heading text | 15.8:1 on paper ✓ AAA |
+| `--landing-ink-muted` | `#4E5257` | Secondary text | 7.0:1 ✓ AAA |
+| `--landing-rule` | `#D8D2C4` | Hairlines, table rules | 1.3:1 — decorative only |
+| `--landing-border-ui` | `#8A8577` | Meaningful borders / inputs | 3.3:1 ✓ 1.4.11 |
+| `--landing-livery` | `#1E5240` | The one accent: primary action + live / on-trip | 8.0:1 text; white on it 9.0:1 ✓ |
+| `--landing-livery-hover` | `#163F31` | Pressed / hover | — |
+| `--landing-signal` | `#C2401F` | Time markers + needs-attention **only** | 4.6:1 ✓ AA |
+| `--landing-signal-ink` | `#9C2F12` | Signal as small text | 6.6:1 ✓ AA |
+
+**NIGHT — "the desk after dark" (warm ink-black, never navy)**
+| Token | Hex | Role | Contrast |
+|---|---|---|---|
+| `--landing-paper` | `#14120F` | Ground (warm ink-black) | — |
+| `--landing-card` | `#1F1C17` | Raised surface (dark elevation goes *lighter*) | — |
+| `--landing-ink` | `#F3EFE6` | Text (warm off-white, not `#fff`) | 16.3:1 ✓ AAA |
+| `--landing-ink-muted` | `#B0AA9C` | Secondary text | 8.1:1 ✓ AAA |
+| `--landing-rule` | `rgba(243,239,230,.14)` | Hairlines | decorative |
+| `--landing-border-ui` | `#8C8370` | Borders / inputs | 5.0:1 ✓ |
+| `--landing-livery` | `#6FC29B` | Accent lightened so the one hue survives dark | 8.8:1; `#14120F` on it 8.8:1 ✓ |
+| `--landing-livery-hover` | `#8AD3AE` | Pressed / hover | — |
+| `--landing-signal` | `#E8A552` | Signal = the sodium streetlight, night's one warm mark | 8.8:1 ✓ |
+| `--landing-signal-ink` | `#E8A552` | (already ≥ 4.5 on dark) | — |
+
+Accent and signal are **semantic, never decorative**: livery green = action and "on trip"; vermilion / sodium = time markers and "needs attention"; never the sole state cue (always paired with a label or position). Teal-style fills take dark ink, not white.
+
+### 10.3 Scene tokens (`--dispatch-*`)
+The 3D scene and its SVG fallback read these. **The default becomes the day set and `[data-theme="night"]` overrides — the current code is inverted, so flip it.**
+
+```css
+/* DAY — a bright, inked neighbourhood on paper */
+--dispatch-ground:    #F4F1E9;
+--dispatch-street:    #D8D2C4;
+--dispatch-lane:      #FCFBF7;
+--dispatch-building:  #E4DFD3;
+--dispatch-roof:      #CFC8B8;
+--dispatch-window:    #A9B3AC;
+--dispatch-vehicle:   #16181B;
+--dispatch-route:     #1E5240;   /* selected */
+--dispatch-route-alt: #5E8574;   /* other routes */
+--dispatch-ink:       #16181B;
+--dispatch-ink-muted: #4E5257;
+--dispatch-surface:   rgb(252 251 247 / 0.9);
+--dispatch-line:      rgb(22 24 27 / 0.16);
+--dispatch-sky-light: #FFFFFF;
+--dispatch-key-light: #FFF6E4;
+--dispatch-sodium:    #C2401F;   /* assign / attention flash */
+--dispatch-glow:      0.25;
+--dispatch-halo:      0.05;
+
+/* NIGHT — warm ink-black, sodium lamps, no blue */
+--dispatch-ground:    #14120F;
+--dispatch-street:    #2A2620;
+--dispatch-lane:      #3B362D;
+--dispatch-building:  #221E18;
+--dispatch-roof:      #332D24;
+--dispatch-window:    #E8A552;   /* lit windows = sodium, never blue */
+--dispatch-vehicle:   #F3EFE6;
+--dispatch-route:     #6FC29B;
+--dispatch-route-alt: #4E7A66;
+--dispatch-ink:       #F3EFE6;
+--dispatch-ink-muted: #B0AA9C;
+--dispatch-surface:   rgb(20 18 15 / 0.8);
+--dispatch-line:      rgb(243 239 230 / 0.2);
+--dispatch-sky-light: #6E6A5F;
+--dispatch-key-light: #FFE6BE;
+--dispatch-sodium:    #E8A552;
+--dispatch-glow:      1;
+--dispatch-halo:      0.22;
+```
+
+### 10.4 Typography
+**Keep Barlow Condensed 800 + Inter — no swap.** Barlow Condensed is the printed-timetable voice the concept needs, and changing a face to chase novelty is itself a slop tell; the leverage is scale and placement, not a new family.
+- Display: Barlow Condensed 800, sentence case, tracking −0.03em, leading 0.9, pushed to **type-as-image** — hero numerals / times up to `clamp(4rem, 11vw, 10rem)`.
+- Kickers and the arrivals-board cells also use the condensed face, so **Inter is confined to body / UI** (kills the "Inter at every size" tell).
+- Body: Inter 400/500/600, 17–18px, leading 1.6, measure ≤ 68ch.
+- Times, prices and stub numbers: `font-variant-numeric: tabular-nums` (no monospace labels).
+
+### 10.5 Texture & illustration devices
+- **Letterpress grain:** one inline `feTurbulence` SVG noise as a data-URI, `opacity .05`, `mix-blend-mode: multiply` (day) / `soft-light` (night), static — the highest-ratio anti-slop fix, killing the plastic AI smoothness.
+- **Halftone:** a fine dot mask (`radial-gradient` tile) at low opacity over the hero map and as section dividers — print-manifest material, cheap and tactile.
+- **Cartographic linework:** routes as ink linework with a **legend key** (selected / live / time marker), a **scale bar**, coordinate ticks and dashed "planned" vs solid "driven" strokes — cartography is an underexploited idiom where the map carries meaning, not decoration.
+- **Ticket / docket / voucher motifs:** perforated edges (dashed rule + notch), stub numbers, a carbon-copy rule block, an outlined "voucher" for the secondary CTA, and a small rubber-stamp "Pre-launch" seal — the real paper artefacts of the job.
+- **Arrivals-board treatment:** the trip buttons and time axis render as split-flap cells (tabular, hairline cell grid); the one authored moment flips them.
+
+### 10.6 Hero composition
+- **Light paper ground**, asymmetric 12-col: h1 spans cols 1–7 as oversized type; the stage line is a **stamped job ticket**, kept in the top 40% with both CTAs.
+- CTAs: primary = solid **livery** fill; secondary = outlined **voucher**. Delete the coloured glow shadows and the glass "stage" pill.
+- The neighbourhood is an **inked map**, not an unboxed glow: it bleeds off the right edge (cols 6→13 + negative inline margin) on the paper ground, with a scale bar and "Sample day" caption at its base; a right-aligned **legend key** replaces the glass card's chrome.
+- The trip card becomes a **docket**: perforated top edge, stub number, tabular time, status steps as a small ordered list, pinned overlapping the map at col 4 — not a blurred panel bottom-right.
+- Trip buttons = **arrivals-board cells** in one row beneath the map. Delete the orbit rings, the radial star / nebula gradients and the backdrop-blur glass.
+
+### 10.7 Section rhythm & background treatment
+- Ground is **paper**; use `--landing-card` only where the content is literally a document (pricing = a **price docket**, "What you can verify today" = a **stamped certificate**). Sections are separated by **full-width hairlines**, never by identical rounded cards or stacked shadows.
+- Vary heights and column spans; one full-bleed asymmetric escape (the map). Avoid the three-equal-cards grid.
+- The "morning trip sheet" becomes real **data-viz**: a stacked timeline bar per trip (booked → assigned → on-trip → completed) with idle gaps visible.
+- **One dark moment only:** founder note + contact + footer on night-shift `#14120F` with sodium marks — roughly the last eighth of the page, so the dark is earned, not the default.
+- Product shots: flat ink-hairline frames (no blue / teal glow shadows) with light grain; `content-visibility:auto` below the fold.
+
+### 10.8 Motion signature — "the stamp and the draw"
+- **One language:** `--ease-out-expo: cubic-bezier(.16,1,.3,1)` and three durations (160 / 320 / 640ms) reused everywhere.
+- Reveals = route **draw-on** (`stroke-dashoffset`) + a 4px ink-rise fade; **nothing slides in from the periphery**.
+- **The one authored moment:** the hero dispatch — assign stamp → route draws → car travels → docket stamps "On trip" (≤ 4s, plays once, then settles; the RAF loop stops).
+- Press / hover: `scale(.98)` press + 1px lift; FAQ open ≤ 180ms. All disabled under reduced motion.
+
+### 10.9 Concrete CSS / component changes
+1. `layout.tsx`: default `data-theme="day"` (light-first); pre-paint theme script unchanged.
+2. `globals.css`: swap the palette tokens for the v3 set; body / ground → paper; focus ring → livery; `.section-dark` → `.section-night` (warm ink-black `#14120F`); borders via `--landing-rule` hairlines; add the grain + halftone data-URI utilities.
+3. `theme.css`: header = paper with a bottom rule by default; night header uses `#14120F`; drop the translucent navy blur.
+4. `Hero.module.css`: delete the nebula / star radial gradients, orbit rings and coloured glows; add paper ground + grain + halftone; h1 to type-as-image scale; docket + arrivals-board styles.
+5. `Hero.tsx`: stage line as a stamped ticket; facts list → legend key; add the scale-bar caption.
+6. `sections.module.css`: rule-separated paper sections; `.priceCard` gradient border → perforated price docket; `.verifySection` gradient top border → certificate rule; remove `backdrop-filter` glass; flatten device frames (hairline + paper shadow).
+7. `dispatch.module.css`: new `--dispatch-*` day / night values (§10.3); trip card → docket; remove backdrop-blur; reduce the route halo.
+8. `scene/DispatchCanvas.tsx`: palette reads the new tokens; warm sky / key lights (no blue); day becomes the default palette; windows sodium only at night; delete `computeVertexNormals()` on the Basic ribbon; budgets unchanged (≤ 30 calls, LCP = h1, CLS 0).
+9. `DispatchFallback.tsx`: same tokens; condensed map labels; add the legend + scale-bar group.
+
+### 10.10 Anti-slop checklist (one decision against one tell)
+| Slop tell | v3 answer |
+|---|---|
+| Dark navy + neon blue glow | Light paper-first; warm ink-black only for the earned night band |
+| Purple / indigo / blue gradient | No decorative gradients; grain + halftone instead |
+| Glassmorphism / backdrop-blur cards | Flat paper dockets with hairlines; no blur |
+| Identical rounded cards, uniform shadows | Rule-separated rows, varied spans and heights, one shadow (the docket) |
+| Centered hero + two buttons + three equal cards | Asymmetric editorial grid, type-led hero, timeline data-viz |
+| Inter at every size | Inter for body only; Barlow Condensed carries display, kickers and board cells |
+| Decorative gradients, abstract 3D blobs | Cartographic meaning: legend, scale bar, route linework |
+| Emoji / line-icon soup, fake logos | Text + rules + the map; no invented proof |
+| Copy in threes, "seamless / elevate" | Real trip names, times and stage; copy unchanged from §4 |
+| Missing states | Every control keeps focus / pressed / disabled / reduced-motion paths |
