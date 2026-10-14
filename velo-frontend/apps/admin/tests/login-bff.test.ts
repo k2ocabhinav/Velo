@@ -18,6 +18,7 @@ describe("performLoginProxy", () => {
         createJsonResponse({
           data: {
             token: "token-123",
+            refreshToken: "refresh-123",
             userId: 42,
             email: "admin@velo.dev",
             role: "ADMIN"
@@ -36,6 +37,7 @@ describe("performLoginProxy", () => {
     expect(cookies).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ name: "velo_admin_token", value: "token-123" }),
+        expect.objectContaining({ name: "velo_admin_refresh", value: "refresh-123", httpOnly: true, secure: true, sameSite: "lax", path: "/api" }),
         expect.objectContaining({ name: "velo_admin_user_id", value: "42" }),
         expect.objectContaining({ name: "velo_admin_role_hint", value: "ADMIN" }),
       ])
@@ -49,6 +51,7 @@ describe("performLoginProxy", () => {
         createJsonResponse({
           data: {
             token: "token-123",
+            refreshToken: "refresh-123",
             userId: 42,
             email: "driver@velo.dev",
             role: "DRIVER",

@@ -15,6 +15,10 @@ public interface AuthService {
     // Returns Tokens
     AuthResponseDto login(String email, String password);
 
+    AuthResponseDto refresh(String refreshToken);
+
+    void logout(String refreshToken);
+
     UserDto signup(SignupDto signupDto);
 
     DriverDto onboardNewDriver(Long userId, String vehicleId);

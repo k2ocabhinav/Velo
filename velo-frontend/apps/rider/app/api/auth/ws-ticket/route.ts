@@ -1,7 +1,17 @@
 import type { NextRequest } from "next/server";
 import { performWebSocketTicketProxy } from "@velo/app-core/auth";
-import { LOGIN_COOKIE_NAME } from "../../../login/_lib/auth";
+import { LOGIN_COOKIE_NAME, REFRESH_COOKIE_NAME } from "../../../login/_lib/auth";
 
 export async function POST(request: NextRequest) {
-  return performWebSocketTicketProxy(request.cookies.get(LOGIN_COOKIE_NAME)?.value);
+  return performWebSocketTicketProxy(
+    request.cookies.get(LOGIN_COOKIE_NAME)?.value,
+    fetch,
+    request.cookies.get(REFRESH_COOKIE_NAME)?.value,
+    {
+      tokenCookieName: LOGIN_COOKIE_NAME,
+      refreshCookieName: REFRESH_COOKIE_NAME,
+      userIdCookieName: "velo_rider_user_id",
+      roleCookieName: "velo_rider_role_hint"
+    }
+  );
 }

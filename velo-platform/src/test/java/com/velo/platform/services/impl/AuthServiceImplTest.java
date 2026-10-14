@@ -16,6 +16,7 @@ import com.velo.platform.repositories.PasswordResetTokenRepository;
 import com.velo.platform.repositories.UserRepository;
 import com.velo.platform.security.JwtTokenProvider;
 import com.velo.platform.security.UserPrincipal;
+import com.velo.platform.services.impl.RefreshTokenService;
 import com.velo.platform.services.DriverService;
 import com.velo.platform.services.RiderService;
 import com.velo.platform.services.WalletService;
@@ -73,13 +74,17 @@ class AuthServiceImplTest {
     @Mock
     private PasswordResetTokenRepository passwordResetTokenRepository;
 
+    @Mock
+    private RefreshTokenService refreshTokenService;
+
     private AuthServiceImpl authService;
 
     @BeforeEach
     void setUp() {
         SecurityContextHolder.clearContext();
         authService = new AuthServiceImpl(
-                userRepository, passwordResetTokenRepository, modelMapper, riderService, walletService, driverService, passwordEncoder, jwtTokenProvider);
+                userRepository, passwordResetTokenRepository, modelMapper, riderService, walletService, driverService,
+                passwordEncoder, jwtTokenProvider, refreshTokenService);
     }
 
     @Test

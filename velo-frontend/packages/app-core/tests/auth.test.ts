@@ -5,6 +5,7 @@ import {
   clearLoginCookies,
   performLoginProxy,
   performLogoutProxy,
+  performRefreshProxy,
   performWebSocketTicketProxy,
 } from "../src/auth";
 
@@ -25,6 +26,7 @@ describe("performLoginProxy", () => {
         createJsonResponse({
           data: {
             token: "token-123",
+            refreshToken: "refresh-123",
             userId: 42,
             role: "DRIVER",
           },
@@ -47,6 +49,7 @@ describe("performLoginProxy", () => {
         createJsonResponse({
           data: {
             token: "token-123",
+            refreshToken: "refresh-123",
             userId: 42,
           },
         }),
@@ -65,13 +68,14 @@ describe("performLoginProxy", () => {
 });
 
 describe("logout cookie cleanup", () => {
-  it("clears session cookies from logout proxy response", () => {
-    const response = performLogoutProxy();
+  it("clears session cookies from logout proxy response", async () => {
+    const response = await performLogoutProxy();
     const cookies = response.cookies.getAll();
 
     expect(cookies).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ name: "velo_token", value: "" }),
+        expect.objectContaining({ name: "velo_refresh_token", value: "" }),
         expect.objectContaining({ name: "velo_user_id", value: "" }),
         expect.objectContaining({ name: LOGIN_ROLE_COOKIE_NAME, value: "" }),
       ]),
@@ -86,10 +90,67 @@ describe("logout cookie cleanup", () => {
     expect(cookies).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ name: "velo_token", value: "" }),
+        expect.objectContaining({ name: "velo_refresh_token", value: "" }),
         expect.objectContaining({ name: "velo_user_id", value: "" }),
         expect.objectContaining({ name: LOGIN_ROLE_COOKIE_NAME, value: "" }),
       ]),
     );
+  });
+
+  it("revokes the backend refresh family before clearing cookies", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(createJsonResponse({ data: { message: "Logged out" } }));
+    const response = await performLogoutProxy("refresh-current", {
+      tokenCookieName: "velo_test_token",
+      refreshCookieName: "velo_test_refresh"
+    }, fetchMock);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(/\/auth\/logout$/),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ refreshToken: "refresh-current" }),
+        cache: "no-store"
+      })
+    );
+    expect(response.cookies.get("velo_test_refresh")).toEqual(
+      expect.objectContaining({ value: "", path: "/api", httpOnly: true, secure: true, sameSite: "lax" })
+    );
+  });
+});
+
+describe("refresh BFF", () => {
+  it("rotates cookies and never returns either token to browser JavaScript", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(createJsonResponse({
+      data: {
+        token: "access-next",
+        refreshToken: "refresh-next",
+        userId: 8,
+        role: "RIDER",
+        expiresInSeconds: 900
+      }
+    }));
+    const response = await performRefreshProxy("refresh-current", {
+      tokenCookieName: "velo_rider_token",
+      refreshCookieName: "velo_rider_refresh",
+      userIdCookieName: "velo_rider_user_id",
+      roleCookieName: "velo_rider_role_hint"
+    }, fetchMock);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(/\/auth\/refresh$/),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ refreshToken: "refresh-current" }),
+        cache: "no-store"
+      })
+    );
+    expect(response.cookies.get("velo_rider_token")?.value).toBe("access-next");
+    expect(response.cookies.get("velo_rider_refresh")).toEqual(
+      expect.objectContaining({ value: "refresh-next", path: "/api", httpOnly: true, secure: true, sameSite: "lax" })
+    );
+    const body = await response.json();
+    expect(body.data.token).toBeUndefined();
+    expect(body.data.refreshToken).toBeUndefined();
   });
 });
 

@@ -112,7 +112,8 @@ public class SecurityConfig {
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/login", "/auth/signup", "/auth/forgot-password", "/auth/reset-password").permitAll()
+                        .requestMatchers("/auth/login", "/auth/signup", "/auth/forgot-password", "/auth/reset-password",
+                                "/auth/refresh", "/auth/logout").permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/onBoardNewDriver/**").authenticated()
                         .requestMatchers("/api/v1/public/**").permitAll()
                         .requestMatchers("/auth/profile").authenticated()

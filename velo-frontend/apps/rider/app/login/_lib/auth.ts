@@ -2,6 +2,8 @@ import {
   LOGIN_COOKIE_MAX_AGE_SECONDS,
   LOGIN_REDIRECT_FALLBACK,
   LOGIN_REQUEST_TIMEOUT_MS,
+  REFRESH_COOKIE_MAX_AGE_SECONDS,
+  REFRESH_COOKIE_PATH,
   type AuthExtractionResult,
   type LoginPayload,
   type RegisterPayload,
@@ -9,6 +11,7 @@ import {
   getApiBaseUrl,
   performLoginProxy as performSharedLoginProxy,
   performLogoutProxy as performSharedLogoutProxy,
+  performRefreshProxy as performSharedRefreshProxy,
   performRegisterProxy as performSharedRegisterProxy,
   readResponsePayload,
   sanitizeNextPath
@@ -18,6 +21,8 @@ export {
   LOGIN_COOKIE_MAX_AGE_SECONDS,
   LOGIN_REDIRECT_FALLBACK,
   LOGIN_REQUEST_TIMEOUT_MS,
+  REFRESH_COOKIE_MAX_AGE_SECONDS,
+  REFRESH_COOKIE_PATH,
   extractAuthValues,
   getApiBaseUrl,
   readResponsePayload,
@@ -27,6 +32,7 @@ export {
 export type { AuthExtractionResult, LoginPayload, RegisterPayload };
 
 export const LOGIN_COOKIE_NAME = "velo_rider_token";
+export const REFRESH_COOKIE_NAME = "velo_rider_refresh";
 export const LOGIN_USER_ID_COOKIE_NAME = "velo_rider_user_id";
 export const LOGIN_ROLE_COOKIE_NAME = "velo_rider_role_hint";
 
@@ -37,6 +43,7 @@ export async function performLoginProxy(
   return performSharedLoginProxy(body, fetchImpl, {
     requiredRoleHint: "RIDER",
     tokenCookieName: LOGIN_COOKIE_NAME,
+    refreshCookieName: REFRESH_COOKIE_NAME,
     userIdCookieName: LOGIN_USER_ID_COOKIE_NAME,
     roleCookieName: LOGIN_ROLE_COOKIE_NAME,
     roleGuardMessage: "This account is not authorized for the rider workspace."
@@ -50,9 +57,19 @@ export async function performRegisterProxy(
   return performSharedRegisterProxy(body, fetchImpl);
 }
 
-export function performLogoutProxy() {
-  return performSharedLogoutProxy({
+export function performRefreshProxy(refreshToken: string | null | undefined, fetchImpl: typeof fetch = fetch) {
+  return performSharedRefreshProxy(refreshToken, {
     tokenCookieName: LOGIN_COOKIE_NAME,
+    refreshCookieName: REFRESH_COOKIE_NAME,
+    userIdCookieName: LOGIN_USER_ID_COOKIE_NAME,
+    roleCookieName: LOGIN_ROLE_COOKIE_NAME
+  }, fetchImpl);
+}
+
+export function performLogoutProxy(refreshToken?: string | null) {
+  return performSharedLogoutProxy(refreshToken, {
+    tokenCookieName: LOGIN_COOKIE_NAME,
+    refreshCookieName: REFRESH_COOKIE_NAME,
     userIdCookieName: LOGIN_USER_ID_COOKIE_NAME,
     roleCookieName: LOGIN_ROLE_COOKIE_NAME
   });

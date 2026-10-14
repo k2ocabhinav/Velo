@@ -4,7 +4,10 @@ import { proxyBackendRequest, type ProxyRouteContext } from "@velo/app-core/prox
 function handle(request: NextRequest, context: ProxyRouteContext) {
   return proxyBackendRequest(request, context, {
     missingPathMessage: "Missing backend proxy path.",
-    tokenCookieName: "velo_rider_token"
+    tokenCookieName: "velo_rider_token",
+    refreshCookieName: "velo_rider_refresh",
+    userIdCookieName: "velo_rider_user_id",
+    roleCookieName: "velo_rider_role_hint"
   });
 }
 

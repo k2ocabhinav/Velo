@@ -43,6 +43,10 @@ public class JwtTokenProvider {
                 .compact();
     }
 
+    public long getAccessTokenTtlSeconds() {
+        return Math.max(1L, expirationMs / 1_000L);
+    }
+
     public String generateWebSocketTicket(String email, Long userId, String role, Long tenantId) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + WEBSOCKET_TICKET_TTL_SECONDS * 1_000);
