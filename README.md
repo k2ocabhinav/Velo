@@ -14,9 +14,9 @@ These screens are captured from the local demo at their native viewport sizes.
 |---|---|
 | ![Saffron Routes dispatch](docs/images/saffron-routes-admin-dispatch.jpg) | ![Saffron Routes branding and labels](docs/images/saffron-routes-branding.jpg) |
 
-| Landing page at 390 × 844 | Landing page at 1440 × 900 |
-|---|---|
-| ![Landing page on mobile](docs/images/landing-mobile-390x844.jpg) | ![Landing page on desktop](docs/images/landing-desktop-1440x900.jpg) |
+| Landing page — day, 390 × 844 | Landing page — day, 1440 × 900 | Landing page — night, 1440 × 900 |
+|---|---|---|
+| ![Landing page on mobile in day theme](docs/images/landing-mobile-390x844.jpg) | ![Landing page on desktop in day theme](docs/images/landing-desktop-1440x900.jpg) | ![Landing page on desktop in night theme](docs/images/landing-night-1440x900.jpg) |
 
 ## What works today
 

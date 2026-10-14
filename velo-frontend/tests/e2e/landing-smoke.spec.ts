@@ -18,9 +18,9 @@ test("primary navigation, mobile menu and demo links have working targets", asyn
   await expect(page.locator('#top a[href="#book-a-demo"]')).toHaveAttribute("href", "#book-a-demo");
   expect((await navigation.locator(".nav-cta a").boundingBox())?.height).toBeGreaterThanOrEqual(48);
   await expect(page.locator("#verify").getByRole("link", { name: "Open" })).toHaveCount(0);
-  await expect(page.locator("#verify")).toContainText("Build checks");
+  await expect(page.locator("#verify")).toContainText("Checks run");
   await expect(page.locator("#verify")).toContainText(/6 landing checks passed · checked \d{1,2} \w{3} \d{4}/);
-  await expect(page.locator("#verify")).toContainText("axe included");
+  await expect(page.locator("#verify")).toContainText("Browser and accessibility checks");
   await expect(page.locator("#verify")).toContainText("Velo Business");
   await expect(page.locator("#verify")).toContainText("Saffron Routes");
   await expect(page.locator("#pricing")).toContainText("We’ll confirm the active-vehicle count and monthly minimum with you before a pilot.");
