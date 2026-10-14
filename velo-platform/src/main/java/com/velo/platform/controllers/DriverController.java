@@ -6,6 +6,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -56,7 +58,7 @@ public class DriverController {
 
     @PostMapping("/rateRider")
     @Operation(summary = "Rate a rider using a request body")
-    public ResponseEntity<RiderDto> rateRider(@RequestBody RatingDto ratingDto) {
+    public ResponseEntity<RiderDto> rateRider(@Valid @RequestBody RatingDto ratingDto) {
         return ResponseEntity.ok(driverService.rateRider(ratingDto.getRideId(), ratingDto.getRating()));
     }
 
@@ -77,7 +79,8 @@ public class DriverController {
 
     @PostMapping("/rateRider/{rideId}/{rating}")
     @Operation(summary = "Rate a rider using path variables")
-    public ResponseEntity<RiderDto> rateRider(@PathVariable Long rideId, @PathVariable Integer rating) {
+    public ResponseEntity<RiderDto> rateRider(@PathVariable Long rideId,
+                                              @PathVariable @Min(1) @Max(5) Integer rating) {
         return ResponseEntity.ok(driverService.rateRider(rideId, rating));
     }
 

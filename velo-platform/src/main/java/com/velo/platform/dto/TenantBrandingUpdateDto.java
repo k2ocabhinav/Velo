@@ -2,6 +2,7 @@ package com.velo.platform.dto;
 
 import com.velo.platform.entities.enums.DispatchMode;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -15,6 +16,7 @@ public class TenantBrandingUpdateDto {
     @NotBlank
     private String brandName;
     @NotBlank
+    @Pattern(regexp = "^#[0-9A-Fa-f]{6}$", message = "Primary color must be a six-digit hex color such as #1A2B3C")
     private String primaryColor;
     private String logoUrl;
     @NotBlank

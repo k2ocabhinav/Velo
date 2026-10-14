@@ -3,9 +3,11 @@ package com.velo.platform.repositories;
 import com.velo.platform.entities.Rider;
 import com.velo.platform.entities.RideRequest;
 import com.velo.platform.entities.enums.RideRequestStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -24,8 +26,8 @@ public interface RideRequestRepository extends JpaRepository<RideRequest, Long> 
     Page<RideRequest> findByRiderAndRideRequestStatusOrderByScheduledTimeAsc(
             Rider rider, RideRequestStatus status, Pageable pageable);
 
-    Page<RideRequest> findByRideRequestStatusOrderByScheduledTimeAsc(
-            RideRequestStatus status, Pageable pageable);
+    Page<RideRequest> findByTenantIdAndRideRequestStatusOrderByScheduledTimeAsc(
+            Long tenantId, RideRequestStatus status, Pageable pageable);
 
     Page<RideRequest> findByRideRequestStatusOrderByRequestedTimeDesc(
             RideRequestStatus status, Pageable pageable);
@@ -36,11 +38,16 @@ public interface RideRequestRepository extends JpaRepository<RideRequest, Long> 
             Pageable pageable
     );
 
-    @Query("SELECT r FROM RideRequest r WHERE r.rideRequestStatus = :status " +
+    @Query("SELECT r.id FROM RideRequest r WHERE r.rideRequestStatus = :status " +
             "AND r.scheduledTime <= :dispatchBefore ORDER BY r.scheduledTime ASC")
-    List<RideRequest> findDueScheduledRides(
+    List<Long> findDueScheduledRideIds(
             @Param("status") RideRequestStatus status,
             @Param("dispatchBefore") LocalDateTime dispatchBefore);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT r FROM RideRequest r WHERE r.id = :id AND r.rideRequestStatus = :status")
+    Optional<RideRequest> findByIdAndRideRequestStatusForUpdate(
+            @Param("id") Long id, @Param("status") RideRequestStatus status);
 
     Optional<RideRequest> findTopByRiderAndRideRequestStatusInOrderByRequestedTimeDesc(
             Rider rider,

@@ -7,11 +7,15 @@ import com.velo.platform.entities.User;
 import com.velo.platform.entities.enums.PayoutStatus;
 import com.velo.platform.entities.enums.TransactionMethod;
 import com.velo.platform.exceptions.RuntimeConflictException;
+import com.velo.platform.exceptions.ResourceNotFoundException;
 import com.velo.platform.repositories.DriverRepository;
 import com.velo.platform.repositories.PayoutRequestRepository;
 import com.velo.platform.security.UserPrincipal;
 import com.velo.platform.services.DriverEarningsService;
 import com.velo.platform.services.WalletService;
+import com.velo.platform.services.TenantScopeService;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.PageImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -50,6 +54,9 @@ class PayoutServiceImplTest {
     @Mock
     private ModelMapper modelMapper;
 
+    @Mock
+    private TenantScopeService tenantScopeService;
+
     @InjectMocks
     private PayoutServiceImpl payoutService;
 
@@ -58,6 +65,7 @@ class PayoutServiceImplTest {
 
     @BeforeEach
     void setUp() {
+        lenient().when(tenantScopeService.requireCurrentTenantId()).thenReturn(1L);
         user = new User();
         user.setId(101L);
 
@@ -121,7 +129,7 @@ class PayoutServiceImplTest {
         request.setAmount(BigDecimal.valueOf(200.0));
         request.setStatus(PayoutStatus.APPROVED);
 
-        when(payoutRequestRepository.findById(1L)).thenReturn(Optional.of(request));
+        when(payoutRequestRepository.findByIdAndTenantIdForUpdate(1L, 1L)).thenReturn(Optional.of(request));
         
         PayoutRequestDto expectedDto = new PayoutRequestDto();
         expectedDto.setStatus(PayoutStatus.PROCESSED);
@@ -133,6 +141,44 @@ class PayoutServiceImplTest {
 
         assertThat(result.getStatus()).isEqualTo(PayoutStatus.PROCESSED);
         verify(walletService).addMoneyToWallet(eq(user), eq(BigDecimal.valueOf(200.0)), anyString(), isNull(), eq(TransactionMethod.BANKING));
+        verify(payoutRequestRepository).findByIdAndTenantIdForUpdate(1L, 1L);
         assertThat(request.getStatus()).isEqualTo(PayoutStatus.PROCESSED);
+    }
+
+    @Test
+    void approvePayout_CrossTenantRequest_ShouldReturnNotFound() {
+        when(payoutRequestRepository.findByIdAndTenantIdForUpdate(2L, 1L)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> payoutService.approvePayout(2L, "approved"));
+
+        verifyNoInteractions(walletService);
+    }
+
+    @Test
+    void processPayout_CrossTenantRequest_ShouldReturnNotFoundWithoutCredit() {
+        when(payoutRequestRepository.findByIdAndTenantIdForUpdate(2L, 1L)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> payoutService.processPayout(2L));
+
+        verifyNoInteractions(walletService);
+    }
+
+    @Test
+    void rejectPayout_CrossTenantRequest_ShouldReturnNotFound() {
+        when(payoutRequestRepository.findByIdAndTenantIdForUpdate(2L, 1L)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> payoutService.rejectPayout(2L, "rejected"));
+    }
+
+    @Test
+    void getPendingPayouts_ShouldUseCurrentTenant() {
+        PageRequest pageRequest = PageRequest.of(0, 10);
+        when(payoutRequestRepository.findByTenantIdAndStatusOrderByRequestedAtAsc(1L, PayoutStatus.PENDING, pageRequest))
+                .thenReturn(new PageImpl<>(java.util.List.of()));
+
+        payoutService.getPendingPayouts(pageRequest);
+
+        verify(payoutRequestRepository).findByTenantIdAndStatusOrderByRequestedAtAsc(
+                1L, PayoutStatus.PENDING, pageRequest);
     }
 }

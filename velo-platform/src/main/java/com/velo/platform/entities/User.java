@@ -1,5 +1,6 @@
 package com.velo.platform.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.velo.platform.entities.enums.Role;
 import jakarta.persistence.*;
 import lombok.*;
@@ -28,6 +29,7 @@ public class User {
 
     @Column(unique = true)
     private String email;
+    @JsonIgnore
     private String password;
     private String phoneNumber;
     @Builder.Default

@@ -20,11 +20,13 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Random;
+import java.security.SecureRandom;
 
 @Service
 @RequiredArgsConstructor
 public class RideServiceImpl implements RideService {
+
+    private static final SecureRandom OTP_RANDOM = new SecureRandom();
 
     private final RideRepository rideRepository;
     private final RideRequestRepository rideRequestRepository;
@@ -78,8 +80,7 @@ public class RideServiceImpl implements RideService {
     }
 
     private String generateRandomOTP() {
-        Random random = new Random();
-        int otpInt = random.nextInt(10000);  //0 to 9999
+        int otpInt = OTP_RANDOM.nextInt(10000);
         return String.format("%04d", otpInt);
     }
 

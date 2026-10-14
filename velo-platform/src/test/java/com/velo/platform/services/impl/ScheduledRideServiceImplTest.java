@@ -19,6 +19,7 @@ import com.velo.platform.repositories.RideRequestRepository;
 import com.velo.platform.services.NotificationService;
 import com.velo.platform.services.RideOfferService;
 import com.velo.platform.services.RiderService;
+import com.velo.platform.services.TenantScopeService;
 import com.velo.platform.strategies.RideFareCalculationStrategy;
 import com.velo.platform.strategies.DriverMatchingStrategy;
 import com.velo.platform.strategies.RideStrategyManager;
@@ -28,6 +29,11 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.SimpleTransactionStatus;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -59,6 +65,8 @@ class ScheduledRideServiceImplTest {
     @Mock private RideOfferService rideOfferService;
     @Mock private NotificationService notificationService;
     @Mock private ApplicationEventPublisher eventPublisher;
+    @Mock private TenantScopeService tenantScopeService;
+    @Mock private PlatformTransactionManager transactionManager;
 
     private ScheduledRideConfig scheduledRideConfig;
     private ScheduledRideServiceImpl scheduledRideService;
@@ -67,16 +75,32 @@ class ScheduledRideServiceImplTest {
     private Rider testRider;
     private RideRequest testRideRequest;
 
+    @Test
+    void getAllScheduledRides_ShouldQueryCurrentTenantOnly() {
+        PageRequest pageRequest = PageRequest.of(0, 10);
+        when(rideRequestRepository.findByTenantIdAndRideRequestStatusOrderByScheduledTimeAsc(
+                1L, RideRequestStatus.SCHEDULED, pageRequest)).thenReturn(Page.empty());
+
+        assertThat(scheduledRideService.getAllScheduledRides(pageRequest).getContent()).isEmpty();
+
+        verify(rideRequestRepository).findByTenantIdAndRideRequestStatusOrderByScheduledTimeAsc(
+                1L, RideRequestStatus.SCHEDULED, pageRequest);
+    }
+
     @BeforeEach
     void setUp() {
         scheduledRideConfig = new ScheduledRideConfig();
         scheduledRideConfig.setMinAdvanceMinutes(30);
         scheduledRideConfig.setMaxAdvanceDays(7);
         scheduledRideConfig.setDispatchWindowMinutes(15);
+        lenient().when(tenantScopeService.requireCurrentTenantId()).thenReturn(1L);
+        lenient().when(transactionManager.getTransaction(any(TransactionDefinition.class)))
+                .thenAnswer(invocation -> new SimpleTransactionStatus());
 
         scheduledRideService = new ScheduledRideServiceImpl(
                 rideRequestRepository, riderService, rideStrategyManager,
-                scheduledRideConfig, modelMapper, rideOfferService, notificationService, eventPublisher);
+                scheduledRideConfig, modelMapper, rideOfferService, notificationService, eventPublisher,
+                tenantScopeService, transactionManager);
 
         testUser = User.builder().id(1L).email("rider@test.com").build();
         testRider = Rider.builder().id(1L).user(testUser).rating(4.5).build();
@@ -229,9 +253,11 @@ class ScheduledRideServiceImplTest {
         @DisplayName("Should dispatch due rides by changing status to PENDING")
         void shouldDispatchDueRides() {
             Driver matchedDriver = Driver.builder().id(10L).build();
-            when(rideRequestRepository.findDueScheduledRides(
+            when(rideRequestRepository.findDueScheduledRideIds(
                     eq(RideRequestStatus.SCHEDULED), any(LocalDateTime.class)))
-                    .thenReturn(List.of(testRideRequest));
+                    .thenReturn(List.of(testRideRequest.getId()));
+            when(rideRequestRepository.findByIdAndRideRequestStatusForUpdate(
+                    testRideRequest.getId(), RideRequestStatus.SCHEDULED)).thenReturn(Optional.of(testRideRequest));
             when(rideRequestRepository.save(any(RideRequest.class))).thenReturn(testRideRequest);
             when(rideStrategyManager.driverMatchingStrategy(anyDouble())).thenReturn(driverMatchingStrategy);
             when(driverMatchingStrategy.findMatchingDrivers(any())).thenReturn(List.of(matchedDriver));
@@ -254,7 +280,7 @@ class ScheduledRideServiceImplTest {
         @Test
         @DisplayName("Should return 0 when no rides are due")
         void shouldReturnZeroWhenNoDueRides() {
-            when(rideRequestRepository.findDueScheduledRides(
+            when(rideRequestRepository.findDueScheduledRideIds(
                     eq(RideRequestStatus.SCHEDULED), any(LocalDateTime.class)))
                     .thenReturn(Collections.emptyList());
 
@@ -268,9 +294,11 @@ class ScheduledRideServiceImplTest {
         @Test
         @DisplayName("Should mark scheduled dispatch as expired when no drivers match")
         void shouldMarkDispatchExpiredWhenNoDriversMatch() {
-            when(rideRequestRepository.findDueScheduledRides(
+            when(rideRequestRepository.findDueScheduledRideIds(
                     eq(RideRequestStatus.SCHEDULED), any(LocalDateTime.class)))
-                    .thenReturn(List.of(testRideRequest));
+                    .thenReturn(List.of(testRideRequest.getId()));
+            when(rideRequestRepository.findByIdAndRideRequestStatusForUpdate(
+                    testRideRequest.getId(), RideRequestStatus.SCHEDULED)).thenReturn(Optional.of(testRideRequest));
             when(rideRequestRepository.save(any(RideRequest.class))).thenReturn(testRideRequest);
             when(rideStrategyManager.driverMatchingStrategy(anyDouble())).thenReturn(driverMatchingStrategy);
             when(driverMatchingStrategy.findMatchingDrivers(any())).thenReturn(Collections.emptyList());
@@ -291,12 +319,16 @@ class ScheduledRideServiceImplTest {
                     .scheduledTime(LocalDateTime.now(ZoneId.of("UTC")).plusMinutes(5))
                     .fare(new BigDecimal("100.00")).build();
 
-            when(rideRequestRepository.findDueScheduledRides(
+            when(rideRequestRepository.findDueScheduledRideIds(
                     eq(RideRequestStatus.SCHEDULED), any(LocalDateTime.class)))
-                    .thenReturn(List.of(testRideRequest, rideRequest2));
+                    .thenReturn(List.of(testRideRequest.getId(), rideRequest2.getId()));
 
             // First ride dispatch fails
-            when(rideRequestRepository.save(testRideRequest)).thenThrow(new RuntimeException("DB error"));
+            when(rideRequestRepository.findByIdAndRideRequestStatusForUpdate(
+                    testRideRequest.getId(), RideRequestStatus.SCHEDULED))
+                    .thenThrow(new RuntimeException("DB error"));
+            when(rideRequestRepository.findByIdAndRideRequestStatusForUpdate(
+                    rideRequest2.getId(), RideRequestStatus.SCHEDULED)).thenReturn(Optional.of(rideRequest2));
             when(rideRequestRepository.save(rideRequest2)).thenReturn(rideRequest2);
             when(rideStrategyManager.driverMatchingStrategy(anyDouble())).thenReturn(driverMatchingStrategy);
             when(driverMatchingStrategy.findMatchingDrivers(any())).thenReturn(Collections.emptyList());
@@ -306,6 +338,11 @@ class ScheduledRideServiceImplTest {
 
             assertThat(dispatched).isEqualTo(0);
             verify(eventPublisher, never()).publishEvent(any(RideRequestedEvent.class));
+            ArgumentCaptor<TransactionDefinition> transactionDefinitions = ArgumentCaptor.forClass(TransactionDefinition.class);
+            verify(transactionManager, times(2)).getTransaction(transactionDefinitions.capture());
+            assertThat(transactionDefinitions.getAllValues())
+                    .allSatisfy(definition -> assertThat(definition.getPropagationBehavior())
+                            .isEqualTo(TransactionDefinition.PROPAGATION_REQUIRES_NEW));
         }
     }
 }

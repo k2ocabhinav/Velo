@@ -10,6 +10,7 @@ import com.velo.platform.entities.enums.DriverOnboardingStatus;
 import com.velo.platform.entities.enums.PaymentStatus;
 import com.velo.platform.entities.enums.Role;
 import com.velo.platform.entities.enums.RideStatus;
+import com.velo.platform.exceptions.ResourceNotFoundException;
 import com.velo.platform.repositories.DriverRepository;
 import com.velo.platform.repositories.PaymentRepository;
 import com.velo.platform.repositories.RideRequestRepository;
@@ -243,7 +244,7 @@ class AdminServiceImplTest {
         User user = new User();
         user.setId(55L);
         user.setActive(true);
-        when(userRepository.findById(55L)).thenReturn(Optional.of(user));
+        when(userRepository.findByIdAndTenantId(55L, 1L)).thenReturn(Optional.of(user));
 
         adminService.deactivateUser(55L);
 
@@ -257,11 +258,33 @@ class AdminServiceImplTest {
         User user = new User();
         user.setId(56L);
         user.setActive(false);
-        when(userRepository.findById(56L)).thenReturn(Optional.of(user));
+        when(userRepository.findByIdAndTenantId(56L, 1L)).thenReturn(Optional.of(user));
 
         adminService.activateUser(56L);
 
         assertThat(user.getActive()).isTrue();
         verify(userRepository).save(user);
+    }
+
+    @Test
+    @DisplayName("Deactivate user should hide records owned by another tenant")
+    void deactivateUser_CrossTenantUser_ShouldReturnNotFound() {
+        when(userRepository.findByIdAndTenantId(57L, 1L)).thenReturn(Optional.empty());
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> adminService.deactivateUser(57L))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    @DisplayName("Activate user should hide records owned by another tenant")
+    void activateUser_CrossTenantUser_ShouldReturnNotFound() {
+        when(userRepository.findByIdAndTenantId(58L, 1L)).thenReturn(Optional.empty());
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> adminService.activateUser(58L))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(userRepository, never()).save(any(User.class));
     }
 }

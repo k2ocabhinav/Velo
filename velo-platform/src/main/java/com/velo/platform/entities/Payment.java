@@ -31,7 +31,7 @@ public class Payment {
     private PaymentMethod paymentMethod;
 
     @ToString.Exclude
-    @OneToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY)
     private User user;
 
     @ToString.Exclude

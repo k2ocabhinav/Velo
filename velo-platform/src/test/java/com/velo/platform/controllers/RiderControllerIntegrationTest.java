@@ -156,6 +156,22 @@ class RiderControllerIntegrationTest {
     }
 
     @Test
+    @DisplayName("POST /riders/rateDriver rejects ratings above five")
+    void rateDriver_ShouldRejectOutOfRangeRating() throws Exception {
+        mockMvc.perform(withRiderAuth(post("/riders/rateDriver")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"rideId\":" + endedRide.getId() + ",\"rating\":6}")))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Legacy rate-driver path also rejects ratings above five")
+    void rateDriverPath_ShouldRejectOutOfRangeRating() throws Exception {
+        mockMvc.perform(withRiderAuth(post("/riders/rateDriver/" + endedRide.getId() + "/6")))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     @DisplayName("POST /riders/cancelRide/{rideId} should cancel ride")
     void cancelRide_ShouldReturnOk() throws Exception {
         mockMvc.perform(withRiderAuth(post("/riders/cancelRide/" + confirmedRide.getId())))
