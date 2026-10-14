@@ -30,4 +30,4 @@ USER node
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:3000/').then(r => process.exit(r.status < 500 ? 0 : 1)).catch(() => process.exit(1))"
-CMD ["sh", "-c", "node scripts/start-standalone.mjs \"$APP\" 3000"]
+CMD ["sh", "-c", "node /app/scripts/start-standalone.mjs \"$APP\" 3000"]
