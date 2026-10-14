@@ -22,10 +22,16 @@ Single source of truth for the Velo project.
 
 | Document | Purpose |
 |---|---|
-| [BRANCHING.md](BRANCHING.md) | Branch naming, merge rules, parallel agent work |
+| [BRANCHING.md](BRANCHING.md) | Branch naming, merge rules, parallel work |
 | [PROGRESS.md](PROGRESS.md) | Shared checklist — what's done, what's not |
 | [SECURITY_REMEDIATION.md](SECURITY_REMEDIATION.md) | Dependency vulnerability tracking and remediation policy |
 | [ADMIN_DEMO_SCRIPT.md](ADMIN_DEMO_SCRIPT.md) | Step-by-step demo for dispatch race, persistence, and ops health |
+
+## Decisions
+
+| Document | Purpose |
+|---|---|
+| [decisions/README.md](decisions/README.md) | Decision ledger — what an ADR is, the rules, the template, and the index of decisions |
 
 ## How To Use
 
@@ -34,25 +40,21 @@ Single source of truth for the Velo project.
 - **Building frontend?** Read `DESIGN_SYSTEM.md` first, then `FRONTEND_PLAN.md`.
 - **Deploying?** Read `DEPLOYMENT.md`.
 - **Checking progress?** Read `PROGRESS.md`.
+- **Asking "why is it built this way?"** Read `decisions/`.
 - **Creating a branch?** Read `BRANCHING.md`.
-- **Preparing investor/admin demo?** Read `ADMIN_DEMO_SCRIPT.md`.
+- **Preparing an admin demo?** Read `ADMIN_DEMO_SCRIPT.md`.
 
 ## Current State
 
-- Backend: 158 tests passing, BUILD SUCCESS
-- Frontend: Turborepo monorepo with admin/rider/driver API-backed flows, explicit session logout controls, and full frontend-connected integration handshake coverage. See `PROGRESS.md` for details.
+- Backend: Spring Boot 3.3.1 / Java 22 on PostgreSQL + PostGIS, 197 tests passing.
+- Frontend: Turborepo monorepo (landing, admin, requester, driver) with shared packages and cookie-based BFF auth.
+- Multi-tenant foundations are in place (tenant scoping + branding); production AWS deployment is not yet provisioned.
+- See `PROGRESS.md` for what's done and `decisions/` for why it's built that way.
 
-### Update (2026-04-09)
+## Documentation Rules
 
-- Rider core continuity now includes dedicated active-trip lifecycle tracking (`/ride/active`) with live ride updates and driver location publishing support.
-- Frontend and backend reliability gates include backend-connected rider active-ride and driver location assertions in compose smoke.
-
-### Update (2026-04-09, Runtime Stabilization)
-
-- Admin/Driver/Rider docker runtime startup now consistently serves client assets and sign-in forms (host binding fix in standalone start script).
-- Driver registration flow is now contract-safe end-to-end for signup + driver onboarding from the frontend BFF path.
-
-### Update (2026-04-10)
-
-- Admin now includes a dispatch console with override controls, offer visibility, audit trail, and ops-health telemetry.
-- Sign-in form rendering path is stabilized across Admin/Driver/Rider by resolving `next` server-side instead of depending on client query hydration.
+- Living docs are edited **in place**; superseded text is deleted (git keeps history).
+- Keep each doc under **200 lines**.
+- Decisions go in the [decision ledger](decisions/README.md), never in prose docs.
+- Progress goes **only** in `PROGRESS.md`.
+- Never append dated "status update" or "snapshot" blocks to any doc.
