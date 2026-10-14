@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { PageFrame } from "../_components/page-frame";
+import { Button, ErrorState, Field, PageHeader, Section, Select, Skeleton } from "@velo/ui";
 import { adminClient, type BrandingSettings } from "../_lib/admin-client";
 import { toActionErrorMessage } from "../_lib/ui-state";
 
@@ -18,7 +18,7 @@ type BrandingForm = {
 function toForm(settings: BrandingSettings): BrandingForm {
   return {
     brandName: settings.brandName ?? "Velo",
-    primaryColor: settings.primaryColor ?? "#2563EB",
+    primaryColor: settings.primaryColor ?? "#1A56FF",
     logoUrl: settings.logoUrl ?? "",
     riderLabel: settings.riderLabel ?? "Rider",
     driverLabel: settings.driverLabel ?? "Driver",
@@ -27,16 +27,12 @@ function toForm(settings: BrandingSettings): BrandingForm {
   };
 }
 
+function isHexColor(value: string): boolean {
+  return /^#[0-9A-Fa-f]{6}$/.test(value.trim());
+}
+
 export default function BrandingPage() {
-  const [form, setForm] = useState<BrandingForm>({
-    brandName: "Velo",
-    primaryColor: "#2563EB",
-    logoUrl: "",
-    riderLabel: "Rider",
-    driverLabel: "Driver",
-    tripLabel: "Trip",
-    dispatchMode: "RIDE_HAILING",
-  });
+  const [form, setForm] = useState<BrandingForm>({ brandName: "Velo", primaryColor: "#1A56FF", logoUrl: "", riderLabel: "Rider", driverLabel: "Driver", tripLabel: "Trip", dispatchMode: "RIDE_HAILING" });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,21 +41,18 @@ export default function BrandingPage() {
   async function load(): Promise<void> {
     setLoading(true);
     setError(null);
-    try {
-      const settings = await adminClient.getBranding();
-      setForm(toForm(settings));
-    } catch (loadError) {
-      setError(toActionErrorMessage(loadError, "Unable to load branding settings."));
-    } finally {
-      setLoading(false);
-    }
+    try { setForm(toForm(await adminClient.getBranding())); }
+    catch (loadError) { setError(toActionErrorMessage(loadError, "Couldn't load branding settings.")); }
+    finally { setLoading(false); }
   }
 
-  useEffect(() => {
-    void load();
-  }, []);
+  useEffect(() => { void load(); }, []);
 
   async function save(): Promise<void> {
+    if (!isHexColor(form.primaryColor)) {
+      setError("Enter a six-digit hex color, such as #1A56FF.");
+      return;
+    }
     setSaving(true);
     setError(null);
     setMessage(null);
@@ -76,7 +69,7 @@ export default function BrandingPage() {
       setForm(toForm(updated));
       setMessage("Branding settings saved.");
     } catch (saveError) {
-      setError(toActionErrorMessage(saveError, "Unable to save branding settings."));
+      setError(toActionErrorMessage(saveError, "Couldn't save branding settings."));
     } finally {
       setSaving(false);
     }
@@ -84,90 +77,57 @@ export default function BrandingPage() {
 
   return (
     <div className="stack">
-      <PageFrame
-        title="Branding"
-        description="Configure brand identity, role labels, and dispatch mode for this tenant."
-      />
-
-      {loading ? <p className="helper">Loading branding settings...</p> : null}
-      {error ? <p className="error-text">{error}</p> : null}
-      {message ? <p className="helper">{message}</p> : null}
-
-      {!loading ? (
-        <section className="panel stack">
-          <div className="grid grid-2">
-            <label className="field">
-              <span>Brand name</span>
-              <input
-                value={form.brandName}
-                onChange={(event) => setForm((prev) => ({ ...prev, brandName: event.target.value }))}
-              />
-            </label>
-            <label className="field">
-              <span>Primary color (hex)</span>
-              <input
-                value={form.primaryColor}
-                onChange={(event) => setForm((prev) => ({ ...prev, primaryColor: event.target.value }))}
-              />
-            </label>
-            <label className="field">
-              <span>Rider label</span>
-              <input
-                value={form.riderLabel}
-                onChange={(event) => setForm((prev) => ({ ...prev, riderLabel: event.target.value }))}
-              />
-            </label>
-            <label className="field">
-              <span>Driver label</span>
-              <input
-                value={form.driverLabel}
-                onChange={(event) => setForm((prev) => ({ ...prev, driverLabel: event.target.value }))}
-              />
-            </label>
-            <label className="field">
-              <span>Trip label</span>
-              <input
-                value={form.tripLabel}
-                onChange={(event) => setForm((prev) => ({ ...prev, tripLabel: event.target.value }))}
-              />
-            </label>
-            <label className="field">
-              <span>Dispatch mode</span>
-              <select
-                value={form.dispatchMode}
-                onChange={(event) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    dispatchMode: event.target.value as BrandingForm["dispatchMode"],
-                  }))
-                }
-              >
+      <PageHeader title="Branding" description="Set the customer-facing identity and operating labels." actions={<Button variant="secondary" disabled={loading || saving} onClick={() => void load()}>Reload</Button>} />
+      {error ? <ErrorState title="Couldn't update branding" description={error} onRetry={() => void load()} /> : null}
+      {message ? <p role="status" className="helper">{message}</p> : null}
+      {loading ? <div className="branding-columns" aria-label="Loading branding settings" aria-busy="true"><Skeleton className="h-80" /><Skeleton className="h-52" /></div> : (
+        <div className="branding-columns">
+          <div className="stack">
+            <Section title="Identity">
+              <div className="stack">
+                <Field label="Brand name"><input className="ui-control" value={form.brandName} onChange={(event) => setForm((current) => ({ ...current, brandName: event.target.value }))} /></Field>
+                <Field label="Brand color" hint="Choose a color or enter a six-digit hex value.">
+                  <div className="row-actions">
+                    <input className="ui-control" aria-label="Choose brand color" type="color" value={isHexColor(form.primaryColor) ? form.primaryColor : "#1A56FF"} onChange={(event) => setForm((current) => ({ ...current, primaryColor: event.target.value }))} style={{ width: "3.5rem", padding: "0.25rem" }} />
+                    <input className="ui-control" aria-label="Brand color hex" value={form.primaryColor} onChange={(event) => setForm((current) => ({ ...current, primaryColor: event.target.value }))} aria-invalid={!isHexColor(form.primaryColor)} />
+                  </div>
+                </Field>
+                <Field label="Logo URL"><input className="ui-control" type="url" value={form.logoUrl} placeholder="https://example.com/logo.svg" onChange={(event) => setForm((current) => ({ ...current, logoUrl: event.target.value }))} /></Field>
+              </div>
+            </Section>
+            <Section title="Labels">
+              <div className="stack">
+                <Field label="Rider label"><input className="ui-control" value={form.riderLabel} onChange={(event) => setForm((current) => ({ ...current, riderLabel: event.target.value }))} /></Field>
+                <Field label="Driver label"><input className="ui-control" value={form.driverLabel} onChange={(event) => setForm((current) => ({ ...current, driverLabel: event.target.value }))} /></Field>
+                <Field label="Trip label"><input className="ui-control" value={form.tripLabel} onChange={(event) => setForm((current) => ({ ...current, tripLabel: event.target.value }))} /></Field>
+              </div>
+            </Section>
+            <Section title="Dispatch mode">
+              <Field label="Operating model"><Select value={form.dispatchMode} onChange={(event) => setForm((current) => ({ ...current, dispatchMode: event.target.value as BrandingForm["dispatchMode"] }))}>
                 <option value="RIDE_HAILING">Ride hailing</option>
                 <option value="DELIVERY_MERCHANT">Delivery merchant</option>
                 <option value="FLEET_MANAGED">Fleet managed</option>
-              </select>
-            </label>
+              </Select></Field>
+            </Section>
+            <Button loading={saving} onClick={() => void save()}>Save branding</Button>
           </div>
 
-          <label className="field">
-            <span>Logo URL</span>
-            <input
-              value={form.logoUrl}
-              placeholder="https://..."
-              onChange={(event) => setForm((prev) => ({ ...prev, logoUrl: event.target.value }))}
-            />
-          </label>
-
-          <div className="actions">
-            <button className="primary-button" type="button" disabled={saving} onClick={() => void save()}>
-              {saving ? "Saving..." : "Save branding"}
-            </button>
-            <button className="secondary-button" type="button" disabled={saving} onClick={() => void load()}>
-              Reload
-            </button>
-          </div>
-        </section>
-      ) : null}
+          <Section title="Rider preview">
+            <div className="stack">
+              <p className="helper">A preview of the rider app brand bar and primary action.</p>
+              <div className="admin-preview-bar">
+                <span className="admin-preview-brand">
+                  {form.logoUrl.trim() ? <span className="admin-preview-logo" role="img" aria-label={`${form.brandName || "Brand"} logo`} style={{ backgroundImage: `url("${form.logoUrl.trim()}")` }} /> : (form.brandName || "Brand")}
+                </span>
+                <span className="helper">{form.riderLabel || "Rider"}</span>
+              </div>
+              <button className="ui-button" data-variant="primary" data-size="md" type="button" style={{ backgroundColor: form.primaryColor, borderColor: form.primaryColor }}>
+                Request {form.tripLabel.toLowerCase() || "trip"}
+              </button>
+            </div>
+          </Section>
+        </div>
+      )}
     </div>
   );
 }

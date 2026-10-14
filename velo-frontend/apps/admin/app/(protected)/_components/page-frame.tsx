@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { PageHeader } from "@velo/ui";
 
 export function PageFrame({
   title,
@@ -10,14 +11,6 @@ export function PageFrame({
   children?: ReactNode;
 }>) {
   return (
-    <section className="page-frame">
-      <header className="page-header">
-        <div>
-          <h1>{title}</h1>
-          <p>{description}</p>
-        </div>
-        {children}
-      </header>
-    </section>
+    <PageHeader title={title} description={description} actions={children} />
   );
 }
