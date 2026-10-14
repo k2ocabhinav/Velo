@@ -16,6 +16,7 @@ Single source of truth for the Velo project.
 | Document | Purpose |
 |---|---|
 | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) | Visual language, theming architecture, animations, loading states, accessibility |
+| [UX_REFINEMENT_PLAN.md](UX_REFINEMENT_PLAN.md) | Per-page UX refinement plan and shared UI foundation (in progress) |
 | [FRONTEND_PLAN.md](FRONTEND_PLAN.md) | Tech stack, monorepo structure, build phases, auth flow, WebSocket |
 
 ## Process

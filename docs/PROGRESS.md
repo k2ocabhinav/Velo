@@ -34,7 +34,12 @@
 - [x] Backend suite: 240 tests, 0 failures (was 197 claimed / 196 actual)
 
 ### UI/UX improvement round (queued next)
-- [ ] Per-page UX refinement across admin, rider and driver (plan in progress)
+- [x] Plan written: `docs/UX_REFINEMENT_PLAN.md`
+- [ ] UI-0 shared foundation (styles, components, formatters, RouteStrip)
+- [ ] UI-1 admin pages
+- [ ] UI-2 rider pages
+- [ ] UI-3 driver pages
+- [ ] UI-4 auth, landing, cross-app polish and a11y pass
 
 ### Security & production readiness (highest priority)
 - [ ] HTTPS enforcement config for production
