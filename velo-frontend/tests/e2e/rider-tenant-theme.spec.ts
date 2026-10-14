@@ -1,7 +1,8 @@
 import { expect, test } from "@playwright/test";
+import tenantBranding from "./tenant-branding.json";
 
-const tenantBrandName = process.env.PLAYWRIGHT_TENANT_BRAND_NAME ?? "Velo Business";
-const tenantPrimaryHsl = process.env.PLAYWRIGHT_TENANT_PRIMARY_HSL ?? "224.3 100% 55.1%";
+const tenantBrandName = tenantBranding.brandName;
+const tenantPrimaryHsl = tenantBranding.primaryHsl;
 
 async function assertTenantTheme(page: import("@playwright/test").Page) {
   const html = page.locator("html");
@@ -23,7 +24,7 @@ test("rider login and home render the server-resolved tenant theme", async ({ ba
     await page.screenshot({ path: `test-results/ui6-screenshots/rider-login-${viewport.suffix}.png`, fullPage: true });
   }
 
-  const riderBaseUrl = baseURL ?? "http://127.0.0.1:5202";
+  const riderBaseUrl = baseURL ?? "http://127.0.0.1:4102";
   await context.addCookies([
     { name: "velo_rider_token", value: "ui6-theme-session", url: riderBaseUrl },
     { name: "velo_rider_role_hint", value: "RIDER", url: riderBaseUrl },
@@ -32,7 +33,7 @@ test("rider login and home render the server-resolved tenant theme", async ({ ba
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { ticket: "ui6-e2e-ticket" } }) });
   });
   await page.route("**/api/proxy/api/v1/tenant/branding", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { brandName: tenantBrandName, primaryColor: "#0057B8", riderLabel: "Passenger", driverLabel: "Courier", tripLabel: "Journey", riderPortalEnabled: true } }) });
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: tenantBranding }) });
   });
   await page.route("**/api/backend/**", async (route) => {
     const url = route.request().url();

@@ -4,7 +4,14 @@ const adminBaseURL = process.env.PLAYWRIGHT_ADMIN_BASE_URL ?? "http://127.0.0.1:
 const riderBaseURL = process.env.PLAYWRIGHT_RIDER_BASE_URL ?? "http://127.0.0.1:4102";
 const driverBaseURL = process.env.PLAYWRIGHT_DRIVER_BASE_URL ?? "http://127.0.0.1:4103";
 const landingBaseURL = process.env.PLAYWRIGHT_LANDING_BASE_URL ?? "http://127.0.0.1:4100";
+const mockApiBaseURL = process.env.PLAYWRIGHT_MOCK_API_BASE_URL ?? "http://127.0.0.1:7104";
 const includeAdminWebkit = process.env.PLAYWRIGHT_INCLUDE_WEBKIT === "1";
+const mockApiPort = new URL(mockApiBaseURL).port || "7104";
+const appServerEnv = {
+  VELO_API_BASE_URL: mockApiBaseURL,
+  VELO_DEFAULT_TENANT_SLUG: "business",
+  NEXT_TELEMETRY_DISABLED: "1",
+};
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -16,27 +23,36 @@ export default defineConfig({
   use: { trace: "on-first-retry" },
   webServer: [
     {
+      command: `PLAYWRIGHT_MOCK_API_PORT=${mockApiPort} node scripts/e2e/mock-api.mjs`,
+      url: `${mockApiBaseURL}/health`,
+      reuseExistingServer: false,
+      timeout: 30_000,
+    },
+    {
       command: `npx next dev apps/landing -p ${new URL(landingBaseURL).port || 4100}`,
       url: landingBaseURL,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false,
       timeout: 120_000
     },
     {
       command: `npx next dev apps/admin -p ${new URL(adminBaseURL).port || 4101}`,
       url: adminBaseURL,
-      reuseExistingServer: !process.env.CI,
+      env: appServerEnv,
+      reuseExistingServer: false,
       timeout: 120_000
     },
     {
       command: `npx next dev apps/driver -p ${new URL(driverBaseURL).port || 4103}`,
       url: driverBaseURL,
-      reuseExistingServer: !process.env.CI,
+      env: appServerEnv,
+      reuseExistingServer: false,
       timeout: 120_000
     },
     {
       command: `npx next dev apps/rider -p ${new URL(riderBaseURL).port || 4102}`,
       url: riderBaseURL,
-      reuseExistingServer: !process.env.CI,
+      env: appServerEnv,
+      reuseExistingServer: false,
       timeout: 120_000
     }
   ],
