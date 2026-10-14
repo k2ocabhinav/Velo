@@ -1,0 +1,7 @@
+[build]
+base = "velo-frontend"
+command = "npm run build --workspace=@velo/landing"
+publish = "apps/landing/out"
+
+[build.environment]
+NODE_VERSION = "22"
