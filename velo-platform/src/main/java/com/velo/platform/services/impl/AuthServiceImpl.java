@@ -26,6 +26,10 @@ import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -54,12 +58,11 @@ public class AuthServiceImpl implements AuthService {
     private final JwtTokenProvider jwtTokenProvider;
 
     @Override
+    @Transactional(readOnly = true)
     public AuthResponseDto login(String email, String password) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
-
-        if (!passwordEncoder.matches(password, user.getPassword())) {
-            throw new RuntimeConflictException("Invalid password");
+        User user = userRepository.findByEmail(email).orElse(null);
+        if (user == null || password == null || !passwordEncoder.matches(password, user.getPassword())) {
+            throw new BadCredentialsException("Invalid email or password");
         }
 
         String role;
@@ -122,8 +125,19 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public DriverDto onboardNewDriver(Long userId, String vehicleId) {
+        UserPrincipal caller = currentUserPrincipal();
+        boolean selfOnboarding = caller.getUserId().equals(userId);
+        boolean sameTenantAdmin = Role.ADMIN.name().equals(caller.getRole());
+        if (!selfOnboarding && !sameTenantAdmin) {
+            throw new AccessDeniedException("You may only onboard yourself or users in your tenant");
+        }
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id "+userId));
+
+        if (!selfOnboarding && !effectiveTenantId(caller.getTenantId()).equals(effectiveTenantId(user.getTenantId()))) {
+            throw new ResourceNotFoundException("User not found with id " + userId);
+        }
 
         if(user.getRoles().contains(DRIVER))
             throw new RuntimeConflictException("User with id "+userId+" is already a Driver");
@@ -140,6 +154,18 @@ user.getRoles().add(DRIVER);
     userRepository.save(user);
     Driver savedDriver = driverService.createNewDriver(createDriver);
     return modelMapper.map(savedDriver, DriverDto.class);
+}
+
+private UserPrincipal currentUserPrincipal() {
+    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+    if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal principal)) {
+        throw new AccessDeniedException("Authentication is required");
+    }
+    return principal;
+}
+
+private Long effectiveTenantId(Long tenantId) {
+    return tenantId == null ? DEFAULT_TENANT_ID : tenantId;
 }
 
 @Override
@@ -162,8 +188,10 @@ public UserDto updateProfile(UpdateProfileRequestDto requestDto) {
 @Override
 @Transactional
 public Map<String, String> forgotPassword(ForgotPasswordRequestDto requestDto) {
-    User user = userRepository.findByEmail(requestDto.getEmail())
-            .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + requestDto.getEmail()));
+    User user = userRepository.findByEmail(requestDto.getEmail()).orElse(null);
+    if (user == null) {
+        return Map.of("message", "If an account exists with this email, a password reset link has been sent");
+    }
 
     String token = UUID.randomUUID().toString();
     PasswordResetToken resetToken = PasswordResetToken.builder()
@@ -175,9 +203,7 @@ public Map<String, String> forgotPassword(ForgotPasswordRequestDto requestDto) {
 
     passwordResetTokenRepository.save(resetToken);
 
-    log.info("Password reset token generated for user: {}", user.getEmail());
-    log.debug("Reset token: {} ( expires at: {} )", token, resetToken.getExpiryDate());
-    log.info("Password reset token for {}: {}", user.getEmail(), token);
+    log.info("Password reset requested for user id: {}", user.getId());
 
     return Map.of(
             "message", "If an account exists with this email, a password reset link has been sent"
