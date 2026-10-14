@@ -38,6 +38,10 @@
 - [ ] EP-2 Geocoding proxy + address search in admin New trip and rider booking (in progress)
 - [ ] EP-3 Refresh-token cleanup + grace window for cross-instance refresh; tenant brand in wordmarks (in progress)
 - [ ] EP-4 Docker image build + container smoke test (in progress)
+- [ ] EP-5 Demo readiness: two branded demo tenants, one-command local demo, tunnel guide, README with screenshots (in progress)
+- [ ] Geocoding must be search-on-submit + saved locations (provider usage policy) — correction to EP-2
+- [ ] Next: corporate accounts + contract tariffs + monthly statement CSV (niche: small fleets with pre-booked business transfers)
+- [ ] Next: recurring scheduled trips + tomorrow's trip sheet + overdue/unassigned alerts
 - [ ] Apply Terraform — deferred: no AWS account or budget; demos run locally (see research for $0 options)
 
 ### UI/UX improvement round (merged; e2e 32/32)
