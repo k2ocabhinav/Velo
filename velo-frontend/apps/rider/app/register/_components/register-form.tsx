@@ -1,9 +1,9 @@
 "use client";
 
 import type { FormEvent } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Field, PasswordField } from "@velo/ui/composed";
 
 export function RegisterForm({ nextPath }: Readonly<{ nextPath: string }>) {
   const router = useRouter();
@@ -39,7 +39,7 @@ export function RegisterForm({ nextPath }: Readonly<{ nextPath: string }>) {
 
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
-        setError(payload?.error ?? "Unable to create account.");
+        setError(payload?.error ?? "Couldn't create your account. Check your details and try again.");
         return;
       }
 
@@ -50,7 +50,7 @@ export function RegisterForm({ nextPath }: Readonly<{ nextPath: string }>) {
         router.refresh();
       }, 300);
     } catch {
-      setError("Unable to create account right now.");
+      setError("Couldn't reach the server. Try again in a moment.");
     } finally {
       setPending(false);
     }
@@ -58,30 +58,21 @@ export function RegisterForm({ nextPath }: Readonly<{ nextPath: string }>) {
 
   return (
     <form className="stack" onSubmit={handleSubmit}>
-      <label className="field">
-        <span>Full name</span>
-        <input name="name" type="text" autoComplete="name" required />
-      </label>
-      <label className="field">
-        <span>Email</span>
-        <input name="email" type="email" autoComplete="email" required />
-      </label>
-      <label className="field">
-        <span>Password</span>
-        <input name="password" type="password" autoComplete="new-password" required minLength={8} />
-      </label>
-      <label className="field">
-        <span>Referral code (optional)</span>
-        <input name="referredByCode" type="text" />
-      </label>
-      {error ? <p className="error-text">{error}</p> : null}
-      {message ? <p className="helper">{message}</p> : null}
+      <Field label="Full name">
+        <input name="name" type="text" autoComplete="name" required className="ui-control" />
+      </Field>
+      <Field label="Email">
+        <input name="email" type="email" autoComplete="email" required className="ui-control" />
+      </Field>
+      <PasswordField label="Password" name="password" autoComplete="new-password" required minLength={8} />
+      <Field label="Referral code (optional)">
+        <input name="referredByCode" type="text" className="ui-control" />
+      </Field>
+      {error ? <p className="error-text" role="alert">{error}</p> : null}
+      {message ? <p className="helper" role="status">{message}</p> : null}
       <button className="primary-button" type="submit" disabled={pending}>
         {pending ? "Creating account..." : "Create account"}
       </button>
-      <p className="helper">
-        Already have an account? <Link href="/login">Sign in</Link>
-      </p>
     </form>
   );
 }

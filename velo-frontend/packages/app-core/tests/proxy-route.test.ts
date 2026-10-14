@@ -1,12 +1,18 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { proxyBackendRequest } from "../src/proxy-route";
 
 const originalFetch = global.fetch;
 
+beforeEach(() => {
+  vi.stubEnv("NODE_ENV", "test");
+  vi.stubEnv("VELO_AUTH_COOKIE_SECURE", "false");
+});
+
 afterEach(() => {
   global.fetch = originalFetch;
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
 });
 
 function createRequest() {
@@ -69,7 +75,7 @@ describe("BFF proxy refresh", () => {
     expect(second.status).toBe(200);
     expect(first.cookies.get("velo_rider_token")?.value).toBe("access-new");
     expect(first.cookies.get("velo_rider_refresh")).toEqual(
-      expect.objectContaining({ value: "refresh-new", path: "/api", httpOnly: true, secure: true })
+      expect.objectContaining({ value: "refresh-new", path: "/api", httpOnly: true, secure: false })
     );
     await expect(first.json()).resolves.toEqual({ data: { id: 12 } });
   });

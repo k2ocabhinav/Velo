@@ -1,5 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { performLoginProxy } from "../app/login/_lib/auth";
+
+beforeEach(() => {
+  vi.stubEnv("NODE_ENV", "test");
+  vi.stubEnv("VELO_AUTH_COOKIE_SECURE", "false");
+});
+
+afterEach(() => vi.unstubAllEnvs());
 
 function createJsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -33,7 +40,7 @@ describe("rider performLoginProxy", () => {
     expect(cookies).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ name: "velo_rider_token", value: "token-123" }),
-        expect.objectContaining({ name: "velo_rider_refresh", value: "refresh-123", httpOnly: true, secure: true, sameSite: "lax", path: "/api" }),
+        expect.objectContaining({ name: "velo_rider_refresh", value: "refresh-123", httpOnly: true, secure: false, sameSite: "lax", path: "/api" }),
         expect.objectContaining({ name: "velo_rider_user_id", value: "5" }),
         expect.objectContaining({ name: "velo_rider_role_hint", value: "RIDER" }),
       ]),

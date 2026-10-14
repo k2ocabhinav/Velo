@@ -1,5 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { performLoginProxy } from "../app/login/_lib/auth";
+
+beforeEach(() => {
+  vi.stubEnv("NODE_ENV", "test");
+  vi.stubEnv("VELO_AUTH_COOKIE_SECURE", "false");
+});
+
+afterEach(() => vi.unstubAllEnvs());
 
 function createJsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -11,7 +18,7 @@ function createJsonResponse(body: unknown, status = 200): Response {
 }
 
 describe("performLoginProxy", () => {
-  it("sets secure session cookies on success", async () => {
+  it("sets httpOnly session cookies compatible with local HTTP on success", async () => {
     const response = await performLoginProxy(
       { email: "admin@velo.dev", password: "secret" },
       async () =>
@@ -37,7 +44,7 @@ describe("performLoginProxy", () => {
     expect(cookies).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ name: "velo_admin_token", value: "token-123" }),
-        expect.objectContaining({ name: "velo_admin_refresh", value: "refresh-123", httpOnly: true, secure: true, sameSite: "lax", path: "/api" }),
+        expect.objectContaining({ name: "velo_admin_refresh", value: "refresh-123", httpOnly: true, secure: false, sameSite: "lax", path: "/api" }),
         expect.objectContaining({ name: "velo_admin_user_id", value: "42" }),
         expect.objectContaining({ name: "velo_admin_role_hint", value: "ADMIN" }),
       ])

@@ -42,6 +42,22 @@ async function mockRideHistory(
 }
 
 test.describe("rider smoke", () => {
+  test("rider login and registration expose labelled account fields", async ({ page }) => {
+    await page.goto("/login");
+    await expect(page.getByRole("heading", { name: /sign in/i })).toBeVisible();
+    await expect(page.getByLabel("Email")).toBeVisible();
+    await expect(page.getByLabel("Password")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
+
+    await page.goto("/register");
+    await expect(page.getByRole("heading", { name: "Create your account" })).toBeVisible();
+    await expect(page.getByLabel("Full name")).toBeVisible();
+    await expect(page.getByLabel("Email")).toBeVisible();
+    await expect(page.getByLabel("Password")).toBeVisible();
+    await expect(page.getByLabel("Referral code (optional)")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Create account", exact: true })).toBeVisible();
+  });
+
   test("rider logout clears the session and blocks protected routes", async ({ baseURL, context, page }) => {
     const riderBaseUrl = baseURL ?? "http://127.0.0.1:4102";
     await context.addCookies([

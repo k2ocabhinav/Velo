@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextResponse } from "next/server";
 import {
   LOGIN_ROLE_COOKIE_NAME,
@@ -8,6 +8,13 @@ import {
   performRefreshProxy,
   performWebSocketTicketProxy,
 } from "../src/auth";
+
+beforeEach(() => {
+  vi.stubEnv("NODE_ENV", "test");
+  vi.stubEnv("VELO_AUTH_COOKIE_SECURE", "false");
+});
+
+afterEach(() => vi.unstubAllEnvs());
 
 function createJsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -65,6 +72,30 @@ describe("performLoginProxy", () => {
       data: { userId: 42 },
     });
   });
+
+  it("keeps authentication cookies secure in production even when explicitly disabled", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VELO_AUTH_COOKIE_SECURE", "false");
+
+    const response = await performLoginProxy(
+      { email: "user@velo.dev", password: "secret" },
+      async () => createJsonResponse({ data: { token: "token-123", refreshToken: "refresh-123", userId: 42, role: "RIDER" } }),
+    );
+
+    expect(response.cookies.get("velo_token")?.httpOnly).toBe(true);
+    expect(response.cookies.get("velo_token")?.secure).toBe(true);
+  });
+
+  it("allows secure cookies to be enabled for local HTTPS", async () => {
+    vi.stubEnv("VELO_AUTH_COOKIE_SECURE", "true");
+
+    const response = await performLoginProxy(
+      { email: "user@velo.dev", password: "secret" },
+      async () => createJsonResponse({ data: { token: "token-123", refreshToken: "refresh-123", userId: 42 } }),
+    );
+
+    expect(response.cookies.get("velo_token")?.secure).toBe(true);
+  });
 });
 
 describe("logout cookie cleanup", () => {
@@ -113,7 +144,7 @@ describe("logout cookie cleanup", () => {
       })
     );
     expect(response.cookies.get("velo_test_refresh")).toEqual(
-      expect.objectContaining({ value: "", path: "/api", httpOnly: true, secure: true, sameSite: "lax" })
+      expect.objectContaining({ value: "", path: "/api", httpOnly: true, secure: false, sameSite: "lax" })
     );
   });
 });
@@ -146,7 +177,7 @@ describe("refresh BFF", () => {
     );
     expect(response.cookies.get("velo_rider_token")?.value).toBe("access-next");
     expect(response.cookies.get("velo_rider_refresh")).toEqual(
-      expect.objectContaining({ value: "refresh-next", path: "/api", httpOnly: true, secure: true, sameSite: "lax" })
+      expect.objectContaining({ value: "refresh-next", path: "/api", httpOnly: true, secure: false, sameSite: "lax" })
     );
     const body = await response.json();
     expect(body.data.token).toBeUndefined();

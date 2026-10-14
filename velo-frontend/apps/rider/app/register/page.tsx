@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { AuthLayout } from "@velo/ui/composed";
 import { RegisterForm } from "./_components/register-form";
 import { sanitizeNextPath } from "../login/_lib/redirect";
 
@@ -19,19 +21,21 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
   const nextPath = sanitizeNextPath(readNextParam(await searchParams));
 
   return (
-    <main className="form-shell">
-      <section className="card login-card">
-        <div className="stack">
-          <div>
-            <p className="helper">Velo Rider</p>
-            <h1 style={{ margin: "8px 0 0", fontSize: "28px", lineHeight: 1.1 }}>Create account</h1>
-            <p className="helper" style={{ marginTop: "8px" }}>
-              Register to request rides and manage your trips.
-            </p>
-          </div>
-          <RegisterForm nextPath={nextPath} />
-        </div>
-      </section>
-    </main>
+    <AuthLayout
+      product="Rider"
+      statement="Request a trip and follow it from pickup to drop-off."
+      title="Create your account"
+      description="It takes a minute. You can add a payment method later."
+      footer={
+        <>
+          <span>Already have an account?</span>
+          <Link className="secondary-button" href="/login">
+            Sign in
+          </Link>
+        </>
+      }
+    >
+      <RegisterForm nextPath={nextPath} />
+    </AuthLayout>
   );
 }

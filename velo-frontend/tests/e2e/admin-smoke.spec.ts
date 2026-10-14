@@ -9,7 +9,10 @@ test("admin app redirects unauthenticated visitors to login", async ({ page }) =
   expect(currentUrl.pathname).toBe("/login");
   expect(currentUrl.searchParams.get("next")).toBe("/");
   await expect(page.getByRole("heading", { name: /sign in/i })).toBeVisible();
-  await expect(page.getByRole("button", { name: /sign in/i })).toBeVisible();
+  await expect(page.getByLabel("Email")).toBeVisible();
+  await expect(page.getByLabel("Password")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: /register|create account/i })).toHaveCount(0);
 });
 
 test("admin logout clears session and re-blocks protected routes", async ({ baseURL, context, page }) => {

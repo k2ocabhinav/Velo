@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getApiBaseUrl } from "./env";
+import { getApiBaseUrl, getEnvValue } from "./env";
 import { getErrorMessage, isRecordLike, readResponsePayload } from "./http-payload";
 import { LOGIN_REDIRECT_FALLBACK, sanitizeNextPath } from "./redirect";
 
@@ -157,10 +157,14 @@ export function extractRoleHints(payload: unknown): string[] {
 }
 
 function buildCookieOptions(maxAge: number, path = "/") {
+  const secureOverride = getEnvValue("VELO_AUTH_COOKIE_SECURE")?.trim().toLowerCase();
+  const isProduction = getEnvValue("NODE_ENV") === "production";
+  const secure = isProduction || secureOverride === "true";
+
   return {
     httpOnly: true,
     sameSite: "lax" as const,
-    secure: true,
+    secure,
     path,
     maxAge
   };

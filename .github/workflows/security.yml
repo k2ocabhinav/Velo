@@ -56,16 +56,17 @@ jobs:
     env:
       NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
       ODC_DATA_DIR: ${{ runner.temp }}/dependency-check-data
+      DEPENDENCY_CHECK_PLUGIN_VERSION: 12.2.1
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Use Java 22
+      - name: Use Java 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 22
+          java-version: 21
           cache: maven
 
       - name: Require NVD API key for fast and reliable updates
@@ -90,11 +91,11 @@ jobs:
 
       - name: Warm OWASP NVD cache
         working-directory: velo-platform
-        run: ./mvnw -q -DdataDirectory="$ODC_DATA_DIR" dependency-check:update-only
+        run: ./mvnw -q -DdataDirectory="$ODC_DATA_DIR" "org.owasp:dependency-check-maven:$DEPENDENCY_CHECK_PLUGIN_VERSION:update-only"
 
       - name: Run OWASP dependency check (no update)
         working-directory: velo-platform
-        run: ./mvnw -q -DdataDirectory="$ODC_DATA_DIR" -DautoUpdate=false dependency-check:check
+        run: ./mvnw -q -DdataDirectory="$ODC_DATA_DIR" -DautoUpdate=false "org.owasp:dependency-check-maven:$DEPENDENCY_CHECK_PLUGIN_VERSION:check"
 
       - name: Upload dependency-check report
         if: always()
