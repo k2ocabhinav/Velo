@@ -3,8 +3,9 @@
 Status: approved for build (2026-10-15). Source research is kept locally. This plan supersedes the landing sections of `UX_REFINEMENT_PLAN.md`.
 
 ## 1. Brief
-- **Subject:** Velo, a branded dispatch desk for Indian fleets of 10-50 vehicles running pre-booked business and hotel transfers.
-- **Audiences:** (1) fleet owners and operations managers on phones, used to WhatsApp, practical and sceptical; (2) startup-program reviewers who need to see who it's for, what exists and what stage it's at within one screen.
+- **Subject:** Velo, a branded dispatch desk for fleets of 10-50 vehicles running pre-booked business and hotel transfers, for markets worldwide (India, Europe, the Americas and beyond).
+- **Audiences:** (1) fleet owners and operations managers anywhere, often on phones, practical and sceptical; (2) startup-program reviewers who need to see who it's for, what exists and what stage it's at within one screen.
+- **Markets:** global. Sample places are generic (airport, Grand Hotel, business park), times are 24-hour, and copy is free of country-specific assumptions. "Built in India" stays in the footer as the origin.
 - **Primary job:** show the working product honestly and get a demo booked (form or WhatsApp).
 - **Stage line (always visible near the hero):** "Pre-launch. Working demo available."
 
@@ -53,12 +54,13 @@ Pre-booked transfer work is organised by time: a 05:40 airport pickup, a 09:15 h
    variables when toggled; real screenshots below, captioned "Demo fleet, sample data".
  5 Getting started — what you need (a browser for dispatch, smartphones for drivers),
    what the founder does with you (set-up call, import drivers, first live day).
- 6 Pricing — ₹299 per active vehicle per month, minimum ₹2,990, GST extra.
-   Worked example: 15 vehicles = ₹4,485 + GST. "Early-access pilot pricing,
+ 6 Pricing — per active vehicle per month with a currency switch (USD default by
+   browser locale; USD/EUR/INR): $5 / €5 / ₹299, minimum $49 / €49 / ₹2,990, local
+   taxes extra. Worked example for 15 vehicles. "Early-access pilot pricing,
    subject to change." What's included / not yet included.
  7 Founder note — first person, why this niche, the next milestone (first pilot fleets).
    Name, photo and city come from config; the section hides any field that is unset.
- 8 FAQ — web app vs native, recurring trips (coming), support hours (IST), how data
+ 8 FAQ — web app vs native, recurring trips (coming), support hours (by arrangement across time zones), how data
    is handled today, hosting status, what a pilot involves.
  9 Book a demo — short form (name, phone/WhatsApp, fleet size, city, preferred time,
    email optional) + "WhatsApp the founder" button + email; next-step copy.
@@ -67,11 +69,11 @@ Pre-booked transfer work is organised by time: a 05:40 airport pickup, a 09:15 h
 
 **Hero copy:**
 - h1: "A dispatch desk for pre-booked business and hotel transfers."
-- Subhead: "For fleets of 10 to 50 vehicles. Bookings, driver assignments and live trip updates in one web workspace that carries your fleet's name."
+- Subhead: "For fleets of 10 to 50 vehicles, anywhere. Bookings, driver assignments and live trip updates in one web workspace that carries your fleet's name."
 
 **CTAs:** "Book a demo" (primary everywhere); "WhatsApp the founder" (secondary, only if `NEXT_PUBLIC_WHATSAPP_NUMBER` is set); "Watch the 2-minute demo" (only if `NEXT_PUBLIC_DEMO_VIDEO_URL` is set, otherwise "See how it works" anchors to section 3).
 
-**Claims:** only shipped features (check `PROGRESS.md`). Recurring trips, corporate billing, native apps, Hindi, India hosting and WhatsApp integration are "coming" or unmentioned.
+**Claims:** only shipped features (check `PROGRESS.md`). Recurring trips, corporate billing, native apps, Hindi, region-specific hosting and WhatsApp integration are "coming" or unmentioned.
 
 ## 5. Hero scene (vanilla three r180)
 - **Scene:** a deterministic procedural neighbourhood (fixed seed) with about 150 instanced shallow buildings, two hotels and a business park as authored landmarks, and streets as thin ribbons. Six vehicles; three authored routes on street edges. Orthographic isometric camera. Colors resolved from tokens once, re-resolved on theme change.
