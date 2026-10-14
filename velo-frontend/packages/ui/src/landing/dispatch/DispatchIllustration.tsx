@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ComponentType } from "react";
 import { browserSupportsDispatchCanvas } from "./eligibility";
 import { DispatchFallback } from "./DispatchFallback";
-import { SAMPLE_TRIPS, type SampleTrip } from "./sample-trips";
+import { SAMPLE_TRIPS, getSampleTrip, type SampleTrip } from "./sample-trips";
 import styles from "./dispatch.module.css";
 import type { DispatchCanvasProps, PreviewPhase } from "./scene/DispatchCanvas";
 
@@ -34,9 +34,9 @@ export function DispatchIllustration({ className, forceSvg = false }: DispatchIl
   const [webglReady, setWebglReady] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [resetVersion, setResetVersion] = useState(0);
-  const [selectedTripId, setSelectedTripId] = useState<SampleTrip["id"]>(SAMPLE_TRIPS[0].id);
+  const [selectedTripId, setSelectedTripId] = useState<SampleTrip["id"]>("05:40");
   const [preview, setPreview] = useState<PreviewState>({ phase: "idle", runId: 0 });
-  const previewClock = useRef({ remaining: { ...PREVIEW_DURATIONS } });
+  const previewClock = useRef<{ remaining: Record<keyof typeof PREVIEW_DURATIONS, number> }>({ remaining: { ...PREVIEW_DURATIONS } });
 
   useEffect(() => {
     const scene = sceneRef.current;
@@ -45,7 +45,7 @@ export function DispatchIllustration({ className, forceSvg = false }: DispatchIl
       return;
     }
 
-    const observer = new IntersectionObserver(([entry]) => setInView(entry.isIntersecting), {
+    const observer = new IntersectionObserver(([entry]) => setInView(entry?.isIntersecting ?? false), {
       rootMargin: "80px",
       threshold: 0.01,
     });
@@ -136,7 +136,7 @@ export function DispatchIllustration({ className, forceSvg = false }: DispatchIl
     };
   }, [eligible, inView, preview.phase, preview.runId]);
 
-  const selectedTrip = SAMPLE_TRIPS.find((trip) => trip.id === selectedTripId) ?? SAMPLE_TRIPS[0];
+  const selectedTrip = getSampleTrip(selectedTripId);
   const canvasActive = eligible && Boolean(canvasModule) && !canvasFailed;
   const statusMessage = preview.phase === "assign"
     ? "Assigning a driver"
@@ -165,10 +165,11 @@ export function DispatchIllustration({ className, forceSvg = false }: DispatchIl
   function togglePreview() {
     setPreview((current) => {
       if (["assign", "route", "travel"].includes(current.phase)) {
-        return { ...current, phase: "paused", pausedPhase: current.phase as PreviewState["pausedPhase"] };
+        const pausedPhase = current.phase as NonNullable<PreviewState["pausedPhase"]>;
+        return { phase: "paused", runId: current.runId, pausedPhase };
       }
       if (current.phase === "paused") {
-        return { ...current, phase: current.pausedPhase ?? "assign", pausedPhase: undefined };
+        return { phase: current.pausedPhase ?? "assign", runId: current.runId };
       }
       previewClock.current.remaining = { ...PREVIEW_DURATIONS };
       return { phase: "assign", runId: current.runId + 1 };

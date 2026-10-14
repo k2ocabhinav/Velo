@@ -1,3 +1,4 @@
+import console from "node:console";
 import { readFile, stat } from "node:fs/promises";
 import { resolve, sep } from "node:path";
 import { brotliCompressSync, constants as zlibConstants, gzipSync } from "node:zlib";

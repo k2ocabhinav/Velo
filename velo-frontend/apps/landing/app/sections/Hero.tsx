@@ -1,13 +1,8 @@
-"use client";
-
-import { useState } from "react";
 import { landingCopy, siteConfig } from "../../content/site";
-import { SAMPLE_TRIPS } from "../../content/sample-trips";
-import { DispatchIllustration } from "./_placeholder-dispatch";
+import { DispatchIllustration } from "@velo/ui/landing";
 import styles from "./sections.module.css";
 
 export function Hero() {
-  const [selectedTripId, setSelectedTripId] = useState(SAMPLE_TRIPS[0]?.id ?? "");
   const demoLink = siteConfig.demoVideoUrl
     ? { href: siteConfig.demoVideoUrl, label: landingCopy.hero.watchDemo }
     : { href: "#how-it-works", label: landingCopy.hero.seeHow };
@@ -26,7 +21,7 @@ export function Hero() {
             </div>
           </div>
           <div className={styles.heroVisual}>
-            <DispatchIllustration trips={SAMPLE_TRIPS} selectedTripId={selectedTripId} onSelectTrip={setSelectedTripId} />
+            <DispatchIllustration />
           </div>
         </div>
       </div>

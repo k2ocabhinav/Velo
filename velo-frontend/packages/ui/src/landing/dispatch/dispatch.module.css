@@ -115,7 +115,7 @@
 }
 
 .driverLine span:last-child {
-  color: var(--dispatch-teal);
+  color: var(--landing-teal-text, var(--dispatch-teal));
   font-weight: 600;
 }
 

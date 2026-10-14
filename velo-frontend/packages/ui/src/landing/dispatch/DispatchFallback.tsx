@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useRef } from "react";
 import { generateDispatchCoordinates, type BuildingCoordinate, type Point2 } from "./scene/coordinates";
 import type { PreviewPhase } from "./scene/DispatchCanvas";
@@ -36,15 +38,17 @@ function buildingFaces(building: BuildingCoordinate) {
   const topCorners = groundCorners.map((point) => project(point, height));
   const baseCorners = groundCorners.map((point) => project(point));
   const top = topCorners.map(pointString).join(" ");
-  const faces = [
-    [topCorners[0], topCorners[1], baseCorners[1], baseCorners[0]],
-    [topCorners[0], topCorners[3], baseCorners[3], baseCorners[0]],
-  ].map((face) => face.map(pointString).join(" "));
+  const faces = ([[0, 1], [0, 3]] as const).map(([a, b]) =>
+    [topCorners[a], topCorners[b], baseCorners[b], baseCorners[a]]
+      .filter((point): point is ProjectionPoint => point !== undefined)
+      .map(pointString)
+      .join(" "),
+  );
   return { top, faces };
 }
 
 function routeMotionPath(points: readonly Point2[]): { start: ProjectionPoint; path: string } {
-  const start = project(points[0]);
+  const start = project(points[0] ?? { x: 0, z: 0 });
   return { start, path: projectLine(points, start) };
 }
 
@@ -53,7 +57,7 @@ export type DispatchFallbackProps = {
   previewRunId?: number;
   previewPhase?: PreviewPhase;
   reducedMotion?: boolean;
-  className?: string;
+  className?: string | undefined;
 };
 
 export function DispatchFallback({
@@ -68,7 +72,7 @@ export function DispatchFallback({
   const lastRunId = useRef(0);
   const lastPhase = useRef<PreviewPhase>("idle");
   const selectedRoute = coordinates.routes[selectedTripId];
-  const motion = routeMotionPath(selectedRoute);
+  const selectedMotion = routeMotionPath(selectedRoute);
   const buildingOrder = [...coordinates.buildings, ...coordinates.landmarks].sort((a, b) => a.x + a.z - (b.x + b.z));
 
   useEffect(() => {
@@ -174,7 +178,6 @@ export function DispatchFallback({
           const point = project(vehicle);
           const selected = vehicle.tripId === selectedTripId && vehicle.routeProgress < 0.5;
           if (selected) {
-            const selectedMotion = routeMotionPath(selectedRoute);
             return (
               <g key={`vehicle-${index}`} transform={`translate(${selectedMotion.start.x} ${selectedMotion.start.y})`}>
                 <circle r="5.4" fill="var(--dispatch-teal)" stroke="var(--dispatch-dawn)" strokeWidth="2">

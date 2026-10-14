@@ -43,12 +43,12 @@ test("primary navigation, mobile menu and demo links have working targets", asyn
 
 test("contact form asks only for demo details and exposes the configured route", async ({ page }) => {
   await page.goto("/");
-  const form = page.locator("form.contact-form");
-  await expect(form.getByLabel("Name")).toBeVisible();
+  const form = page.locator('form[name="demo-request"]');
+  await expect(form.getByLabel("Your name")).toBeVisible();
   await expect(form.getByLabel("Phone or WhatsApp")).toHaveAttribute("required", "");
   await expect(form.getByLabel("Fleet size")).toHaveAttribute("required", "");
   await expect(form.getByLabel("City")).toHaveAttribute("required", "");
-  await expect(form.getByLabel("Preferred time")).toHaveAttribute("required", "");
+  await expect(form.getByLabel("Preferred time and time zone")).toHaveAttribute("required", "");
   await expect(form.getByLabel("Email (optional)")).not.toHaveAttribute("required", "");
   await expect(form.getByLabel("Company")).toHaveCount(0);
   await expect(form.getByLabel("Message")).toHaveCount(0);
@@ -60,13 +60,13 @@ test("contact form asks only for demo details and exposes the configured route",
       headers: { "access-control-allow-origin": "*" },
       body: "{}",
     }));
-    await form.getByLabel("Name").fill("Alex Morgan");
+    await form.getByLabel("Your name").fill("Alex Morgan");
     await form.getByLabel("Phone or WhatsApp").fill("+1 555 010 1234");
     await form.getByLabel("Fleet size").selectOption({ label: "10–25 vehicles" });
     await form.getByLabel("City").fill("Dublin");
-    await form.getByLabel("Preferred time").fill("09:00–12:00 UTC");
-    await form.getByRole("button", { name: "Book a demo" }).click();
-    await expect(page.getByRole("status")).toContainText("demo request has been sent");
+    await form.getByLabel("Preferred time and time zone").fill("09:00–12:00 UTC");
+    await form.getByRole("button", { name: "Send demo request" }).click();
+    await expect(page.getByRole("status")).toContainText("Your request was sent");
   } else {
     await expect(page.locator('a[href^="mailto:"]')).toContainText(/hello@velo\.dev/);
   }

@@ -41,6 +41,7 @@
     "three": "0.180.0"
   },
   "devDependencies": {
-    "@types/leaflet": "^1.9.22"
+    "@types/leaflet": "^1.9.22",
+    "@types/three": "0.180.0"
   }
 }

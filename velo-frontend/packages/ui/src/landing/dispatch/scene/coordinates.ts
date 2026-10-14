@@ -72,7 +72,7 @@ export function pointAlongRoute(points: readonly Point2[], progress: number): Po
   if (points.length < 2) return points[0] ?? { x: 0, z: 0 };
 
   const segments = points.slice(1).map((point, index) => {
-    const start = points[index];
+    const start = points[index] ?? point;
     return { start, end: point, length: Math.hypot(point.x - start.x, point.z - start.z) };
   });
   const total = segments.reduce((sum, segment) => sum + segment.length, 0);
@@ -89,7 +89,7 @@ export function pointAlongRoute(points: readonly Point2[], progress: number): Po
     distance -= segment.length;
   }
 
-  return points[points.length - 1];
+  return points[points.length - 1] ?? { x: 0, z: 0 };
 }
 
 export function generateDispatchCoordinates(seed = 0x5eeda11): DispatchCoordinates {
@@ -110,7 +110,11 @@ export function generateDispatchCoordinates(seed = 0x5eeda11): DispatchCoordinat
 
   for (let index = candidates.length - 1; index > 0; index -= 1) {
     const other = Math.floor(random() * (index + 1));
-    [candidates[index], candidates[other]] = [candidates[other], candidates[index]];
+    const a = candidates[index];
+    const b = candidates[other];
+    if (a === undefined || b === undefined) continue;
+    candidates[index] = b;
+    candidates[other] = a;
   }
 
   const buildings = candidates.slice(0, 150).map(({ x, z }): BuildingCoordinate => ({

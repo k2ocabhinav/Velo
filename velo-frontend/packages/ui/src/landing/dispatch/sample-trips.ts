@@ -16,15 +16,17 @@ export type SampleTrip = {
   statusSteps: readonly TripStatusStep[];
 };
 
+const FIRST_TRIP: SampleTrip = {
+  id: "05:40",
+  time: "05:40",
+  pickup: "Airport",
+  dropOff: "Grand Hotel",
+  driver: "Maya Chen",
+  statusSteps: TRIP_STATUS_STEPS,
+};
+
 export const SAMPLE_TRIPS: readonly SampleTrip[] = [
-  {
-    id: "05:40",
-    time: "05:40",
-    pickup: "Airport",
-    dropOff: "Grand Hotel",
-    driver: "Maya Chen",
-    statusSteps: TRIP_STATUS_STEPS,
-  },
+  FIRST_TRIP,
   {
     id: "09:15",
     time: "09:15",
@@ -44,5 +46,5 @@ export const SAMPLE_TRIPS: readonly SampleTrip[] = [
 ] as const;
 
 export function getSampleTrip(id: SampleTrip["id"]): SampleTrip {
-  return SAMPLE_TRIPS.find((trip) => trip.id === id) ?? SAMPLE_TRIPS[0];
+  return SAMPLE_TRIPS.find((trip) => trip.id === id) ?? FIRST_TRIP;
 }

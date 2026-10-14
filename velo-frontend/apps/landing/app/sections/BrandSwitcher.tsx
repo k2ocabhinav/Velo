@@ -19,7 +19,6 @@ export function BrandSwitcher() {
     <section className={`${styles.section} ${styles.brandSection}`} aria-labelledby="brand-title">
       <div className={styles.container}>
         <div className={styles.sectionIntro}>
-          <p className={styles.eyebrow}>{copy.eyebrow}</p>
           <h2 className={styles.sectionTitle} id="brand-title">{copy.title}</h2>
           <p className={styles.sectionDescription}>{copy.description}</p>
         </div>

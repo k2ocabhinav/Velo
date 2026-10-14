@@ -1,3 +1,5 @@
+import { SAMPLE_TRIPS as DISPATCH_TRIPS } from "@velo/ui/landing";
+
 export type SampleTrip = {
   id: string;
   time: string;
@@ -8,9 +10,21 @@ export type SampleTrip = {
   progress: number;
 };
 
-// TODO(lp-3d): Replace this local copy with SAMPLE_TRIPS from @velo/ui/landing at integration.
-export const SAMPLE_TRIPS: readonly SampleTrip[] = [
-  { id: "airport", time: "05:40", pickup: "Grand Hotel", dropoff: "Airport terminal", driver: "Mara Chen", status: "Driver assigned", progress: 0.5 },
-  { id: "office", time: "09:15", pickup: "Grand Hotel", dropoff: "Business park", driver: "Jonas Reed", status: "On trip", progress: 0.75 },
-  { id: "return", time: "18:30", pickup: "Business park", dropoff: "Grand Hotel", driver: "Ari Morgan", status: "Booked", progress: 0.25 },
-];
+// The timeline shows the sample day as it looks at about 09:20: the dawn airport
+// run is done, the hotel-to-office transfer is on the road, the evening return is booked.
+const SNAPSHOT: Record<string, { status: string; progress: number }> = {
+  "05:40": { status: "Completed", progress: 1 },
+  "09:15": { status: "On trip", progress: 0.75 },
+  "18:30": { status: "Booked", progress: 0.25 },
+};
+
+/** Same trips as the hero illustration (single source in @velo/ui/landing), with a point-in-time status. */
+export const SAMPLE_TRIPS: readonly SampleTrip[] = DISPATCH_TRIPS.map((trip) => ({
+  id: trip.id,
+  time: trip.time,
+  pickup: trip.pickup,
+  dropoff: trip.dropOff,
+  driver: trip.driver,
+  status: SNAPSHOT[trip.id]?.status ?? "Booked",
+  progress: SNAPSHOT[trip.id]?.progress ?? 0.25,
+}));

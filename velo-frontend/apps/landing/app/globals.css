@@ -6,6 +6,10 @@
   --landing-route-teal: #2a9d8f;
   --landing-sodium: #f2a33a;
   --landing-concrete: #c9cfd8;
+  /* Text-safe variants (WCAG AA 4.5:1 on dawn / asphalt). */
+  --landing-muted: #566070;
+  --landing-muted-on-dark: #aab3c0;
+  --landing-teal-text: #1d7066;
 
   --section-background: var(--landing-dawn);
   --section-foreground: var(--landing-asphalt);
@@ -28,6 +32,7 @@
 }
 
 html {
+  background: var(--landing-asphalt);
   color-scheme: light;
   scroll-padding-top: 5rem;
   text-size-adjust: 100%;

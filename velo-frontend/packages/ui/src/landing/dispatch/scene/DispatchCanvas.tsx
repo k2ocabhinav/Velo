@@ -72,6 +72,7 @@ function ribbonGeometry(paths: readonly Point2[][], width: number, height: numbe
     for (let index = 1; index < path.length; index += 1) {
       const start = path[index - 1];
       const end = path[index];
+      if (!start || !end) continue;
       const dx = end.x - start.x;
       const dz = end.z - start.z;
       const length = Math.hypot(dx, dz) || 1;
@@ -469,7 +470,7 @@ export function DispatchCanvas({
     const visibilityObserver = typeof IntersectionObserver === "undefined"
       ? null
       : new IntersectionObserver(([entry]) => {
-          visible = entry.isIntersecting;
+          visible = entry?.isIntersecting ?? false;
           if (visible) {
             scheduleRender();
             startAnimation();

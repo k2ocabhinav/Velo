@@ -8,7 +8,6 @@ export function MorningOfTransfers() {
     <section className={`${styles.section} ${styles.morningSection}`} id="product" aria-labelledby="morning-title">
       <div className={styles.container}>
         <div className={styles.sectionIntro}>
-          <p className={styles.eyebrow}>{copy.eyebrow}</p>
           <h2 className={styles.sectionTitle} id="morning-title">{copy.title}</h2>
           <p className={styles.sectionDescription}>{copy.description}</p>
         </div>

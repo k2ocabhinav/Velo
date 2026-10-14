@@ -1,7 +1,7 @@
 .page {
   --lp-ground: var(--landing-dawn, hsl(var(--color-background)));
   --lp-ink: var(--landing-asphalt, hsl(var(--color-foreground)));
-  --lp-muted: hsl(var(--color-muted));
+  --lp-muted: var(--landing-muted, hsl(var(--color-muted)));
   --lp-line: var(--landing-concrete, hsl(var(--color-border)));
   --lp-blue: var(--landing-signal, var(--velo-blue));
   --lp-teal: var(--landing-teal, hsl(var(--color-accent)));
@@ -27,7 +27,7 @@
 
 .hero {
   overflow: hidden;
-  padding-block: clamp(120px, 14vw, 172px) clamp(72px, 8vw, 112px);
+  padding-block: clamp(96px, 9vw, 128px) clamp(72px, 8vw, 112px);
   background: var(--lp-ground);
   color: var(--lp-ink);
 }
@@ -238,9 +238,9 @@
 .brandWordmark { color: var(--lp-ink); font-family: var(--font-display), "Barlow Condensed", sans-serif; font-size: 1.5rem; font-weight: 800; }
 .bookingMock h3 { margin: 22px 0 16px; font-size: 1.25rem; font-weight: 600; }
 .bookingFields { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; }
-.bookingFields > span { display: flex; min-height: 48px; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--lp-line); border-radius: 6px; color: var(--lp-muted); font-size: 0.875rem; }
+.bookingFields > span:not(.mockButton) { display: flex; min-height: 48px; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--lp-line); border-radius: 6px; color: var(--lp-muted); font-size: 0.875rem; }
 .bookingFields i { width: 9px; height: 9px; border: 2px solid var(--mock-accent); border-radius: 50%; }
-.mockButton { display: inline-flex; min-height: 48px; align-items: center; justify-content: center; padding: 10px 14px; border-radius: 6px; background: var(--mock-accent); color: var(--velo-white); font-weight: 600; }
+.mockButton { display: inline-flex; min-height: 48px; align-items: center; justify-content: center; padding: 10px 14px; border-radius: 6px; background: var(--mock-accent); color: var(--landing-dawn); font-weight: 600; }
 .brandScreens { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: clamp(20px, 3vw, 36px); }
 
 .startGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(24px, 6vw, 80px); padding-block: 26px 34px; border-top: 1px solid var(--lp-line); }
@@ -261,7 +261,7 @@
 .currencySwitch { flex: 0 0 auto; padding-bottom: 2px; }
 .priceLayout { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: clamp(28px, 6vw, 82px); margin-top: clamp(38px, 5vw, 60px); padding-top: clamp(28px, 4vw, 46px); border-top: 1px solid var(--lp-line); }
 .priceMain { max-width: 440px; }
-.priceValue { margin: 0; font-size: clamp(3rem, 6vw, 5.5rem); font-variant-numeric: tabular-nums; font-weight: 600; letter-spacing: -0.05em; line-height: 1; }
+.priceValue { margin: 0; font-family: var(--font-display); font-size: clamp(3.5rem, 7vw, 6rem); font-variant-numeric: tabular-nums; font-weight: 800; letter-spacing: 0; line-height: 1; }
 .priceUnit { margin: 8px 0 0; color: var(--lp-muted); }
 .priceMinimum { margin: 22px 0 0; padding-top: 16px; border-top: 1px solid var(--lp-line); font-weight: 600; }
 .priceExampleLabel { margin: 28px 0 0; color: var(--lp-muted); font-size: 0.875rem; }
@@ -274,7 +274,7 @@
 .contactSection {
   --lp-ground: var(--landing-asphalt, var(--velo-black));
   --lp-ink: var(--landing-dawn, var(--velo-white));
-  --lp-muted: hsl(var(--color-muted));
+  --lp-muted: var(--landing-muted-on-dark, hsl(var(--color-muted)));
   --lp-line: color-mix(in srgb, var(--velo-white) 18%, transparent);
   background: var(--lp-ground);
   color: var(--lp-ink);
@@ -338,7 +338,7 @@
 }
 
 @media (max-width: 767px) {
-  .hero { padding-top: 112px; }
+  .hero { padding-top: 96px; }
   .heroGrid,
   .followLayout,
   .brandDemo,

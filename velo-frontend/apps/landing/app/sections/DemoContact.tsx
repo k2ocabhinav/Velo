@@ -56,7 +56,6 @@ export function DemoContact() {
       <div className={styles.container}>
         <div className={styles.contactLayout}>
           <div className={styles.contactIntro}>
-            <p className={styles.eyebrow}>{copy.eyebrow}</p>
             <h2 className={styles.sectionTitle} id="contact-title">{copy.title}</h2>
             <p className={styles.sectionDescription}>{copy.description}</p>
             <p className={styles.contactNextStep}>{copy.nextStep}</p>
