@@ -4,7 +4,7 @@
 
 ## Tech Stack
 
-- **Runtime:** Java 22, Spring Boot 3.5.13
+- **Runtime:** Java 21, Spring Boot 3.5.13
 - **Database:** PostgreSQL + PostGIS (Hibernate Spatial)
 - **Auth:** Stateless JWT (Spring Security + JJWT)
 - **Mapping:** ModelMapper (entity <-> DTO)

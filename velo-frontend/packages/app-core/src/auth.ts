@@ -133,12 +133,8 @@ export function extractRoleHints(payload: unknown): string[] {
 
 function buildCookieOptions(maxAge: number) {
   const secureOverride = getEnvValue("VELO_AUTH_COOKIE_SECURE")?.trim().toLowerCase();
-  const secure =
-    secureOverride === "true"
-      ? true
-      : secureOverride === "false"
-        ? false
-        : getEnvValue("NODE_ENV") === "production";
+  const isProduction = getEnvValue("NODE_ENV") === "production";
+  const secure = isProduction || secureOverride === "true";
 
   return {
     httpOnly: true,

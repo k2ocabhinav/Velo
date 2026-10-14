@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { NextResponse } from "next/server";
 import {
   LOGIN_ROLE_COOKIE_NAME,
@@ -18,6 +18,8 @@ function createJsonResponse(body: unknown, status = 200): Response {
 }
 
 describe("performLoginProxy", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
   it("rejects workspace login when required role hint mismatches", async () => {
     const response = await performLoginProxy(
       { email: "admin@velo.dev", password: "secret" },
@@ -61,6 +63,19 @@ describe("performLoginProxy", () => {
     await expect(response.json()).resolves.toEqual({
       data: { userId: 42 },
     });
+  });
+
+  it("keeps authentication cookies secure in production even when explicitly disabled", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VELO_AUTH_COOKIE_SECURE", "false");
+
+    const response = await performLoginProxy(
+      { email: "user@velo.dev", password: "secret" },
+      async () => createJsonResponse({ data: { token: "token-123", userId: 42, role: "RIDER" } }),
+    );
+
+    expect(response.cookies.get("velo_token")?.httpOnly).toBe(true);
+    expect(response.cookies.get("velo_token")?.secure).toBe(true);
   });
 });
 
