@@ -1,5 +1,19 @@
-version: '3.8'
 services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: user
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
   redis:
     image: redis:7-alpine
     ports:
@@ -9,4 +23,5 @@ services:
     command: redis-server --appendonly yes
 
 volumes:
+  postgres_data:
   redis_data:

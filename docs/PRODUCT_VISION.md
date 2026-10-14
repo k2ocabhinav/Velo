@@ -76,7 +76,7 @@ Each vertical is a configuration of the same platform:
 
 ## What Already Exists
 
-The codebase is a **fully working Spring Boot 3.3.1 / Java 22 backend** with:
+The codebase is a **fully working Spring Boot 3.5.13 / Java 22 backend** with:
 
 - Ride lifecycle (request -> accept with OTP -> start -> end -> payment)
 - Strategy-based driver matching (nearest, highest-rated)
@@ -89,6 +89,6 @@ The codebase is a **fully working Spring Boot 3.3.1 / Java 22 backend** with:
 - Admin panel (stats, revenue, driver approval, payout management)
 - JWT authentication, role-based access (RIDER, DRIVER, ADMIN)
 - PostgreSQL + PostGIS for geospatial queries
-- 158 tests passing (unit + integration)
+- 234 backend tests run (233 passing, 1 skipped)
 
 This is a strong foundation. The platform already has the hard parts — real-time dispatch, matching strategies, payment processing, scheduling. Multi-tenancy and configuration are the main additions needed.

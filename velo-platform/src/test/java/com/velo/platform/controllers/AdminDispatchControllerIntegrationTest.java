@@ -18,6 +18,7 @@ import com.velo.platform.entities.enums.RideRequestStatus;
 import com.velo.platform.entities.enums.RideStatus;
 import com.velo.platform.repositories.AdminDispatchAuditRepository;
 import com.velo.platform.repositories.DriverRepository;
+import com.velo.platform.repositories.NotificationRepository;
 import com.velo.platform.repositories.RideOfferRepository;
 import com.velo.platform.repositories.RideRepository;
 import com.velo.platform.repositories.RideRequestRepository;
@@ -35,6 +36,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,6 +46,11 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -66,6 +73,7 @@ class AdminDispatchControllerIntegrationTest {
     @Autowired private UserRepository userRepository;
     @Autowired private RiderRepository riderRepository;
     @Autowired private DriverRepository driverRepository;
+    @Autowired private NotificationRepository notificationRepository;
     @Autowired private RideRequestRepository rideRequestRepository;
     @Autowired private RideOfferRepository rideOfferRepository;
     @Autowired private RideRepository rideRepository;
@@ -84,6 +92,7 @@ class AdminDispatchControllerIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        notificationRepository.deleteAll();
         adminDispatchAuditRepository.deleteAll();
         rideOfferRepository.deleteAll();
         rideRepository.deleteAll();
@@ -340,17 +349,56 @@ class AdminDispatchControllerIntegrationTest {
 
     @Test
     @DisplayName("Driver acceptance race should allow one winner and return conflict for the second driver")
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void driverAcceptanceRace_shouldAllowSingleWinner() throws Exception {
-        mockMvc.perform(withDriverAuth(post("/drivers/acceptRide/" + pendingRequest.getId()), primaryDriver))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.rideStatus").value("CONFIRMED"));
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            Future<Integer> primaryAcceptance = executor.submit(() -> {
+                ready.countDown();
+                if (!start.await(10, TimeUnit.SECONDS)) {
+                    throw new IllegalStateException("Timed out waiting to start primary acceptance");
+                }
+                return mockMvc.perform(withDriverAuth(
+                                post("/drivers/acceptRide/" + pendingRequest.getId()), primaryDriver))
+                        .andReturn().getResponse().getStatus();
+            });
+            Future<Integer> secondaryAcceptance = executor.submit(() -> {
+                ready.countDown();
+                if (!start.await(10, TimeUnit.SECONDS)) {
+                    throw new IllegalStateException("Timed out waiting to start secondary acceptance");
+                }
+                return mockMvc.perform(withDriverAuth(
+                                post("/drivers/acceptRide/" + pendingRequest.getId()), secondaryDriver))
+                        .andReturn().getResponse().getStatus();
+            });
 
-        mockMvc.perform(withDriverAuth(post("/drivers/acceptRide/" + pendingRequest.getId()), secondaryDriver))
-                .andExpect(status().isConflict());
+            assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+            assertThat(List.of(primaryAcceptance.get(20, TimeUnit.SECONDS),
+                    secondaryAcceptance.get(20, TimeUnit.SECONDS)))
+                    .containsExactlyInAnyOrder(200, 409);
 
-        List<RideOffer> offers = rideOfferRepository.findByRideRequestIdOrderByOfferedAtDesc(pendingRequest.getId());
-        assertThat(offers).hasSize(2);
-        assertThat(offers).extracting(RideOffer::getStatus).contains(RideOfferStatus.ACCEPTED, RideOfferStatus.REVOKED);
+            List<RideOffer> offers = rideOfferRepository.findByRideRequestIdOrderByOfferedAtDesc(pendingRequest.getId());
+            assertThat(offers).hasSize(2);
+            assertThat(offers).extracting(RideOffer::getStatus)
+                    .contains(RideOfferStatus.ACCEPTED, RideOfferStatus.REVOKED);
+        } finally {
+            executor.shutdownNow();
+            cleanCommittedRaceData();
+        }
+    }
+
+    private void cleanCommittedRaceData() {
+        notificationRepository.deleteAll();
+        adminDispatchAuditRepository.deleteAll();
+        rideOfferRepository.deleteAll();
+        rideRepository.deleteAll();
+        rideRequestRepository.deleteAll();
+        driverRepository.deleteAll();
+        riderRepository.deleteAll();
+        userRepository.deleteAll();
     }
 
     private MockHttpServletRequestBuilder withAdminAuth(MockHttpServletRequestBuilder builder) {

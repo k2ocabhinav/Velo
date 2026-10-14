@@ -5,7 +5,7 @@
 ## Prerequisite Reading
 - `docs/DESIGN_SYSTEM.md` — visual language, theming, animations, loading states (READ THIS FIRST)
 - `docs/ARCHITECTURE.md` — backend patterns and conventions
-- `docs/SWAGGER.md` — API inventory (60 endpoints across 8 groups)
+- `docs/SWAGGER.md` — API inventory (79 operations across 9 groups)
 
 ## Tech Stack (Final)
 

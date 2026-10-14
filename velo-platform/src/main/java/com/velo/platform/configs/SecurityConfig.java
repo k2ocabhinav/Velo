@@ -120,6 +120,7 @@ public class SecurityConfig {
                         .access((authentication, context) -> new org.springframework.security.authorization.AuthorizationDecision(
                                 apiDocsEnabled && swaggerUiEnabled
                         ))
+                        .requestMatchers("/actuator/prometheus").hasRole("ADMIN")
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                         .requestMatchers("/ws/**").permitAll()
                         .anyRequest().authenticated())

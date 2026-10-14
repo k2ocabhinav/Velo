@@ -1,4 +1,4 @@
-name: Staging Deployment Scaffold
+name: Staging Deployment
 
 on:
   workflow_dispatch:
@@ -90,27 +90,32 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate staging configuration placeholders
+      - name: Validate staging configuration
         shell: bash
         run: |
-          missing=0
+          set -euo pipefail
+          missing=()
           for key in STAGING_DEPLOY_TARGET STAGING_ADMIN_URL STAGING_RIDER_URL STAGING_DEPLOY_TOKEN; do
             if [ -z "${!key}" ]; then
-              echo "::warning::${key} is not configured. Set environment/repository value before real deployment."
-              missing=1
+              missing+=("${key}")
             fi
           done
-          echo "missing=${missing}" >> "$GITHUB_OUTPUT"
+          if [ "${#missing[@]}" -gt 0 ]; then
+            printf 'Staging deployment failed. Missing required configuration: %s\n' "${missing[*]}" | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "::error::Missing staging deployment configuration: ${missing[*]}"
+            exit 1
+          fi
 
-      # Staging deploy scaffold:
-      # Replace this placeholder with your deployment mechanism (SSH, Terraform, Helm, etc.).
-      - name: Deploy to staging (placeholder)
+      - name: Trigger staging deployment
         shell: bash
         run: |
-          echo "Deploy scaffold only. Wire this step to your deploy command:"
-          echo "Target: ${STAGING_DEPLOY_TARGET:-<unset>}"
-          echo "Admin URL: ${STAGING_ADMIN_URL:-<unset>}"
-          echo "Rider URL: ${STAGING_RIDER_URL:-<unset>}"
+          set -euo pipefail
+          curl --location --fail --silent --show-error \
+            --request POST "$STAGING_DEPLOY_TARGET" \
+            --header "Authorization: Bearer $STAGING_DEPLOY_TOKEN" \
+            --header "Content-Type: application/json" \
+            --data "{\"repository\":\"$GITHUB_REPOSITORY\",\"ref\":\"$GITHUB_REF\",\"sha\":\"$GITHUB_SHA\"}"
+          printf 'Deployment trigger accepted for %s at %s.\n' "$GITHUB_REPOSITORY" "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
 
   staging-smoke:
     needs: deploy-staging
@@ -120,20 +125,13 @@ jobs:
       STAGING_ADMIN_URL: ${{ vars.STAGING_ADMIN_URL }}
       STAGING_RIDER_URL: ${{ vars.STAGING_RIDER_URL }}
     steps:
-      - name: Run staging smoke checks (placeholder)
+      - name: Run staging smoke checks
         shell: bash
         run: |
-          if [ -n "$STAGING_ADMIN_URL" ]; then
-            curl --fail --silent --show-error "$STAGING_ADMIN_URL/login" > /dev/null
-          else
-            echo "::warning::STAGING_ADMIN_URL not set. Skipping admin smoke probe."
-          fi
-
-          if [ -n "$STAGING_RIDER_URL" ]; then
-            curl --fail --silent --show-error "$STAGING_RIDER_URL" > /dev/null
-          else
-            echo "::warning::STAGING_RIDER_URL not set. Skipping rider smoke probe."
-          fi
+          set -euo pipefail
+          curl --location --fail --silent --show-error "$STAGING_ADMIN_URL/login" > /dev/null
+          curl --location --fail --silent --show-error "$STAGING_RIDER_URL" > /dev/null
+          printf 'Admin login and rider landing page smoke checks passed.\n' >> "$GITHUB_STEP_SUMMARY"
 
   production-promotion-gate:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.promote_to_production == true }}

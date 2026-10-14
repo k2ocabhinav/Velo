@@ -4,7 +4,7 @@
 
 ## Tech Stack
 
-- **Runtime:** Java 22, Spring Boot 3.3.1
+- **Runtime:** Java 22, Spring Boot 3.5.13
 - **Database:** PostgreSQL + PostGIS (Hibernate Spatial)
 - **Auth:** Stateless JWT (Spring Security + JJWT)
 - **Mapping:** ModelMapper (entity <-> DTO)
@@ -12,7 +12,7 @@
 - **API Docs:** SpringDoc OpenAPI (Swagger UI at `/swagger-ui/index.html`)
 - **WebSocket:** Spring WebSocket (STOMP over SockJS)
 - **Caching:** Redis (optional, dependencies present)
-- **Monitoring:** Spring Boot Actuator
+- **Monitoring:** Spring Boot Actuator with opt-in Prometheus export
 
 ## Source Layout
 
@@ -112,11 +112,14 @@ Long userId = principal.getUserId(); // This is User.id
 | Database | Purpose |
 |---|---|
 | `postgres` | Main application database |
-| `testpostgres` | Test database |
+| `testpostgres` | Backend integration test database |
+| `testpostgres_flyway` | Flyway migration integration test database |
 
 - User: `postgres`, Password: `user`
-- DDL mode: `create-drop` (schema recreated on every boot)
-- `data.sql` seeds data on normal startup; tests skip it via `spring.sql.init.mode=never`
+- `ddl-auto=validate`; Flyway migrations `V1` through `V6` own the schema.
+- Local and dev profiles also load the demo seed in `db/demo-migration/`; staging and prod load only schema migrations.
+- SQL initialization is disabled (`spring.sql.init.mode=never`).
+- Create the two test databases and enable PostGIS in each before running tests; see `DEPLOYMENT.md`.
 
 ## Testing
 
@@ -141,7 +144,7 @@ Because `GlobalResponseHandler` wraps everything, JSON assertions target `$.data
 Reusable builders in `testdata/` package: `UserTestBuilder`, `RiderTestBuilder`, `DriverTestBuilder`, `RideTestBuilder`, `RideRequestTestBuilder`, `WalletTestBuilder`.
 
 ### Current Test Count
-158 tests (unit + integration), all passing.
+234 tests run (233 passing, 1 skipped) in the latest verified suite.
 
 ## Ride Lifecycle
 

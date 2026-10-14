@@ -13,6 +13,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +30,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@TestPropertySource(properties = {
+        "management.endpoint.prometheus.enabled=true",
+        "management.prometheus.metrics.export.enabled=true",
+        "management.endpoints.web.exposure.include=health,env,prometheus"
+})
 @Transactional
 class AuthSecurityIntegrationTest {
 
@@ -102,6 +108,25 @@ class AuthSecurityIntegrationTest {
 
         mockMvc.perform(get("/actuator/env"))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("Prometheus metrics require ADMIN while health remains public")
+    void prometheusMetrics_ShouldRequireAdmin() throws Exception {
+        mockMvc.perform(get("/actuator/prometheus"))
+                .andExpect(status().isForbidden());
+
+        User driver = createUser(Role.DRIVER, 1L);
+        mockMvc.perform(get("/actuator/prometheus").header("Authorization", bearer(driver)))
+                .andExpect(status().isForbidden());
+
+        User admin = createUser(Role.ADMIN, 1L);
+        mockMvc.perform(get("/actuator/prometheus").header("Authorization", bearer(admin)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/actuator/health"))
+                .andExpect(result -> org.assertj.core.api.Assertions.assertThat(result.getResponse().getStatus())
+                        .isIn(HttpStatus.OK.value(), HttpStatus.SERVICE_UNAVAILABLE.value()));
     }
 
     private User createUser(Role role, Long tenantId) {
