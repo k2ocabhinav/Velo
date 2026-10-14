@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Barlow_Condensed, Inter } from "next/font/google";
 import { AppShell } from "./_components/app-shell";
 import "leaflet/dist/leaflet.css";
+import "@velo/ui/styles.css";
 import "./globals.css";
 
 const barlowCondensed = Barlow_Condensed({

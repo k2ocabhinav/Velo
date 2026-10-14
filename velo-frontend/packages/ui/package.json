@@ -4,13 +4,15 @@
   "private": true,
   "type": "module",
   "sideEffects": [
-    "./src/theme/tokens.css"
+    "./src/theme/tokens.css",
+    "./src/styles.css"
   ],
   "main": "./src/index.ts",
   "module": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
+    "./styles.css": "./src/styles.css",
     "./primitives": "./src/primitives/index.ts",
     "./composed": "./src/composed/index.ts",
     "./feedback": "./src/feedback/index.ts",
@@ -20,11 +22,16 @@
     "./tokens.css": "./src/theme/tokens.css"
   },
   "scripts": {
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test:unit": "vitest run --config vitest.config.mts"
   },
   "peerDependencies": {
     "motion": "^12.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
+  },
+  "dependencies": {
+    "@velo/app-core": "*"
   }
 }

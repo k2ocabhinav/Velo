@@ -1,32 +1,81 @@
-import type { ReactNode } from "react";
 import { cn } from "../lib/cn";
 
-export type StatusTone = "neutral" | "info" | "success" | "warning" | "danger";
+export type StatusDomain = "ride" | "request" | "payout" | "driver" | "promo" | "user";
+export type StatusTone = "neutral" | "info" | "live" | "attention" | "success" | "danger";
+
+export interface StatusEntry {
+  label: string;
+  tone: StatusTone;
+}
+
+/** Single source of human labels and semantic tones for backend status enums. */
+export const STATUS_MAP: Record<StatusDomain, Record<string, StatusEntry>> = {
+  ride: {
+    REQUESTED: { label: "Finding a driver", tone: "attention" },
+    PENDING: { label: "Finding a driver", tone: "attention" },
+    ASSIGNED: { label: "Driver assigned", tone: "info" },
+    CONFIRMED: { label: "Driver assigned", tone: "info" },
+    ARRIVING: { label: "Driver arriving", tone: "live" },
+    ON_TRIP: { label: "Trip in progress", tone: "live" },
+    ONGOING: { label: "Trip in progress", tone: "live" },
+    COMPLETED: { label: "Completed", tone: "success" },
+    ENDED: { label: "Completed", tone: "success" },
+    CANCELLED: { label: "Cancelled", tone: "danger" },
+  },
+  request: {
+    PENDING: { label: "Finding a driver", tone: "attention" },
+    CANCELLED: { label: "Cancelled", tone: "danger" },
+    CONFIRMED: { label: "Confirmed", tone: "success" },
+    SCHEDULED: { label: "Scheduled", tone: "info" },
+    EXPIRED: { label: "Expired", tone: "neutral" },
+  },
+  payout: {
+    PENDING: { label: "Pending", tone: "attention" },
+    APPROVED: { label: "Approved", tone: "info" },
+    REJECTED: { label: "Rejected", tone: "danger" },
+    PROCESSED: { label: "Processed", tone: "success" },
+  },
+  driver: {
+    PENDING: { label: "Pending review", tone: "attention" },
+    APPROVED: { label: "Active", tone: "success" },
+    ACTIVE: { label: "Active", tone: "success" },
+    REJECTED: { label: "Rejected", tone: "danger" },
+    SUSPENDED: { label: "Suspended", tone: "danger" },
+  },
+  promo: {
+    ACTIVE: { label: "Active", tone: "success" },
+    INACTIVE: { label: "Inactive", tone: "neutral" },
+    DEACTIVATED: { label: "Inactive", tone: "neutral" },
+    EXPIRED: { label: "Expired", tone: "neutral" },
+  },
+  user: {
+    ACTIVE: { label: "Active", tone: "success" },
+    INACTIVE: { label: "Inactive", tone: "neutral" },
+    DEACTIVATED: { label: "Inactive", tone: "neutral" },
+    SUSPENDED: { label: "Suspended", tone: "danger" },
+    DELETED: { label: "Deleted", tone: "danger" },
+  },
+};
 
 export interface StatusBadgeProps {
-  children: ReactNode;
-  tone?: StatusTone;
+  status: string | null | undefined;
+  domain: StatusDomain;
   className?: string;
 }
 
-const toneClasses: Record<StatusTone, string> = {
-  neutral: "bg-[hsl(var(--color-surface-hover))] text-[hsl(var(--color-foreground))]",
-  info: "bg-[hsl(var(--color-info))]/15 text-[hsl(var(--color-info))]",
-  success: "bg-[hsl(var(--color-success))]/15 text-[hsl(var(--color-success))]",
-  warning: "bg-[hsl(var(--color-warning))]/15 text-[hsl(var(--color-warning))]",
-  danger: "bg-[hsl(var(--color-danger))]/15 text-[hsl(var(--color-danger))]"
-};
+function humanizeStatus(status: string): string {
+  const words = status.trim().toLowerCase().replace(/[_-]+/g, " ").split(/\s+/).filter(Boolean);
+  return words.map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ") || "Unknown";
+}
 
-export function StatusBadge({ children, className, tone = "neutral" }: StatusBadgeProps) {
+/** Show a domain-aware plain label and tone for a status value. */
+export function StatusBadge({ className, domain, status }: StatusBadgeProps) {
+  const key = (status ?? "").trim().toUpperCase().replace(/[ -]+/g, "_");
+  const entry = STATUS_MAP[domain][key] ?? { label: status ? humanizeStatus(status) : "Unknown", tone: "neutral" as const };
+
   return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-md px-2 py-1 text-xs font-medium",
-        toneClasses[tone],
-        className
-      )}
-    >
-      {children}
+    <span className={cn("status-badge", className)} data-tone={entry.tone}>
+      {entry.label}
     </span>
   );
 }

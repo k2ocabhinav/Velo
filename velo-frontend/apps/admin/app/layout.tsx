@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Barlow_Condensed, Inter } from "next/font/google";
+import "@velo/ui/styles.css";
 import "./globals.css";
 
 const barlowCondensed = Barlow_Condensed({

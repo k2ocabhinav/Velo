@@ -15,7 +15,8 @@
     "./map-viewport": "./src/map-viewport.ts",
     "./proxy-route": "./src/proxy-route.ts",
     "./ws-ticket": "./src/ws-ticket.ts",
-    "./redirect": "./src/redirect.ts"
+    "./redirect": "./src/redirect.ts",
+    "./formatters": "./src/formatters.ts"
   },
   "scripts": {
     "lint": "eslint .",

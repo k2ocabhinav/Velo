@@ -10,13 +10,6 @@ export interface StatCardProps {
   className?: string;
 }
 
-const toneClasses: Record<NonNullable<StatCardProps["tone"]>, string> = {
-  default: "border-[hsl(var(--color-border))]",
-  success: "border-[hsl(var(--color-success))]/30",
-  warning: "border-[hsl(var(--color-warning))]/30",
-  danger: "border-[hsl(var(--color-danger))]/30"
-};
-
 export function StatCard({
   className,
   delta,
@@ -27,25 +20,22 @@ export function StatCard({
 }: StatCardProps) {
   return (
     <section
-      className={cn(
-        "rounded-lg border bg-[hsl(var(--color-surface))] p-4 shadow-sm",
-        toneClasses[tone],
-        className
-      )}
+      className={cn("stat-card", className)}
+      data-tone={tone}
     >
-      <p className="text-sm font-medium text-[hsl(var(--color-muted))]">{title}</p>
-      <div className="mt-2 flex items-end justify-between gap-4">
-        <div className="min-w-0 text-2xl font-semibold tracking-tight text-[hsl(var(--color-foreground))]">
+      <p className="stat-card-title">{title}</p>
+      <div className="stat-card-value-row">
+        <div className="stat-card-value">
           {value}
         </div>
         {delta ? (
-          <div className="shrink-0 text-sm font-medium text-[hsl(var(--color-primary))]">
+          <div className="stat-card-delta">
             {delta}
           </div>
         ) : null}
       </div>
       {helperText ? (
-        <p className="mt-2 text-sm text-[hsl(var(--color-muted))]">{helperText}</p>
+        <p className="stat-card-helper">{helperText}</p>
       ) : null}
     </section>
   );
