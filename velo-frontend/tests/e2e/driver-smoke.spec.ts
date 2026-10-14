@@ -49,6 +49,30 @@ test("driver app redirects unauthenticated visitors to login", async ({ page }) 
   await expect(page.getByRole("heading", { name: /sign in/i })).toBeVisible();
 });
 
+test("driver navigation fits mobile and desktop layouts", async ({ baseURL, context, page }) => {
+  const appBaseUrl = baseURL ?? "http://127.0.0.1:4103";
+  await context.addCookies([{ name: "velo_driver_token", value: "e2e-driver-token", url: appBaseUrl }]);
+  await mockUnreadCount(page);
+  await page.route("**/api/backend/drivers/getMyProfile", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { id: 2, available: false } }) });
+  });
+  await page.route("**/api/backend/notifications?page=0&size=25", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { content: [] } }) });
+  });
+  await page.route("**/api/backend/drivers/getMyRides?pageOffset=0&pageSize=20", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { content: [] } }) });
+  });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await expect(page.locator(".driver-bottom-nav")).toBeVisible();
+  await expect(page.locator(".driver-desktop-nav")).toBeHidden();
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await expect(page.locator(".driver-desktop-nav")).toBeVisible();
+  await expect(page.locator(".driver-bottom-nav")).toBeHidden();
+});
+
 test("driver logout clears ws session token and blocks protected routes", async ({ baseURL, context, page }) => {
   const appBaseUrl = baseURL ?? "http://127.0.0.1:4103";
   await context.addCookies([
@@ -94,8 +118,10 @@ test("driver logout clears ws session token and blocks protected routes", async 
   });
 
   await page.goto("/");
-  await expect(page.getByRole("button", { name: "Logout" })).toBeVisible();
-  await page.getByRole("button", { name: "Logout" }).click();
+  await page.getByRole("link", { name: "Me" }).click();
+  await expect(page.getByRole("heading", { name: "Your account" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Switch to (dark|light) mode/ })).toBeVisible();
+  await page.getByRole("button", { name: "Sign out" }).click();
 
   await page.waitForURL("**/login");
 
@@ -283,23 +309,23 @@ test("driver home supports availability toggle and ride acceptance flow", async 
 
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { name: /Stay available and respond to .* requests quickly/i })).toBeVisible();
-  await expect(page.getByText("No active ride currently.")).toBeVisible();
-  await page.getByRole("button", { name: "Go online" }).click();
+  await expect(page.getByRole("heading", { name: "Ready for your next trip" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "No active trip" })).toBeVisible();
+  await page.getByRole("switch", { name: "Go online" }).click();
   await expect(page.getByText("You are now online.")).toBeVisible();
 
-  await page.getByRole("button", { name: "Accept" }).click();
+  await page.getByRole("button", { name: "Accept trip" }).click();
   await page.waitForURL("**/ride/911");
 
-  await page.getByPlaceholder("Enter 4-digit OTP").fill("1234");
-  await page.getByRole("button", { name: "Start ride" }).click();
-  await expect(page.getByText("Ride started.")).toBeVisible();
+  await page.getByLabel("4-digit rider OTP").fill("1234");
+  await page.getByRole("button", { name: "Start trip" }).click();
+  await expect(page.getByText("Trip started.")).toBeVisible();
   await expect(page.getByText("Live map")).toBeVisible();
 
-  await page.getByRole("button", { name: "End ride" }).click();
-  await expect(page.getByText("Ride ended successfully. Please rate the rider.")).toBeVisible();
-  await page.getByRole("button", { name: "Rate rider" }).click();
-  await expect(page.getByText("Rider rated 5 stars for ride #911.")).toBeVisible();
+  await page.getByRole("button", { name: "Complete trip" }).click();
+  await expect(page.getByText("Trip completed. Please rate the rider.")).toBeVisible();
+  await page.getByRole("button", { name: "Submit rating" }).click();
+  await expect(page.getByText("Rider rating submitted.")).toBeVisible();
 });
 
 test("driver home shows availability conflict errors", async ({ baseURL, context, page }) => {
@@ -354,11 +380,89 @@ test("driver home shows availability conflict errors", async ({ baseURL, context
   });
 
   await page.goto("/");
-  await page.getByRole("button", { name: "Go offline" }).click();
+  await page.getByRole("switch", { name: "Go offline" }).click();
 
   await expect(
     page.getByText("Cannot go offline with active rides. Please complete or cancel active rides first."),
   ).toBeVisible();
+});
+
+test("driver can decline an offer without changing the notification read flow", async ({ baseURL, context, page }) => {
+  const appBaseUrl = baseURL ?? "http://127.0.0.1:4103";
+  await context.addCookies([{ name: "velo_driver_token", value: "e2e-driver-token", url: appBaseUrl }]);
+  await mockUnreadCount(page);
+
+  let declined = false;
+  await page.route("**/api/backend/drivers/getMyProfile", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { id: 2, available: true } }) });
+  });
+  await page.route("**/api/backend/notifications?page=0&size=25", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ data: { content: declined ? [] : [{ id: 11, title: "New trip offer", message: "A trip is waiting.", type: "RIDE_REQUESTED", read: false, referenceId: 311, createdTime: new Date().toISOString() }] } }),
+    });
+  });
+  await page.route("**/api/backend/drivers/ride-requests/311", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { id: 311, rideRequestStatus: "PENDING", pickupLocation: { coordinates: [77.5946, 12.9716] } } }) });
+  });
+  await page.route("**/api/backend/drivers/getMyRides?pageOffset=0&pageSize=20", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { content: [] } }) });
+  });
+  await page.route("**/api/backend/notifications/11/read", async (route) => {
+    declined = true;
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { id: 11, read: true } }) });
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Decline" }).click();
+  await expect(page.getByRole("status").getByText("Offer declined.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "No trip offers yet" })).toBeVisible();
+  expect(declined).toBe(true);
+});
+
+test("driver trip history filters active and past trips", async ({ baseURL, context, page }) => {
+  const appBaseUrl = baseURL ?? "http://127.0.0.1:4103";
+  await context.addCookies([{ name: "velo_driver_token", value: "e2e-driver-token", url: appBaseUrl }]);
+  await mockUnreadCount(page);
+  await page.route("**/api/backend/drivers/getMyRides?pageOffset=0&pageSize=10", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ data: { content: [buildRideResponse("CONFIRMED"), { ...buildRideResponse("ENDED"), id: 810 }], number: 0, totalPages: 1 } }),
+    });
+  });
+
+  await page.goto("/rides");
+  await expect(page.getByRole("heading", { name: "Your trip history" })).toBeVisible();
+  await expect(page.locator(".driver-trip-row").getByText("Trip 911")).toBeVisible();
+  await page.getByRole("radio", { name: "Past, 1" }).click();
+  await expect(page.locator(".driver-trip-row").getByText("Trip 810")).toBeVisible();
+  await expect(page.locator(".driver-trip-row")).toHaveCount(1);
+});
+
+test("driver confirms trip cancellation before the existing cancel action runs", async ({ baseURL, context, page }) => {
+  const appBaseUrl = baseURL ?? "http://127.0.0.1:4103";
+  await context.addCookies([{ name: "velo_driver_token", value: "e2e-driver-token", url: appBaseUrl }]);
+  await mockUnreadCount(page);
+
+  let cancelled = false;
+  await page.route("**/api/backend/drivers/getMyRides?pageOffset=0&pageSize=50", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { content: [buildRideResponse("CONFIRMED")] } }) });
+  });
+  await page.route("**/api/backend/drivers/cancelRide/911", async (route) => {
+    cancelled = true;
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { ...buildRideResponse("CONFIRMED"), rideStatus: "CANCELLED" } }) });
+  });
+
+  await page.goto("/ride/911");
+  await page.getByRole("button", { name: "Cancel trip" }).click();
+  const confirmation = page.getByRole("dialog", { name: "Cancel this trip?" });
+  await expect(confirmation).toBeVisible();
+  expect(cancelled).toBe(false);
+  await confirmation.getByRole("button", { name: "Cancel trip" }).click();
+  await expect(page.getByText("Trip cancelled.")).toBeVisible();
+  expect(cancelled).toBe(true);
 });
 
 test("driver earnings and notifications flows show happy and failure states", async ({ baseURL, context, page }) => {
@@ -514,16 +618,18 @@ test("driver earnings and notifications flows show happy and failure states", as
   });
 
   await page.goto("/earnings");
-  await expect(page.getByRole("heading", { name: "Track earnings and request payouts" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your earnings" })).toBeVisible();
 
-  await page.getByPlaceholder("100.00").fill("100");
-  await page.getByRole("button", { name: "Request payout" }).click();
+  await page.getByRole("button", { name: "Request payout" }).first().click();
+  const payoutSheet = page.getByRole("dialog", { name: "Request a payout" });
+  await payoutSheet.getByLabel("Amount").fill("100");
+  await payoutSheet.getByRole("button", { name: "Request payout" }).click();
   await expect(page.getByText("Payout request submitted.")).toBeVisible();
-  await expect(page.getByText("Payout #8")).toBeVisible();
+  await expect(page.getByText("Pending")).toBeVisible();
 
   await page.goto("/notifications");
   await page.getByRole("button", { name: "Mark read" }).first().click();
-  await expect(page.getByText("Marked notification #51 as read.")).toBeVisible();
+  await expect(page.getByText("Notification marked as read.")).toBeVisible();
   expect(markReadCount).toBe(1);
 
   await page.getByRole("button", { name: "Mark all read" }).click();

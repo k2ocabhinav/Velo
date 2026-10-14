@@ -1,24 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
-import { requestDriverProxy, toCurrency, toRelativeTimestamp, type DriverRide, type SpringPage } from "../_lib/driver-client";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Button } from "@velo/ui/primitives";
+import { DateTime, EmptyState, ErrorState, Money, PageHeader, Pagination, RouteStrip, Section, SegmentedControl, StatusBadge } from "@velo/ui/composed";
+import { Skeleton } from "@velo/ui/feedback";
+import { requestDriverProxy, type DriverRide, type SpringPage } from "../_lib/driver-client";
 import {
-  formatMapPoint,
   getDriverRideFareValue,
-  getDriverRideStatusLabel,
+  isDriverRideActive,
   normalizeDriverRidePage,
   selectCurrentDriverRide,
   toMapPoint,
 } from "../_lib/driver-ride-state";
 
 const PAGE_SIZE = 10;
+type RideFilter = "active" | "past";
 
 export default function DriverRidesPage() {
   const [items, setItems] = useState<DriverRide[]>([]);
-  const [activeRide, setActiveRide] = useState<DriverRide | null>(null);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
+  const [filter, setFilter] = useState<RideFilter>("active");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,13 +33,11 @@ export default function DriverRidesPage() {
       const response = await requestDriverProxy<SpringPage<DriverRide>>(
         `drivers/getMyRides?pageOffset=${requestedPage}&pageSize=${PAGE_SIZE}`,
       );
-      const content = normalizeDriverRidePage(response);
-      setItems(content);
-      setActiveRide(selectCurrentDriverRide(content));
+      setItems(normalizeDriverRidePage(response));
       setPage(Number.isFinite(response.number) ? Number(response.number) : requestedPage);
       setTotalPages(Math.max(Number.isFinite(response.totalPages) ? Number(response.totalPages) : 1, 1));
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Unable to load rides.");
+      setError(loadError instanceof Error ? loadError.message : "Unable to load trips.");
     } finally {
       setLoading(false);
     }
@@ -46,108 +47,98 @@ export default function DriverRidesPage() {
     void loadRides(0);
   }, [loadRides]);
 
+  const currentTrip = useMemo(() => selectCurrentDriverRide(items), [items]);
+  const visibleTrips = useMemo(
+    () => items.filter((ride) => isDriverRideActive(ride.rideStatus) === (filter === "active")),
+    [filter, items],
+  );
+
+  const options = [
+    { value: "active", label: "Active", count: items.filter((ride) => isDriverRideActive(ride.rideStatus)).length },
+    { value: "past", label: "Past", count: items.filter((ride) => !isDriverRideActive(ride.rideStatus)).length },
+  ];
+
   return (
     <main className="stack">
-      <section className="hero">
-        <p className="badge">Ride History</p>
-        <h1>Review completed and active rides</h1>
-        <p>Use this page to inspect ride status, fares, and transition into detailed ride actions.</p>
-      </section>
+      <PageHeader title="Your trip history" description="Follow active trips and review completed ones." />
 
-      <section className="card stack">
-        <div className="split-row">
-          <strong>Current ride lane</strong>
-          <button className="secondary-button" type="button" disabled={loading} onClick={() => void loadRides(page)}>
-            Refresh
-          </button>
-        </div>
-        {loading ? <p className="helper">Loading ride lane...</p> : null}
-        {!loading && !activeRide ? (
-          <p className="helper">No active ride right now. Active trips appear here automatically.</p>
-        ) : null}
-        {!loading && activeRide ? (
-          <article className="list-item">
-            <div className="stack compact">
-              <strong>Ride #{activeRide.id}</strong>
-              <p className="helper">{getDriverRideStatusLabel(activeRide.rideStatus)}</p>
-              <p className="helper">
-                Rider: {activeRide.rider?.user?.name ?? activeRide.rider?.user?.email ?? "Assigned rider"}
-              </p>
+      {currentTrip ? (
+        <Section title="Continue your active trip">
+          <div className="driver-trip-summary">
+            <div className="driver-row-meta">
+              <code className="driver-reference">Trip {currentTrip.id}</code>
+              <StatusBadge domain="ride" status={currentTrip.rideStatus} />
             </div>
-            <div className="stack compact" style={{ justifyItems: "end" }}>
-              <span className="badge">{toCurrency(getDriverRideFareValue(activeRide))}</span>
-              <Link className="primary-button" href={`/ride/${activeRide.id}`}>
-                Open control center
-              </Link>
+            <RouteStrip stage={currentTrip.rideStatus} />
+            <div className="driver-row-meta">
+              <DateTime value={currentTrip.startedAt ?? currentTrip.createdTime} />
+              <Money amount={getDriverRideFareValue(currentTrip)} emphasis />
+              <Link href={`/ride/${currentTrip.id}`} className="ui-button" data-variant="primary">Continue trip</Link>
             </div>
-          </article>
+          </div>
+        </Section>
+      ) : null}
+
+      <Section
+        title="Trip history"
+        actions={<Button variant="secondary" disabled={loading} onClick={() => void loadRides(page)}>Refresh</Button>}
+      >
+        <SegmentedControl
+          ariaLabel="Filter trips"
+          value={filter}
+          onValueChange={(value) => setFilter(value as RideFilter)}
+          options={options}
+        />
+
+        {error ? <ErrorState title="Couldn't load trips" description={error} onRetry={() => void loadRides(page)} /> : null}
+        {loading ? (
+          <div className="driver-trip-list" role="status" aria-label="Loading trips" aria-busy="true">
+            {[0, 1, 2].map((item) => <Skeleton key={item} className="h-28 w-full" />)}
+          </div>
         ) : null}
-      </section>
-
-      <section className="card stack">
-        <div className="split-row">
-          <strong>Your rides</strong>
-          <button className="secondary-button" type="button" disabled={loading} onClick={() => void loadRides(page)}>
-            Refresh
-          </button>
-        </div>
-
-        {loading ? <p className="helper">Loading rides...</p> : null}
-        {error ? <p className="error-text">{error}</p> : null}
-        {!loading && !error && items.length === 0 ? <p className="helper">No rides found yet.</p> : null}
-
-        {!loading && !error && items.length > 0 ? (
-          <div className="list">
-            {items.map((ride) => {
+        {!loading && !error && visibleTrips.length === 0 ? (
+          <EmptyState
+            title={filter === "active" ? "No active trips" : "No past trips yet"}
+            description={filter === "active" ? "Accepted trips will appear here while they're in progress." : "Completed and cancelled trips will appear here."}
+            action={<Link href="/" className="ui-button" data-variant="secondary">Back to home</Link>}
+          />
+        ) : null}
+        {!loading && !error && visibleTrips.length > 0 ? (
+          <div className="driver-trip-list">
+            {visibleTrips.map((ride) => {
               const pickup = toMapPoint(ride.pickupLocation);
               const dropOff = toMapPoint(ride.dropOffLocation);
               return (
-                <article className="list-item" key={ride.id}>
-                  <div className="stack compact">
-                    <strong>Ride #{ride.id}</strong>
-                    <p className="helper">
-                      Status: {getDriverRideStatusLabel(ride.rideStatus)} • Payment: {ride.paymentMethod}
-                    </p>
-                    <p className="helper">
-                      Rider: {ride.rider?.user?.name ?? ride.rider?.user?.email ?? "Assigned rider"}
-                    </p>
-                    <p className="helper">Pickup: {formatMapPoint(pickup)} • Drop-off: {formatMapPoint(dropOff)}</p>
-                    <p className="helper">Created: {toRelativeTimestamp(ride.createdTime)}</p>
+                <article className="driver-trip-row" key={ride.id}>
+                  <div className="driver-trip-summary">
+                    <div className="driver-row-meta">
+                      <code className="driver-reference">Trip {ride.id}</code>
+                      <StatusBadge domain="ride" status={ride.rideStatus} />
+                      <DateTime value={ride.startedAt ?? ride.createdTime ?? ride.endedAt} />
+                    </div>
+                    <RouteStrip
+                      stage={ride.rideStatus}
+                      variant="static"
+                      showDriverMarker={false}
+                      pickupLabel={pickup ? "Pickup" : "Pickup unavailable"}
+                      dropoffLabel={dropOff ? "Drop-off" : "Drop-off unavailable"}
+                    />
                   </div>
-                  <div className="stack compact" style={{ justifyItems: "end" }}>
-                    <span className="badge">{toCurrency(getDriverRideFareValue(ride))}</span>
-                    <Link className="secondary-button" href={`/ride/${ride.id}`}>
-                      Open
-                    </Link>
+                  <div className="driver-row-meta">
+                    <Money amount={getDriverRideFareValue(ride)} />
+                    <Link href={`/ride/${ride.id}`} className="ui-button" data-variant="secondary">View trip</Link>
                   </div>
                 </article>
               );
             })}
           </div>
         ) : null}
-
-        <div className="actions">
-          <button
-            className="secondary-button"
-            type="button"
-            disabled={loading || page <= 0}
-            onClick={() => void loadRides(Math.max(page - 1, 0))}
-          >
-            Previous
-          </button>
-          <button
-            className="secondary-button"
-            type="button"
-            disabled={loading || page + 1 >= totalPages}
-            onClick={() => void loadRides(page + 1)}
-          >
-            Next
-          </button>
-          <span className="helper">
-            Page {page + 1} of {totalPages}
-          </span>
-        </div>
-      </section>
+        <Pagination
+          page={page + 1}
+          totalPages={totalPages}
+          onPageChange={(nextPage) => void loadRides(nextPage - 1)}
+        />
+      </Section>
     </main>
   );
 }

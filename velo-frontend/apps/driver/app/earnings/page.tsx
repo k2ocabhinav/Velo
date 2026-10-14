@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Button } from "@velo/ui/primitives";
+import { DataTable, DateTime, EmptyState, ErrorState, Field, Money, PageHeader, Section, SegmentedControl, Sheet, StatusBadge } from "@velo/ui/composed";
 import { Skeleton } from "@velo/ui/feedback";
 import {
   requestDriverProxy,
-  toCurrency,
-  toRelativeTimestamp,
   type DecimalValue,
   type DriverEarningItem,
   type DriverEarningsSummary,
@@ -18,17 +18,11 @@ import { LatestRequestSequence } from "../_lib/latest-request-sequence";
 type SummaryPeriod = "DAILY" | "WEEKLY" | "MONTHLY";
 
 function parseDecimalValue(value: DecimalValue | null | undefined): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return value;
-  }
-
+  if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string" && value.trim()) {
     const parsed = Number(value);
-    if (Number.isFinite(parsed)) {
-      return parsed;
-    }
+    if (Number.isFinite(parsed)) return parsed;
   }
-
   return null;
 }
 
@@ -39,16 +33,19 @@ export default function DriverEarningsPage() {
   const [earnings, setEarnings] = useState<DriverEarningItem[]>([]);
   const [payouts, setPayouts] = useState<DriverPayoutItem[]>([]);
   const [payoutAmount, setPayoutAmount] = useState("");
+  const [payoutSheetOpen, setPayoutSheetOpen] = useState(false);
+  const [payoutValidationError, setPayoutValidationError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [requestingPayout, setRequestingPayout] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const requestSequence = useRef(new LatestRequestSequence());
 
   const loadData = useCallback(async () => {
     const sequence = requestSequence.current.next();
     setLoading(true);
-    setError(null);
+    setLoadError(null);
 
     try {
       const [summaryResponse, balanceResponse, earningsResponse, payoutsResponse] = await Promise.all([
@@ -58,21 +55,18 @@ export default function DriverEarningsPage() {
         requestDriverProxy<SpringPage<DriverPayoutItem>>("drivers/earnings/payouts?pageOffset=0&pageSize=8"),
       ]);
 
-      if (!requestSequence.current.isCurrent(sequence)) {
-        return;
-      }
+      if (!requestSequence.current.isCurrent(sequence)) return;
       setSummary(summaryResponse);
       setBalance(balanceResponse);
+      setPayoutAmount((current) => current || String(balanceResponse));
       setEarnings(Array.isArray(earningsResponse.content) ? earningsResponse.content : []);
       setPayouts(Array.isArray(payoutsResponse.content) ? payoutsResponse.content : []);
-    } catch (loadError) {
+    } catch (loadErrorValue) {
       if (requestSequence.current.isCurrent(sequence)) {
-        setError(loadError instanceof Error ? loadError.message : "Unable to load earnings data.");
+        setLoadError(loadErrorValue instanceof Error ? loadErrorValue.message : "Unable to load earnings data.");
       }
     } finally {
-      if (requestSequence.current.isCurrent(sequence)) {
-        setLoading(false);
-      }
+      if (requestSequence.current.isCurrent(sequence)) setLoading(false);
     }
   }, [period]);
 
@@ -86,24 +80,26 @@ export default function DriverEarningsPage() {
   async function requestPayout(): Promise<void> {
     const validation = validatePayoutAmount(payoutAmount, numericBalance);
     if (!validation.ok) {
-      setError(validation.error);
+      setPayoutValidationError(validation.error);
       setMessage(null);
       return;
     }
 
+    setPayoutValidationError(null);
     setRequestingPayout(true);
-    setError(null);
+    setActionError(null);
     setMessage(null);
 
     try {
       await requestDriverProxy<DriverPayoutItem>(`drivers/earnings/payout?amount=${encodeURIComponent(validation.value)}`, {
         method: "POST",
       });
-      setPayoutAmount("");
       setMessage("Payout request submitted.");
+      setPayoutSheetOpen(false);
       await loadData();
+      setPayoutAmount("");
     } catch (requestError) {
-      setError(
+      setActionError(
         requestError instanceof Error
           ? mapApiError({ error: requestError.message }, "Unable to submit payout request.")
           : "Unable to submit payout request.",
@@ -113,166 +109,145 @@ export default function DriverEarningsPage() {
     }
   }
 
+  const periodOptions = [
+    { value: "DAILY", label: "Today" },
+    { value: "WEEKLY", label: "Week" },
+    { value: "MONTHLY", label: "Month" },
+  ];
+
   return (
     <main className="stack">
-      <section className="hero">
-        <p className="badge">Earnings</p>
-        <h1>Track earnings and request payouts</h1>
-        <p>Review net totals, payout status, and recent earning records in one place.</p>
-      </section>
+      <PageHeader title="Your earnings" description="See what you’ve earned and request a payout when you’re ready." />
 
-      <section className="card stack">
-        <div className="split-row">
-          <strong>Summary</strong>
-          <div className="actions">
-            <label className="field-inline">
-              <span>Period</span>
-              <select value={period} onChange={(event) => setPeriod(event.target.value as SummaryPeriod)}>
-                <option value="DAILY">Daily</option>
-                <option value="WEEKLY">Weekly</option>
-                <option value="MONTHLY">Monthly</option>
-              </select>
-            </label>
-            <button className="secondary-button" type="button" disabled={loading} onClick={() => void loadData()}>
-              Refresh
-            </button>
-          </div>
-        </div>
+      {loadError ? <ErrorState title="Couldn't load earnings" description={loadError} onRetry={() => void loadData()} /> : null}
+      {actionError ? <ErrorState title="Couldn't request payout" description={actionError} onRetry={() => void requestPayout()} retryLabel="Retry payout" /> : null}
+      {message ? <p role="status" className="helper">{message}</p> : null}
 
+      <Section
+        title="Your earnings"
+        actions={(
+          <SegmentedControl
+            ariaLabel="Earnings period"
+            value={period}
+            onValueChange={(value) => setPeriod(value as SummaryPeriod)}
+            options={periodOptions}
+          />
+        )}
+      >
         {loading ? (
-          <div className="grid grid-3" aria-label="Loading earnings summary" aria-busy="true">
-            {Array.from({ length: 3 }, (_, index) => (
-              <article className="list-item" key={index}>
-                <div className="stack compact">
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-3 w-32" />
-                </div>
-                <Skeleton className="h-5 w-20" />
-              </article>
-            ))}
+          <div className="stack compact" role="status" aria-label="Loading earnings summary" aria-busy="true">
+            <Skeleton className="h-10 w-40" />
+            <Skeleton className="h-4 w-48" />
+            <Skeleton className="h-14 w-full" />
           </div>
         ) : null}
         {!loading && summary ? (
-          <div className="grid grid-3">
-            <article className="list-item">
-              <div className="stack compact">
-                <strong>Total net</strong>
-                <p className="helper">Rides: {summary.rideCount ?? 0}</p>
-              </div>
-              <span className="badge">{toCurrency(summary.totalNet)}</span>
-            </article>
-            <article className="list-item">
-              <div className="stack compact">
-                <strong>Total gross</strong>
-                <p className="helper">Commission: {toCurrency(summary.totalCommission)}</p>
-              </div>
-              <span className="badge">{toCurrency(summary.totalGross)}</span>
-            </article>
-            <article className="list-item">
-              <div className="stack compact">
-                <strong>Available balance</strong>
-                <p className="helper">Ready for payout</p>
-              </div>
-              <span className="badge">{toCurrency(balance)}</span>
-            </article>
+          <div className="stack">
+            <div>
+              <p className="helper">Net earnings · {summary.rideCount ?? 0} trips</p>
+              <Money className="driver-key-figure" amount={summary.totalNet} emphasis />
+            </div>
+            <dl className="driver-money-breakdown">
+              <div><dt>Gross earnings</dt><dd><Money amount={summary.totalGross} /></dd></div>
+              <div><dt>Commission</dt><dd><Money amount={summary.totalCommission} /></dd></div>
+              <div><dt>Available for payout</dt><dd><Money amount={balance} emphasis /></dd></div>
+            </dl>
+            <div className="driver-actions">
+              <Button onClick={() => setPayoutSheetOpen(true)} disabled={numericBalance === null || numericBalance <= 0}>
+                Request payout
+              </Button>
+              <Button variant="secondary" disabled={loading} onClick={() => void loadData()}>Refresh</Button>
+            </div>
           </div>
         ) : null}
+        {!loading && !loadError && !summary ? (
+          <EmptyState
+            title="No earnings for this period"
+            description="Try another period or go online to take your next trip."
+            action={<a href="/" className="ui-button" data-variant="secondary">Go online</a>}
+          />
+        ) : null}
+      </Section>
 
-        <div className="stack">
-          <strong>Request payout</strong>
-          <div className="actions">
-            <label className="field-inline">
-              <span>Amount</span>
-              <input
-                inputMode="decimal"
-                value={payoutAmount}
-                onChange={(event) => setPayoutAmount(event.target.value)}
-                placeholder="100.00"
-              />
-            </label>
-            <button
-              className="primary-button"
-              type="button"
-              disabled={requestingPayout}
-              onClick={() => void requestPayout()}
-            >
-              {requestingPayout ? "Submitting..." : "Request payout"}
-            </button>
-          </div>
-        </div>
-        {error ? <p className="error-text">{error}</p> : null}
-        {message ? <p className="helper">{message}</p> : null}
-      </section>
-
-      <section className="card stack">
-        <strong>Payout history</strong>
+      <Section title="Payout history">
         {loading ? (
-          <div className="list" aria-label="Loading payout history" aria-busy="true">
-            {Array.from({ length: 2 }, (_, index) => (
-              <article className="list-item" key={index}>
-                <div className="stack compact">
-                  <Skeleton className="h-4 w-28" />
-                  <Skeleton className="h-3 w-36" />
-                </div>
-                <Skeleton className="h-5 w-20" />
-              </article>
-            ))}
+          <div role="status" aria-label="Loading payout history" aria-busy="true" className="stack compact">
+            {[0, 1].map((item) => <Skeleton key={item} className="h-12 w-full" />)}
           </div>
         ) : null}
-        {!loading && payouts.length === 0 ? <p className="helper">No payout requests yet.</p> : null}
-        {!loading && payouts.length > 0 ? (
-          <div className="list">
-            {payouts.map((payout) => (
-              <article className="list-item" key={payout.id}>
-                <div className="stack compact">
-                  <strong>Payout #{payout.id}</strong>
-                  <p className="helper">Requested: {toRelativeTimestamp(payout.requestedAt)}</p>
-                </div>
-                <div className="stack compact" style={{ justifyItems: "end" }}>
-                  <span className="badge">{toCurrency(payout.amount)}</span>
-                  <span className="helper">{payout.status}</span>
-                </div>
-              </article>
-            ))}
-          </div>
+        {!loading && !loadError && payouts.length === 0 ? (
+          <EmptyState
+            title="No payouts yet"
+            description="Request a payout when your balance is available."
+            action={numericBalance !== null && numericBalance > 0
+              ? <Button onClick={() => setPayoutSheetOpen(true)}>Request payout</Button>
+              : <a href="/" className="ui-button" data-variant="secondary">Go online</a>}
+          />
         ) : null}
-      </section>
+        {!loading && !loadError && payouts.length > 0 ? (
+          <DataTable
+            ariaLabel="Payout history"
+            data={payouts}
+            getRowKey={(payout) => payout.id}
+            columns={[
+              { header: "Requested", cell: (payout) => <DateTime value={payout.requestedAt} /> },
+              { header: "Amount", align: "right", cell: (payout) => <Money amount={payout.amount} /> },
+              { header: "Status", cell: (payout) => <StatusBadge domain="payout" status={payout.status} /> },
+            ]}
+          />
+        ) : null}
+      </Section>
 
-      <section className="card stack">
-        <strong>Recent earning entries</strong>
+      <Section title="Recent trips">
         {loading ? (
-          <div className="list" aria-label="Loading earning entries" aria-busy="true">
-            {Array.from({ length: 3 }, (_, index) => (
-              <article className="list-item" key={index}>
-                <div className="stack compact">
-                  <Skeleton className="h-4 w-28" />
-                  <Skeleton className="h-3 w-24" />
-                  <Skeleton className="h-3 w-36" />
-                </div>
-                <Skeleton className="h-5 w-20" />
-              </article>
-            ))}
+          <div role="status" aria-label="Loading earning entries" aria-busy="true" className="stack compact">
+            {[0, 1, 2].map((item) => <Skeleton key={item} className="h-12 w-full" />)}
           </div>
         ) : null}
-        {!loading && earnings.length === 0 ? <p className="helper">No earnings entries yet.</p> : null}
-        {!loading && earnings.length > 0 ? (
-          <div className="list">
-            {earnings.map((entry) => (
-              <article className="list-item" key={entry.id}>
-                <div className="stack compact">
-                  <strong>Entry #{entry.id}</strong>
-                  <p className="helper">Ride #{entry.rideId ?? "--"}</p>
-                  <p className="helper">{toRelativeTimestamp(entry.createdTime)}</p>
-                </div>
-                <div className="stack compact" style={{ justifyItems: "end" }}>
-                  <span className="badge">{toCurrency(entry.netEarning)}</span>
-                  <p className="helper">Gross: {toCurrency(entry.grossFare)}</p>
-                </div>
-              </article>
-            ))}
-          </div>
+        {!loading && !loadError && earnings.length === 0 ? (
+          <EmptyState
+            title="No earnings yet"
+            description="Your trip earnings will appear here after you complete a trip."
+            action={<a href="/" className="ui-button" data-variant="secondary">Go online</a>}
+          />
         ) : null}
-      </section>
+        {!loading && !loadError && earnings.length > 0 ? (
+          <DataTable
+            ariaLabel="Recent trip earnings"
+            data={earnings}
+            getRowKey={(entry) => entry.id}
+            columns={[
+              { header: "Trip", cell: (entry) => entry.rideId ? <code className="driver-reference">Trip {entry.rideId}</code> : "—" },
+              { header: "Date", cell: (entry) => <DateTime value={entry.createdTime} /> },
+              { header: "Gross", align: "right", cell: (entry) => <Money amount={entry.grossFare} /> },
+              { header: "Commission", align: "right", cell: (entry) => <Money amount={entry.platformCommission} /> },
+              { header: "Net", align: "right", cell: (entry) => <Money amount={entry.netEarning} emphasis /> },
+            ]}
+          />
+        ) : null}
+      </Section>
+
+      <Sheet
+        open={payoutSheetOpen}
+        onOpenChange={setPayoutSheetOpen}
+        title="Request a payout"
+        description="Choose an amount up to your available balance."
+        side="bottom"
+      >
+        <form className="driver-sheet-form" onSubmit={(event) => { event.preventDefault(); void requestPayout(); }}>
+          <p>Available balance: <Money amount={balance} emphasis /></p>
+          <Field label="Amount" hint="The amount must be greater than zero and within your available balance." error={payoutValidationError ?? undefined}>
+            <input
+              className="ui-control"
+              inputMode="decimal"
+              value={payoutAmount}
+              onChange={(event) => { setPayoutAmount(event.target.value); setPayoutValidationError(null); }}
+              placeholder="100.00"
+            />
+          </Field>
+          <Button className="driver-action-button" type="submit" loading={requestingPayout}>Request payout</Button>
+        </form>
+      </Sheet>
     </main>
   );
 }
