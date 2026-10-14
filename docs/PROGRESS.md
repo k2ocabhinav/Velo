@@ -37,7 +37,7 @@
 - [x] EP-1 Rider wallet balance/transactions endpoint + admin revenue per driver
 - [ ] EP-2 Geocoding proxy + address search in admin New trip and rider booking (in progress)
 - [x] EP-3 Refresh-token cleanup + grace window (decision 0022); tenant brand in wordmarks
-- [ ] EP-4 Docker image build + container smoke test (in progress)
+- [x] EP-4 Docker images build (backend 143 MiB, frontends ~72 MiB), readiness without Redis, scripts/docker-smoke.sh
 - [ ] EP-5 Demo readiness: two branded demo tenants, one-command local demo, tunnel guide, README with screenshots (in progress)
 - [ ] Geocoding must be search-on-submit + saved locations (provider usage policy) — correction to EP-2
 - [ ] Next: corporate accounts + contract tariffs + monthly statement CSV (niche: small fleets with pre-booked business transfers)
