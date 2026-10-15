@@ -9,6 +9,10 @@ import com.velo.platform.dto.admin.AdminDispatchAuditDto;
 import com.velo.platform.dto.admin.AdminOpsHealthDto;
 import com.velo.platform.dto.admin.AdminPendingRideRequestDto;
 import com.velo.platform.dto.admin.AdminRideOfferDto;
+import com.velo.platform.dto.admin.AdminLiveDispatchDto;
+import com.velo.platform.dto.admin.AdminLiveDispatchDriverDto;
+import com.velo.platform.dto.admin.AdminLiveDispatchLocationDto;
+import com.velo.platform.dto.admin.AdminLiveDispatchRideDto;
 import com.velo.platform.entities.AdminDispatchAudit;
 import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.Ride;
@@ -41,6 +45,7 @@ import com.velo.platform.services.RideService;
 import com.velo.platform.services.TenantScopeService;
 import com.velo.platform.strategies.RideStrategyManager;
 import com.velo.platform.utils.GeometryUtil;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
@@ -52,6 +57,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -63,8 +69,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Slf4j
 public class AdminDispatchServiceImpl implements AdminDispatchService {
-
-    private static final long DRIVER_OFFER_TTL_SECONDS = 45L;
 
     private final RideRequestRepository rideRequestRepository;
     private final RideRepository rideRepository;
@@ -81,6 +85,7 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
     private final ModelMapper modelMapper;
     private final TenantScopeService tenantScopeService;
     private final RideStrategyManager rideStrategyManager;
+    private final EntityManager entityManager;
 
     @Override
     @Transactional
@@ -107,7 +112,7 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
                 .driverMatchingStrategy(0.0)
                 .findMatchingDrivers(savedRequest);
 
-        rideOfferService.createOffers(savedRequest, matchedDrivers, DRIVER_OFFER_TTL_SECONDS);
+        rideOfferService.createOffers(savedRequest, matchedDrivers);
         if (matchedDrivers.isEmpty()) {
             savedRequest.setRideRequestStatus(RideRequestStatus.EXPIRED);
             savedRequest = rideRequestRepository.save(savedRequest);
@@ -188,6 +193,172 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
                         .createdTime(ride.getCreatedTime())
                         .startedAt(ride.getStartedAt())
                         .build());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AdminLiveDispatchDto getLiveDispatch() {
+        Long tenantId = tenantScopeService.requireCurrentTenantId();
+        LocalDateTime generatedAt = LocalDateTime.now();
+        List<?> driverRows = entityManager.createNativeQuery(LIVE_DRIVERS_QUERY)
+                .setParameter("tenantId", tenantId)
+                .setParameter("freshSince", generatedAt.minusMinutes(15))
+                .setParameter("generatedAt", generatedAt)
+                .getResultList();
+        List<AdminLiveDispatchDriverDto> drivers = driverRows.stream()
+                .map(Object[].class::cast)
+                .map(row -> toLiveDriver(row, generatedAt))
+                .toList();
+        List<?> rideRows = entityManager.createNativeQuery(LIVE_RIDES_QUERY)
+                .setParameter("tenantId", tenantId)
+                .getResultList();
+        List<AdminLiveDispatchRideDto> rides = rideRows.stream()
+                .map(Object[].class::cast)
+                .map(this::toLiveRide)
+                .toList();
+
+        return new AdminLiveDispatchDto(generatedAt, drivers, rides);
+    }
+
+    private static final String LIVE_DRIVERS_QUERY = """
+            SELECT d.id, u.first_name, u.last_name, d.vehicle_id, d.rating,
+                   ST_Y(d.current_location), ST_X(d.current_location), d.location_heading,
+                   d.location_speed_kph, d.location_updated_at, u.simulated,
+                   active_ride.id, active_ride.ride_status
+            FROM driver d
+            JOIN app_user u ON u.id = d.user_id
+            LEFT JOIN LATERAL (
+                SELECT r.id, r.ride_status
+                FROM ride r
+                WHERE r.driver_id = d.id
+                  AND r.tenant_id = d.tenant_id
+                  AND r.ride_status IN ('CONFIRMED', 'ONGOING')
+                ORDER BY CASE r.ride_status WHEN 'ONGOING' THEN 0 ELSE 1 END,
+                         r.created_time DESC, r.id DESC
+                LIMIT 1
+            ) active_ride ON TRUE
+            WHERE d.tenant_id = :tenantId
+              AND d.onboarding_status = 'APPROVED'
+              AND d.current_location IS NOT NULL
+              AND d.location_updated_at >= :freshSince
+              AND d.location_updated_at <= :generatedAt
+              AND (d.available IS TRUE OR active_ride.id IS NOT NULL)
+            ORDER BY d.id ASC
+            LIMIT 500
+            """;
+
+    private static final String LIVE_RIDES_QUERY = """
+            SELECT open_ride.ride_id, open_ride.ride_request_id, open_ride.status,
+                   open_ride.rider_name, open_ride.driver_id,
+                   open_ride.pickup_lat, open_ride.pickup_lng, open_ride.pickup_address,
+                   open_ride.dropoff_lat, open_ride.dropoff_lng, open_ride.dropoff_address,
+                   open_ride.requested_at, open_ride.started_at, open_ride.fare, open_ride.simulated
+            FROM (
+                SELECT NULL::bigint AS ride_id, rr.id AS ride_request_id,
+                       'REQUESTED'::varchar AS status,
+                       COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), rr.customer_name) AS rider_name,
+                       NULL::bigint AS driver_id,
+                       ST_Y(rr.pickup_location) AS pickup_lat, ST_X(rr.pickup_location) AS pickup_lng,
+                       rr.pickup_address,
+                       ST_Y(rr.drop_off_location) AS dropoff_lat, ST_X(rr.drop_off_location) AS dropoff_lng,
+                       rr.drop_off_address AS dropoff_address,
+                       rr.requested_time AS requested_at, NULL::timestamp AS started_at, rr.fare,
+                       COALESCE(u.simulated, FALSE) AS simulated
+                FROM ride_request rr
+                LEFT JOIN rider ri ON ri.id = rr.rider_id
+                LEFT JOIN app_user u ON u.id = ri.user_id
+                WHERE rr.tenant_id = :tenantId
+                  AND rr.ride_request_status = 'PENDING'
+                  AND NOT EXISTS (
+                      SELECT 1 FROM ride linked_ride WHERE linked_ride.ride_request_id = rr.id
+                  )
+
+                UNION ALL
+
+                SELECT r.id AS ride_id, rr.id AS ride_request_id, r.ride_status AS status,
+                       COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), rr.customer_name) AS rider_name,
+                       r.driver_id,
+                       ST_Y(COALESCE(r.pickup_location, rr.pickup_location)) AS pickup_lat,
+                       ST_X(COALESCE(r.pickup_location, rr.pickup_location)) AS pickup_lng,
+                       rr.pickup_address,
+                       ST_Y(COALESCE(r.drop_off_location, rr.drop_off_location)) AS dropoff_lat,
+                       ST_X(COALESCE(r.drop_off_location, rr.drop_off_location)) AS dropoff_lng,
+                       rr.drop_off_address AS dropoff_address,
+                       COALESCE(rr.requested_time, r.created_time) AS requested_at,
+                       r.started_at, r.fare, COALESCE(u.simulated, FALSE) AS simulated
+                FROM ride r
+                LEFT JOIN ride_request rr ON rr.id = r.ride_request_id
+                LEFT JOIN rider ri ON ri.id = r.rider_id
+                LEFT JOIN app_user u ON u.id = ri.user_id
+                WHERE r.tenant_id = :tenantId
+                  AND r.ride_status IN ('CONFIRMED', 'ONGOING')
+            ) open_ride
+            ORDER BY open_ride.requested_at ASC NULLS LAST,
+                     open_ride.ride_request_id ASC NULLS LAST,
+                     open_ride.ride_id ASC NULLS LAST
+            LIMIT 500
+            """;
+
+    private AdminLiveDispatchDriverDto toLiveDriver(Object[] row, LocalDateTime generatedAt) {
+        LocalDateTime locationUpdatedAt = toLocalDateTime(row[9]);
+        String rideStatus = (String) row[12];
+        String status = RideStatus.ONGOING.name().equals(rideStatus)
+                ? "ON_TRIP"
+                : RideStatus.CONFIRMED.name().equals(rideStatus) ? "EN_ROUTE_TO_PICKUP" : "AVAILABLE";
+        return new AdminLiveDispatchDriverDto(
+                toLong(row[0]),
+                joinName((String) row[1], (String) row[2]),
+                (String) row[3],
+                toDouble(row[4]),
+                status,
+                toDouble(row[5]),
+                toDouble(row[6]),
+                toDouble(row[7]),
+                toDouble(row[8]),
+                locationUpdatedAt,
+                locationUpdatedAt.isBefore(generatedAt.minusSeconds(60)),
+                Boolean.TRUE.equals(row[10]),
+                toLong(row[11])
+        );
+    }
+
+    private AdminLiveDispatchRideDto toLiveRide(Object[] row) {
+        return new AdminLiveDispatchRideDto(
+                toLong(row[0]),
+                toLong(row[1]),
+                (String) row[2],
+                (String) row[3],
+                toLong(row[4]),
+                new AdminLiveDispatchLocationDto(toDouble(row[5]), toDouble(row[6]), (String) row[7]),
+                new AdminLiveDispatchLocationDto(toDouble(row[8]), toDouble(row[9]), (String) row[10]),
+                toLocalDateTime(row[11]),
+                toLocalDateTime(row[12]),
+                (java.math.BigDecimal) row[13],
+                Boolean.TRUE.equals(row[14])
+        );
+    }
+
+    private static String joinName(String firstName, String lastName) {
+        String name = ((firstName == null ? "" : firstName.trim()) + " " + (lastName == null ? "" : lastName.trim())).trim();
+        return name.isEmpty() ? null : name;
+    }
+
+    private static Long toLong(Object value) {
+        return value == null ? null : ((Number) value).longValue();
+    }
+
+    private static Double toDouble(Object value) {
+        return value == null ? null : ((Number) value).doubleValue();
+    }
+
+    private static LocalDateTime toLocalDateTime(Object value) {
+        if (value instanceof LocalDateTime localDateTime) {
+            return localDateTime;
+        }
+        if (value instanceof Timestamp timestamp) {
+            return timestamp.toLocalDateTime();
+        }
+        return null;
     }
 
     @Override

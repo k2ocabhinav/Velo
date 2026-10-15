@@ -600,6 +600,9 @@ class DriverServiceImplTest {
         assertThat(response.getLat()).isEqualTo(12.9716);
         assertThat(response.getLng()).isEqualTo(77.5946);
         assertThat(response.getCapturedAt()).isNotNull();
+        assertThat(testDriver.getLocationUpdatedAt()).isNotNull();
+        assertThat(testDriver.getLocationHeading()).isEqualTo(90.0);
+        assertThat(testDriver.getLocationSpeedKph()).isEqualTo(24.5);
 
         ArgumentCaptor<DriverLocationUpdateRequestDto> updateCaptor = ArgumentCaptor.forClass(DriverLocationUpdateRequestDto.class);
         verify(rideRealtimeService).publishDriverLocation(eq(activeRide), updateCaptor.capture());

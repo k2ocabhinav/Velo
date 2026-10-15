@@ -2,9 +2,13 @@ package com.velo.platform.repositories;
 
 import com.velo.platform.dto.PointDto;
 import com.velo.platform.entities.Driver;
+import com.velo.platform.entities.RideRequest;
+import com.velo.platform.entities.Rider;
 import com.velo.platform.entities.User;
 import com.velo.platform.entities.enums.DriverOnboardingStatus;
 import com.velo.platform.entities.enums.Role;
+import com.velo.platform.strategies.impl.DriverMatchingHighestRatedDriverStrategy;
+import com.velo.platform.strategies.impl.DriverMatchingNearestDriverStrategy;
 import com.velo.platform.utils.GeometryUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -106,7 +110,51 @@ class DriverRepositoryIntegrationTest {
         );
     }
 
+    @Test
+    @DisplayName("all matching candidate queries isolate simulated and real drivers in both directions")
+    void matchingCandidates_ShouldKeepRealAndSimulatedFleetsIsolated() {
+        Driver realDriver = persistDriver("matching-real@test.com", 0.001, true, 4.8, false);
+        Driver simulatedDriver = persistDriver("matching-sim@test.com", 0.002, true, 4.9, true);
+
+        assertThat(driverRepository.findTenNearestDrivers(pickupLocation(), 1L, false))
+                .extracting(Driver::getId).contains(realDriver.getId()).doesNotContain(simulatedDriver.getId());
+        assertThat(driverRepository.findTenNearestDrivers(pickupLocation(), 1L, true))
+                .extracting(Driver::getId).contains(simulatedDriver.getId()).doesNotContain(realDriver.getId());
+        assertThat(driverRepository.findTenNearbyTopRatedDrivers(pickupLocation(), 1L, false))
+                .extracting(Driver::getId).contains(realDriver.getId()).doesNotContain(simulatedDriver.getId());
+        assertThat(driverRepository.findTenNearbyTopRatedDrivers(pickupLocation(), 1L, true))
+                .extracting(Driver::getId).contains(simulatedDriver.getId()).doesNotContain(realDriver.getId());
+        assertThat(driverRepository.findFallbackDrivers(1L, 10, false))
+                .extracting(Driver::getId).contains(realDriver.getId()).doesNotContain(simulatedDriver.getId());
+        assertThat(driverRepository.findFallbackDrivers(1L, 10, true))
+                .extracting(Driver::getId).contains(simulatedDriver.getId()).doesNotContain(realDriver.getId());
+
+        DriverMatchingNearestDriverStrategy nearestStrategy = new DriverMatchingNearestDriverStrategy(driverRepository);
+        DriverMatchingHighestRatedDriverStrategy topRatedStrategy = new DriverMatchingHighestRatedDriverStrategy(driverRepository);
+        assertThat(nearestStrategy.findMatchingDrivers(requestFor(false)))
+                .extracting(Driver::getId).contains(realDriver.getId()).doesNotContain(simulatedDriver.getId());
+        assertThat(nearestStrategy.findMatchingDrivers(requestFor(true)))
+                .extracting(Driver::getId).contains(simulatedDriver.getId()).doesNotContain(realDriver.getId());
+        assertThat(topRatedStrategy.findMatchingDrivers(requestFor(false)))
+                .extracting(Driver::getId).contains(realDriver.getId()).doesNotContain(simulatedDriver.getId());
+        assertThat(topRatedStrategy.findMatchingDrivers(requestFor(true)))
+                .extracting(Driver::getId).contains(simulatedDriver.getId()).doesNotContain(realDriver.getId());
+    }
+
+    private RideRequest requestFor(boolean simulated) {
+        User riderUser = User.builder().simulated(simulated).build();
+        return RideRequest.builder()
+                .tenantId(1L)
+                .pickupLocation(pickupLocation())
+                .rider(Rider.builder().user(riderUser).build())
+                .build();
+    }
+
     private Driver persistDriver(String email, double latitudeOffset, boolean available, double rating) {
+        return persistDriver(email, latitudeOffset, available, rating, false);
+    }
+
+    private Driver persistDriver(String email, double latitudeOffset, boolean available, double rating, boolean simulated) {
         User user = new User();
         user.setEmail(email);
         user.setPassword("password123");
@@ -114,6 +162,7 @@ class DriverRepositoryIntegrationTest {
         user.setLastName("Driver");
         user.setRoles(Set.of(Role.DRIVER));
         user.setActive(true);
+        user.setSimulated(simulated);
         user = userRepository.saveAndFlush(user);
 
         Driver driver = new Driver();

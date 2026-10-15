@@ -9,6 +9,7 @@ import com.velo.platform.dto.admin.AdminDispatchAuditDto;
 import com.velo.platform.dto.admin.AdminOpsHealthDto;
 import com.velo.platform.dto.admin.AdminPendingRideRequestDto;
 import com.velo.platform.dto.admin.AdminRideOfferDto;
+import com.velo.platform.dto.admin.AdminLiveDispatchDto;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -21,6 +22,8 @@ public interface AdminDispatchService {
     Page<AdminPendingRideRequestDto> getPendingRideRequests(Pageable pageable);
 
     Page<AdminActiveRideDto> getActiveRides(Pageable pageable);
+
+    AdminLiveDispatchDto getLiveDispatch();
 
     List<GeocodingResultDto> getRecentAddresses();
 
