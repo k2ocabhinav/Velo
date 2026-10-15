@@ -1,0 +1,130 @@
+[
+  {
+    "id": "kia-t1",
+    "name": "Kempegowda International Airport, Terminal 1",
+    "kind": "airport",
+    "lat": 13.1992,
+    "lng": 77.7116,
+    "weight": 3
+  },
+  {
+    "id": "kia-t2",
+    "name": "Kempegowda International Airport, Terminal 2",
+    "kind": "airport",
+    "lat": 13.1999,
+    "lng": 77.715,
+    "weight": 2
+  },
+  {
+    "id": "oberoi",
+    "name": "The Oberoi, MG Road",
+    "kind": "hotel",
+    "lat": 12.9733,
+    "lng": 77.6183,
+    "weight": 3
+  },
+  {
+    "id": "taj-west-end",
+    "name": "Taj West End, Race Course Road",
+    "kind": "hotel",
+    "lat": 12.9854,
+    "lng": 77.5845,
+    "weight": 3
+  },
+  {
+    "id": "itc-gardenia",
+    "name": "ITC Gardenia, Residency Road",
+    "kind": "hotel",
+    "lat": 12.9672,
+    "lng": 77.5957,
+    "weight": 3
+  },
+  {
+    "id": "leela-palace",
+    "name": "The Leela Palace, Old Airport Road",
+    "kind": "hotel",
+    "lat": 12.9615,
+    "lng": 77.6493,
+    "weight": 3
+  },
+  {
+    "id": "jw-marriott",
+    "name": "JW Marriott Hotel Bengaluru, Vittal Mallya Road",
+    "kind": "hotel",
+    "lat": 12.9724,
+    "lng": 77.5949,
+    "weight": 3
+  },
+  {
+    "id": "ritz-carlton",
+    "name": "The Ritz-Carlton, Residency Road",
+    "kind": "hotel",
+    "lat": 12.9677,
+    "lng": 77.6016,
+    "weight": 3
+  },
+  {
+    "id": "shangri-la",
+    "name": "Shangri-La Bengaluru, Palace Road",
+    "kind": "hotel",
+    "lat": 12.992,
+    "lng": 77.5882,
+    "weight": 2
+  },
+  {
+    "id": "taj-mg-road",
+    "name": "Taj MG Road",
+    "kind": "hotel",
+    "lat": 12.9733,
+    "lng": 77.6197,
+    "weight": 2
+  },
+  {
+    "id": "ub-city",
+    "name": "UB City, Vittal Mallya Road",
+    "kind": "business",
+    "lat": 12.9719,
+    "lng": 77.5957,
+    "weight": 2
+  },
+  {
+    "id": "ksrr",
+    "name": "KSR Bengaluru City Railway Station",
+    "kind": "station",
+    "lat": 12.9781,
+    "lng": 77.5696,
+    "weight": 3
+  },
+  {
+    "id": "indiranagar-metro",
+    "name": "Indiranagar Metro Station",
+    "kind": "station",
+    "lat": 12.9783,
+    "lng": 77.6387,
+    "weight": 1
+  },
+  {
+    "id": "manyata",
+    "name": "Manyata Tech Park, Nagavara",
+    "kind": "business",
+    "lat": 13.0483,
+    "lng": 77.6211,
+    "weight": 2
+  },
+  {
+    "id": "itpl",
+    "name": "ITPL, Whitefield",
+    "kind": "business",
+    "lat": 12.9875,
+    "lng": 77.7361,
+    "weight": 2
+  },
+  {
+    "id": "electronic-city",
+    "name": "Electronic City Phase 1",
+    "kind": "business",
+    "lat": 12.851,
+    "lng": 77.664,
+    "weight": 2
+  }
+]
