@@ -1,12 +1,15 @@
 import { ApiError, type SimApi } from "../api/http-client.ts";
 import { toPointDto } from "../api/http-client.ts";
 import type { StompSession } from "../api/stomp-session.ts";
-import type { RideUpdateEventDto, RouteCatalogue, RiderState, SimAccount } from "../types.ts";
+import type { Poi, RideUpdateEventDto, RouteCatalogue, RiderState, SimAccount } from "../types.ts";
 import type { SimLogger } from "../log.ts";
 import type { Clock } from "./clock.ts";
 import type { RideRegistry } from "./contracts.ts";
 import { pickPoiPair, type PoiPairOptions } from "./poi-selection.ts";
 import type { RandomSource } from "./random.ts";
+
+const MAX_INTRA_CITY_DISTANCE_M = 15_000;
+const MAX_INTRA_CITY_DURATION_S = 12 * 60;
 
 export class RiderBot {
   activeRequestId: number | null = null;
@@ -26,6 +29,7 @@ export class RiderBot {
   private readonly random: RandomSource;
   private readonly logger: SimLogger;
   private readonly registry: RideRegistry;
+  private readonly intraCityPairs: [Poi, Poi][];
   private currentPoi: RouteCatalogue["pois"][number] | null = null;
   private parkedAtPoi = false;
 
@@ -47,6 +51,17 @@ export class RiderBot {
     this.random = random;
     this.logger = logger;
     this.registry = registry;
+    this.intraCityPairs = catalogue.pois
+      .filter((poi) => poi.kind !== "airport")
+      .flatMap((pickup) => catalogue.pois
+        .filter((dropOff) => dropOff.kind !== "airport" && dropOff.id !== pickup.id)
+        .filter((dropOff) => {
+          const route = catalogue.routes[`${pickup.id}>${dropOff.id}`];
+          return route !== undefined && route.distanceM > 0
+            && route.distanceM < MAX_INTRA_CITY_DISTANCE_M
+            && route.durationS < MAX_INTRA_CITY_DURATION_S;
+        })
+        .map((dropOff): [Poi, Poi] => [pickup, dropOff]));
   }
 
   get state(): RiderState {
@@ -54,6 +69,10 @@ export class RiderBot {
     if (this.rideStarted) return "on-trip";
     if (this.activeRideId !== null) return "assigned";
     return "requested";
+  }
+
+  get canRequest(): boolean {
+    return !this.stopped && !this.requestInFlight && this.activeRequestId === null;
   }
 
   get name(): string {
@@ -87,7 +106,7 @@ export class RiderBot {
   }
 
   async requestRide(options: PoiPairOptions = {}): Promise<number | null> {
-    if (this.stopped || this.requestInFlight || this.activeRequestId !== null) {
+    if (!this.canRequest) {
       return null;
     }
     this.requestInFlight = true;
@@ -98,7 +117,10 @@ export class RiderBot {
     const selection = this.parkedAtPoi && this.currentPoi && !options.from && !options.near
       ? { ...options, from: this.currentPoi }
       : options;
-    const [pickup, dropOff] = pickPoiPair(this.catalogue.pois, this.random, selection);
+    const [pickup, dropOff] = pickPoiPair(this.catalogue.pois, this.random, {
+      ...selection,
+      ...(selection.preferIntraCity ? { intraCityPairs: this.intraCityPairs } : {}),
+    });
     try {
       const request = await this.api.requestRide({
         pickupLocation: toPointDto(pickup),
@@ -136,7 +158,11 @@ export class RiderBot {
       void this.expireIfUnassigned(requestId!, request.expiresAt);
       return requestId!;
     } catch (error) {
-      this.logger.error(this.account.tenant, this.account.key, "request ride", error);
+      if (error instanceof ApiError && error.status === 409) {
+        await this.reconcileConflictingBackendRequest();
+      } else {
+        this.logger.error(this.account.tenant, this.account.key, "request ride", error);
+      }
       return null;
     } finally {
       this.requestInFlight = false;
@@ -177,6 +203,11 @@ export class RiderBot {
       if (updatedTracking?.rideId && updatedTracking.rideRequestId === requestId) {
         await this.cancelActiveRide(requestId, updatedTracking.rideId);
         return updatedTracking.rideId;
+      }
+      if (updatedTracking?.rideRequestId !== requestId) {
+        this.registry.complete(requestId);
+        this.logger.event(this.account.tenant, this.account.key, "request already closed", `request ${requestId}`);
+        return null;
       }
       throw error;
     }
@@ -242,6 +273,26 @@ export class RiderBot {
     await this.api.cancelRiderRide(rideId);
     this.registry.complete(requestId);
     this.logger.event(this.account.tenant, this.account.key, "trip cancelled", `ride ${rideId}`);
+  }
+
+  private async reconcileConflictingBackendRequest(): Promise<void> {
+    try {
+      const tracking = await this.api.getActiveRide();
+      if (!tracking?.rideRequestId) return;
+      if (tracking.rideId) {
+        await this.api.cancelRiderRide(tracking.rideId);
+      } else {
+        await this.api.cancelRiderRequest(tracking.rideRequestId);
+      }
+      this.logger.event(
+        this.account.tenant,
+        this.account.key,
+        "cleared conflicting backend request",
+        `request ${tracking.rideRequestId}`,
+      );
+    } catch (error) {
+      this.logger.error(this.account.tenant, this.account.key, "reconcile request conflict", error);
+    }
   }
 
   private async expireIfUnassigned(requestId: number, expiresAt: string | null | undefined): Promise<void> {

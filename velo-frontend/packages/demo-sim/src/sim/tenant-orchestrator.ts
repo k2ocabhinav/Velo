@@ -6,7 +6,7 @@ import { EventHub } from "../control/event-hub.ts";
 import { applyPreset, isPresetName } from "../control/presets.ts";
 import { applyConfigPatch, defaultConfig, type ConfigContext, type PatchResult, type SimConfig } from "../control/runtime-config.ts";
 import { loadState, saveState } from "../control/state-store.ts";
-import type { ControlStatus, RouteCatalogue, SimAccount, SimTenant, TenantSlug } from "../types.ts";
+import type { ControlStatus, Poi, RouteCatalogue, SimAccount, SimTenant, TenantSlug } from "../types.ts";
 import { SIM_TENANTS } from "../config.ts";
 import { SimLogger } from "../log.ts";
 import { SystemClock, SimulationClock, type Clock } from "./clock.ts";
@@ -549,11 +549,26 @@ export class TenantOrchestrator {
         continue;
       }
       if (this.pausedValue || this.stopping || tenantConfig.requestIntervalSec === 0) continue;
-      const availableRiders = runtime.riders.filter((rider) => rider.state === "idle");
+      const availableRiders = runtime.riders.filter((rider) => rider.canRequest);
       if (availableRiders.length === 0) continue;
       const rider = availableRiders[Math.floor(runtime.random.next() * availableRiders.length)]!;
-      await rider.requestRide({ airportShare: tenantConfig.airportShare, hotspots: tenantConfig.hotspots });
+      const near = tenantConfig.airportShare < 0.5 ? this.nearbyCityDriverLocation(runtime) : undefined;
+      await rider.requestRide({
+        ...(near ? { near } : {}),
+        airportShare: tenantConfig.airportShare,
+        hotspots: tenantConfig.hotspots,
+        preferIntraCity: tenantConfig.airportShare < 0.5,
+      });
     }
+  }
+
+  private nearbyCityDriverLocation(runtime: TenantRuntime): Poi | undefined {
+    for (const driver of runtime.drivers) {
+      if (driver.state !== "idle" || driver.poi === null) continue;
+      const poi = this.options.catalogue.pois.find((candidate) => candidate.name === driver.poi);
+      if (poi && poi.kind !== "airport") return poi;
+    }
+    return undefined;
   }
 
   private scheduleSave(): void {

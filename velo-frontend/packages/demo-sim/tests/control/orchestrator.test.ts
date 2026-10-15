@@ -64,7 +64,7 @@ describe("tenant orchestrator control wiring", () => {
     const initialStatus = orchestrator.status();
     expect(initialStatus).toMatchObject({ ready: true, paused: true, speedFactor: 7, tenants: [{ slug: "default", currency: "USD" }] });
     expect(initialStatus.tenants[0]?.drivers).toHaveLength(6);
-    expect(initialStatus.tenants[0]?.riders).toHaveLength(4);
+    expect(initialStatus.tenants[0]?.riders).toHaveLength(10);
     expect(initialStatus.tenants[0]?.drivers.filter((driver) => driver.state !== "offline")).toHaveLength(1);
     expect(initialStatus).toHaveProperty("uptimeSec");
     expect(initialStatus).toHaveProperty("recentErrors");

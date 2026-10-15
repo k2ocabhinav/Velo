@@ -1,12 +1,18 @@
 package com.velo.platform.configs;
 
+import com.velo.platform.services.TenantBrandingCacheService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.init.DatabasePopulatorUtils;
+import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+
+import javax.sql.DataSource;
 
 @Component
 @Profile("local")
@@ -14,155 +20,168 @@ import org.springframework.transaction.annotation.Transactional;
 public class DemoFixtureTimestampRefresher implements ApplicationRunner {
 
     private static final String DEMO_TENANT_IDS = "SELECT id FROM tenant WHERE slug IN ('default', 'saffron-routes')";
-    private static final String SESSION_REQUEST_IDS = """
+    private static final String FIXTURE_REQUEST_IDS = """
             SELECT request.id
             FROM ride_request request
             JOIN tenant ON tenant.id = request.tenant_id
-            JOIN rider ON rider.id = request.rider_id AND rider.tenant_id = tenant.id
-            JOIN app_user ON app_user.id = rider.user_id AND app_user.tenant_id = tenant.id
-            WHERE tenant.slug IN ('default', 'saffron-routes')
-              AND app_user.email IN (
-                  'alice@example.com', 'dave@example.com', 'henry@example.com',
-                  'guest@saffronroutes.demo', 'guest2@saffronroutes.demo'
-              )
-              AND COALESCE(request.external_reference, '') NOT IN (
-                  'DEMO-VELO-PENDING-01', 'DEMO-VELO-SCHEDULED-01', 'DEMO-VELO-SCHEDULED-02',
-                  'DEMO-SAFFRON-PENDING-01', 'DEMO-SAFFRON-SCHEDULED-01', 'DEMO-SAFFRON-SCHEDULED-02',
-                  'DEMO-VELO-RIDE-ENDED-01', 'DEMO-VELO-RIDE-CANCELLED-01', 'DEMO-VELO-RIDE-ONGOING-01',
-                  'DEMO-VELO-RIDE-ENDED-02', 'DEMO-VELO-RIDE-ENDED-03',
-                  'DEMO-SAFFRON-RIDE-ENDED-01', 'DEMO-SAFFRON-RIDE-ENDED-02', 'DEMO-SAFFRON-RIDE-ONGOING-01'
-              )
+            WHERE (tenant.slug = 'default' AND request.external_reference IN (
+                      'DEMO-VELO-PENDING-01', 'DEMO-VELO-SCHEDULED-01', 'DEMO-VELO-SCHEDULED-02',
+                      'DEMO-VELO-RIDE-ENDED-01', 'DEMO-VELO-RIDE-CANCELLED-01', 'DEMO-VELO-RIDE-ONGOING-01',
+                      'DEMO-VELO-RIDE-ENDED-02', 'DEMO-VELO-RIDE-ENDED-03'
+                  ))
+               OR (tenant.slug = 'saffron-routes' AND request.external_reference IN (
+                      'DEMO-SAFFRON-PENDING-01', 'DEMO-SAFFRON-SCHEDULED-01', 'DEMO-SAFFRON-SCHEDULED-02',
+                      'DEMO-SAFFRON-RIDE-ENDED-01', 'DEMO-SAFFRON-RIDE-ENDED-02', 'DEMO-SAFFRON-RIDE-ONGOING-01'
+                  ))
             """;
-    private static final String SESSION_RIDE_IDS = """
+    private static final String FIXTURE_RIDE_IDS = """
             SELECT ride.id
             FROM ride
             JOIN tenant ON tenant.id = ride.tenant_id
-            LEFT JOIN ride_request session_request
-                ON session_request.id = ride.ride_request_id
-               AND session_request.tenant_id = tenant.id
-            WHERE tenant.slug IN ('default', 'saffron-routes')
-              AND (
-                  session_request.id IN (%s)
-                  OR session_request.external_reference IN ('DEMO-VELO-PENDING-01', 'DEMO-SAFFRON-PENDING-01')
-              )
-            """.formatted(SESSION_REQUEST_IDS);
-    private static final String DEMO_FIXTURE_RIDE_REFERENCES = """
-            'DEMO-VELO-ENDED-01', 'DEMO-VELO-CANCELLED-01', 'DEMO-VELO-ONGOING-01',
-            'DEMO-VELO-ENDED-02', 'DEMO-VELO-ENDED-03',
-            'DEMO-SAFFRON-ENDED-01', 'DEMO-SAFFRON-ENDED-02', 'DEMO-SAFFRON-ONGOING-01'
+            WHERE (tenant.slug = 'default' AND ride.external_reference IN (
+                      'DEMO-VELO-ENDED-01', 'DEMO-VELO-CANCELLED-01', 'DEMO-VELO-ONGOING-01',
+                      'DEMO-VELO-ENDED-02', 'DEMO-VELO-ENDED-03'
+                  ))
+               OR (tenant.slug = 'saffron-routes' AND ride.external_reference IN (
+                      'DEMO-SAFFRON-ENDED-01', 'DEMO-SAFFRON-ENDED-02', 'DEMO-SAFFRON-ONGOING-01'
+                  ))
             """;
-    private static final String SIMULATED_USER_IDS = """
-            SELECT app_user.id
-            FROM app_user
-            WHERE app_user.tenant_id IN (%s)
-              AND app_user.simulated = TRUE
-            """.formatted(DEMO_TENANT_IDS);
-    private static final String SIMULATED_RIDER_IDS = """
-            SELECT rider.id
-            FROM rider
-            JOIN app_user ON app_user.id = rider.user_id AND app_user.tenant_id = rider.tenant_id
-            WHERE rider.tenant_id IN (%s)
-              AND app_user.simulated = TRUE
-            """.formatted(DEMO_TENANT_IDS);
-    private static final String SIMULATED_DRIVER_IDS = """
-            SELECT driver.id
-            FROM driver
-            JOIN app_user ON app_user.id = driver.user_id AND app_user.tenant_id = driver.tenant_id
-            WHERE driver.tenant_id IN (%s)
-              AND app_user.simulated = TRUE
-            """.formatted(DEMO_TENANT_IDS);
-    private static final String SIMULATED_REQUEST_IDS = """
-            SELECT request.id
-            FROM ride_request request
-            WHERE request.tenant_id IN (%s)
-              AND request.rider_id IN (%s)
-            """.formatted(DEMO_TENANT_IDS, SIMULATED_RIDER_IDS);
-    private static final String SIMULATED_RIDE_IDS = """
-            SELECT ride.id
-            FROM ride
-            WHERE ride.tenant_id IN (%s)
-              AND (ride.rider_id IN (%s) OR ride.driver_id IN (%s))
-            """.formatted(DEMO_TENANT_IDS, SIMULATED_RIDER_IDS, SIMULATED_DRIVER_IDS);
 
     private final JdbcTemplate jdbcTemplate;
+    private final TenantBrandingCacheService tenantBrandingCacheService;
 
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        removePreviousDemoSessionData();
-        removeSimulatedFleetData();
-        restoreFixtureRequests();
-        restoreFixtureRideRequests();
-        restoreFixtureRides();
+        removeNonFixtureDemoData();
+        repairFixtureRows();
         restoreFixtureOffers();
         restoreFixturePayments();
-        restoreDemoWalletsAndDrivers();
+        restorePresenterWallets();
+        restorePresenterDrivers();
         resetSimulatedFleetState();
         resetDemoNotifications();
+        tenantBrandingCacheService.evict("default");
+        tenantBrandingCacheService.evict("saffron-routes");
     }
 
-    private void removePreviousDemoSessionData() {
-        jdbcTemplate.update("""
-                DELETE FROM admin_dispatch_audit audit
-                WHERE audit.ride_id IN (%s)
-                   OR audit.ride_request_id IN (%s)
-                """.formatted(SESSION_RIDE_IDS, SESSION_REQUEST_IDS));
-
+    private void removeNonFixtureDemoData() {
+        jdbcTemplate.update("DELETE FROM admin_dispatch_audit WHERE tenant_id IN (%s)".formatted(DEMO_TENANT_IDS));
         jdbcTemplate.update("""
                 DELETE FROM ride_offer
-                WHERE ride_request_id IN (%s)
-                   OR ride_request_id IN (
-                       SELECT request.id
-                       FROM ride_request request
-                       JOIN tenant ON tenant.id = request.tenant_id
-                       WHERE tenant.slug IN ('default', 'saffron-routes')
-                         AND request.external_reference IN ('DEMO-VELO-PENDING-01', 'DEMO-SAFFRON-PENDING-01')
-                   )
-                """.formatted(SESSION_REQUEST_IDS));
-
-        jdbcTemplate.update("DELETE FROM promo_code_usage WHERE ride_id IN (%s)".formatted(SESSION_RIDE_IDS));
-        jdbcTemplate.update("DELETE FROM wallet_transaction WHERE ride_id IN (%s)".formatted(SESSION_RIDE_IDS));
-        jdbcTemplate.update("DELETE FROM rating WHERE ride_id IN (%s)".formatted(SESSION_RIDE_IDS));
-        jdbcTemplate.update("DELETE FROM payment WHERE ride_id IN (%s)".formatted(SESSION_RIDE_IDS));
-        jdbcTemplate.update("DELETE FROM driver_earning WHERE ride_id IN (%s)".formatted(SESSION_RIDE_IDS));
-        jdbcTemplate.update("DELETE FROM ride WHERE id IN (%s)".formatted(SESSION_RIDE_IDS));
-        jdbcTemplate.update("DELETE FROM ride_request WHERE id IN (%s)".formatted(SESSION_REQUEST_IDS));
-    }
-
-    private void removeSimulatedFleetData() {
-        jdbcTemplate.update("""
-                DELETE FROM admin_dispatch_audit
-                WHERE ride_id IN (%s)
-                   OR ride_request_id IN (%s)
-                """.formatted(SIMULATED_RIDE_IDS, SIMULATED_REQUEST_IDS));
-
-        jdbcTemplate.update("""
-                DELETE FROM ride_offer
-                WHERE ride_request_id IN (%s)
-                   OR driver_id IN (%s)
-                """.formatted(SIMULATED_REQUEST_IDS, SIMULATED_DRIVER_IDS));
-
-        jdbcTemplate.update("DELETE FROM promo_code_usage WHERE ride_id IN (%s)".formatted(SIMULATED_RIDE_IDS));
-        jdbcTemplate.update("DELETE FROM wallet_transaction WHERE ride_id IN (%s)".formatted(SIMULATED_RIDE_IDS));
+                WHERE tenant_id IN (%s)
+                  AND ride_request_id NOT IN (
+                      SELECT request.id FROM ride_request request
+                      WHERE request.tenant_id IN (%s)
+                        AND request.external_reference IN ('DEMO-VELO-PENDING-01', 'DEMO-SAFFRON-PENDING-01')
+                  )
+                """.formatted(DEMO_TENANT_IDS, DEMO_TENANT_IDS));
+        jdbcTemplate.update("DELETE FROM promo_code_usage WHERE tenant_id IN (%s) AND (ride_id IS NULL OR ride_id NOT IN (%s))"
+                .formatted(DEMO_TENANT_IDS, FIXTURE_RIDE_IDS));
+        jdbcTemplate.update("DELETE FROM wallet_transaction WHERE tenant_id IN (%s) AND (ride_id IS NULL OR ride_id NOT IN (%s))"
+                .formatted(DEMO_TENANT_IDS, FIXTURE_RIDE_IDS));
         jdbcTemplate.update("""
                 DELETE FROM rating
-                WHERE ride_id IN (%s)
-                   OR rider_id IN (%s)
-                   OR driver_id IN (%s)
-                """.formatted(SIMULATED_RIDE_IDS, SIMULATED_RIDER_IDS, SIMULATED_DRIVER_IDS));
+                WHERE ride_id IN (
+                    SELECT ride.id FROM ride
+                    WHERE ride.tenant_id IN (%s) AND ride.id NOT IN (%s)
+                )
+                """.formatted(DEMO_TENANT_IDS, FIXTURE_RIDE_IDS));
+        jdbcTemplate.update("DELETE FROM payment WHERE tenant_id IN (%s) AND (ride_id IS NULL OR ride_id NOT IN (%s))"
+                .formatted(DEMO_TENANT_IDS, FIXTURE_RIDE_IDS));
+        jdbcTemplate.update("DELETE FROM driver_earning WHERE tenant_id IN (%s) AND ride_id NOT IN (%s)"
+                .formatted(DEMO_TENANT_IDS, FIXTURE_RIDE_IDS));
+        jdbcTemplate.update("DELETE FROM ride WHERE tenant_id IN (%s) AND id NOT IN (%s)"
+                .formatted(DEMO_TENANT_IDS, FIXTURE_RIDE_IDS));
+        jdbcTemplate.update("DELETE FROM ride_request WHERE tenant_id IN (%s) AND id NOT IN (%s)"
+                .formatted(DEMO_TENANT_IDS, FIXTURE_REQUEST_IDS));
+    }
+
+    private void repairFixtureRows() {
+        DataSource dataSource = jdbcTemplate.getDataSource();
+        if (dataSource == null) {
+            throw new IllegalStateException("The demo fixture refresher requires a configured data source.");
+        }
+        DatabasePopulatorUtils.execute(
+                new ResourceDatabasePopulator(new ClassPathResource("db/demo-migration/demo_fixture_repair.sql")),
+                dataSource);
+    }
+
+    private void restoreFixtureOffers() {
         jdbcTemplate.update("""
-                DELETE FROM payment
-                WHERE ride_id IN (%s)
-                   OR user_id IN (%s)
-                """.formatted(SIMULATED_RIDE_IDS, SIMULATED_USER_IDS));
+                DELETE FROM ride_offer
+                WHERE tenant_id IN (%s)
+                  AND ride_request_id IN (
+                      SELECT id FROM ride_request
+                      WHERE tenant_id IN (%s)
+                        AND external_reference IN ('DEMO-VELO-PENDING-01', 'DEMO-SAFFRON-PENDING-01')
+                  )
+                """.formatted(DEMO_TENANT_IDS, DEMO_TENANT_IDS));
         jdbcTemplate.update("""
-                DELETE FROM driver_earning
-                WHERE ride_id IN (%s)
-                   OR driver_id IN (%s)
-                """.formatted(SIMULATED_RIDE_IDS, SIMULATED_DRIVER_IDS));
-        jdbcTemplate.update("DELETE FROM ride WHERE id IN (%s)".formatted(SIMULATED_RIDE_IDS));
-        jdbcTemplate.update("DELETE FROM ride_request WHERE id IN (%s)".formatted(SIMULATED_REQUEST_IDS));
-        jdbcTemplate.update("DELETE FROM notification WHERE user_id IN (%s)".formatted(SIMULATED_USER_IDS));
+                INSERT INTO ride_offer (
+                    ride_request_id, driver_id, status, offered_at, expires_at, version, tenant_id
+                )
+                SELECT request.id, driver.id, 'OFFERED', NOW(), NOW() + INTERVAL '90 seconds', 0, tenant.id
+                FROM ride_request request
+                JOIN tenant ON tenant.id = request.tenant_id
+                JOIN app_user driver_user ON driver_user.email = CASE tenant.slug
+                    WHEN 'default' THEN 'carol.driver@example.com'
+                    ELSE 'chauffeur2@saffronroutes.demo'
+                END AND driver_user.tenant_id = tenant.id
+                JOIN driver ON driver.user_id = driver_user.id AND driver.tenant_id = tenant.id
+                WHERE (tenant.slug = 'default' AND request.external_reference = 'DEMO-VELO-PENDING-01')
+                   OR (tenant.slug = 'saffron-routes' AND request.external_reference = 'DEMO-SAFFRON-PENDING-01')
+                """);
+    }
+
+    private void restoreFixturePayments() {
+        jdbcTemplate.update("DELETE FROM payment WHERE tenant_id IN (%s) AND ride_id IN (%s)"
+                .formatted(DEMO_TENANT_IDS, FIXTURE_RIDE_IDS));
+        jdbcTemplate.update("""
+                INSERT INTO payment (
+                    payment_method, user_id, ride_id, amount, payment_status, payment_time, version, tenant_id
+                )
+                SELECT ride.payment_method, rider.user_id, ride.id, ride.fare,
+                       CASE ride.ride_status WHEN 'ENDED' THEN 'CONFIRMED' ELSE 'PENDING' END,
+                       CASE WHEN ride.ride_status = 'ENDED' THEN ride.ended_at + INTERVAL '1 minute' ELSE NULL END,
+                       0, ride.tenant_id
+                FROM ride
+                JOIN rider ON rider.id = ride.rider_id AND rider.tenant_id = ride.tenant_id
+                WHERE ride.id IN (%s)
+                  AND ride.ride_status IN ('ONGOING', 'ENDED')
+                """.formatted(FIXTURE_RIDE_IDS));
+    }
+
+    private void restorePresenterDrivers() {
+        jdbcTemplate.update("""
+                UPDATE driver
+                SET available = FALSE
+                FROM app_user
+                JOIN tenant ON tenant.id = app_user.tenant_id
+                WHERE driver.user_id = app_user.id
+                  AND driver.tenant_id = tenant.id
+                  AND tenant.slug IN ('default', 'saffron-routes')
+                  AND app_user.email IN (
+                      'bob.driver@example.com', 'carol.driver@example.com',
+                      'chauffeur1@saffronroutes.demo', 'chauffeur2@saffronroutes.demo'
+                  )
+                """);
+    }
+
+    private void restorePresenterWallets() {
+        jdbcTemplate.update("""
+                UPDATE wallet
+                SET balance = CASE app_user.email
+                    WHEN 'henry@example.com' THEN 2500.00
+                    WHEN 'guest@saffronroutes.demo' THEN 25000.00
+                    WHEN 'guest2@saffronroutes.demo' THEN 25000.00
+                END
+                FROM app_user
+                JOIN tenant ON tenant.id = app_user.tenant_id
+                WHERE wallet.user_id = app_user.id
+                  AND tenant.slug IN ('default', 'saffron-routes')
+                  AND app_user.email IN ('henry@example.com', 'guest@saffronroutes.demo', 'guest2@saffronroutes.demo')
+                """);
     }
 
     private void resetSimulatedFleetState() {
@@ -180,7 +199,6 @@ public class DemoFixtureTimestampRefresher implements ApplicationRunner {
                   AND tenant.slug IN ('default', 'saffron-routes')
                   AND app_user.simulated = TRUE
                 """);
-
         jdbcTemplate.update("""
                 UPDATE driver
                 SET available = FALSE,
@@ -197,286 +215,8 @@ public class DemoFixtureTimestampRefresher implements ApplicationRunner {
                 """);
     }
 
-    private void restoreFixtureRequests() {
-        jdbcTemplate.update("""
-                UPDATE ride_request
-                SET ride_request_status = 'PENDING',
-                    requested_time = NOW() - INTERVAL '4 minutes',
-                    scheduled_time = NULL,
-                    pickup_address = CASE external_reference
-                        WHEN 'DEMO-VELO-PENDING-01' THEN 'Cubbon Park, Bengaluru'
-                        ELSE 'Trinity Circle, Bengaluru'
-                    END,
-                    drop_off_address = 'Kempegowda International Airport, Terminal 1'
-                WHERE external_reference IN ('DEMO-VELO-PENDING-01', 'DEMO-SAFFRON-PENDING-01')
-                  AND tenant_id IN (%s)
-                """.formatted(DEMO_TENANT_IDS));
-
-        jdbcTemplate.update("""
-                UPDATE ride_request
-                SET ride_request_status = 'SCHEDULED',
-                    requested_time = NOW(),
-                    scheduled_time = CASE external_reference
-                        WHEN 'DEMO-VELO-SCHEDULED-01' THEN NOW() + INTERVAL '1 day'
-                        WHEN 'DEMO-VELO-SCHEDULED-02' THEN NOW() + INTERVAL '3 days'
-                        WHEN 'DEMO-SAFFRON-SCHEDULED-01' THEN NOW() + INTERVAL '2 hours'
-                        ELSE NOW() + INTERVAL '4 hours'
-                    END,
-                    pickup_address = CASE external_reference
-                        WHEN 'DEMO-VELO-SCHEDULED-01' THEN 'Taj West End, Bengaluru'
-                        WHEN 'DEMO-VELO-SCHEDULED-02' THEN 'Indiranagar Metro, Bengaluru'
-                        WHEN 'DEMO-SAFFRON-SCHEDULED-01' THEN 'ITC Gardenia, Bengaluru'
-                        ELSE 'Taj West End, Bengaluru'
-                    END,
-                    drop_off_address = CASE external_reference
-                        WHEN 'DEMO-VELO-SCHEDULED-01' THEN 'UB City, Bengaluru'
-                        WHEN 'DEMO-SAFFRON-SCHEDULED-02' THEN 'KSR Bengaluru City Railway Station'
-                        ELSE 'Kempegowda International Airport, Terminal 1'
-                    END
-                WHERE tenant_id IN (%s)
-                  AND external_reference IN (
-                      'DEMO-VELO-SCHEDULED-01', 'DEMO-VELO-SCHEDULED-02',
-                      'DEMO-SAFFRON-SCHEDULED-01', 'DEMO-SAFFRON-SCHEDULED-02'
-                  )
-                """.formatted(DEMO_TENANT_IDS));
-    }
-
-    private void restoreFixtureRideRequests() {
-        jdbcTemplate.update("""
-                UPDATE ride_request request
-                SET ride_request_status = seed.request_status,
-                    requested_time = NOW() - seed.age_days * INTERVAL '1 day',
-                    scheduled_time = NULL,
-                    pickup_location = ST_SetSRID(ST_MakePoint(seed.pickup_lon, seed.pickup_lat), 4326),
-                    drop_off_location = ST_SetSRID(ST_MakePoint(seed.drop_lon, seed.drop_lat), 4326),
-                    pickup_address = seed.pickup_address,
-                    drop_off_address = seed.drop_address,
-                    fare = seed.fare
-                FROM (VALUES
-                    ('DEMO-VELO-RIDE-ENDED-01', 'default', 'EXPIRED', 4, 77.5946::DOUBLE PRECISION, 12.9716::DOUBLE PRECISION, 77.6200::DOUBLE PRECISION, 12.9350::DOUBLE PRECISION, 640.00::NUMERIC, 'Cubbon Park, Bengaluru', 'JP Nagar, Bengaluru'),
-                    ('DEMO-VELO-RIDE-CANCELLED-01', 'default', 'CANCELLED', 3, 77.5848::DOUBLE PRECISION, 12.9507::DOUBLE PRECISION, 77.5946::DOUBLE PRECISION, 12.9716::DOUBLE PRECISION, 90.00::NUMERIC, 'Lalbagh Botanical Garden, Bengaluru', 'Cubbon Park, Bengaluru'),
-                    ('DEMO-VELO-RIDE-ONGOING-01', 'default', 'CONFIRMED', 0, 77.5946::DOUBLE PRECISION, 12.9716::DOUBLE PRECISION, 77.6200::DOUBLE PRECISION, 12.9350::DOUBLE PRECISION, 640.00::NUMERIC, 'Cubbon Park, Bengaluru', 'JP Nagar, Bengaluru'),
-                    ('DEMO-VELO-RIDE-ENDED-02', 'default', 'EXPIRED', 3, 77.5846::DOUBLE PRECISION, 12.9842::DOUBLE PRECISION, 77.5963::DOUBLE PRECISION, 12.9716::DOUBLE PRECISION, 200.00::NUMERIC, 'Taj West End, Bengaluru', 'UB City, Bengaluru'),
-                    ('DEMO-VELO-RIDE-ENDED-03', 'default', 'EXPIRED', 2, 77.5946::DOUBLE PRECISION, 12.9716::DOUBLE PRECISION, 77.6200::DOUBLE PRECISION, 12.9350::DOUBLE PRECISION, 640.00::NUMERIC, 'Cubbon Park, Bengaluru', 'JP Nagar, Bengaluru'),
-                    ('DEMO-SAFFRON-RIDE-ENDED-01', 'saffron-routes', 'EXPIRED', 2, 77.6200::DOUBLE PRECISION, 12.9350::DOUBLE PRECISION, 77.7060::DOUBLE PRECISION, 13.1986::DOUBLE PRECISION, 1450.00::NUMERIC, 'JP Nagar, Bengaluru', 'Kempegowda International Airport, Terminal 1'),
-                    ('DEMO-SAFFRON-RIDE-ENDED-02', 'saffron-routes', 'EXPIRED', 1, 77.5950::DOUBLE PRECISION, 12.9750::DOUBLE PRECISION, 77.6100::DOUBLE PRECISION, 12.9700::DOUBLE PRECISION, 825.00::NUMERIC, 'Cubbon Park, Bengaluru', 'Trinity Circle, Bengaluru'),
-                    ('DEMO-SAFFRON-RIDE-ONGOING-01', 'saffron-routes', 'CONFIRMED', 0, 77.6100::DOUBLE PRECISION, 12.9350::DOUBLE PRECISION, 77.7060::DOUBLE PRECISION, 13.1986::DOUBLE PRECISION, 1580.00::NUMERIC, 'JP Nagar, Bengaluru', 'Kempegowda International Airport, Terminal 1')
-                ) AS seed(reference, tenant_slug, request_status, age_days, pickup_lon, pickup_lat, drop_lon, drop_lat, fare, pickup_address, drop_address)
-                JOIN tenant ON tenant.slug = seed.tenant_slug
-                WHERE request.tenant_id = tenant.id
-                  AND request.external_reference = seed.reference
-                """);
-    }
-
-    private void restoreFixtureRides() {
-        jdbcTemplate.update("""
-                UPDATE ride
-                SET rider_id = (
-                        SELECT rider.id FROM rider
-                        JOIN app_user ON app_user.id = rider.user_id
-                        JOIN tenant ON tenant.id = rider.tenant_id
-                        WHERE tenant.slug = 'default' AND app_user.email = 'alice@example.com'
-                    ),
-                    driver_id = (
-                        SELECT driver.id FROM driver
-                        JOIN app_user ON app_user.id = driver.user_id
-                        JOIN tenant ON tenant.id = driver.tenant_id
-                        WHERE tenant.slug = 'default' AND app_user.email = 'carol.driver@example.com'
-                    ),
-                    pickup_location = ST_SetSRID(ST_MakePoint(77.5946, 12.9716), 4326),
-                    drop_off_location = ST_SetSRID(ST_MakePoint(77.6200, 12.9350), 4326),
-                    created_time = NOW() - INTERVAL '18 minutes',
-                    started_at = NOW() - INTERVAL '9 minutes',
-                    ended_at = NULL,
-                    payment_method = 'CASH',
-                    ride_status = 'ONGOING',
-                    fare = 640.00
-                WHERE tenant_id = (SELECT id FROM tenant WHERE slug = 'default')
-                  AND external_reference = 'DEMO-VELO-ONGOING-01'
-                """);
-
-        jdbcTemplate.update("""
-                UPDATE ride
-                SET rider_id = (
-                        SELECT rider.id FROM rider
-                        JOIN app_user ON app_user.id = rider.user_id
-                        JOIN tenant ON tenant.id = rider.tenant_id
-                        WHERE tenant.slug = 'saffron-routes' AND app_user.email = 'guest@saffronroutes.demo'
-                    ),
-                    driver_id = (
-                        SELECT driver.id FROM driver
-                        JOIN app_user ON app_user.id = driver.user_id
-                        JOIN tenant ON tenant.id = driver.tenant_id
-                        WHERE tenant.slug = 'saffron-routes' AND app_user.email = 'chauffeur2@saffronroutes.demo'
-                    ),
-                    pickup_location = ST_SetSRID(ST_MakePoint(77.6100, 12.9350), 4326),
-                    drop_off_location = ST_SetSRID(ST_MakePoint(77.7060, 13.1986), 4326),
-                    created_time = NOW() - INTERVAL '16 minutes',
-                    started_at = NOW() - INTERVAL '7 minutes',
-                    ended_at = NULL,
-                    payment_method = 'CASH',
-                    ride_status = 'ONGOING',
-                    fare = 1580.00
-                WHERE tenant_id = (SELECT id FROM tenant WHERE slug = 'saffron-routes')
-                  AND external_reference = 'DEMO-SAFFRON-ONGOING-01'
-                """);
-
-        jdbcTemplate.update("""
-                UPDATE ride
-                SET ride_status = 'ENDED',
-                    created_time = NOW() - CASE external_reference
-                        WHEN 'DEMO-VELO-ENDED-01' THEN INTERVAL '4 days'
-                        WHEN 'DEMO-VELO-ENDED-02' THEN INTERVAL '3 days'
-                        WHEN 'DEMO-VELO-ENDED-03' THEN INTERVAL '2 days'
-                        WHEN 'DEMO-SAFFRON-ENDED-01' THEN INTERVAL '2 days'
-                        ELSE INTERVAL '1 day'
-                    END,
-                    started_at = NOW() - CASE external_reference
-                        WHEN 'DEMO-VELO-ENDED-01' THEN INTERVAL '4 days' - INTERVAL '33 minutes'
-                        WHEN 'DEMO-VELO-ENDED-02' THEN INTERVAL '3 days' - INTERVAL '33 minutes'
-                        WHEN 'DEMO-VELO-ENDED-03' THEN INTERVAL '2 days' - INTERVAL '33 minutes'
-                        WHEN 'DEMO-SAFFRON-ENDED-01' THEN INTERVAL '2 days' - INTERVAL '33 minutes'
-                        ELSE INTERVAL '1 day' - INTERVAL '33 minutes'
-                    END,
-                    ended_at = NOW() - CASE external_reference
-                        WHEN 'DEMO-VELO-ENDED-01' THEN INTERVAL '4 days' - INTERVAL '58 minutes'
-                        WHEN 'DEMO-VELO-ENDED-02' THEN INTERVAL '3 days' - INTERVAL '58 minutes'
-                        WHEN 'DEMO-VELO-ENDED-03' THEN INTERVAL '2 days' - INTERVAL '58 minutes'
-                        WHEN 'DEMO-SAFFRON-ENDED-01' THEN INTERVAL '2 days' - INTERVAL '58 minutes'
-                        ELSE INTERVAL '1 day' - INTERVAL '58 minutes'
-                    END
-                WHERE external_reference IN (%s)
-                  AND external_reference NOT IN ('DEMO-VELO-ONGOING-01', 'DEMO-SAFFRON-ONGOING-01', 'DEMO-VELO-CANCELLED-01')
-                  AND tenant_id IN (%s)
-                """.formatted(DEMO_FIXTURE_RIDE_REFERENCES, DEMO_TENANT_IDS));
-
-        jdbcTemplate.update("""
-                UPDATE ride
-                SET ride_status = 'CANCELLED', started_at = NULL, ended_at = NULL
-                WHERE tenant_id = (SELECT id FROM tenant WHERE slug = 'default')
-                  AND external_reference = 'DEMO-VELO-CANCELLED-01'
-                """);
-
-        jdbcTemplate.update("""
-                UPDATE ride
-                SET ride_request_id = request.id,
-                    pickup_location = request.pickup_location,
-                    drop_off_location = request.drop_off_location
-                FROM ride_request request
-                WHERE ride.tenant_id = request.tenant_id
-                  AND request.external_reference = CASE ride.external_reference
-                      WHEN 'DEMO-VELO-ENDED-01' THEN 'DEMO-VELO-RIDE-ENDED-01'
-                      WHEN 'DEMO-VELO-CANCELLED-01' THEN 'DEMO-VELO-RIDE-CANCELLED-01'
-                      WHEN 'DEMO-VELO-ONGOING-01' THEN 'DEMO-VELO-RIDE-ONGOING-01'
-                      WHEN 'DEMO-VELO-ENDED-02' THEN 'DEMO-VELO-RIDE-ENDED-02'
-                      WHEN 'DEMO-VELO-ENDED-03' THEN 'DEMO-VELO-RIDE-ENDED-03'
-                      WHEN 'DEMO-SAFFRON-ENDED-01' THEN 'DEMO-SAFFRON-RIDE-ENDED-01'
-                      WHEN 'DEMO-SAFFRON-ENDED-02' THEN 'DEMO-SAFFRON-RIDE-ENDED-02'
-                      WHEN 'DEMO-SAFFRON-ONGOING-01' THEN 'DEMO-SAFFRON-RIDE-ONGOING-01'
-                  END
-                """);
-    }
-
-    private void restoreFixtureOffers() {
-        jdbcTemplate.update("""
-                DELETE FROM ride_offer
-                WHERE ride_request_id IN (
-                    SELECT id FROM ride_request
-                    WHERE external_reference IN ('DEMO-VELO-PENDING-01', 'DEMO-SAFFRON-PENDING-01')
-                      AND tenant_id IN (%s)
-                )
-                """.formatted(DEMO_TENANT_IDS));
-
-        jdbcTemplate.update("""
-                INSERT INTO ride_offer (
-                    ride_request_id, driver_id, status, offered_at, expires_at, version, tenant_id
-                )
-                SELECT request.id, driver.id, 'OFFERED', NOW(),
-                       NOW() + INTERVAL '90 seconds', 0, tenant.id
-                FROM ride_request request
-                JOIN tenant ON tenant.id = request.tenant_id
-                JOIN app_user driver_user ON driver_user.email = CASE tenant.slug
-                    WHEN 'default' THEN 'carol.driver@example.com'
-                    ELSE 'chauffeur2@saffronroutes.demo'
-                END
-                JOIN driver ON driver.user_id = driver_user.id AND driver.tenant_id = tenant.id
-                WHERE (tenant.slug = 'default' AND request.external_reference = 'DEMO-VELO-PENDING-01')
-                   OR (tenant.slug = 'saffron-routes' AND request.external_reference = 'DEMO-SAFFRON-PENDING-01')
-                """);
-    }
-
-    private void restoreFixturePayments() {
-        jdbcTemplate.update("""
-                UPDATE payment payment
-                SET payment_method = ride.payment_method,
-                    user_id = rider.user_id,
-                    amount = ride.fare,
-                    payment_status = CASE ride.ride_status WHEN 'ENDED' THEN 'CONFIRMED' ELSE 'PENDING' END,
-                    payment_time = CASE WHEN ride.ride_status = 'ENDED' THEN ride.ended_at + INTERVAL '1 minute' ELSE NULL END,
-                    tenant_id = ride.tenant_id
-                FROM ride
-                JOIN rider ON rider.id = ride.rider_id AND rider.tenant_id = ride.tenant_id
-                WHERE payment.ride_id = ride.id
-                  AND ride.external_reference IN (%s)
-                  AND ride.tenant_id IN (%s)
-                """.formatted(DEMO_FIXTURE_RIDE_REFERENCES, DEMO_TENANT_IDS));
-
-        jdbcTemplate.update("""
-                INSERT INTO payment (
-                    payment_method, user_id, ride_id, amount, payment_status, payment_time, version, tenant_id
-                )
-                SELECT ride.payment_method, rider.user_id, ride.id, ride.fare,
-                       CASE ride.ride_status WHEN 'ENDED' THEN 'CONFIRMED' ELSE 'PENDING' END,
-                       CASE WHEN ride.ride_status = 'ENDED' THEN ride.ended_at + INTERVAL '1 minute' ELSE NULL END,
-                       0, ride.tenant_id
-                FROM ride
-                JOIN rider ON rider.id = ride.rider_id AND rider.tenant_id = ride.tenant_id
-                WHERE ride.external_reference IN (%s)
-                  AND ride.tenant_id IN (%s)
-                  AND ride.ride_status IN ('ONGOING', 'ENDED')
-                  AND NOT EXISTS (SELECT 1 FROM payment WHERE payment.ride_id = ride.id)
-                """.formatted(DEMO_FIXTURE_RIDE_REFERENCES, DEMO_TENANT_IDS));
-    }
-
-    private void restoreDemoWalletsAndDrivers() {
-        jdbcTemplate.update("""
-                UPDATE wallet
-                SET balance = CASE app_user.email
-                    WHEN 'henry@example.com' THEN 2500.00
-                    WHEN 'guest@saffronroutes.demo' THEN 25000.00
-                    WHEN 'guest2@saffronroutes.demo' THEN 25000.00
-                    ELSE wallet.balance
-                END
-                FROM app_user
-                JOIN tenant ON tenant.id = app_user.tenant_id
-                WHERE wallet.user_id = app_user.id
-                  AND tenant.slug IN ('default', 'saffron-routes')
-                  AND app_user.email IN ('henry@example.com', 'guest@saffronroutes.demo', 'guest2@saffronroutes.demo')
-                """);
-
-        jdbcTemplate.update("""
-                UPDATE driver
-                SET available = CASE app_user.email
-                    WHEN 'bob.driver@example.com' THEN TRUE
-                    WHEN 'carol.driver@example.com' THEN FALSE
-                    WHEN 'chauffeur1@saffronroutes.demo' THEN TRUE
-                    ELSE FALSE
-                END
-                FROM app_user
-                JOIN tenant ON tenant.id = app_user.tenant_id
-                WHERE driver.user_id = app_user.id
-                  AND driver.tenant_id = tenant.id
-                  AND tenant.slug IN ('default', 'saffron-routes')
-                  AND app_user.email IN (
-                      'bob.driver@example.com', 'carol.driver@example.com',
-                      'chauffeur1@saffronroutes.demo', 'chauffeur2@saffronroutes.demo'
-                  )
-                """);
-    }
-
     private void resetDemoNotifications() {
         jdbcTemplate.update("DELETE FROM notification WHERE tenant_id IN (%s)".formatted(DEMO_TENANT_IDS));
-
         jdbcTemplate.update("""
                 INSERT INTO notification (user_id, title, message, type, reference_id, read, created_time, version, tenant_id)
                 SELECT app_user.id,
@@ -491,7 +231,7 @@ public class DemoFixtureTimestampRefresher implements ApplicationRunner {
                 JOIN app_user ON app_user.email = CASE tenant.slug
                     WHEN 'default' THEN 'carol.driver@example.com'
                     ELSE 'chauffeur2@saffronroutes.demo'
-                END
+                END AND app_user.tenant_id = tenant.id
                 WHERE (tenant.slug = 'default' AND request.external_reference = 'DEMO-VELO-PENDING-01')
                    OR (tenant.slug = 'saffron-routes' AND request.external_reference = 'DEMO-SAFFRON-PENDING-01')
                 """);

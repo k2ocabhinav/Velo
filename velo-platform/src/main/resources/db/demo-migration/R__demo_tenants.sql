@@ -110,9 +110,9 @@ SELECT app_user.id, seed.vehicle_id, seed.rating, seed.available, 'APPROVED',
        ST_SetSRID(ST_MakePoint(seed.longitude, seed.latitude), 4326),
        TIMESTAMP '2026-10-01 09:30:00', 0, tenant.id
 FROM (VALUES
-    ('bob.driver@example.com', 'KA03MN4102', 4.9::DOUBLE PRECISION, TRUE, 77.5946::DOUBLE PRECISION, 12.9716::DOUBLE PRECISION, 'default'),
+    ('bob.driver@example.com', 'KA03MN4102', 4.9::DOUBLE PRECISION, FALSE, 77.5946::DOUBLE PRECISION, 12.9716::DOUBLE PRECISION, 'default'),
     ('carol.driver@example.com', 'KA05QR7731', 4.8::DOUBLE PRECISION, FALSE, 77.6090::DOUBLE PRECISION, 12.9800::DOUBLE PRECISION, 'default'),
-    ('chauffeur1@saffronroutes.demo', 'KA03ST2408', 4.9::DOUBLE PRECISION, TRUE, 77.6060::DOUBLE PRECISION, 12.9660::DOUBLE PRECISION, 'saffron-routes'),
+    ('chauffeur1@saffronroutes.demo', 'KA03ST2408', 4.9::DOUBLE PRECISION, FALSE, 77.6060::DOUBLE PRECISION, 12.9660::DOUBLE PRECISION, 'saffron-routes'),
     ('chauffeur2@saffronroutes.demo', 'KA03UV5816', 4.8::DOUBLE PRECISION, FALSE, 77.6200::DOUBLE PRECISION, 12.9850::DOUBLE PRECISION, 'saffron-routes')
 ) AS seed(email, vehicle_id, rating, available, longitude, latitude, tenant_slug)
 JOIN app_user ON app_user.email = seed.email
@@ -255,7 +255,7 @@ SELECT ST_SetSRID(ST_MakePoint(seed.pickup_lon, seed.pickup_lat), 4326),
        seed.fare, 0, tenant.id, seed.customer_name, app_user.phone_number,
        seed.pickup_address, seed.drop_address, seed.external_reference
 FROM (VALUES
-    ('guest@saffronroutes.demo', 'Ananya Shah', 77.5950::DOUBLE PRECISION, 12.9666::DOUBLE PRECISION, 77.7060::DOUBLE PRECISION, 13.1986::DOUBLE PRECISION, 2, 1350.00::NUMERIC, 'ITC Gardenia, Bengaluru', 'Kempegowda International Airport, Terminal 1', 'DEMO-SAFFRON-SCHEDULED-01'),
+    ('guest2@saffronroutes.demo', 'Rohan Mehta', 77.5950::DOUBLE PRECISION, 12.9666::DOUBLE PRECISION, 77.7060::DOUBLE PRECISION, 13.1986::DOUBLE PRECISION, 2, 1350.00::NUMERIC, 'ITC Gardenia, Bengaluru', 'Kempegowda International Airport, Terminal 1', 'DEMO-SAFFRON-SCHEDULED-01'),
     ('guest2@saffronroutes.demo', 'Rohan Mehta', 77.5846::DOUBLE PRECISION, 12.9842::DOUBLE PRECISION, 77.5713::DOUBLE PRECISION, 12.9767::DOUBLE PRECISION, 3, 820.00::NUMERIC, 'Taj West End, Bengaluru', 'KSR Bengaluru City Railway Station', 'DEMO-SAFFRON-SCHEDULED-02')
 ) AS seed(email, customer_name, pickup_lon, pickup_lat, drop_lon, drop_lat, advance_days, fare, pickup_address, drop_address, external_reference)
 JOIN tenant ON tenant.slug = 'saffron-routes'
@@ -264,6 +264,17 @@ JOIN rider ON rider.user_id = app_user.id
 WHERE NOT EXISTS (
     SELECT 1 FROM ride_request existing WHERE existing.external_reference = seed.external_reference
 );
+
+UPDATE ride_request request
+SET rider_id = rider.id,
+    customer_name = concat(app_user.first_name, ' ', app_user.last_name),
+    customer_phone = app_user.phone_number
+FROM tenant
+JOIN app_user ON app_user.email = 'guest2@saffronroutes.demo' AND app_user.tenant_id = tenant.id
+JOIN rider ON rider.user_id = app_user.id AND rider.tenant_id = tenant.id
+WHERE tenant.slug = 'saffron-routes'
+  AND request.tenant_id = tenant.id
+  AND request.external_reference = 'DEMO-SAFFRON-SCHEDULED-01';
 
 INSERT INTO ride_request (
     pickup_location, drop_off_location, requested_time, rider_id, payment_method,
@@ -479,7 +490,7 @@ SELECT ST_SetSRID(ST_MakePoint(77.6100, 12.9350), 4326),
        NOW() - INTERVAL '16 minutes', NOW() - INTERVAL '7 minutes', NULL,
        rider.id, driver.id, 'CASH', 'ONGOING', 1580.00, '4826', 'DEMO-SAFFRON-ONGOING-01', 0, tenant.id
 FROM tenant
-JOIN app_user rider_user ON rider_user.email = 'guest@saffronroutes.demo'
+JOIN app_user rider_user ON rider_user.email = 'guest2@saffronroutes.demo'
 JOIN rider ON rider.user_id = rider_user.id AND rider.tenant_id = tenant.id
 JOIN app_user driver_user ON driver_user.email = 'chauffeur2@saffronroutes.demo'
 JOIN driver ON driver.user_id = driver_user.id AND driver.tenant_id = tenant.id
@@ -505,7 +516,7 @@ FROM (VALUES
     ('DEMO-VELO-RIDE-ENDED-03', 'default', 'alice@example.com', 'EXPIRED', 2, 77.5946::DOUBLE PRECISION, 12.9716::DOUBLE PRECISION, 77.6200::DOUBLE PRECISION, 12.9350::DOUBLE PRECISION, 640.00::NUMERIC, 'Cubbon Park, Bengaluru', 'JP Nagar, Bengaluru'),
     ('DEMO-SAFFRON-RIDE-ENDED-01', 'saffron-routes', 'guest@saffronroutes.demo', 'EXPIRED', 2, 77.6200::DOUBLE PRECISION, 12.9350::DOUBLE PRECISION, 77.7060::DOUBLE PRECISION, 13.1986::DOUBLE PRECISION, 1450.00::NUMERIC, 'JP Nagar, Bengaluru', 'Kempegowda International Airport, Terminal 1'),
     ('DEMO-SAFFRON-RIDE-ENDED-02', 'saffron-routes', 'guest2@saffronroutes.demo', 'EXPIRED', 1, 77.5950::DOUBLE PRECISION, 12.9750::DOUBLE PRECISION, 77.6100::DOUBLE PRECISION, 12.9700::DOUBLE PRECISION, 825.00::NUMERIC, 'Cubbon Park, Bengaluru', 'Trinity Circle, Bengaluru'),
-    ('DEMO-SAFFRON-RIDE-ONGOING-01', 'saffron-routes', 'guest@saffronroutes.demo', 'CONFIRMED', 0, 77.6100::DOUBLE PRECISION, 12.9350::DOUBLE PRECISION, 77.7060::DOUBLE PRECISION, 13.1986::DOUBLE PRECISION, 1580.00::NUMERIC, 'JP Nagar, Bengaluru', 'Kempegowda International Airport, Terminal 1')
+    ('DEMO-SAFFRON-RIDE-ONGOING-01', 'saffron-routes', 'guest2@saffronroutes.demo', 'CONFIRMED', 0, 77.6100::DOUBLE PRECISION, 12.9350::DOUBLE PRECISION, 77.7060::DOUBLE PRECISION, 13.1986::DOUBLE PRECISION, 1580.00::NUMERIC, 'JP Nagar, Bengaluru', 'Kempegowda International Airport, Terminal 1')
 ) AS seed(request_reference, tenant_slug, rider_email, request_status, age_days, pickup_lon, pickup_lat, drop_lon, drop_lat, fare, pickup_address, drop_address)
 JOIN tenant ON tenant.slug = seed.tenant_slug
 JOIN app_user ON app_user.email = seed.rider_email AND app_user.tenant_id = tenant.id
@@ -543,8 +554,20 @@ WHERE request.external_reference IN (
     'DEMO-SAFFRON-RIDE-ENDED-02', 'DEMO-SAFFRON-RIDE-ONGOING-01'
 );
 
+UPDATE ride_request request
+SET rider_id = rider.id,
+    customer_name = concat(app_user.first_name, ' ', app_user.last_name),
+    customer_phone = app_user.phone_number
+FROM tenant
+JOIN app_user ON app_user.email = 'guest2@saffronroutes.demo' AND app_user.tenant_id = tenant.id
+JOIN rider ON rider.user_id = app_user.id AND rider.tenant_id = tenant.id
+WHERE tenant.slug = 'saffron-routes'
+  AND request.tenant_id = tenant.id
+  AND request.external_reference IN ('DEMO-SAFFRON-SCHEDULED-01', 'DEMO-SAFFRON-RIDE-ONGOING-01');
+
 UPDATE ride
 SET ride_request_id = request.id,
+    rider_id = request.rider_id,
     pickup_location = request.pickup_location,
     drop_off_location = request.drop_off_location
 FROM ride_request request
@@ -559,6 +582,34 @@ WHERE ride.tenant_id = request.tenant_id
       WHEN 'DEMO-SAFFRON-ENDED-02' THEN 'DEMO-SAFFRON-RIDE-ENDED-02'
       WHEN 'DEMO-SAFFRON-ONGOING-01' THEN 'DEMO-SAFFRON-RIDE-ONGOING-01'
   END;
+
+-- Recreate the two Velo fixture rides even if the original V2 rows were changed or deleted.
+INSERT INTO ride (
+    pickup_location, drop_off_location, created_time, started_at, ended_at, rider_id, driver_id,
+    payment_method, ride_status, fare, otp, ride_request_id, external_reference, version, tenant_id
+)
+SELECT request.pickup_location, request.drop_off_location,
+       NOW() - seed.age_minutes * INTERVAL '1 minute',
+       CASE WHEN seed.ride_status = 'ONGOING' THEN NOW() - seed.started_minutes * INTERVAL '1 minute'
+            ELSE NOW() - seed.age_minutes * INTERVAL '1 minute' + INTERVAL '25 minutes' END,
+       CASE WHEN seed.ride_status = 'ONGOING' THEN NULL
+            ELSE NOW() - seed.age_minutes * INTERVAL '1 minute' + INTERVAL '58 minutes' END,
+       rider.id, driver.id, 'CASH', seed.ride_status, seed.fare, seed.otp,
+       request.id, seed.external_reference, 0, tenant.id
+FROM (VALUES
+    ('DEMO-VELO-ONGOING-01', 'DEMO-VELO-RIDE-ONGOING-01', 'alice@example.com', 'carol.driver@example.com', 'ONGOING', 18, 9, 640.00::NUMERIC, '2468'),
+    ('DEMO-VELO-ENDED-02', 'DEMO-VELO-RIDE-ENDED-02', 'dave@example.com', 'bob.driver@example.com', 'ENDED', 4320, 4295, 200.00::NUMERIC, '1357')
+) AS seed(external_reference, request_reference, rider_email, driver_email, ride_status, age_minutes, started_minutes, fare, otp)
+JOIN tenant ON tenant.slug = 'default'
+JOIN ride_request request ON request.tenant_id = tenant.id AND request.external_reference = seed.request_reference
+JOIN app_user rider_user ON rider_user.email = seed.rider_email AND rider_user.tenant_id = tenant.id
+JOIN rider ON rider.user_id = rider_user.id AND rider.tenant_id = tenant.id
+JOIN app_user driver_user ON driver_user.email = seed.driver_email AND driver_user.tenant_id = tenant.id
+JOIN driver ON driver.user_id = driver_user.id AND driver.tenant_id = tenant.id
+WHERE NOT EXISTS (
+    SELECT 1 FROM ride existing
+    WHERE existing.tenant_id = tenant.id AND existing.external_reference = seed.external_reference
+);
 
 INSERT INTO payment (payment_method, user_id, ride_id, amount, payment_status, payment_time, version, tenant_id)
 SELECT ride.payment_method, rider.user_id, ride.id, ride.fare, 'PENDING', NULL, 0, ride.tenant_id
@@ -617,6 +668,9 @@ WHERE tenant.slug = 'saffron-routes'
   );
 
 -- Seed a small, repeatable operator history for each tenant's fixture fleet.
+DELETE FROM admin_dispatch_audit
+WHERE tenant_id IN (SELECT id FROM tenant WHERE slug IN ('default', 'saffron-routes'));
+
 INSERT INTO admin_dispatch_audit (
     action_type, actor_user_id, ride_request_id, ride_id, previous_driver_id, next_driver_id,
     reason, created_at, tenant_id
@@ -649,8 +703,3 @@ WHERE NOT EXISTS (
       AND existing.action_type = seed.action_type
       AND existing.reason = seed.reason
 );
-
--- Replace the internal fixture wording on the seeded assignment history with operator-facing copy.
-UPDATE admin_dispatch_audit
-SET reason = 'Assigned nearest available driver'
-WHERE reason = 'Initial seeded assignment history entry.';

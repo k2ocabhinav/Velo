@@ -25,13 +25,13 @@ describe("defaultConfig", () => {
 
     expect(config).toEqual({
       paused: false,
-      speedFactor: 1,
+      speedFactor: 8,
       seed: 7,
       tenants: {
         default: {
           onlineDrivers: 6,
           requestIntervalSec: 75,
-          airportShare: 0.4,
+          airportShare: 0.1,
           declineProbability: 0.15,
           pickupWaitSec: [15, 30],
           idleRepositionProbability: 0.3,
@@ -40,7 +40,7 @@ describe("defaultConfig", () => {
         "saffron-routes": {
           onlineDrivers: 6,
           requestIntervalSec: 75,
-          airportShare: 0.4,
+          airportShare: 0.1,
           declineProbability: 0.15,
           pickupWaitSec: [15, 30],
           idleRepositionProbability: 0.3,
@@ -167,7 +167,7 @@ describe("applyConfigPatch globals", () => {
   it("creates a tenant that is known to the context but absent from the config", () => {
     const partial: SimConfig = {
       paused: false,
-      speedFactor: 1,
+      speedFactor: 8,
       seed: 1,
       tenants: { default: steadyTenantConfig(ctx, 6) },
     };
@@ -314,7 +314,7 @@ describe("applyConfigPatch tenant fields", () => {
     const config = baseConfig();
     const result = applyConfigPatch(
       config,
-      { tenants: { default: { onlineDrivers: 99, airportShare: 0.4 } } },
+      { tenants: { default: { onlineDrivers: 99, airportShare: 0.1 } } },
       ctx,
     );
 

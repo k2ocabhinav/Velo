@@ -1,5 +1,6 @@
 package com.velo.platform.configs;
 
+import com.velo.platform.services.TenantBrandingCacheService;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,6 +17,8 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 /**
  * Runs the demo fixture refresher against a freshly migrated schema so the SQL is exercised with the
@@ -33,6 +36,7 @@ class DemoFixtureTimestampRefresherIntegrationTest {
 
     private String schemaName;
     private JdbcTemplate jdbcTemplate;
+    private TenantBrandingCacheService tenantBrandingCacheService;
 
     @BeforeEach
     void migrateScratchSchema() throws Exception {
@@ -53,6 +57,7 @@ class DemoFixtureTimestampRefresherIntegrationTest {
         var dataSource = new DriverManagerDataSource(
                 JDBC_URL + "?currentSchema=" + schemaName + ",public", JDBC_USERNAME, JDBC_PASSWORD);
         jdbcTemplate = new JdbcTemplate(dataSource);
+        tenantBrandingCacheService = mock(TenantBrandingCacheService.class);
     }
 
     @AfterEach
@@ -64,7 +69,7 @@ class DemoFixtureTimestampRefresherIntegrationTest {
     }
 
     @Test
-    void run_resetsOnlyTheNamedDemoFixturesAndLeavesUnrelatedRowsUntouched() {
+    void run_repairsFixturesAndRemovesNonFixtureDemoSessionData() {
         long veloId = tenantId("default");
         long fixtureRequestId = requestIdByReference("DEMO-VELO-PENDING-01");
         long henryRiderId = riderId("henry@example.com");
@@ -80,8 +85,8 @@ class DemoFixtureTimestampRefresherIntegrationTest {
 
         long unrelatedUserId = insertUser("ordinary.local@example.com", false, veloId);
         long unrelatedRiderId = insertRider(unrelatedUserId, veloId);
-        LocalDateTime unrelatedScheduledAt = LocalDateTime.of(2026, 11, 3, 14, 30);
-        long unrelatedRequestId = insertRequest(unrelatedRiderId, veloId, "SCHEDULED", null, unrelatedScheduledAt);
+        long unrelatedRequestId = insertRequest(unrelatedRiderId, veloId, "SCHEDULED", null,
+                LocalDateTime.of(2026, 11, 3, 14, 30));
         long unrelatedRideId = insertRide(unrelatedRiderId, driverId("bob.driver@example.com"), veloId,
                 "CANCELLED", "2468", null, null, new BigDecimal("99.00"));
 
@@ -96,14 +101,69 @@ class DemoFixtureTimestampRefresherIntegrationTest {
         long frankScheduledId = requestIdByReference("DEMO-VELO-SCHEDULED-02");
         assertThat(requestStatusOf(frankScheduledId)).isEqualTo("SCHEDULED");
         assertThat(requestRiderEmailOf(frankScheduledId)).isEqualTo("frank@example.com");
-        assertThat(requestStatusOf(unrelatedRequestId)).isEqualTo("SCHEDULED");
-        assertThat(scheduledTimeOf(unrelatedRequestId)).isEqualTo(unrelatedScheduledAt);
-        assertThat(rideStatusOf(unrelatedRideId)).isEqualTo("CANCELLED");
-        assertThat(fareOf(unrelatedRideId)).isEqualByComparingTo("99.00");
+        assertThat(count("ride_request", "id", unrelatedRequestId)).isZero();
+        assertThat(count("ride", "id", unrelatedRideId)).isZero();
     }
 
     @Test
-    void run_removesOnlyTheSimulatedFleetOfTheDemoTenantsAndLeavesRealRowsUntouched() {
+    void run_repairsMutatedDatabaseToTheExactFixtureSet() {
+        long veloId = tenantId("default");
+        deleteFixtureRide("DEMO-VELO-ONGOING-01", "DEMO-VELO-RIDE-ONGOING-01");
+        deleteFixtureRide("DEMO-VELO-ENDED-02", "DEMO-VELO-RIDE-ENDED-02");
+
+        long aliceId = riderId("alice@example.com");
+        long staleRequestId = insertRequest(aliceId, veloId, "PENDING", null, null);
+        long staleRideId = insertRide(aliceId, driverId("carol.driver@example.com"), veloId,
+                "ONGOING", "1357", staleRequestId, null, new BigDecimal("150.00"));
+        insertOffer(staleRequestId, driverId("carol.driver@example.com"), veloId);
+        insertPayment(userId("alice@example.com"), staleRideId, veloId);
+        insertEarning(driverId("carol.driver@example.com"), staleRideId, veloId);
+        insertRating(staleRideId, aliceId, driverId("carol.driver@example.com"));
+        insertWalletTransaction(staleRideId, walletId("alice@example.com"), veloId);
+        insertNotification(userId("alice@example.com"), veloId);
+        insertAudit(staleRequestId, staleRideId, veloId);
+        insertAudit(requestIdByReference("DEMO-VELO-RIDE-ENDED-01"),
+                rideIdByReference("DEMO-VELO-ENDED-01"), veloId);
+
+        runRefresher();
+
+        assertThat(fixtureReferences("ride", "external_reference", "default"))
+                .containsExactly(
+                        "DEMO-VELO-CANCELLED-01", "DEMO-VELO-ENDED-01", "DEMO-VELO-ENDED-02",
+                        "DEMO-VELO-ENDED-03", "DEMO-VELO-ONGOING-01");
+        assertThat(fixtureReferences("ride", "external_reference", "saffron-routes"))
+                .containsExactly(
+                        "DEMO-SAFFRON-ENDED-01", "DEMO-SAFFRON-ENDED-02", "DEMO-SAFFRON-ONGOING-01");
+        assertThat(fixtureReferences("ride_request", "external_reference", "default"))
+                .containsExactly(
+                        "DEMO-VELO-PENDING-01", "DEMO-VELO-RIDE-CANCELLED-01", "DEMO-VELO-RIDE-ENDED-01",
+                        "DEMO-VELO-RIDE-ENDED-02", "DEMO-VELO-RIDE-ENDED-03", "DEMO-VELO-RIDE-ONGOING-01",
+                        "DEMO-VELO-SCHEDULED-01", "DEMO-VELO-SCHEDULED-02");
+        assertThat(fixtureReferences("ride_request", "external_reference", "saffron-routes"))
+                .containsExactly(
+                        "DEMO-SAFFRON-PENDING-01", "DEMO-SAFFRON-RIDE-ENDED-01", "DEMO-SAFFRON-RIDE-ENDED-02",
+                        "DEMO-SAFFRON-RIDE-ONGOING-01", "DEMO-SAFFRON-SCHEDULED-01", "DEMO-SAFFRON-SCHEDULED-02");
+
+        assertThat(count("ride", "id", staleRideId)).isZero();
+        assertThat(count("ride_request", "id", staleRequestId)).isZero();
+        assertThat(count("ride_offer", "ride_request_id", staleRequestId)).isZero();
+        assertThat(count("payment", "ride_id", staleRideId)).isZero();
+        assertThat(count("driver_earning", "ride_id", staleRideId)).isZero();
+        assertThat(count("rating", "ride_id", staleRideId)).isZero();
+        assertThat(count("wallet_transaction", "ride_id", staleRideId)).isZero();
+        assertThat(auditCount("default")).isEqualTo(3);
+        assertThat(auditCount("saffron-routes")).isEqualTo(3);
+        assertThat(riderEmailOfRide(rideIdByReference("DEMO-VELO-ONGOING-01"))).isEqualTo("alice@example.com");
+        assertThat(driverEmailOfRide(rideIdByReference("DEMO-VELO-ONGOING-01")))
+                .isEqualTo("carol.driver@example.com");
+        assertThat(rideStatusOf(rideIdByReference("DEMO-VELO-ONGOING-01"))).isEqualTo("ONGOING");
+        assertThat(rideStatusOf(rideIdByReference("DEMO-VELO-ENDED-02"))).isEqualTo("ENDED");
+        assertThat(addressForRide("DEMO-VELO-ONGOING-01"))
+                .containsExactly("Cubbon Park, Bengaluru", "JP Nagar, Bengaluru");
+    }
+
+    @Test
+    void run_removesNonFixtureRowsForRealAndSimulatedDemoAccounts() {
         long veloId = tenantId("default");
         long saffronId = tenantId("saffron-routes");
 
@@ -161,13 +221,13 @@ class DemoFixtureTimestampRefresherIntegrationTest {
         assertThat(count("ride", "id", simGuestRideId)).isZero();
         assertThat(count("ride_request", "id", simGuestRequestId)).isZero();
 
-        assertThat(count("ride", "id", realRideId)).isEqualTo(1);
-        assertThat(count("ride_request", "id", realRequestId)).isEqualTo(1);
-        assertThat(count("ride_offer", "ride_request_id", realRequestId)).isEqualTo(1);
-        assertThat(count("payment", "ride_id", realRideId)).isEqualTo(1);
-        assertThat(count("driver_earning", "ride_id", realRideId)).isEqualTo(1);
-        assertThat(count("rating", "ride_id", realRideId)).isEqualTo(1);
-        assertThat(count("wallet_transaction", "ride_id", realRideId)).isEqualTo(1);
+        assertThat(count("ride", "id", realRideId)).isZero();
+        assertThat(count("ride_request", "id", realRequestId)).isZero();
+        assertThat(count("ride_offer", "ride_request_id", realRequestId)).isZero();
+        assertThat(count("payment", "ride_id", realRideId)).isZero();
+        assertThat(count("driver_earning", "ride_id", realRideId)).isZero();
+        assertThat(count("rating", "ride_id", realRideId)).isZero();
+        assertThat(count("wallet_transaction", "ride_id", realRideId)).isZero();
         assertThat(count("ride", "external_reference", "DEMO-VELO-ENDED-01")).isEqualTo(1);
 
         assertThat(balanceOf("rider1@sim.velobusiness.demo")).isEqualByComparingTo("5000.00");
@@ -181,7 +241,7 @@ class DemoFixtureTimestampRefresherIntegrationTest {
     }
 
     @Test
-    void run_keepsFixtureOffersOffPresenterDriversWithARealisticDisplayWindow() {
+    void run_keepsPresenterAccountsFreeOfOpenFixturesAndOffers() {
         runRefresher();
         runRefresher();
 
@@ -195,6 +255,28 @@ class DemoFixtureTimestampRefresherIntegrationTest {
         assertThat(offerTtlSeconds("DEMO-SAFFRON-PENDING-01")).isEqualTo(90.0);
         assertThat(fixtureNotificationCount("DEMO-SAFFRON-PENDING-01", "chauffeur1@saffronroutes.demo")).isZero();
         assertThat(fixtureNotificationCount("DEMO-SAFFRON-PENDING-01", "chauffeur2@saffronroutes.demo")).isEqualTo(1);
+        assertThat(driverAvailable("bob.driver@example.com")).isFalse();
+        assertThat(driverAvailable("chauffeur1@saffronroutes.demo")).isFalse();
+
+        for (String presenterRider : List.of("henry@example.com", "guest@saffronroutes.demo")) {
+            assertThat(openFixtureRequestCount(presenterRider)).as("open fixtures for %s", presenterRider).isZero();
+            assertThat(activeFixtureRideCountForRider(presenterRider))
+                    .as("active fixture rides for %s", presenterRider).isZero();
+        }
+        for (String presenterDriver : List.of("bob.driver@example.com", "chauffeur1@saffronroutes.demo")) {
+            assertThat(activeFixtureRideCountForDriver(presenterDriver))
+                    .as("active fixture rides for %s", presenterDriver).isZero();
+            assertThat(offeredFixtureCount(presenterDriver))
+                    .as("offered fixture rides for %s", presenterDriver).isZero();
+        }
+        assertThat(requestRiderEmailOf(requestIdByReference("DEMO-SAFFRON-SCHEDULED-01")))
+                .isEqualTo("guest2@saffronroutes.demo");
+        assertThat(requestRiderEmailOf(requestIdByReference("DEMO-SAFFRON-RIDE-ONGOING-01")))
+                .isEqualTo("guest2@saffronroutes.demo");
+        assertThat(riderEmailOfRide(rideIdByReference("DEMO-SAFFRON-ONGOING-01")))
+                .isEqualTo("guest2@saffronroutes.demo");
+        assertThat(riderEmailOfRide(rideIdByReference("DEMO-SAFFRON-ENDED-01")))
+                .isEqualTo("guest@saffronroutes.demo");
     }
 
     @Test
@@ -218,17 +300,62 @@ class DemoFixtureTimestampRefresherIntegrationTest {
 
     @Test
     void seed_containsThreeOperatorAuditRowsForEachDemoTenant() {
-        assertThat(auditCount("default")).isGreaterThanOrEqualTo(3);
-        assertThat(auditCount("saffron-routes")).isGreaterThanOrEqualTo(3);
+        assertThat(auditCount("default")).isEqualTo(3);
+        assertThat(auditCount("saffron-routes")).isEqualTo(3);
 
         runRefresher();
 
-        assertThat(auditCount("default")).isGreaterThanOrEqualTo(3);
-        assertThat(auditCount("saffron-routes")).isGreaterThanOrEqualTo(3);
+        assertThat(auditCount("default")).isEqualTo(3);
+        assertThat(auditCount("saffron-routes")).isEqualTo(3);
+    }
+
+    @Test
+    void run_invalidatesOnlyDemoTenantBrandingCacheEntries() {
+        runRefresher();
+
+        verify(tenantBrandingCacheService).evict("default");
+        verify(tenantBrandingCacheService).evict("saffron-routes");
     }
 
     private void runRefresher() {
-        new DemoFixtureTimestampRefresher(jdbcTemplate).run(null);
+        new DemoFixtureTimestampRefresher(jdbcTemplate, tenantBrandingCacheService).run(null);
+    }
+
+    private void deleteFixtureRide(String rideReference, String requestReference) {
+        jdbcTemplate.update("""
+                DELETE FROM admin_dispatch_audit
+                WHERE ride_id IN (SELECT id FROM ride WHERE external_reference = ?)
+                   OR ride_request_id IN (SELECT id FROM ride_request WHERE external_reference = ?)
+                """, rideReference, requestReference);
+        jdbcTemplate.update("DELETE FROM payment WHERE ride_id IN (SELECT id FROM ride WHERE external_reference = ?)",
+                rideReference);
+        jdbcTemplate.update("DELETE FROM driver_earning WHERE ride_id IN (SELECT id FROM ride WHERE external_reference = ?)",
+                rideReference);
+        jdbcTemplate.update("DELETE FROM rating WHERE ride_id IN (SELECT id FROM ride WHERE external_reference = ?)",
+                rideReference);
+        jdbcTemplate.update("DELETE FROM wallet_transaction WHERE ride_id IN (SELECT id FROM ride WHERE external_reference = ?)",
+                rideReference);
+        jdbcTemplate.update("DELETE FROM ride WHERE external_reference = ?", rideReference);
+        jdbcTemplate.update("DELETE FROM ride_request WHERE external_reference = ?", requestReference);
+    }
+
+    private List<String> fixtureReferences(String table, String column, String tenantSlug) {
+        return jdbcTemplate.queryForList("""
+                SELECT %s FROM %s
+                JOIN tenant ON tenant.id = %s.tenant_id
+                WHERE tenant.slug = ?
+                ORDER BY %s
+                """.formatted(column, table, table, column), String.class, tenantSlug);
+    }
+
+    private void insertAudit(long requestId, long rideId, long tenantId) {
+        jdbcTemplate.update("""
+                INSERT INTO admin_dispatch_audit (
+                    action_type, actor_user_id, ride_request_id, ride_id, previous_driver_id, next_driver_id,
+                    reason, created_at, tenant_id
+                ) VALUES ('REASSIGN_RIDE', ?, ?, ?, ?, ?, 'Test stale demo ride', NOW(), ?)
+                """, userId("admin@velo-platform.com"), requestId, rideId,
+                driverId("bob.driver@example.com"), driverId("carol.driver@example.com"), tenantId);
     }
 
     private long tenantId(String slug) {
@@ -270,6 +397,48 @@ class DemoFixtureTimestampRefresherIntegrationTest {
                 JOIN ride_request request ON request.id = offer.ride_request_id
                 WHERE request.external_reference = ? AND offer.status = 'OFFERED'
                 """, Long.class, requestReference);
+    }
+
+    private long openFixtureRequestCount(String email) {
+        return jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM ride_request request
+                JOIN rider ON rider.id = request.rider_id
+                JOIN app_user ON app_user.id = rider.user_id
+                WHERE app_user.email = ?
+                  AND request.external_reference LIKE 'DEMO-%'
+                  AND request.ride_request_status IN ('PENDING', 'CONFIRMED', 'ONGOING', 'SCHEDULED')
+                """, Long.class, email);
+    }
+
+    private long activeFixtureRideCountForRider(String email) {
+        return activeFixtureRideCount("rider", email);
+    }
+
+    private long activeFixtureRideCountForDriver(String email) {
+        return activeFixtureRideCount("driver", email);
+    }
+
+    private long activeFixtureRideCount(String roleTable, String email) {
+        return jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM ride
+                JOIN %s ON %s.id = ride.%s_id
+                JOIN app_user ON app_user.id = %s.user_id
+                WHERE app_user.email = ?
+                  AND ride.external_reference LIKE 'DEMO-%%'
+                  AND ride.ride_status IN ('CONFIRMED', 'ONGOING')
+                """.formatted(roleTable, roleTable, roleTable, roleTable), Long.class, email);
+    }
+
+    private long offeredFixtureCount(String email) {
+        return jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM ride_offer offer
+                JOIN ride_request request ON request.id = offer.ride_request_id
+                JOIN driver ON driver.id = offer.driver_id
+                JOIN app_user ON app_user.id = driver.user_id
+                WHERE app_user.email = ?
+                  AND request.external_reference LIKE 'DEMO-%'
+                  AND offer.status = 'OFFERED'
+                """, Long.class, email);
     }
 
     private String offeredDriverEmail(String requestReference) {
@@ -520,5 +689,14 @@ class DemoFixtureTimestampRefresherIntegrationTest {
                 FROM driver
                 WHERE id = ?
                 """, String.class, driverId);
+    }
+
+    private boolean driverAvailable(String email) {
+        return Boolean.TRUE.equals(jdbcTemplate.queryForObject("""
+                SELECT driver.available
+                FROM driver
+                JOIN app_user ON app_user.id = driver.user_id
+                WHERE app_user.email = ?
+                """, Boolean.class, email));
     }
 }

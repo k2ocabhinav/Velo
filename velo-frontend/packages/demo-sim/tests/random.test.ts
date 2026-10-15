@@ -36,6 +36,16 @@ describe("seeded simulation random", () => {
     expect(pair[0].id).not.toBe(pair[1].id);
   });
 
+  it("keeps a steady intra-city pair near its driver's city pickup", () => {
+    const pair = pickPoiPair(pois, new SeededRandom(5), {
+      near: pois[1]!,
+      preferIntraCity: true,
+      intraCityPairs: [[pois[1]!, pois[2]!]],
+    });
+
+    expect(pair.map((poi) => poi.id)).toEqual(["hotel", "business"]);
+  });
+
   it("rejects empty and invalid weighted choices", () => {
     expect(() => weightedChoice([], new SeededRandom(1))).toThrow(/positive finite weights/);
     expect(() => poissonDelayMs(new SeededRandom(1), 0)).toThrow(/Speed factor/);

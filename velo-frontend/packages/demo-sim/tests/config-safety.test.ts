@@ -8,7 +8,7 @@ describe("CLI and simulator safety", () => {
       apiBaseUrl: "http://localhost:8080",
       controlPort: 8790,
       seed: 42,
-      speed: 4,
+      speed: 8,
       paused: false,
       tenants: ["default", "saffron-routes"],
     });
@@ -31,7 +31,8 @@ describe("CLI and simulator safety", () => {
     const validated = validateOptions(parseCliArgs(["--api", "http://saffron-routes.localhost:8080/", "--tenants", "saffron-routes"]), "1");
     expect(validated.apiBaseUrl).toBe("http://saffron-routes.localhost:8080");
     expect(SIM_TENANTS["saffron-routes"].drivers).toHaveLength(6);
-    expect(SIM_TENANTS.default.riders).toHaveLength(4);
+    expect(SIM_TENANTS.default.riders).toHaveLength(10);
+    expect(SIM_TENANTS["saffron-routes"].riders).toHaveLength(10);
     expect(SIM_TENANTS.default.drivers.map((driver) => driver.vehicleId)).toEqual([
       "KA01SV1001", "KA01SV1002", "KA01SV1003", "KA01SV1004", "KA01SV1005", "KA01SV1006",
     ]);

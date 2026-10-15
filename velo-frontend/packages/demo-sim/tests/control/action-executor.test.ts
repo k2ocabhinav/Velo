@@ -28,9 +28,111 @@ describe("control actions execute against simulator bots and APIs", () => {
     expect(harness.riderApis[0]!.requests[0]).toMatchObject({ pickupAddress: "Test Hotel", dropOffAddress: "Airport Terminal" });
 
     const burst = await harness.executor.execute("burst", { tenant: "default", count: 3, near: "hotel" });
-    expect(burst.refs).toEqual({ rideRequestId: 102, plannedCount: 3 });
+    expect(burst.refs?.plannedCount).toBe(3);
+    expect(Number.isSafeInteger(burst.refs?.rideRequestId)).toBe(true);
     await flushMicrotasks();
-    expect(harness.riderApis.slice(1).every((api) => api.requests.length === 1)).toBe(true);
+    expect(harness.riderApis.reduce((total, api) => total + api.requests.length, 0)).toBe(4);
+    expect(harness.riderApis.filter((api) => api.requests.length === 1)).toHaveLength(4);
+    await harness.close();
+  });
+
+  it("keeps steady requests on short city routes while airport-rush retains airport legs", async () => {
+    const harness = await makeHarness();
+    const steady = await harness.executor.execute("request-trip", { tenant: "default" });
+    const steadyPlan = harness.registry.get(steady.refs?.rideRequestId as number)!;
+    const steadyRoute = harness.catalogue.routes[`${steadyPlan.pickup.id}>${steadyPlan.dropOff.id}`]!;
+    expect(steadyRoute.distanceM).toBeLessThan(15_000);
+    expect(steadyRoute.durationS).toBeLessThan(12 * 60);
+
+    harness.setAirportShare(0.8);
+    const airportRush = await harness.executor.execute("request-trip", { tenant: "default" });
+    const airportPlan = harness.registry.get(airportRush.refs?.rideRequestId as number)!;
+    expect(airportPlan.pickup.kind === "airport" || airportPlan.dropOff.kind === "airport").toBe(true);
+    await harness.close();
+  });
+
+  it("reports the same clear conflict for trip and burst actions when no guest is idle", async () => {
+    const harness = await makeHarness();
+    harness.riders.forEach((rider, index) => { rider.activeRequestId = 900 + index; });
+
+    await expect(harness.executor.execute("request-trip", { tenant: "default" }))
+      .rejects.toMatchObject({ status: 409, message: "All simulated guests are on transfers — try again in a moment" });
+    await expect(harness.executor.execute("burst", { tenant: "default", count: 2 }))
+      .rejects.toMatchObject({ status: 409, message: "All simulated guests are on transfers — try again in a moment" });
+
+    harness.riders.forEach((rider) => { rider.activeRequestId = null; });
+    await harness.close();
+  });
+
+  it("tries another idle guest when the selected rider has a stale backend request", async () => {
+    const harness = await makeHarness();
+    const conflictingApi = harness.riderApis[5]!;
+    conflictingApi.requestRide = async (payload) => {
+      conflictingApi.requests.push(payload);
+      conflictingApi.activeRideOverride = { rideRequestId: 700, status: "PENDING" };
+      throw new ApiError(409, "Rider already has an active request");
+    };
+    conflictingApi.cancelRiderRequest = async (requestId) => {
+      conflictingApi.calls.push(`rider cancel request ${requestId}`);
+      conflictingApi.activeRideOverride = null;
+    };
+
+    const result = await harness.executor.execute("request-trip", { tenant: "default" });
+
+    expect(result.refs).toEqual({ rideRequestId: 105 });
+    expect(result.summary).toContain("Leah Parker requested");
+    expect(conflictingApi.calls).toContain("rider cancel request 700");
+    expect(harness.riders[5]!.canRequest).toBe(true);
+    expect(harness.riderApis[4]!.requests).toHaveLength(1);
+    await harness.close();
+  });
+
+  it("cancels an ongoing backend ride during fleet reset", async () => {
+    const harness = await makeHarness();
+    const rider = harness.riders[0]!;
+    const riderApi = harness.riderApis[0]!;
+    const requestId = await rider.requestRide({ from: harness.catalogue.pois[0], to: harness.catalogue.pois[1] });
+    expect(requestId).toBe(101);
+    riderApi.activeRideOverride = { rideId: 611, rideRequestId: requestId, status: "ONGOING" };
+
+    const reset = await harness.executor.execute("reset-fleet", { tenant: "default" });
+
+    expect(reset.summary).toContain("cancelled 1 bot request");
+    expect(riderApi.calls).toContain("rider cancel 611");
+    expect(rider.activeRequestId).toBeNull();
+    await harness.close();
+  });
+
+  it("releases a rider after repeated request API conflicts so a later trip can proceed", async () => {
+    const harness = await makeHarness();
+    const rider = harness.riders[0]!;
+    const riderApi = harness.riderApis[0]!;
+    const requestRide = riderApi.requestRide.bind(riderApi);
+    const cancelRequest = riderApi.cancelRiderRequest.bind(riderApi);
+    let conflictsRemaining = 2;
+    riderApi.requestRide = async (payload) => {
+      if (conflictsRemaining > 0) {
+        conflictsRemaining -= 1;
+        riderApi.activeRideOverride = { rideRequestId: 700 + conflictsRemaining, status: "PENDING" };
+        throw new ApiError(409, "Rider already has an active request");
+      }
+      return requestRide(payload);
+    };
+    riderApi.cancelRiderRequest = async (id) => {
+      await cancelRequest(id);
+      riderApi.activeRideOverride = null;
+    };
+
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      await expect(harness.executor.execute("request-trip", { tenant: "default", rider: "rider1" }))
+        .rejects.toMatchObject({ status: 409 });
+      expect(rider.canRequest).toBe(true);
+    }
+    const result = await harness.executor.execute("request-trip", { tenant: "default", rider: "rider1" });
+
+    expect(result.refs).toEqual({ rideRequestId: 101 });
+    expect(riderApi.calls.filter((call) => call.startsWith("rider cancel request "))).toHaveLength(2);
+    expect(rider.state).toBe("requested");
     await harness.close();
   });
 
@@ -202,6 +304,7 @@ interface Harness {
   events: Array<{ type: string; message: string }>;
   shutdown: AbortController;
   setPaused(paused: boolean): void;
+  setAirportShare(share: number): void;
   close(): Promise<void>;
 }
 
@@ -300,6 +403,7 @@ async function makeHarness(gatedStart = false, clock: FakeClock = new FakeClock(
     clock, catalogue, driver, driverApi, riderApis, riders, registry, executor, events,
     shutdown,
     setPaused(value) { paused = value; },
+    setAirportShare(value) { config.airportShare = value; },
     async close() {
       for (const rider of riders) {
         rider.stop();

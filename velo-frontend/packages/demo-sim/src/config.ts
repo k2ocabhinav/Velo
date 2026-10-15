@@ -35,7 +35,8 @@ export const SIM_TENANTS: Record<TenantSlug, SimTenant> = {
       "Arjun Rao", "Meera Iyer", "Kabir Shah", "Nikhil Menon", "Sana Qureshi", "Rohit Kulkarni",
     ], "KA01SV", 1000),
     riders: accounts("default", "RIDER", "rider", "sim.velobusiness.demo", [
-      "Priya Nair", "Daniel Brooks", "Aisha Khan", "Tom Becker",
+      "Priya Nair", "Daniel Brooks", "Aisha Khan", "Tom Becker", "Leah Parker",
+      "Omar Patel", "Maya Chen", "Ethan Wright", "Sofia Ahmed", "Lucas Meyer",
     ]),
   },
   "saffron-routes": {
@@ -47,7 +48,8 @@ export const SIM_TENANTS: Record<TenantSlug, SimTenant> = {
       "Imran Sheikh", "Lakshmi Prasad", "Vivek Hegde", "Farhan Ali", "Deepa Rao", "Suresh Gowda",
     ], "KA03SS", 2000),
     riders: accounts("saffron-routes", "RIDER", "guest", "sim.saffronroutes.demo", [
-      "Kavya Reddy", "Marco Rossi", "Neha Gupta", "James Wilson",
+      "Kavya Reddy", "Marco Rossi", "Neha Gupta", "James Wilson", "Aanya Rao",
+      "David Kim", "Zara Khan", "Oscar Martin", "Pooja Nair", "Liam Foster",
     ]),
   },
 };
@@ -72,7 +74,7 @@ Options:
   --api <url>                 Local API base URL (default: http://localhost:8080)
   --control-port <port>       Loopback control server port (default: 8790)
   --seed <integer>            Deterministic random seed (default: 42)
-  --speed <factor>            Simulation speed, 1–20 (default: 4)
+  --speed <factor>            Simulation speed, 1–20 (default: 8)
   --state-file <path>         Runtime state file (default: repo/.demo-runtime/sim-state.json)
   --paused                    Start without new rider requests
   --tenants <slugs>           Comma-separated: default,saffron-routes
@@ -126,7 +128,7 @@ export function parseCliArgs(args: string[]): CliOptions {
   const apiBaseUrl = values.get("api") ?? "http://localhost:8080";
   const controlPort = parseInteger(values.get("control-port") ?? "8790", "--control-port");
   const seed = parseInteger(values.get("seed") ?? "42", "--seed");
-  const speed = Number(values.get("speed") ?? "4");
+  const speed = Number(values.get("speed") ?? "8");
   if (!Number.isInteger(speed) || speed < 1 || speed > 20) {
     throw new Error("--speed must be an integer from 1 to 20");
   }
