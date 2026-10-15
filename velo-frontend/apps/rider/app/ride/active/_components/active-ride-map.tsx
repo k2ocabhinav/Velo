@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from "react-leaflet";
 import type { LatLngExpression } from "leaflet";
-import { shouldFitMapBounds, shouldFollowDriverLocation } from "@velo/app-core/map-viewport";
+import { isLeafletMapReady, shouldFitMapBounds, shouldFollowDriverLocation } from "@velo/app-core/map-viewport";
 import type { MapPoint } from "../../../_lib/map/routing";
 import { getTileProviderConfig } from "../../../_lib/map/providers";
 
@@ -23,19 +23,20 @@ function FitBoundsOnce({ points }: { points: MapPoint[] }) {
   const hasFitted = useRef(false);
 
   useEffect(() => {
-    if (!shouldFitMapBounds(hasFitted.current, points.length)) {
+    if (!shouldFitMapBounds(hasFitted.current, points.length) || !isLeafletMapReady(map)) {
       return;
     }
     hasFitted.current = true;
 
     if (points.length === 1) {
-      map.setView(toLatLng(points[0]), 14);
+      map.setView(toLatLng(points[0]), 14, { animate: false });
       return;
     }
 
     map.fitBounds(points.map((point) => [point.lat, point.lng] as [number, number]), {
       padding: [24, 24],
       maxZoom: 15,
+      animate: false,
     });
   }, [map, points]);
 
@@ -46,10 +47,10 @@ function FollowDriver({ follow, driver }: { follow: boolean; driver: MapPoint | 
   const map = useMap();
 
   useEffect(() => {
-    if (!shouldFollowDriverLocation(follow, driver !== null) || !driver) {
+    if (!shouldFollowDriverLocation(follow, driver !== null) || !driver || !isLeafletMapReady(map)) {
       return;
     }
-    map.panTo(toLatLng(driver));
+    map.panTo(toLatLng(driver), { animate: false });
   }, [driver, follow, map]);
 
   return null;

@@ -1,9 +1,13 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import type { LoginPayload } from "../../../login/_lib/auth";
-import { performLoginProxy } from "../../../login/_lib/auth";
+import { handleLoginFormPost, isFormSubmission, performLoginProxy } from "../../../login/_lib/auth";
 
 export async function POST(request: NextRequest) {
+  if (isFormSubmission(request)) {
+    return handleLoginFormPost(request, performLoginProxy);
+  }
+
   let body: LoginPayload;
 
   try {

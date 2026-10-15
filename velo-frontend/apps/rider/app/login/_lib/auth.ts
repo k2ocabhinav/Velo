@@ -9,10 +9,14 @@ import {
   type RegisterPayload,
   extractAuthValues,
   getApiBaseUrl,
+  handleLoginFormPost,
+  handleRegisterFormPost,
+  isFormSubmission,
   performLoginProxy as performSharedLoginProxy,
   performLogoutProxy as performSharedLogoutProxy,
   performRefreshProxy as performSharedRefreshProxy,
   performRegisterProxy as performSharedRegisterProxy,
+  readFormString,
   readResponsePayload,
   sanitizeNextPath
 } from "@velo/app-core/auth";
@@ -25,6 +29,10 @@ export {
   REFRESH_COOKIE_PATH,
   extractAuthValues,
   getApiBaseUrl,
+  handleLoginFormPost,
+  handleRegisterFormPost,
+  isFormSubmission,
+  readFormString,
   readResponsePayload,
   sanitizeNextPath
 };

@@ -12,6 +12,13 @@ export interface RoutePath {
   encodedPolyline?: string | null;
 }
 
+/**
+ * Bound the browser-side routing request. A slow or unreachable OSRM otherwise
+ * leaves the trip map stuck on "Updating route…" forever; a straight-line
+ * fallback is drawn instead.
+ */
+export const ROUTE_REQUEST_TIMEOUT_MS = 4_000;
+
 interface OsrmRouteGeometry {
   coordinates?: Array<[number, number]>;
 }
@@ -101,14 +108,21 @@ export async function fetchRoutePath(
   end: MapPoint,
   fetchImpl: typeof fetch = fetch,
   config: RoutingProviderConfig = getRoutingProviderConfig(),
+  timeoutMs: number = ROUTE_REQUEST_TIMEOUT_MS,
 ): Promise<RoutePath> {
   const requestUrl = buildOsrmRouteUrl(start, end, config);
+  const controller = typeof AbortController === "function" ? new AbortController() : null;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  if (controller) {
+    timer = setTimeout(() => controller.abort(), timeoutMs);
+  }
 
   try {
     const response = await fetchImpl(requestUrl, {
       method: "GET",
       headers: { Accept: "application/json" },
       cache: "no-store",
+      ...(controller ? { signal: controller.signal } : {}),
     });
     if (!response.ok) {
       return buildFallbackRoutePath(start, end);
@@ -118,5 +132,9 @@ export async function fetchRoutePath(
     return parseOsrmRouteResponse(payload) ?? buildFallbackRoutePath(start, end);
   } catch {
     return buildFallbackRoutePath(start, end);
+  } finally {
+    if (timer !== null) {
+      clearTimeout(timer);
+    }
   }
 }

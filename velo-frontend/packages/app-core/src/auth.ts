@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { authErrorCodeFromStatus } from "./auth-errors";
 import { getApiBaseUrl, getEnvValue } from "./env";
 import { getErrorMessage, isRecordLike, readResponsePayload } from "./http-payload";
 import { LOGIN_REDIRECT_FALLBACK, sanitizeNextPath } from "./redirect";
@@ -632,4 +633,143 @@ export async function performRegisterProxy(
   }
 
   return NextResponse.json(payload ?? { ok: true }, { status: 201 });
+}
+
+/**
+ * Auth forms submit natively before React hydrates. A native GET submission
+ * would leak the password into the URL, so the forms post to these BFF routes
+ * instead. These helpers turn the cookie-setting JSON proxy response into a
+ * 303 redirect the browser can follow without JavaScript.
+ */
+export function isFormSubmission(request: Request): boolean {
+  const contentType = request.headers.get("content-type") ?? "";
+  return /application\/x-www-form-urlencoded|multipart\/form-data/i.test(contentType);
+}
+
+/**
+ * A native form post can be triggered cross-site, which would let an attacker
+ * sign a victim into an attacker-controlled account (login CSRF). Only accept
+ * submissions that provably originate from this site.
+ */
+export function isSameOriginFormRequest(request: Request): boolean {
+  const secFetchSite = request.headers.get("sec-fetch-site")?.trim().toLowerCase();
+  if (secFetchSite) {
+    return secFetchSite === "same-origin";
+  }
+
+  const origin = request.headers.get("origin");
+  if (!origin) {
+    return false;
+  }
+
+  let originHost: string;
+  try {
+    originHost = new URL(origin).host.toLowerCase();
+  } catch {
+    return false;
+  }
+
+  if (!originHost) {
+    return false;
+  }
+
+  const expectedHosts = new Set<string>();
+  const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim().toLowerCase();
+  if (forwardedHost) {
+    expectedHosts.add(forwardedHost);
+  }
+  const host = request.headers.get("host")?.trim().toLowerCase();
+  if (host) {
+    expectedHosts.add(host);
+  }
+
+  return expectedHosts.has(originHost);
+}
+
+function forbiddenFormPost(): NextResponse {
+  return NextResponse.json(
+    { error: "Form submissions are only accepted from this site." },
+    { status: 403, headers: { "Cache-Control": "no-store, max-age=0" } }
+  );
+}
+
+export function readFormString(form: FormData, key: string): string {
+  const value = form.get(key);
+  if (typeof value === "string") {
+    return value;
+  }
+  return value === null ? "" : String(value);
+}
+
+function redirectPreservingCookies(
+  source: NextResponse,
+  request: Request,
+  location: string,
+  status = 303
+): NextResponse {
+  const response = NextResponse.redirect(new URL(location, request.url), status);
+  response.headers.set("Cache-Control", "no-store, max-age=0");
+  for (const cookie of source.cookies.getAll()) {
+    response.cookies.set(cookie);
+  }
+  return response;
+}
+
+function buildAuthErrorPath(path: string, code: string, nextPath?: string): string {
+  const params = new URLSearchParams({ error: code });
+  if (nextPath) {
+    params.set("next", nextPath);
+  }
+  return `${path}?${params.toString()}`;
+}
+
+export async function handleLoginFormPost(
+  request: Request,
+  login: (body: LoginPayload) => Promise<NextResponse>,
+  loginPath = "/login"
+): Promise<NextResponse> {
+  if (!isSameOriginFormRequest(request)) {
+    return forbiddenFormPost();
+  }
+
+  const form = await request.formData();
+  const nextPath = sanitizeNextPath(readFormString(form, "next"));
+  const proxyResponse = await login({
+    email: readFormString(form, "email"),
+    password: readFormString(form, "password")
+  });
+
+  if (proxyResponse.ok) {
+    return redirectPreservingCookies(proxyResponse, request, nextPath);
+  }
+
+  const code = authErrorCodeFromStatus(proxyResponse.status, "login");
+  return redirectPreservingCookies(proxyResponse, request, buildAuthErrorPath(loginPath, code, nextPath));
+}
+
+export async function handleRegisterFormPost(
+  request: Request,
+  register: (form: FormData) => Promise<NextResponse>,
+  options: { loginPath?: string; registerPath?: string } = {}
+): Promise<NextResponse> {
+  if (!isSameOriginFormRequest(request)) {
+    return forbiddenFormPost();
+  }
+
+  const loginPath = options.loginPath ?? "/login";
+  const registerPath = options.registerPath ?? "/register";
+  const form = await request.formData();
+  const nextPath = sanitizeNextPath(readFormString(form, "next"));
+
+  const proxyResponse = await register(form);
+  if (!proxyResponse.ok) {
+    const code = authErrorCodeFromStatus(proxyResponse.status, "register");
+    return redirectPreservingCookies(proxyResponse, request, buildAuthErrorPath(registerPath, code, nextPath));
+  }
+
+  const loginTarget =
+    nextPath === LOGIN_REDIRECT_FALLBACK
+      ? loginPath
+      : `${loginPath}?next=${encodeURIComponent(nextPath)}`;
+  return redirectPreservingCookies(proxyResponse, request, loginTarget);
 }

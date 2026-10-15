@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getApiBaseUrl } from "@velo/app-core/env";
+import { handleRegisterFormPost, isFormSubmission, readFormString } from "@velo/app-core/auth";
 
 interface RegisterBody {
   name: string;
@@ -27,6 +28,18 @@ function extractUserId(payload: Record<string, unknown> | null | undefined): unk
 }
 
 export async function POST(request: NextRequest) {
+  if (isFormSubmission(request)) {
+    return handleRegisterFormPost(request, (form) =>
+      registerDriver({
+        name: readFormString(form, "name"),
+        email: readFormString(form, "email"),
+        password: readFormString(form, "password"),
+        vehicleId: readFormString(form, "vehicleId"),
+        referredByCode: readFormString(form, "referredByCode") || undefined,
+      })
+    );
+  }
+
   let body: RegisterBody;
 
   try {
@@ -35,6 +48,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Request body must be JSON." }, { status: 400 });
   }
 
+  return registerDriver(body);
+}
+
+async function registerDriver(body: RegisterBody): Promise<NextResponse> {
   const { name, email, password, vehicleId, referredByCode } = body;
 
   if (!name || !email || !password || !vehicleId) {

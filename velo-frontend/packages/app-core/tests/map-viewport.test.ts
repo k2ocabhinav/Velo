@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { shouldFitMapBounds, shouldFollowDriverLocation } from "../src/map-viewport";
+import { isLeafletMapReady, shouldFitMapBounds, shouldFollowDriverLocation } from "../src/map-viewport";
 
 describe("live map viewport", () => {
   it("fits initial bounds once when locations are available", () => {
@@ -12,5 +12,12 @@ describe("live map viewport", () => {
     expect(shouldFollowDriverLocation(true, true)).toBe(true);
     expect(shouldFollowDriverLocation(false, true)).toBe(false);
     expect(shouldFollowDriverLocation(true, false)).toBe(false);
+  });
+
+  it("detects a live Leaflet map versus one removed on unmount", () => {
+    expect(isLeafletMapReady({ getPane: () => ({}) })).toBe(true);
+    expect(isLeafletMapReady({ getPane: () => undefined })).toBe(false);
+    expect(isLeafletMapReady(null)).toBe(false);
+    expect(isLeafletMapReady(undefined)).toBe(false);
   });
 });
