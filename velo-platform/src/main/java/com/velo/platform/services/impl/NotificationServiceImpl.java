@@ -9,6 +9,7 @@ import com.velo.platform.exceptions.RuntimeConflictException;
 import com.velo.platform.repositories.NotificationRepository;
 import com.velo.platform.security.UserPrincipal;
 import com.velo.platform.services.NotificationService;
+import com.velo.platform.utils.UserDestinations;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
@@ -49,7 +50,7 @@ public class NotificationServiceImpl implements NotificationService {
         
         try {
             messagingTemplate.convertAndSendToUser(
-                    user.getEmail(),
+                    UserDestinations.resolve(user),
                     "/queue/notifications",
                     dto
             );
