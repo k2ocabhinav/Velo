@@ -1,12 +1,20 @@
 package com.velo.platform.services.impl;
 
+import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.RideRequest;
 import com.velo.platform.entities.Ride;
+import com.velo.platform.entities.Rider;
+import com.velo.platform.entities.User;
+import com.velo.platform.entities.enums.DriverOnboardingStatus;
 import com.velo.platform.entities.enums.RideOfferStatus;
 import com.velo.platform.entities.enums.RideRequestStatus;
+import com.velo.platform.entities.enums.RideStatus;
+import com.velo.platform.exceptions.RuntimeConflictException;
+import com.velo.platform.repositories.DriverRepository;
 import com.velo.platform.repositories.RideOfferRepository;
 import com.velo.platform.repositories.RideRequestRepository;
 import com.velo.platform.repositories.RideRepository;
+import com.velo.platform.services.RideService;
 import com.velo.platform.services.TenantScopeService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,8 +30,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -32,6 +42,8 @@ class AdminDispatchServiceImplTest {
     @Mock private RideRequestRepository rideRequestRepository;
     @Mock private RideRepository rideRepository;
     @Mock private RideOfferRepository rideOfferRepository;
+    @Mock private DriverRepository driverRepository;
+    @Mock private RideService rideService;
     @Mock private TenantScopeService tenantScopeService;
     @InjectMocks private AdminDispatchServiceImpl adminDispatchService;
 
@@ -89,5 +101,80 @@ class AdminDispatchServiceImplTest {
         assertThat(result).extracting("lat").containsExactly(12.9, 12.8);
         assertThat(result).extracting("lon").containsExactly(77.5, 77.6);
         verify(rideRepository).findTop20ByTenantIdOrderByCreatedTimeDesc(1L);
+    }
+
+    @Test
+    void assignPendingRideRequest_rejectsRealDriverForSimulatedRequest() {
+        when(rideRequestRepository.findById(10L)).thenReturn(Optional.of(pendingRequest(true)));
+        when(driverRepository.findById(20L)).thenReturn(Optional.of(driver(false)));
+
+        assertThatThrownBy(() -> adminDispatchService.assignPendingRideRequest(10L, 20L, "reason"))
+                .isInstanceOf(RuntimeConflictException.class)
+                .hasMessage("Simulated rides can only be assigned to simulated drivers.");
+    }
+
+    @Test
+    void assignPendingRideRequest_rejectsSimulatedDriverForRealRequest() {
+        when(rideRequestRepository.findById(10L)).thenReturn(Optional.of(pendingRequest(false)));
+        when(driverRepository.findById(20L)).thenReturn(Optional.of(driver(true)));
+
+        assertThatThrownBy(() -> adminDispatchService.assignPendingRideRequest(10L, 20L, "reason"))
+                .isInstanceOf(RuntimeConflictException.class)
+                .hasMessage("Real rides cannot be assigned to simulated drivers.");
+    }
+
+    @Test
+    void reassignRide_rejectsRealDriverForSimulatedRide() {
+        when(rideService.getRideById(5L)).thenReturn(activeRide(rider(true)));
+        when(driverRepository.findById(20L)).thenReturn(Optional.of(driver(false)));
+
+        assertThatThrownBy(() -> adminDispatchService.reassignRide(5L, 20L, "reason"))
+                .isInstanceOf(RuntimeConflictException.class)
+                .hasMessage("Simulated rides can only be assigned to simulated drivers.");
+    }
+
+    @Test
+    void reassignRide_rejectsSimulatedDriverForDispatchRideWithoutRider() {
+        when(rideService.getRideById(5L)).thenReturn(activeRide(null));
+        when(driverRepository.findById(20L)).thenReturn(Optional.of(driver(true)));
+
+        assertThatThrownBy(() -> adminDispatchService.reassignRide(5L, 20L, "reason"))
+                .isInstanceOf(RuntimeConflictException.class)
+                .hasMessage("Real rides cannot be assigned to simulated drivers.");
+    }
+
+    private RideRequest pendingRequest(boolean riderSimulated) {
+        return RideRequest.builder()
+                .id(10L)
+                .tenantId(1L)
+                .rideRequestStatus(RideRequestStatus.PENDING)
+                .rider(rider(riderSimulated))
+                .build();
+    }
+
+    private Ride activeRide(Rider rider) {
+        return Ride.builder()
+                .id(5L)
+                .tenantId(1L)
+                .rideStatus(RideStatus.CONFIRMED)
+                .rider(rider)
+                .build();
+    }
+
+    private Rider rider(boolean simulated) {
+        return Rider.builder()
+                .id(101L)
+                .user(User.builder().id(111L).simulated(simulated).build())
+                .build();
+    }
+
+    private Driver driver(boolean simulated) {
+        return Driver.builder()
+                .id(20L)
+                .tenantId(1L)
+                .available(true)
+                .onboardingStatus(DriverOnboardingStatus.APPROVED)
+                .user(User.builder().id(222L).simulated(simulated).build())
+                .build();
     }
 }
