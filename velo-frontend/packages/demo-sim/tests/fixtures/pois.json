@@ -1,0 +1,5 @@
+[
+  { "id": "kia-t1", "name": "Airport Terminal", "kind": "airport", "lat": 12.0, "lng": 77.0, "weight": 3 },
+  { "id": "hotel", "name": "Test Hotel", "kind": "hotel", "lat": 12.1, "lng": 77.1, "weight": 2 },
+  { "id": "station", "name": "Test Station", "kind": "station", "lat": 12.2, "lng": 77.2, "weight": 1 }
+]

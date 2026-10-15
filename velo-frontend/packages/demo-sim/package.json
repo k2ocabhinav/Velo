@@ -1,0 +1,15 @@
+{
+  "name": "@velo/demo-sim",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node src/main.ts",
+    "lint": "eslint src tests",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test:unit": "vitest run --config vitest.config.mts"
+  },
+  "dependencies": {
+    "@stomp/stompjs": "^7.0.0"
+  }
+}
