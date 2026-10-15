@@ -1,0 +1,1321 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Velo simulator control</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --page: #f2f4f2;
+      --surface: #fff;
+      --surface-soft: #f7f9f7;
+      --ink: #18221d;
+      --muted: #59665f;
+      --faint: #68736d;
+      --line: #d9e0db;
+      --line-strong: #bdc9c0;
+      --accent: #176b4b;
+      --accent-hover: #10573c;
+      --accent-soft: #e7f2ec;
+      --danger: #9d3434;
+      --danger-soft: #f9e9e7;
+      --warning: #8a5a0c;
+      --warning-soft: #fbf0d9;
+      --success: #196b45;
+      --success-soft: #e5f2e9;
+      --info: #315a8a;
+      --info-soft: #e8eff8;
+      --shadow: 0 1px 2px rgb(22 38 28 / 6%), 0 4px 16px rgb(22 38 28 / 4%);
+      --radius: 12px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 14px;
+      line-height: 1.45;
+      background: var(--page);
+      color: var(--ink);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --page: #111713;
+        --surface: #19211c;
+        --surface-soft: #202a23;
+        --ink: #edf4ee;
+        --muted: #b5c1b8;
+        --faint: #93a198;
+        --line: #354139;
+        --line-strong: #536157;
+        --accent: #84d2a5;
+        --accent-hover: #a2e0b9;
+        --accent-soft: #223d2e;
+        --danger: #ffaaa0;
+        --danger-soft: #452723;
+        --warning: #f0c270;
+        --warning-soft: #44371e;
+        --success: #91d6a9;
+        --success-soft: #203b2c;
+        --info: #a5c8f4;
+        --info-soft: #25374f;
+        --shadow: 0 1px 2px rgb(0 0 0 / 20%), 0 6px 20px rgb(0 0 0 / 12%);
+      }
+    }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 320px; }
+    button, input, select { font: inherit; }
+    button, select, input[type="number"] { min-height: 40px; }
+    button {
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--ink);
+      padding: 8px 12px;
+      font-weight: 650;
+      cursor: pointer;
+      transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+    }
+    button:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-soft); }
+    button:disabled { cursor: not-allowed; opacity: .55; }
+    :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+    a { color: var(--accent); }
+    .shell { max-width: 1500px; margin: 0 auto; padding: 24px clamp(14px, 2.5vw, 36px) 48px; }
+
+    .masthead {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 4px 0 18px;
+      border-bottom: 1px solid var(--line);
+    }
+    .brand-lockup { display: flex; align-items: center; gap: 14px; min-width: 0; }
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      border-radius: 11px;
+      background: var(--ink);
+      color: var(--surface);
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: .08em;
+    }
+    .eyebrow { margin: 0 0 2px; color: var(--muted); font-size: 11px; font-weight: 750; letter-spacing: .11em; text-transform: uppercase; }
+    h1 { margin: 0; font-size: clamp(20px, 2vw, 27px); line-height: 1.12; letter-spacing: -.035em; }
+    .mast-actions { display: flex; align-items: center; gap: 10px; }
+    .runtime-state {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 38px;
+      padding: 7px 11px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--surface);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 750;
+      white-space: nowrap;
+    }
+    .runtime-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
+    .runtime-state.is-running { color: var(--success); border-color: color-mix(in srgb, var(--success) 35%, var(--line)); }
+    .runtime-state.is-running .runtime-dot { background: var(--success); }
+    .runtime-state.is-paused { color: var(--warning); border-color: color-mix(in srgb, var(--warning) 38%, var(--line)); }
+    .runtime-state.is-paused .runtime-dot { background: var(--warning); }
+    .primary-button { border-color: var(--accent); background: var(--accent); color: var(--surface); }
+    .primary-button:hover:not(:disabled) { background: var(--accent-hover); color: var(--surface); }
+    .speed-control { display: flex; align-items: center; gap: 8px; }
+    .speed-control label { color: var(--muted); font-size: 12px; font-weight: 700; }
+    .speed-control input { width: 70px; }
+    .connection-banner {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin: 16px 0 0;
+      padding: 12px 14px;
+      border: 1px solid color-mix(in srgb, var(--danger) 35%, var(--line));
+      border-radius: 9px;
+      background: var(--danger-soft);
+      color: var(--danger);
+      font-weight: 650;
+    }
+    .connection-banner.is-visible { display: flex; }
+    .connection-banner button { flex: 0 0 auto; }
+
+    .tenant-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 18px 0 16px;
+    }
+    .tenant-tabs { display: flex; gap: 6px; overflow-x: auto; max-width: 100%; }
+    .tenant-tab {
+      min-height: 38px;
+      padding: 8px 14px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .tenant-tab[aria-selected="true"] {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+    .tenant-context { color: var(--muted); font-size: 12px; text-align: right; }
+    .overview {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .metric {
+      min-width: 0;
+      padding: 13px 16px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    .metric-label { display: block; color: var(--muted); font-size: 11px; font-weight: 750; letter-spacing: .065em; text-transform: uppercase; }
+    .metric-value { display: block; margin-top: 3px; font-size: 24px; font-weight: 750; line-height: 1.1; font-variant-numeric: tabular-nums; }
+    .metric-note { display: block; margin-top: 3px; overflow: hidden; color: var(--faint); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+
+    .main-grid { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); gap: 16px; align-items: start; }
+    .column { display: grid; gap: 16px; min-width: 0; }
+    .panel {
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    .panel-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 16px 18px 13px;
+      border-bottom: 1px solid var(--line);
+    }
+    .panel-head h2 { margin: 0; font-size: 16px; line-height: 1.25; letter-spacing: -.015em; }
+    .panel-head p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+    .panel-body { padding: 16px 18px 18px; }
+    .panel-kicker { color: var(--faint); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+
+    .preset-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+    .preset-button { min-height: 48px; padding: 8px; text-align: left; }
+    .preset-button strong { display: block; font-size: 12px; }
+    .preset-button small { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; font-weight: 500; }
+    .field-list { display: grid; gap: 18px; margin-top: 22px; }
+    .field-row { display: grid; grid-template-columns: minmax(130px, .82fr) minmax(180px, 1.5fr); gap: 16px; align-items: center; }
+    .field-heading { display: block; font-weight: 700; }
+    .field-help { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; }
+    .control-stack { display: grid; gap: 7px; min-width: 0; }
+    .range-line { display: grid; grid-template-columns: minmax(0, 1fr) 82px; gap: 12px; align-items: center; }
+    input[type="range"] { width: 100%; min-height: 28px; accent-color: var(--accent); cursor: pointer; }
+    input[type="number"], select {
+      width: 100%;
+      border: 1px solid var(--line-strong);
+      border-radius: 7px;
+      background: var(--surface);
+      color: var(--ink);
+      padding: 7px 9px;
+      font-variant-numeric: tabular-nums;
+    }
+    select { cursor: pointer; }
+    .unit-hint { color: var(--muted); font-size: 11px; }
+    .pair-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .pair-field label { display: block; margin-bottom: 4px; color: var(--muted); font-size: 11px; font-weight: 650; }
+    .hotspot-list { display: flex; flex-wrap: wrap; gap: 7px; }
+    .hotspot-chip { min-height: 34px; padding: 6px 10px; border-radius: 999px; font-size: 11px; }
+    .hotspot-chip[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+    .empty-hint { margin: 0; color: var(--muted); font-size: 12px; }
+
+    .action-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .action-card { min-width: 0; padding: 13px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-soft); }
+    .action-card h3 { margin: 0; font-size: 13px; }
+    .action-card p { margin: 3px 0 11px; color: var(--muted); font-size: 11px; }
+    .action-fields { display: grid; gap: 8px; }
+    .action-fields label { display: grid; gap: 4px; color: var(--muted); font-size: 11px; font-weight: 650; }
+    .action-fields input, .action-fields select { min-height: 36px; font-size: 12px; }
+    .action-card button { width: 100%; margin-top: 10px; min-height: 44px; font-size: 12px; }
+    .action-card.wide { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .action-card.wide p { margin-bottom: 0; }
+    .action-card.wide button { width: auto; min-width: 140px; margin: 0; }
+
+    .table-wrap { max-height: 320px; overflow: auto; }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th, td { padding: 10px 13px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+    th { position: sticky; top: 0; z-index: 1; background: var(--surface-soft); color: var(--muted); font-size: 10px; font-weight: 750; letter-spacing: .07em; text-transform: uppercase; }
+    td { font-size: 12px; }
+    tbody tr:last-child td { border-bottom: 0; }
+    .bot-name { display: block; font-weight: 700; }
+    .bot-kind { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; }
+    .state-badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 3px 8px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--surface-soft);
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .state-badge.state-idle, .state-badge.state-online { color: var(--success); background: var(--success-soft); }
+    .state-badge.state-to-pickup, .state-badge.state-waiting, .state-badge.state-requested { color: var(--warning); background: var(--warning-soft); }
+    .state-badge.state-on-trip, .state-badge.state-assigned { color: var(--info); background: var(--info-soft); }
+    .state-badge.state-offline { color: var(--muted); }
+    .trip-ref { color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; }
+    .empty-state { padding: 28px 16px; color: var(--muted); text-align: center; }
+    .empty-state strong { display: block; margin-bottom: 4px; color: var(--ink); font-size: 13px; }
+    .table-caption { padding: 10px 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; }
+
+    .event-toolbar { display: flex; align-items: center; gap: 9px; }
+    .event-toolbar select { width: auto; min-width: 130px; min-height: 34px; font-size: 11px; }
+    .event-connection { color: var(--muted); font-size: 11px; white-space: nowrap; }
+    .event-list { display: grid; gap: 0; max-height: 300px; margin: 0; padding: 0; overflow: auto; list-style: none; }
+    .event-item { display: grid; grid-template-columns: 68px minmax(0, 1fr); gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--line); }
+    .event-item:last-child { border-bottom: 0; }
+    .event-time { color: var(--faint); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 10px; font-variant-numeric: tabular-nums; }
+    .event-message { min-width: 0; overflow-wrap: anywhere; font-size: 11px; }
+    .event-type { display: block; margin-bottom: 2px; color: var(--accent); font-size: 9px; font-weight: 750; letter-spacing: .06em; text-transform: uppercase; }
+    .event-empty { padding: 24px 16px; color: var(--muted); text-align: center; font-size: 12px; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+    .toast {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      z-index: 10;
+      width: min(420px, calc(100vw - 32px));
+      padding: 13px 16px;
+      border: 1px solid var(--line-strong);
+      border-radius: 10px;
+      background: var(--surface);
+      box-shadow: 0 8px 28px rgb(0 0 0 / 18%);
+      color: var(--ink);
+      font-size: 13px;
+    }
+    .toast[data-kind="error"] { border-color: var(--danger); color: var(--danger); }
+    .toast[data-kind="success"] { border-color: var(--success); }
+    [hidden] { display: none !important; }
+
+    @media (max-width: 1000px) {
+      .main-grid { grid-template-columns: minmax(0, 1fr); }
+      .column:first-child { order: 0; }
+      .column:last-child { order: 1; }
+    }
+    @media (max-width: 680px) {
+      .shell { padding: 16px 12px 34px; }
+      .masthead { align-items: flex-start; flex-direction: column; gap: 12px; }
+      .mast-actions { width: 100%; flex-wrap: wrap; }
+      .mast-actions .runtime-state { margin-right: auto; }
+      .tenant-bar { align-items: flex-start; flex-direction: column; gap: 8px; }
+      .tenant-context { text-align: left; }
+      .overview { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+      .metric { padding: 11px 12px; }
+      .metric-value { font-size: 21px; }
+      .panel-head { padding: 14px 13px 11px; }
+      .panel-body { padding: 13px; }
+      .field-row { grid-template-columns: 1fr; gap: 7px; }
+      .field-list { gap: 16px; }
+      .action-list { grid-template-columns: 1fr; }
+      .action-card.wide { align-items: stretch; flex-direction: column; gap: 9px; }
+      .action-card.wide button { width: 100%; }
+      .preset-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .event-toolbar { align-items: flex-end; flex-direction: column; gap: 4px; }
+      .event-toolbar select { min-width: 112px; }
+      .event-item { grid-template-columns: 58px minmax(0, 1fr); gap: 7px; padding-inline: 12px; }
+      .table-wrap { max-height: 280px; }
+      th, td { padding: 9px 10px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="masthead">
+      <div class="brand-lockup">
+        <div class="brand-mark" aria-hidden="true">VL</div>
+        <div>
+          <p class="eyebrow">Demo operations</p>
+          <h1>Fleet simulator</h1>
+        </div>
+      </div>
+      <div class="mast-actions">
+        <span id="runtime-state" class="runtime-state" aria-live="polite"><span class="runtime-dot" aria-hidden="true"></span><span id="runtime-label">Connecting</span></span>
+        <div class="speed-control">
+          <label for="speed-factor">Speed</label>
+          <input id="speed-factor" type="number" min="1" max="20" step="1" value="1" aria-label="Simulation speed factor">
+          <span aria-hidden="true">×</span>
+        </div>
+        <button id="pause-button" class="primary-button" type="button" disabled>Pause</button>
+      </div>
+    </header>
+
+    <div id="connection-banner" class="connection-banner" role="alert">
+      <span id="connection-message">Simulator is unreachable. Controls will retry automatically.</span>
+      <button id="retry-button" type="button">Retry now</button>
+    </div>
+
+    <section class="tenant-bar" aria-label="Tenant controls">
+      <div id="tenant-tabs" class="tenant-tabs" role="tablist" aria-label="Choose simulator tenant"></div>
+      <span id="tenant-context" class="tenant-context">Waiting for simulator data</span>
+    </section>
+
+    <div id="tenant-panel" role="tabpanel" tabindex="0">
+    <section class="overview" aria-label="Live fleet counts">
+      <article class="metric"><span class="metric-label">Online drivers</span><strong id="metric-online" class="metric-value">—</strong><span id="metric-online-note" class="metric-note">Live fleet</span></article>
+      <article class="metric"><span class="metric-label">Active trips</span><strong id="metric-active" class="metric-value">—</strong><span class="metric-note">Assigned or underway</span></article>
+      <article class="metric"><span class="metric-label">Waiting requests</span><strong id="metric-pending" class="metric-value">—</strong><span class="metric-note">Awaiting a driver</span></article>
+      <article class="metric"><span class="metric-label">Completed</span><strong id="metric-completed" class="metric-value">—</strong><span class="metric-note">This simulator run</span></article>
+    </section>
+
+    <div class="main-grid">
+      <div class="column">
+        <section class="panel" aria-labelledby="config-title">
+          <div class="panel-head">
+            <div><h2 id="config-title">Fleet behaviour</h2><p>Changes apply live and save with the simulator state.</p></div>
+            <span id="config-save-state" class="panel-kicker" aria-live="polite">Ready</span>
+          </div>
+          <div class="panel-body">
+            <div class="panel-kicker" style="margin-bottom:8px">Quick presets</div>
+            <div class="preset-row" aria-label="Fleet presets">
+              <button class="preset-button" type="button" data-preset="quiet"><strong>Quiet</strong><small>2 drivers · no requests</small></button>
+              <button class="preset-button" type="button" data-preset="steady"><strong>Steady</strong><small>Default rhythm</small></button>
+              <button class="preset-button" type="button" data-preset="busy"><strong>Busy</strong><small>Full fleet · ~25 sec</small></button>
+              <button class="preset-button" type="button" data-preset="airport-rush"><strong>Airport rush</strong><small>Airport focused</small></button>
+            </div>
+
+            <div class="field-list">
+              <div class="field-row">
+                <div><label class="field-heading" for="online-range">Online drivers</label><span class="field-help">Drivers change availability between trips.</span></div>
+                <div class="control-stack"><div class="range-line"><input id="online-range" data-config-field="onlineDrivers" type="range" min="0" max="0" step="1" disabled><input id="online-number" data-config-field="onlineDrivers" type="number" min="0" max="0" step="1" aria-label="Online drivers count" disabled></div><span id="online-unit" class="unit-hint">0 of 0 drivers</span></div>
+              </div>
+              <div class="field-row">
+                <div><label class="field-heading" for="interval-range">Request interval</label><span class="field-help">Mean automatic request interval at 1×.</span></div>
+                <div class="control-stack"><div class="range-line"><input id="interval-range" data-config-field="requestIntervalSec" type="range" min="0" max="900" step="10"><input id="interval-number" data-config-field="requestIntervalSec" type="number" min="0" max="900" step="10" aria-label="Request interval in seconds"></div><span id="interval-unit" class="unit-hint">Mean interval at 1× speed</span></div>
+              </div>
+              <div class="field-row">
+                <div><label class="field-heading" for="airport-range">Airport share</label><span class="field-help">Share of new requests using an airport leg.</span></div>
+                <div class="control-stack"><div class="range-line"><input id="airport-range" data-config-field="airportShare" type="range" min="0" max="1" step="0.01"><input id="airport-number" data-config-field="airportShare" type="number" min="0" max="1" step="0.01" aria-label="Airport share from 0 to 1"></div><span id="airport-unit" class="unit-hint">40% of requests</span></div>
+              </div>
+              <div class="field-row">
+                <div><label class="field-heading" for="decline-range">Decline probability</label><span class="field-help">Chance a driver ignores an offer.</span></div>
+                <div class="control-stack"><div class="range-line"><input id="decline-range" data-config-field="declineProbability" type="range" min="0" max="0.9" step="0.01"><input id="decline-number" data-config-field="declineProbability" type="number" min="0" max="0.9" step="0.01" aria-label="Decline probability from 0 to 0.9"></div><span id="decline-unit" class="unit-hint">15% chance an offer is ignored</span></div>
+              </div>
+              <div class="field-row">
+                <div><span class="field-heading">Pickup wait</span><span class="field-help">Time after arrival before the trip starts.</span></div>
+                <div class="control-stack"><div class="pair-inputs">
+                  <div class="pair-field"><label for="pickup-min">Minimum seconds</label><input id="pickup-min" data-config-pair="min" type="number" min="5" max="300" step="1"></div>
+                  <div class="pair-field"><label for="pickup-max">Maximum seconds</label><input id="pickup-max" data-config-pair="max" type="number" min="5" max="300" step="1"></div>
+                </div><span class="unit-hint">Minimum must not exceed maximum</span></div>
+              </div>
+              <div class="field-row">
+                <div><label class="field-heading" for="reposition-range">Idle repositioning</label><span class="field-help">Chance to move to a hotspot while idle.</span></div>
+                <div class="control-stack"><div class="range-line"><input id="reposition-range" data-config-field="idleRepositionProbability" type="range" min="0" max="1" step="0.01"><input id="reposition-number" data-config-field="idleRepositionProbability" type="number" min="0" max="1" step="0.01" aria-label="Idle reposition probability from 0 to 1"></div><span id="reposition-unit" class="unit-hint">30% chance after an idle period</span></div>
+              </div>
+              <div class="field-row">
+                <div><span class="field-heading">Hotspots</span><span class="field-help">Weighted up for pickups and idle parking.</span></div>
+                <div class="control-stack"><div id="hotspot-list" class="hotspot-list" aria-label="Pickup and parking hotspots"></div><p id="hotspot-empty" class="empty-hint" hidden>No POIs available from the simulator.</p></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="actions-title">
+          <div class="panel-head"><div><h2 id="actions-title">Direct the demo</h2><p>Trigger a moment on demand for this tenant.</p></div></div>
+          <div class="panel-body">
+            <div class="action-list">
+              <form class="action-card" data-action="request-trip">
+                <h3>Request a trip</h3><p>Choose endpoints, or leave them random.</p>
+                <div class="action-fields">
+                  <label>From POI<select name="from" data-poi-select><option value="">Random pickup</option></select></label>
+                  <label>To POI<select name="to" data-poi-select><option value="">Random drop-off</option></select></label>
+                  <label>Rider<select name="rider" data-rider-select><option value="">Any idle rider</option></select></label>
+                </div>
+                <button class="primary-button" type="submit">Request trip</button>
+              </form>
+              <form class="action-card" data-action="burst">
+                <h3>Request burst</h3><p>Spread several requests over about 20 seconds.</p>
+                <div class="action-fields">
+                  <label>Request count<input name="count" type="number" min="2" max="8" step="1" value="3" required></label>
+                  <label>Near POI<select name="near" data-poi-select><option value="">Any area</option></select></label>
+                </div>
+                <button type="submit">Start burst</button>
+              </form>
+              <form class="action-card" data-action="driver-offline">
+                <h3>Take a driver offline</h3><p>Availability changes after an active trip.</p>
+                <div class="action-fields"><label>Driver<select name="driver" data-driver-select><option value="">Choose random driver</option></select></label></div>
+                <button type="submit">Take offline</button>
+              </form>
+              <form class="action-card" data-action="driver-online">
+                <h3>Bring a driver online</h3><p>Return a bot to the available fleet.</p>
+                <div class="action-fields"><label>Driver<select name="driver" data-driver-select><option value="">Choose random driver</option></select></label></div>
+                <button type="submit">Bring online</button>
+              </form>
+              <form class="action-card" data-action="decline-next">
+                <h3>Decline next offers</h3><p>Show the reassignment flow clearly.</p>
+                <div class="action-fields"><label>Offer count<input name="count" type="number" min="1" max="5" step="1" value="1" required></label></div>
+                <button type="submit">Queue declines</button>
+              </form>
+              <form class="action-card" data-action="traffic-delay">
+                <h3>Slow a driver</h3><p>Simulate a delay during a live trip.</p>
+                <div class="action-fields">
+                  <label>Driver<select name="driver" data-driver-select><option value="">Choose random driver</option></select></label>
+                  <label>Duration in seconds<input name="seconds" type="number" min="10" max="600" step="1" value="60" required></label>
+                </div>
+                <button type="submit">Apply delay</button>
+              </form>
+              <form class="action-card" data-action="rider-cancel">
+                <h3>Cancel as rider</h3><p>Use a live rider request reference, or choose any.</p>
+                <div class="action-fields"><label>Request ID<input name="rideRequestId" type="number" min="1" step="1" inputmode="numeric" placeholder="Any pending request"></label></div>
+                <button type="submit">Cancel request</button>
+              </form>
+              <form class="action-card" data-action="driver-cancel">
+                <h3>Cancel as driver</h3><p>Cancel an assigned ride where supported.</p>
+                <div class="action-fields"><label>Ride ID<input name="rideId" type="number" min="1" step="1" inputmode="numeric" placeholder="Any assigned trip"></label></div>
+                <button type="submit">Cancel ride</button>
+              </form>
+              <form class="action-card wide" data-action="reset-fleet">
+                <div><h3>Reset fleet</h3><p>Cancel bot trips, park at seeded hotspots and apply this tenant’s current config.</p></div>
+                <button type="submit">Reset this fleet</button>
+              </form>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="column">
+        <section class="panel" aria-labelledby="bots-title">
+          <div class="panel-head">
+            <div><h2 id="bots-title">Live bots</h2><p id="bots-subtitle">Drivers and riders · refreshes every 2 seconds</p></div>
+            <span id="last-updated" class="panel-kicker">Waiting</span>
+          </div>
+          <div id="bots-content"></div>
+        </section>
+
+        <section class="panel" aria-labelledby="events-title">
+          <div class="panel-head">
+            <div><h2 id="events-title">Event log</h2><p>Live lifecycle and configuration changes.</p></div>
+            <div class="event-toolbar">
+              <span id="event-connection" class="event-connection">Connecting</span>
+              <label class="sr-only" for="event-filter">Filter events by tenant</label>
+              <select id="event-filter" aria-label="Filter events by tenant"><option value="selected">Selected tenant</option><option value="all">All tenants</option></select>
+            </div>
+          </div>
+          <ol id="event-list" class="event-list" aria-label="Newest simulator events first" tabindex="0"></ol>
+          <div id="event-empty" class="event-empty">Waiting for simulator events…</div>
+        </section>
+      </div>
+    </div>
+    </div>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <script type="module">
+    const $ = (selector, root = document) => root.querySelector(selector);
+    const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+    const tenantTabs = $("#tenant-tabs");
+    const poiSelects = $$("[data-poi-select]");
+    const driverSelects = $$("[data-driver-select]");
+    const riderSelects = $$("[data-rider-select]");
+    const eventRows = [];
+    const state = {
+      config: null,
+      confirmedConfig: null,
+      status: null,
+      pois: [],
+      tenant: "",
+      tenantMeta: new Map(),
+      tenantSignature: "",
+      pendingPatch: {},
+      patchTimer: 0,
+      patchInFlight: false,
+      statusInFlight: false,
+      presetInFlight: false,
+      configError: false,
+      statusError: "",
+      statusTimer: 0,
+      retryTimer: 0,
+      toastTimer: 0,
+      events: null,
+      lastStatusAt: null
+    };
+
+    function clone(value) {
+      return JSON.parse(JSON.stringify(value));
+    }
+
+    function setPath(target, path, value) {
+      const keys = path.split(".");
+      let cursor = target;
+      for (const key of keys.slice(0, -1)) cursor = cursor[key] ??= {};
+      cursor[keys.at(-1)] = clone(value);
+    }
+
+    function getPath(target, path) {
+      return path.split(".").reduce((value, key) => value?.[key], target);
+    }
+
+    function mergePatch(target, source) {
+      for (const [key, value] of Object.entries(source)) {
+        if (value && typeof value === "object" && !Array.isArray(value)) {
+          target[key] ??= {};
+          mergePatch(target[key], value);
+        } else target[key] = clone(value);
+      }
+      return target;
+    }
+
+    function patchPaths(patch, prefix = "") {
+      return Object.entries(patch).flatMap(([key, value]) => {
+        const path = prefix ? prefix + "." + key : key;
+        return value && typeof value === "object" && !Array.isArray(value)
+          ? patchPaths(value, path)
+          : [path];
+      });
+    }
+
+    async function requestJson(path, options = {}) {
+      const response = await fetch(path, {
+        ...options,
+        signal: options.signal ?? AbortSignal.timeout(8000),
+        headers: { "Content-Type": "application/json", ...options.headers }
+      });
+      let body;
+      try { body = await response.json(); } catch { body = null; }
+      if (!response.ok) {
+        const message = body && typeof body.error === "string" ? body.error : "Request failed (" + response.status + ")";
+        throw new Error(message);
+      }
+      return body;
+    }
+
+    function unwrapConfig(payload) {
+      return payload?.config ?? payload;
+    }
+
+    function showToast(message, kind = "success") {
+      const toast = $("#toast");
+      toast.textContent = message;
+      toast.dataset.kind = kind;
+      toast.hidden = false;
+      clearTimeout(state.toastTimer);
+      state.toastTimer = setTimeout(() => { toast.hidden = true; }, 5200);
+    }
+
+    function setConnection(message = "") {
+      const banner = $("#connection-banner");
+      banner.classList.toggle("is-visible", Boolean(message));
+      $("#connection-message").textContent = message || "Simulator control is connected.";
+    }
+
+    function updateConnectionBanner() {
+      if (state.configError) setConnection("Simulator control server is unreachable. Retrying automatically.");
+      else if (state.statusError) setConnection("Live status is unavailable: " + state.statusError);
+      else setConnection("");
+    }
+
+    function setConfigSaving(label) {
+      $("#config-save-state").textContent = label;
+    }
+
+    function tenantConfig() {
+      return state.config?.tenants?.[state.tenant] ?? null;
+    }
+
+    function selectedTenantStatus() {
+      return state.status?.tenants?.find((tenant) => tenant.slug === state.tenant) ?? null;
+    }
+
+    function fleetSize() {
+      const drivers = selectedTenantStatus()?.drivers;
+      return Array.isArray(drivers) ? drivers.length : Number(tenantConfig()?.onlineDrivers ?? 0);
+    }
+
+    function tenantLabel(slug) {
+      return state.tenantMeta.get(slug)?.name ?? slug;
+    }
+
+    function countLabel(count, noun) {
+      return count + " " + noun + (count === 1 ? "" : "s");
+    }
+
+    function renderTenants() {
+      const slugs = Object.keys(state.config?.tenants ?? {});
+      const statusBySlug = new Map((state.status?.tenants ?? []).map((tenant) => [tenant.slug, tenant]));
+      state.tenantMeta.clear();
+      for (const slug of slugs) {
+        const status = statusBySlug.get(slug);
+        state.tenantMeta.set(slug, status ?? { slug, name: slug });
+      }
+      if (!slugs.includes(state.tenant)) state.tenant = slugs[0] ?? "";
+      const signature = slugs.map((slug) => slug + "|" + (state.tenantMeta.get(slug)?.name ?? slug)).join(";");
+      if (signature !== state.tenantSignature) {
+        state.tenantSignature = signature;
+        tenantTabs.replaceChildren();
+        for (const slug of slugs) {
+          const meta = state.tenantMeta.get(slug);
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "tenant-tab";
+          button.dataset.tenant = slug;
+          button.id = "tenant-tab-" + slug;
+          button.setAttribute("role", "tab");
+          button.setAttribute("aria-controls", "tenant-panel");
+          button.textContent = meta.name ?? slug;
+          button.disabled = state.presetInFlight;
+          button.addEventListener("click", () => selectTenant(slug));
+          button.addEventListener("keydown", (event) => {
+            if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+            event.preventDefault();
+            const buttons = $$(".tenant-tab", tenantTabs);
+            const current = buttons.indexOf(button);
+            const next = event.key === "Home" ? 0 : event.key === "End" ? buttons.length - 1 : (current + (event.key === "ArrowRight" ? 1 : -1) + buttons.length) % buttons.length;
+            buttons[next]?.focus();
+            buttons[next]?.click();
+          });
+          tenantTabs.append(button);
+        }
+      }
+      for (const button of $$(".tenant-tab", tenantTabs)) {
+        const selected = button.dataset.tenant === state.tenant;
+        button.setAttribute("aria-selected", String(selected));
+        button.tabIndex = selected ? 0 : -1;
+        button.disabled = state.presetInFlight;
+      }
+      if (state.tenant) $("#tenant-panel").setAttribute("aria-labelledby", "tenant-tab-" + state.tenant);
+      const meta = state.tenantMeta.get(state.tenant);
+      $("#tenant-context").textContent = meta
+        ? (meta.currency ? meta.currency + " · " : "") + countLabel(meta.drivers?.length ?? fleetSize(), "driver")
+        : "Waiting for simulator data";
+    }
+
+    function selectTenant(slug) {
+      if (!state.config?.tenants?.[slug] || state.tenant === slug) return;
+      state.tenant = slug;
+      renderTenants();
+      renderMetrics();
+      renderConfigControls();
+      renderActionChoices();
+      renderBots();
+      renderEvents();
+    }
+
+    function renderMetrics() {
+      const tenant = selectedTenantStatus();
+      if (!tenant) {
+        for (const id of ["metric-online", "metric-active", "metric-pending", "metric-completed"]) $("#" + id).textContent = "—";
+        $("#metric-online-note").textContent = "Live fleet";
+        return;
+      }
+      const drivers = tenant.drivers ?? [];
+      const online = drivers.filter((driver) => driver.state !== "offline").length;
+      const configured = tenantConfig()?.onlineDrivers ?? online;
+      $("#metric-online").textContent = String(online);
+      $("#metric-online-note").textContent = configured + " configured · " + drivers.length + " total";
+      $("#metric-active").textContent = String(tenant.activeTrips ?? 0);
+      $("#metric-pending").textContent = String(tenant.pendingRequests ?? 0);
+      $("#metric-completed").textContent = String(tenant.completedTrips ?? 0);
+    }
+
+    function syncField(field, value, force = false) {
+      const ids = {
+        onlineDrivers: ["online-range", "online-number"],
+        requestIntervalSec: ["interval-range", "interval-number"],
+        airportShare: ["airport-range", "airport-number"],
+        declineProbability: ["decline-range", "decline-number"],
+        idleRepositionProbability: ["reposition-range", "reposition-number"]
+      }[field];
+      if (!ids) return;
+      for (const id of ids) {
+        const input = $("#" + id);
+        if (force || document.activeElement !== input) input.value = String(value);
+      }
+    }
+
+    function renderConfigControls(force = false) {
+      const config = tenantConfig();
+      const global = state.config;
+      if (!config || !global) return;
+      const size = fleetSize();
+      for (const id of ["online-range", "online-number"]) {
+        const input = $("#" + id);
+        input.max = String(size);
+        input.disabled = size === 0 || state.presetInFlight;
+      }
+      $$("[data-config-field]:not([data-config-field=\"onlineDrivers\"])").forEach((input) => { input.disabled = state.presetInFlight; });
+      $("#pickup-min").disabled = state.presetInFlight;
+      $("#pickup-max").disabled = state.presetInFlight;
+      $("#speed-factor").disabled = state.presetInFlight;
+      $("#pause-button").disabled = state.presetInFlight;
+      $$(".preset-button").forEach((button) => { button.disabled = state.presetInFlight; });
+      syncField("onlineDrivers", config.onlineDrivers, force);
+      $("#online-unit").textContent = config.onlineDrivers + " of " + countLabel(size, "driver");
+      syncField("requestIntervalSec", config.requestIntervalSec, force);
+      $("#interval-unit").textContent = config.requestIntervalSec === 0 ? "Automatic requests are off" : config.requestIntervalSec + " sec mean interval at 1× speed";
+      $("#airport-unit").textContent = Math.round(config.airportShare * 100) + "% of requests";
+      $("#decline-unit").textContent = Math.round(config.declineProbability * 100) + "% chance an offer is ignored";
+      $("#reposition-unit").textContent = Math.round(config.idleRepositionProbability * 100) + "% chance after an idle period";
+      syncField("airportShare", config.airportShare, force);
+      syncField("declineProbability", config.declineProbability, force);
+      syncField("idleRepositionProbability", config.idleRepositionProbability, force);
+      const [minimum, maximum] = config.pickupWaitSec;
+      if (force || document.activeElement !== $("#pickup-min")) $("#pickup-min").value = String(minimum);
+      if (force || document.activeElement !== $("#pickup-max")) $("#pickup-max").value = String(maximum);
+      $("#speed-factor").value = String(global.speedFactor);
+      const runtimeState = $("#runtime-state");
+      runtimeState.classList.toggle("is-paused", global.paused);
+      runtimeState.classList.toggle("is-running", !global.paused);
+      $("#runtime-label").textContent = global.paused ? "Paused" : "Running";
+      $("#pause-button").textContent = global.paused ? "Resume" : "Pause";
+      $("#pause-button").disabled = state.presetInFlight;
+      renderHotspots(config.hotspots ?? []);
+    }
+
+    function renderHotspots(selected) {
+      const list = $("#hotspot-list");
+      const focusedPoi = document.activeElement?.dataset.poiId;
+      list.replaceChildren();
+      $("#hotspot-empty").hidden = state.pois.length > 0;
+      for (const poi of state.pois) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "hotspot-chip";
+        button.dataset.poiId = poi.id;
+        button.disabled = state.presetInFlight;
+        button.setAttribute("aria-pressed", String(selected.includes(poi.id)));
+        button.textContent = poi.name;
+        button.title = poi.kind ? poi.kind : poi.name;
+        button.addEventListener("click", () => {
+          const current = new Set(tenantConfig()?.hotspots ?? []);
+          if (current.has(poi.id)) current.delete(poi.id);
+          else current.add(poi.id);
+          schedulePatch("tenants." + state.tenant + ".hotspots", [...current]);
+          renderHotspots([...current]);
+        });
+        list.append(button);
+      }
+      if (focusedPoi) $("[data-poi-id=\"" + CSS.escape(focusedPoi) + "\"]", list)?.focus({ preventScroll: true });
+    }
+
+    function renderActionChoices() {
+      for (const select of poiSelects) {
+        const current = select.value;
+        const first = select.options[0];
+        select.replaceChildren(first);
+        for (const poi of state.pois) {
+          const option = document.createElement("option");
+          option.value = poi.id;
+          option.textContent = poi.name;
+          select.append(option);
+        }
+        if ([...select.options].some((option) => option.value === current)) select.value = current;
+      }
+      const tenant = selectedTenantStatus();
+      const drivers = tenant?.drivers ?? [];
+      const riders = tenant?.riders ?? [];
+      for (const select of driverSelects) {
+        const current = select.value;
+        const first = select.options[0];
+        select.replaceChildren(first);
+        for (const driver of drivers) {
+          const option = document.createElement("option");
+          option.value = driver.email;
+          option.textContent = driver.name + (driver.state === "offline" ? " · offline" : "");
+          select.append(option);
+        }
+        if ([...select.options].some((option) => option.value === current)) select.value = current;
+      }
+      for (const select of riderSelects) {
+        const current = select.value;
+        const first = select.options[0];
+        select.replaceChildren(first);
+        for (const rider of riders) {
+          const option = document.createElement("option");
+          option.value = rider.email;
+          option.textContent = rider.name + (rider.state !== "idle" ? " · " + rider.state : "");
+          select.append(option);
+        }
+        if ([...select.options].some((option) => option.value === current)) select.value = current;
+      }
+    }
+
+    function badgeClass(stateName) {
+      const normalized = String(stateName ?? "unknown").toLowerCase().replaceAll("_", "-").replaceAll(" ", "-");
+      if (["idle", "online"].includes(normalized)) return "state-idle";
+      if (["to-pickup", "waiting", "requested"].includes(normalized)) return "state-" + normalized;
+      if (["on-trip", "assigned"].includes(normalized)) return "state-" + normalized;
+      if (normalized === "offline") return "state-offline";
+      return "";
+    }
+
+    function renderBots() {
+      const tenant = selectedTenantStatus();
+      const root = $("#bots-content");
+      const oldWrap = $(".table-wrap", root);
+      const hadFocus = oldWrap?.contains(document.activeElement) ?? false;
+      const oldScrollTop = oldWrap?.scrollTop ?? 0;
+      root.replaceChildren();
+      $("#last-updated").textContent = state.lastStatusAt ? "Updated " + state.lastStatusAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "Waiting";
+      if (!tenant) {
+        const empty = document.createElement("div");
+        empty.className = "empty-state";
+        const title = document.createElement("strong");
+        title.textContent = "No fleet data yet";
+        const copy = document.createElement("span");
+        copy.textContent = "Waiting for the simulator status endpoint.";
+        empty.append(title, copy);
+        root.append(empty);
+        return;
+      }
+      const drivers = tenant.drivers ?? [];
+      const riders = tenant.riders ?? [];
+      if (drivers.length + riders.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "empty-state";
+        const title = document.createElement("strong");
+        title.textContent = "Empty fleet";
+        const copy = document.createElement("span");
+        copy.textContent = "No simulated drivers or riders are available for this tenant.";
+        empty.append(title, copy);
+        root.append(empty);
+        return;
+      }
+      const wrap = document.createElement("div");
+      wrap.className = "table-wrap";
+      wrap.setAttribute("role", "region");
+      wrap.setAttribute("aria-label", "Live drivers and riders");
+      wrap.tabIndex = 0;
+      const table = document.createElement("table");
+      const head = document.createElement("thead");
+      const headerRow = document.createElement("tr");
+      for (const heading of ["Bot", "State", "Trip reference"]) {
+        const th = document.createElement("th");
+        th.scope = "col";
+        th.textContent = heading;
+        headerRow.append(th);
+      }
+      head.append(headerRow);
+      const body = document.createElement("tbody");
+      const rows = [
+        ...drivers.map((bot) => ({ ...bot, kind: "Driver", ref: bot.rideId ? "Ride " + bot.rideId : "—" })),
+        ...riders.map((bot) => ({ ...bot, kind: "Rider", ref: bot.rideRequestId ? "Request " + bot.rideRequestId : "—" }))
+      ];
+      for (const bot of rows) {
+        const row = document.createElement("tr");
+        const nameCell = document.createElement("td");
+        const name = document.createElement("span");
+        name.className = "bot-name";
+        name.textContent = bot.name || bot.email || "Unnamed bot";
+        const kind = document.createElement("span");
+        kind.className = "bot-kind";
+        kind.textContent = bot.kind + (bot.poi ? " · " + bot.poi : "");
+        nameCell.append(name, kind);
+        const stateCell = document.createElement("td");
+        const badge = document.createElement("span");
+        badge.className = "state-badge " + badgeClass(bot.state);
+        badge.textContent = String(bot.state ?? "unknown").replaceAll("-", " ");
+        stateCell.append(badge);
+        const refCell = document.createElement("td");
+        refCell.className = "trip-ref";
+        refCell.textContent = bot.ref;
+        row.append(nameCell, stateCell, refCell);
+        body.append(row);
+      }
+      table.append(head, body);
+      wrap.append(table);
+      root.append(wrap);
+      wrap.scrollTop = oldScrollTop;
+      if (hadFocus) wrap.focus({ preventScroll: true });
+      const caption = document.createElement("div");
+      caption.className = "table-caption";
+      caption.textContent = countLabel(drivers.length, "driver") + " · " + countLabel(riders.length, "rider");
+      root.append(caption);
+    }
+
+    function eventBelongsToFilter(event) {
+      const filter = $("#event-filter").value;
+      return filter === "all" || filter === "selected" && (!event.tenant || event.tenant === state.tenant);
+    }
+
+    function renderEvents() {
+      const list = $("#event-list");
+      const visible = eventRows.filter(eventBelongsToFilter).slice(0, 200);
+      list.replaceChildren();
+      $("#event-empty").hidden = visible.length > 0;
+      for (const event of visible) {
+        const item = document.createElement("li");
+        item.className = "event-item";
+        const time = document.createElement("time");
+        time.className = "event-time";
+        const date = new Date(event.at);
+        time.dateTime = Number.isNaN(date.getTime()) ? "" : date.toISOString();
+        time.textContent = Number.isNaN(date.getTime()) ? "—" : date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+        const detail = document.createElement("div");
+        detail.className = "event-message";
+        const type = document.createElement("span");
+        type.className = "event-type";
+        type.textContent = event.type ?? "simulator event";
+        const message = document.createElement("span");
+        message.textContent = event.message ?? JSON.stringify(event.data ?? event);
+        detail.append(type, message);
+        item.append(time, detail);
+        list.append(item);
+      }
+    }
+
+    function addEvent(event) {
+      if (!event || typeof event !== "object") return;
+      const normalized = {
+        ...event,
+        type: event.type ?? event.event ?? "simulator event",
+        at: event.at ?? new Date().toISOString()
+      };
+      if (normalized.id != null && eventRows.some((item) => item.id === normalized.id)) return;
+      eventRows.unshift(normalized);
+      if (eventRows.length > 200) eventRows.length = 200;
+      renderEvents();
+    }
+
+    function eventPayload(messageEvent) {
+      try {
+        const value = JSON.parse(messageEvent.data);
+        if (value && typeof value === "object") {
+          if (!value.type && messageEvent.type !== "message") value.type = messageEvent.type;
+          return value;
+        }
+        return { type: messageEvent.type, message: String(value) };
+      } catch {
+        return { type: messageEvent.type, message: messageEvent.data };
+      }
+    }
+
+    function connectEvents() {
+      if (state.events) state.events.close();
+      const source = new EventSource("/events");
+      state.events = source;
+      const eventNames = [
+        "simulator.ready", "simulator.retry", "simulator.event", "bot.connected", "bot.reconnecting",
+        "config.changed", "driver.online", "driver.offline", "driver.state",
+        "trip.requested", "trip.assigned", "trip.accepted", "trip.started",
+        "trip.completed", "trip.cancelled", "offer.declined", "action.accepted",
+        "simulator.error", "error"
+      ];
+      source.onopen = () => {
+        state.eventError = false;
+        $("#event-connection").textContent = "Live";
+      };
+      source.onmessage = (event) => {
+        if (typeof event.data === "string") addEvent(eventPayload(event));
+      };
+      for (const name of eventNames) source.addEventListener(name, (event) => {
+        if (typeof event.data === "string") addEvent(eventPayload(event));
+      });
+      source.onerror = () => {
+        state.eventError = true;
+        $("#event-connection").textContent = "Reconnecting…";
+      };
+    }
+
+    async function refreshStatus() {
+      if (state.statusInFlight) return;
+      state.statusInFlight = true;
+      try {
+        const status = await requestJson("/status", { cache: "no-store" });
+        state.status = status;
+        state.lastStatusAt = new Date();
+        state.statusError = "";
+        updateConnectionBanner();
+        renderTenants();
+        renderMetrics();
+        renderBots();
+        renderActionChoices();
+        renderConfigControls();
+      } catch (error) {
+        state.statusError = error.message;
+        updateConnectionBanner();
+      } finally {
+        state.statusInFlight = false;
+      }
+    }
+
+    async function loadInitial() {
+      try {
+        const [configResult, poisResult, statusResult] = await Promise.allSettled([
+          requestJson("/config", { cache: "no-store" }),
+          requestJson("/pois", { cache: "no-store" }),
+          requestJson("/status", { cache: "no-store" })
+        ]);
+        if (configResult.status === "rejected") throw configResult.reason;
+        state.config = clone(unwrapConfig(configResult.value));
+        state.confirmedConfig = clone(state.config);
+        if (poisResult.status === "fulfilled" && Array.isArray(poisResult.value)) state.pois = poisResult.value;
+        else if (poisResult.status === "rejected") showToast("Could not load POIs: " + poisResult.reason.message, "error");
+        if (statusResult.status === "fulfilled") {
+          state.status = statusResult.value;
+          state.lastStatusAt = new Date();
+          state.statusError = "";
+        } else {
+          state.statusError = statusResult.reason.message;
+          showToast("Could not load live status: " + statusResult.reason.message, "error");
+        }
+        state.configError = false;
+        updateConnectionBanner();
+        renderTenants();
+        renderMetrics();
+        renderConfigControls();
+        renderActionChoices();
+        renderBots();
+      } catch (error) {
+        state.configError = true;
+        updateConnectionBanner();
+        clearTimeout(state.retryTimer);
+        state.retryTimer = setTimeout(loadInitial, 5000);
+      }
+    }
+
+    function nestedPatch(path, value) {
+      const patch = {};
+      setPath(patch, path, value);
+      return patch;
+    }
+
+    function schedulePatch(path, value) {
+      const patch = nestedPatch(path, value);
+      mergePatch(state.pendingPatch, patch);
+      if (!state.config) return;
+      setPath(state.config, path, value);
+      setConfigSaving("Saving…");
+      if (path === "paused" || path === "speedFactor") renderConfigControls();
+      else {
+        const field = path.split(".").at(-1);
+        if (field === "hotspots") renderHotspots(value);
+        else if (field === "pickupWaitSec") {
+          if (document.activeElement !== $("#pickup-min")) $("#pickup-min").value = String(value[0]);
+          if (document.activeElement !== $("#pickup-max")) $("#pickup-max").value = String(value[1]);
+        } else {
+          syncField(field, value);
+          if (field === "onlineDrivers") $("#online-unit").textContent = value + " of " + countLabel(fleetSize(), "driver");
+          if (field === "requestIntervalSec") $("#interval-unit").textContent = Number(value) === 0 ? "Automatic requests are off" : value + " sec mean interval at 1× speed";
+          if (field === "airportShare") $("#airport-unit").textContent = Math.round(value * 100) + "% of requests";
+          if (field === "declineProbability") $("#decline-unit").textContent = Math.round(value * 100) + "% chance an offer is ignored";
+          if (field === "idleRepositionProbability") $("#reposition-unit").textContent = Math.round(value * 100) + "% chance after an idle period";
+        }
+      }
+      clearTimeout(state.patchTimer);
+      state.patchTimer = setTimeout(flushPatch, 350);
+    }
+
+    async function flushPatch() {
+      if (state.patchInFlight || Object.keys(state.pendingPatch).length === 0) return;
+      const patch = state.pendingPatch;
+      state.pendingPatch = {};
+      state.patchInFlight = true;
+      const submittedPaths = patchPaths(patch);
+      let failed = false;
+      try {
+        const result = await requestJson("/config", { method: "PATCH", body: JSON.stringify(patch) });
+        state.confirmedConfig = clone(unwrapConfig(result));
+        state.config = clone(state.confirmedConfig);
+        mergePatch(state.config, state.pendingPatch);
+        setConfigSaving("Saved");
+        state.configError = false;
+        updateConnectionBanner();
+      } catch (error) {
+        failed = true;
+        for (const path of submittedPaths) {
+          if (getPath(state.pendingPatch, path) === undefined) setPath(state.config, path, getPath(state.confirmedConfig, path));
+        }
+        setConfigSaving("Not saved");
+        showToast("Could not apply that change: " + error.message, "error");
+      } finally {
+        state.patchInFlight = false;
+        renderConfigControls(failed);
+        renderMetrics();
+        if (Object.keys(state.pendingPatch).length > 0) flushPatch();
+      }
+    }
+
+    async function drainConfigPatches() {
+      clearTimeout(state.patchTimer);
+      while (state.patchInFlight || Object.keys(state.pendingPatch).length > 0) {
+        if (state.patchInFlight) await new Promise((resolve) => setTimeout(resolve, 20));
+        else await flushPatch();
+      }
+    }
+
+    function sanitizeNumber(input, field) {
+      let value = Number(input.value);
+      if (!Number.isFinite(value)) value = Number(input.min || 0);
+      if (field === "requestIntervalSec") {
+        value = Math.round(value / 10) * 10;
+        if (value > 0) value = Math.max(10, value);
+      }
+      const min = input.min === "" ? -Infinity : Number(input.min);
+      const max = input.max === "" ? Infinity : Number(input.max);
+      value = Math.max(min, Math.min(max, value));
+      if (input.step && input.step !== "any") {
+        const step = Number(input.step);
+        const base = Number(input.min || 0);
+        value = Math.round((value - base) / step) * step + base;
+      }
+      if (field === "requestIntervalSec" && value > 0) value = Math.max(10, value);
+      return field.includes("Probability") || field === "airportShare" ? Number(value.toFixed(2)) : value;
+    }
+
+    function handleConfigInput(input) {
+      const field = input.dataset.configField;
+      if (input.type === "range") {
+        const numberId = input.id.replace("-range", "-number");
+        $("#" + numberId).value = input.value;
+      }
+      const source = input.type === "range" ? input : $("#" + input.id.replace("-number", "-range"));
+      let value = sanitizeNumber(input, field);
+      if (input.id === "interval-number" || input.id === "interval-range") value = sanitizeNumber(input, "requestIntervalSec");
+      if (source) source.value = String(value);
+      input.value = String(value);
+      schedulePatch("tenants." + state.tenant + "." + field, value);
+    }
+
+    $$("[data-config-field]").forEach((input) => {
+      input.addEventListener(input.type === "range" ? "input" : "change", () => handleConfigInput(input));
+      if (input.type === "number") input.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") { event.preventDefault(); input.blur(); }
+      });
+    });
+
+    function handlePickupChange(input) {
+      const pair = [Number($("#pickup-min").value), Number($("#pickup-max").value)];
+      if (input.id === "pickup-min") pair[0] = Math.max(5, Math.min(300, Number(input.value) || 5));
+      else pair[1] = Math.max(5, Math.min(300, Number(input.value) || 5));
+      if (pair[0] > pair[1]) {
+        if (input.id === "pickup-min") pair[1] = pair[0];
+        else pair[0] = pair[1];
+      }
+      $("#pickup-min").value = String(pair[0]);
+      $("#pickup-max").value = String(pair[1]);
+      schedulePatch("tenants." + state.tenant + ".pickupWaitSec", pair);
+    }
+    $("#pickup-min").addEventListener("change", (event) => handlePickupChange(event.currentTarget));
+    $("#pickup-max").addEventListener("change", (event) => handlePickupChange(event.currentTarget));
+
+    $("#speed-factor").addEventListener("change", (event) => {
+      const input = event.currentTarget;
+      const value = Math.max(1, Math.min(20, Math.round(Number(input.value) || 1)));
+      input.value = String(value);
+      schedulePatch("speedFactor", value);
+    });
+
+    $("#pause-button").addEventListener("click", () => schedulePatch("paused", !state.config?.paused));
+    $("#retry-button").addEventListener("click", async () => {
+      clearTimeout(state.retryTimer);
+      await loadInitial();
+    });
+
+    $$(".preset-button").forEach((button) => button.addEventListener("click", async () => {
+      if (state.presetInFlight) return;
+      button.disabled = true;
+      const targetTenant = state.tenant;
+      state.presetInFlight = true;
+      renderTenants();
+      renderConfigControls();
+      try {
+        await drainConfigPatches();
+        const result = await requestJson("/preset", {
+          method: "POST",
+          body: JSON.stringify({ name: button.dataset.preset, tenant: targetTenant })
+        });
+        state.config = clone(unwrapConfig(result));
+        state.confirmedConfig = clone(state.config);
+        state.pendingPatch = {};
+        clearTimeout(state.patchTimer);
+        renderConfigControls();
+        renderMetrics();
+        setConfigSaving("Preset saved");
+        state.configError = false;
+        updateConnectionBanner();
+        showToast(button.dataset.preset.replace("-", " ") + " preset applied to " + tenantLabel(targetTenant) + ".");
+      } catch (error) {
+        showToast("Could not apply preset: " + error.message, "error");
+      } finally {
+        state.presetInFlight = false;
+        renderTenants();
+        renderConfigControls();
+      }
+    }));
+
+    function optionalNumber(form, name) {
+      const value = form.elements.namedItem(name).value.trim();
+      return value ? Number(value) : undefined;
+    }
+
+    function actionBody(form, action) {
+      const body = { tenant: state.tenant };
+      if (action === "request-trip") {
+        for (const key of ["from", "to", "rider"]) {
+          const value = form.elements.namedItem(key).value;
+          if (value) body[key] = value;
+        }
+      } else if (action === "burst") {
+        body.count = Number(form.elements.namedItem("count").value);
+        const near = form.elements.namedItem("near").value;
+        if (near) body.near = near;
+      } else if (action === "driver-offline" || action === "driver-online" || action === "traffic-delay") {
+        const driver = form.elements.namedItem("driver").value;
+        if (driver) body.driver = driver;
+        if (action === "traffic-delay") body.seconds = Number(form.elements.namedItem("seconds").value);
+      } else if (action === "decline-next") {
+        body.count = Number(form.elements.namedItem("count").value);
+      } else if (action === "rider-cancel") {
+        const id = optionalNumber(form, "rideRequestId");
+        if (id !== undefined) body.rideRequestId = id;
+      } else if (action === "driver-cancel") {
+        const id = optionalNumber(form, "rideId");
+        if (id !== undefined) body.rideId = id;
+      }
+      return body;
+    }
+
+    $$(".action-card[data-action]").forEach((form) => form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const action = form.dataset.action;
+      const button = $("button[type=submit]", form);
+      button.disabled = true;
+      const originalLabel = button.textContent;
+      button.textContent = "Sending…";
+      try {
+        const result = await requestJson("/actions/" + encodeURIComponent(action), {
+          method: "POST",
+          body: JSON.stringify(actionBody(form, action))
+        });
+        showToast(result.summary || "Action accepted.", "success");
+      } catch (error) {
+        showToast("Action failed: " + error.message, "error");
+      } finally {
+        button.disabled = false;
+        button.textContent = originalLabel;
+      }
+    }));
+
+    $("#event-filter").addEventListener("change", renderEvents);
+
+    async function start() {
+      await loadInitial();
+      connectEvents();
+      clearInterval(state.statusTimer);
+      state.statusTimer = setInterval(refreshStatus, 2000);
+    }
+    start();
+  </script>
+</body>
+</html>

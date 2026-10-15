@@ -1,0 +1,14 @@
+{
+  "city": "fixture",
+  "generatedAt": "2026-10-15T00:00:00Z",
+  "source": "fixture",
+  "attribution": "fixture",
+  "routes": {
+    "hotel>kia-t1": { "distanceM": 100, "durationS": 10, "polyline": "_p~iF~ps|U_ulLnnqC" },
+    "hotel>station": { "distanceM": 100, "durationS": 10, "polyline": "_p~iF~ps|U_ulLnnqC" },
+    "kia-t1>hotel": { "distanceM": 100, "durationS": 10, "polyline": "_p~iF~ps|U_ulLnnqC" },
+    "kia-t1>station": { "distanceM": 100, "durationS": 10, "polyline": "_p~iF~ps|U_ulLnnqC" },
+    "station>hotel": { "distanceM": 100, "durationS": 10, "polyline": "_p~iF~ps|U_ulLnnqC" },
+    "station>kia-t1": { "distanceM": 100, "durationS": 10, "polyline": "_p~iF~ps|U_ulLnnqC" }
+  }
+}
