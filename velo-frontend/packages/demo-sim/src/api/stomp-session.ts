@@ -1,5 +1,4 @@
 import { Client, type IMessage } from "@stomp/stompjs";
-import { SockJsSocket } from "./sockjs-socket.ts";
 import type { SimApi } from "./http-client.ts";
 import type { Clock } from "../sim/clock.ts";
 import type { RandomSource } from "../sim/random.ts";
@@ -118,7 +117,7 @@ export class StompSession {
       throw new Error("STOMP session is closed");
     }
     const client = this.options.clientFactory?.(this.options.webSocketUrl, ticket) ?? new Client({
-      webSocketFactory: () => new SockJsSocket(this.options.webSocketUrl),
+      webSocketFactory: () => new WebSocket(this.options.webSocketUrl),
       connectHeaders: { Authorization: `Bearer ${ticket}` },
       reconnectDelay: 0,
       connectionTimeout: 12_000,

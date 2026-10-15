@@ -11,16 +11,17 @@ fi
 
 stop_tree() {
   local pid="$1"
+  local wait_seconds="${2:-5}"
   local children child
   if ! kill -0 "$pid" >/dev/null 2>&1; then
     return
   fi
   children="$(pgrep -P "$pid" 2>/dev/null || true)"
   for child in $children; do
-    stop_tree "$child"
+    stop_tree "$child" "$wait_seconds"
   done
   kill -TERM "$pid" >/dev/null 2>&1 || true
-  for _ in $(seq 1 20); do
+  for _ in $(seq 1 "$((wait_seconds * 4))"); do
     if ! kill -0 "$pid" >/dev/null 2>&1; then
       return
     fi
@@ -50,7 +51,11 @@ for name in sim driver rider admin landing backend; do
   if [[ -f "$pid_file" ]]; then
     pid="$(cat "$pid_file")"
     if process_matches_job "$name" "$pid"; then
-      stop_tree "$pid"
+      if [[ "$name" == sim ]]; then
+        stop_tree "$pid" 70
+      else
+        stop_tree "$pid"
+      fi
       printf 'Stopped %s (pid %s).\n' "$name" "$pid"
     else
       printf 'Skipped %s pid %s because it no longer matches the recorded demo process.\n' "$name" "$pid"
@@ -68,5 +73,6 @@ if [[ -f "$RUNTIME_DIR/redis.started" ]]; then
   printf 'Stopped the Redis container started by demo-up. Its volume was kept.\n'
 fi
 
-rm -rf "$RUNTIME_DIR"
+find "$RUNTIME_DIR" -mindepth 1 -maxdepth 1 ! -name sim-state.json -exec rm -rf {} +
+rmdir "$RUNTIME_DIR" 2>/dev/null || true
 printf 'Velo local demo stopped.\n'

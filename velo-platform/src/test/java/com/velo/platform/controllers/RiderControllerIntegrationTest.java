@@ -5,6 +5,7 @@ import com.velo.platform.config.TestSecurityConfig;
 import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.Rating;
 import com.velo.platform.entities.Ride;
+import com.velo.platform.entities.RideOffer;
 import com.velo.platform.entities.RideRequest;
 import com.velo.platform.entities.Rider;
 import com.velo.platform.entities.User;
@@ -13,6 +14,7 @@ import com.velo.platform.entities.WalletTransaction;
 import com.velo.platform.entities.enums.PaymentMethod;
 import com.velo.platform.entities.enums.DriverOnboardingStatus;
 import com.velo.platform.entities.enums.RideRequestStatus;
+import com.velo.platform.entities.enums.RideOfferStatus;
 import com.velo.platform.entities.enums.Role;
 import com.velo.platform.entities.enums.TransactionMethod;
 import com.velo.platform.entities.enums.TransactionType;
@@ -20,6 +22,7 @@ import com.velo.platform.repositories.DriverRepository;
 import com.velo.platform.repositories.RatingRepository;
 import com.velo.platform.repositories.RiderSavedPlaceRepository;
 import com.velo.platform.repositories.RideRepository;
+import com.velo.platform.repositories.RideOfferRepository;
 import com.velo.platform.repositories.RideRequestRepository;
 import com.velo.platform.repositories.RiderRepository;
 import com.velo.platform.repositories.UserRepository;
@@ -44,6 +47,7 @@ import java.util.Set;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -58,6 +62,7 @@ class RiderControllerIntegrationTest {
     @Autowired private RiderRepository riderRepository;
     @Autowired private DriverRepository driverRepository;
     @Autowired private RideRepository rideRepository;
+    @Autowired private RideOfferRepository rideOfferRepository;
     @Autowired private RideRequestRepository rideRequestRepository;
     @Autowired private RatingRepository ratingRepository;
     @Autowired private RiderSavedPlaceRepository savedPlaceRepository;
@@ -244,9 +249,19 @@ class RiderControllerIntegrationTest {
     @Test
     @DisplayName("GET /riders/active-ride should return tracking payload for active ride")
     void getActiveRide_ShouldReturnTrackingPayload() throws Exception {
+        RideRequest confirmedRequest = rideRequestRepository.save(RideRequest.builder()
+                .tenantId(testRider.getTenantId())
+                .rider(testRider)
+                .paymentMethod(PaymentMethod.WALLET)
+                .rideRequestStatus(RideRequestStatus.CONFIRMED)
+                .build());
+        confirmedRide.setRideRequest(confirmedRequest);
+        rideRepository.save(confirmedRide);
+
         mockMvc.perform(withRiderAuth(get("/riders/active-ride")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.rideId").value(confirmedRide.getId()))
+                .andExpect(jsonPath("$.data.rideRequestId").value(confirmedRide.getRideRequest().getId()))
                 .andExpect(jsonPath("$.data.status").value("CONFIRMED"))
                 .andExpect(jsonPath("$.data.canCancel").value(true));
     }
@@ -265,6 +280,72 @@ class RiderControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.id").value(pendingRequest.getId()))
                 .andExpect(jsonPath("$.data.rideRequestStatus").value("PENDING"));
+    }
+
+    @Test
+    @DisplayName("POST /riders/cancel-request/{id} cancels an owned pending request")
+    void cancelPendingRequest_ShouldReturnCancelledRequest() throws Exception {
+        RideRequest pendingRequest = rideRequestRepository.save(RideRequest.builder()
+                .tenantId(testRider.getTenantId())
+                .rider(testRider)
+                .paymentMethod(PaymentMethod.WALLET)
+                .rideRequestStatus(RideRequestStatus.PENDING)
+                .build());
+        rideOfferRepository.save(RideOffer.builder()
+                .tenantId(pendingRequest.getTenantId())
+                .rideRequest(pendingRequest)
+                .driver(testDriver)
+                .status(RideOfferStatus.OFFERED)
+                .expiresAt(LocalDateTime.now().plusMinutes(1))
+                .build());
+
+        mockMvc.perform(withRiderAuth(post("/riders/cancel-request/" + pendingRequest.getId())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").value(pendingRequest.getId()))
+                .andExpect(jsonPath("$.data.rideRequestStatus").value("CANCELLED"));
+        assertThat(rideOfferRepository.findByRideRequestIdAndStatus(pendingRequest.getId(), RideOfferStatus.REVOKED))
+                .hasSize(1);
+    }
+
+    @Test
+    @DisplayName("POST /riders/cancel-request rejects a request owned by another rider")
+    void cancelPendingRequest_ShouldRejectAnotherRiderRequest() throws Exception {
+        User otherUser = new User();
+        otherUser.setEmail("other-rider@test.com");
+        otherUser.setPassword("password123");
+        otherUser.setFirstName("Other");
+        otherUser.setLastName("Rider");
+        otherUser.setRoles(Set.of(Role.RIDER));
+        otherUser.setActive(true);
+        otherUser = userRepository.save(otherUser);
+
+        Rider otherRider = new Rider();
+        otherRider.setUser(otherUser);
+        otherRider.setRating(5.0);
+        otherRider = riderRepository.save(otherRider);
+        RideRequest pendingRequest = rideRequestRepository.save(RideRequest.builder()
+                .tenantId(otherRider.getTenantId())
+                .rider(otherRider)
+                .paymentMethod(PaymentMethod.WALLET)
+                .rideRequestStatus(RideRequestStatus.PENDING)
+                .build());
+
+        mockMvc.perform(withRiderAuth(post("/riders/cancel-request/" + pendingRequest.getId())))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("POST /riders/cancel-request rejects a request already accepted by a driver")
+    void cancelPendingRequest_ShouldRejectConfirmedRequest() throws Exception {
+        RideRequest confirmedRequest = rideRequestRepository.save(RideRequest.builder()
+                .tenantId(testRider.getTenantId())
+                .rider(testRider)
+                .paymentMethod(PaymentMethod.WALLET)
+                .rideRequestStatus(RideRequestStatus.CONFIRMED)
+                .build());
+
+        mockMvc.perform(withRiderAuth(post("/riders/cancel-request/" + confirmedRequest.getId())))
+                .andExpect(status().isConflict());
     }
 
     @Test

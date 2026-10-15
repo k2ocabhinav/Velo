@@ -133,6 +133,10 @@ export class FakeApi implements SimApi {
     this.calls.push(`rider cancel ${rideId}`);
   }
 
+  async cancelRiderRequest(rideRequestId: number): Promise<void> {
+    this.calls.push(`rider cancel request ${rideRequestId}`);
+  }
+
   async rateRider(rideId: number, rating: number): Promise<void> {
     this.calls.push(`rate rider ${rideId}:${rating}`);
   }

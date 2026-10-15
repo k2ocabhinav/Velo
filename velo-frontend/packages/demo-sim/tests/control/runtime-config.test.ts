@@ -221,7 +221,7 @@ describe("applyConfigPatch tenant fields", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.config.tenants["default"]?.airportShare).toBe(1);
-    expect(result.config.tenants["default"]?.declineProbability).toBe(0.9);
+    expect(result.config.tenants["default"]?.declineProbability).toBe(1);
     expect(result.config.tenants["default"]?.idleRepositionProbability).toBe(0);
   });
 

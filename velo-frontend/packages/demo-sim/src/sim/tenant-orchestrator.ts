@@ -59,6 +59,7 @@ export class TenantOrchestrator {
   private readonly accountApis = new Map<string, SimApi>();
   private readonly loggedInApis = new Set<SimApi>();
   private readonly randomStreams = new Map<string, SeededRandom>();
+  private readonly availabilityTasks = new Map<DriverBot, Promise<void>>();
   private readonly startedAt: number;
   private readonly context: ConfigContext;
   private readonly actionExecutor: ActionExecutor;
@@ -132,6 +133,7 @@ export class TenantOrchestrator {
       catalogue: options.catalogue,
       clock: this.clock,
       shutdownSignal: this.shutdownController.signal,
+      paused: () => this.pausedValue,
       tenant: (slug) => this.runtimes.get(slug as TenantSlug),
       config: (slug) => this.configValue.tenants[slug]!,
       publish: (tenant, type, message, data) => this.eventHub.publish({ tenant, type, message, ...(data ? { data } : {}) }),
@@ -221,6 +223,7 @@ export class TenantOrchestrator {
       };
     });
     return {
+      ready: this.startupComplete,
       paused: this.pausedValue,
       speedFactor: this.speedValue,
       uptimeSec: Math.max(0, Math.floor((this.clock.now() - this.startedAt) / 1_000)),
@@ -238,17 +241,38 @@ export class TenantOrchestrator {
     this.stopping = true;
     this.startupController.abort(new Error("Simulator is shutting down"));
     this.shutdownController.abort(new Error("Simulator is shutting down"));
+    this.actionExecutor.cancelBursts();
     if (this.saveTimer) clearTimeout(this.saveTimer);
     this.saveTimer = null;
     for (const runtime of this.runtimes.values()) {
       runtime.arrivalController.abort(new Error("Simulator is shutting down"));
       runtime.arrivalWakeController.abort(new Error("Simulator is shutting down"));
-      for (const rider of runtime.riders) rider.stop();
       for (const driver of runtime.drivers) driver.stopMovement();
     }
 
+    const runtimes = [...this.runtimes.values()];
+    await settleWithin(Promise.all([
+      ...runtimes.map((runtime) => runtime.arrivals ?? Promise.resolve()),
+      ...runtimes.flatMap((runtime) => runtime.riders.map((rider) => rider.waitForRequestSettlement())),
+    ]), 13_000);
+    for (const runtime of runtimes) {
+      for (const rider of runtime.riders) rider.stop();
+    }
+
+    await settleWithin(Promise.all(runtimes.flatMap((runtime) => runtime.riders.map(async (rider) => {
+      const requestId = rider.activeRequestId;
+      if (requestId === null) return;
+      const driver = runtime.drivers.find((candidate) => candidate.currentRequestId === requestId);
+      try {
+        const rideId = await rider.cancelRideRequest(requestId);
+        if (rideId !== null) driver?.cancelLocally(requestId, rideId);
+      } catch (error) {
+        this.logger.error(runtime.tenant.slug, rider.account.key, "cancel ride during shutdown", error);
+      }
+    }))), 15_000);
+
     await this.flushState();
-    const drivers = [...this.runtimes.values()].flatMap((runtime) => runtime.drivers);
+    const drivers = runtimes.flatMap((runtime) => runtime.drivers);
     await settleWithin(Promise.all(drivers.map(async (driver) => {
       try {
         await driver.setUnavailable();
@@ -256,10 +280,10 @@ export class TenantOrchestrator {
       } catch (error) {
         this.logger.error(driver.tenant, driver.name, "set unavailable", error);
       }
-    })), 2_500);
+    })), 15_000);
     await settleWithin(Promise.allSettled([
-      ...[...this.runtimes.values()].flatMap((runtime) => runtime.drivers.map((driver) => driver.closeSocket())),
-      ...[...this.runtimes.values()].flatMap((runtime) => runtime.riders.map((rider) => rider.closeSocket())),
+      ...runtimes.flatMap((runtime) => runtime.drivers.map((driver) => driver.closeSocket())),
+      ...runtimes.flatMap((runtime) => runtime.riders.map((rider) => rider.closeSocket())),
     ]), 1_000);
     await settleWithin(Promise.all([...this.loggedInApis].map(async (api) => {
       try {
@@ -267,8 +291,7 @@ export class TenantOrchestrator {
       } catch (error) {
         this.logger.error("default", "system", "logout", error);
       }
-    })), 1_000);
-    await settleWithin(Promise.allSettled([...this.runtimes.values()].map((runtime) => runtime.arrivals ?? Promise.resolve())), 250);
+    })), 15_000);
   }
 
   private async startAttempt(): Promise<void> {
@@ -331,6 +354,12 @@ export class TenantOrchestrator {
         this.assertRunning();
       }
     }
+    for (const runtime of this.runtimes.values()) {
+      for (const rider of runtime.riders) {
+        await rider.reconcileBackendState();
+        this.assertRunning();
+      }
+    }
 
     for (const runtime of this.runtimes.values()) {
       for (const [index, account] of runtime.tenant.drivers.entries()) {
@@ -386,6 +415,7 @@ export class TenantOrchestrator {
         await driver.setUnavailable().catch(() => undefined);
         await driver.closeSocket().catch(() => undefined);
       }
+      for (const driver of runtime.drivers) this.availabilityTasks.delete(driver);
       runtime.riders = [];
       runtime.drivers = [];
       runtime.plans.clear();
@@ -405,9 +435,11 @@ export class TenantOrchestrator {
 
   private commitConfig(config: SimConfig, changed: string[]): void {
     const previousSeed = this.configValue.seed;
+    const wasPaused = this.pausedValue;
     this.configValue = structuredClone(config);
     this.speedValue = config.speedFactor;
     this.pausedValue = config.paused;
+    if (!wasPaused && this.pausedValue) this.actionExecutor.cancelBursts();
     if (previousSeed !== config.seed) this.reseed(config.seed);
     for (const runtime of this.runtimes.values()) {
       this.wakeArrivalLoop(runtime);
@@ -433,25 +465,64 @@ export class TenantOrchestrator {
   }
 
   private async setDriverOnline(slug: TenantSlug, driver: DriverBot, online: boolean): Promise<void> {
-    await driver.setOnline(online);
     const runtime = this.runtimes.get(slug);
-    if (!runtime) return;
+    if (!runtime) {
+      await driver.setOnline(online);
+      return;
+    }
+    await this.enqueueAvailability(runtime, driver, () => online, false);
     const onlineDrivers = runtime.drivers.filter((candidate) => candidate.wantsOnline).length;
     const result = applyConfigPatch(this.configValue, { tenants: { [slug]: { onlineDrivers } } }, this.context);
     if (result.ok && result.changed.length > 0) this.commitConfig(result.config, result.changed);
   }
 
-  private reconcileDrivers(runtime: TenantRuntime, count: number): void {
+  private reconcileDrivers(runtime: TenantRuntime, _count: number): void {
+    for (const driver of runtime.drivers) {
+      void this.enqueueAvailability(runtime, driver, () => {
+        const currentCount = this.configValue.tenants[runtime.tenant.slug]!.onlineDrivers;
+        return this.desiredDrivers(runtime, currentCount).has(driver);
+      }, true);
+    }
+  }
+
+  private desiredDrivers(runtime: TenantRuntime, count: number): Set<DriverBot> {
     const desired = new Set(runtime.drivers.filter((driver) => driver.wantsOnline).slice(0, count));
     for (const driver of runtime.drivers) {
       if (desired.size >= count) break;
       if (!driver.wantsOnline) desired.add(driver);
     }
-    for (const driver of runtime.drivers) {
-      void driver.setOnline(desired.has(driver)).catch((error: unknown) => {
-        this.logger.error(runtime.tenant.slug, driver.accountKey, "apply online driver config", error);
-      });
-    }
+    return desired;
+  }
+
+  private enqueueAvailability(
+    runtime: TenantRuntime,
+    driver: DriverBot,
+    desired: () => boolean,
+    reconcileLatest: boolean,
+  ): Promise<void> {
+    const previous = this.availabilityTasks.get(driver) ?? Promise.resolve();
+    const task = previous.catch(() => undefined).then(async () => {
+      while (!this.stopping) {
+        const target = desired();
+        if (driver.wantsOnline === target
+          && (target ? driver.state !== "offline" : driver.state === "offline" || driver.rideId !== null)) return;
+        try {
+          await driver.setOnline(target);
+        } catch (error) {
+          this.logger.error(runtime.tenant.slug, driver.accountKey, "apply online driver config", error);
+          if (!reconcileLatest) throw error;
+          if (desired() === target) return;
+        }
+        if (!reconcileLatest || desired() === target) return;
+      }
+    });
+    this.availabilityTasks.set(driver, task);
+    void task.then(() => {
+      if (this.availabilityTasks.get(driver) === task) this.availabilityTasks.delete(driver);
+    }, () => {
+      if (this.availabilityTasks.get(driver) === task) this.availabilityTasks.delete(driver);
+    });
+    return task;
   }
 
   private wakeArrivalLoop(runtime: TenantRuntime): void {

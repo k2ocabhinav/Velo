@@ -21,6 +21,8 @@ public interface RideOfferService {
 
     List<RideOffer> revokeCompetingOffers(Long rideRequestId, Long acceptedDriverId, String reason);
 
+    List<RideOffer> revokeOpenOffers(Long rideRequestId, String reason);
+
     int expireStaleOffers();
 
     long countOpenOffers();

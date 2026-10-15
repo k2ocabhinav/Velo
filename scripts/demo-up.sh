@@ -118,7 +118,7 @@ cleanup_on_failure() {
 trap cleanup_on_failure EXIT
 
 printf 'Building production frontend apps...\n'
-(cd "$FRONTEND_DIR" && NEXT_PUBLIC_API_BASE_URL="$API_BASE_URL" npm run build -- --cache-dir=.turbo-demo)
+(cd "$FRONTEND_DIR" && NEXT_PUBLIC_API_BASE_URL="$API_BASE_URL" npm run build -- --cache-dir=.turbo-demo --concurrency=2)
 
 if ! port_is_open 5432; then
   if ! command -v docker >/dev/null 2>&1; then
@@ -251,7 +251,10 @@ wait_for_http() {
 wait_for_control_server() {
   for _ in $(seq 1 "$HEALTH_TIMEOUT_SECONDS"); do
     if curl --silent --fail "http://127.0.0.1:$SIM_PORT/status" >/dev/null 2>&1; then
-      return 0
+      if curl --silent --fail "http://127.0.0.1:$SIM_PORT/status" \
+        | python3 -c 'import json, sys; raise SystemExit(0 if json.load(sys.stdin).get("ready") is True else 1)'; then
+        return 0
+      fi
     fi
     if ! kill -0 "$(cat "$RUNTIME_DIR/sim.pid")" >/dev/null 2>&1; then
       return 1
@@ -265,7 +268,7 @@ wait_for_http backend "$API_BASE_URL/actuator/health"
 
 if (( DEMO_SIM_ENABLED )); then
   printf '%s\n' "$SIM_PORT" > "$RUNTIME_DIR/sim.port"
-  start_job sim "$FRONTEND_DIR/packages/demo-sim" env VELO_SIM_ALLOW=1 node src/main.ts --api "$API_BASE_URL" --control-port "$SIM_PORT"
+  start_job sim "$FRONTEND_DIR/packages/demo-sim" env VELO_SIM_ALLOW=1 node src/main.ts --api "$API_BASE_URL" --control-port "$SIM_PORT" --state-file "$RUNTIME_DIR/sim-state.json"
 fi
 
 wait_for_http landing "http://localhost:$LANDING_PORT/"
@@ -278,8 +281,9 @@ if (( DEMO_SIM_ENABLED )); then
   if wait_for_control_server; then
     SIM_READY=1
   else
-    printf 'The simulator did not become ready; the demo continues without the live fleet. Check %s.\n' \
+    printf 'The simulator did not become ready. Check %s.\n' \
       "$RUNTIME_DIR/sim.log" >&2
+    exit 1
   fi
 fi
 
@@ -317,8 +321,9 @@ if (( DEMO_SIM_ENABLED && SIM_READY )); then
 
 Simulated background fleet on the admin live map:
 EOF
-  printf '  Control: http://127.0.0.1:%s/status\n' "$SIM_PORT"
-  printf '  ./scripts/demo-sim.sh status|pause|resume|speed <n>\n'
+  printf '  Control panel: http://127.0.0.1:%s/\n' "$SIM_PORT"
+  printf '  Status: http://127.0.0.1:%s/status\n' "$SIM_PORT"
+  printf '  ./scripts/demo-sim.sh status|pause|resume|speed <n>|preset|set|do|open\n'
 elif (( DEMO_SIM_ENABLED == 0 )); then
   printf '\nSimulator: disabled (VELO_DEMO_SIM=0).\n'
 fi

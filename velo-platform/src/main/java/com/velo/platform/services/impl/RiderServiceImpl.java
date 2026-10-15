@@ -34,6 +34,7 @@ import com.velo.platform.services.RideService;
 import com.velo.platform.services.RiderService;
 import com.velo.platform.services.PaymentService;
 import com.velo.platform.services.DriverEarningsService;
+import com.velo.platform.services.RideRealtimeService;
 import com.velo.platform.services.WalletService;
 import com.velo.platform.strategies.RideStrategyManager;
 import lombok.RequiredArgsConstructor;
@@ -70,6 +71,7 @@ public class RiderServiceImpl implements RiderService {
     private final PaymentService paymentService;
     private final DriverEarningsService driverEarningsService;
     private final WalletService walletService;
+    private final RideRealtimeService rideRealtimeService;
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
@@ -160,6 +162,35 @@ public class RiderServiceImpl implements RiderService {
         eventPublisher.publishEvent(new RideCancelledEvent(this, savedRide));
 
         return modelMapper.map(savedRide, RideDto.class);
+    }
+
+    @Override
+    @Transactional
+    public RideRequestDto cancelRideRequest(Long rideRequestId) {
+        Rider rider = getCurrentRider();
+        Long tenantId = resolveTenantId(rider.getTenantId());
+        RideRequest request = rideRequestRepository.findByIdAndTenantIdForUpdate(rideRequestId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Ride request not found with id: " + rideRequestId));
+
+        if (!rider.equals(request.getRider())) {
+            throw new RuntimeConflictException("Rider does not own this ride request.");
+        }
+        if (!RideRequestStatus.PENDING.equals(request.getRideRequestStatus())) {
+            throw new RuntimeConflictException("Only a pending ride request can be cancelled.");
+        }
+
+        request.setRideRequestStatus(RideRequestStatus.CANCELLED);
+        RideRequest cancelled = rideRequestRepository.save(request);
+        rideOfferService.revokeOpenOffers(rideRequestId, "Ride request cancelled by rider.");
+        notificationService.createNotification(
+                rider.getUser(),
+                "Ride request cancelled",
+                "Your pending ride request has been cancelled.",
+                NotificationType.RIDE_CANCELLED,
+                rideRequestId
+        );
+        rideRealtimeService.publishRideRequestPending(cancelled);
+        return modelMapper.map(cancelled, RideRequestDto.class);
     }
 
     @Override
@@ -289,6 +320,9 @@ public class RiderServiceImpl implements RiderService {
     private RideTrackingDto toRideTrackingDto(Ride ride) {
         RideTrackingDto trackingDto = new RideTrackingDto();
         trackingDto.setRideId(ride.getId());
+        if (ride.getRideRequest() != null) {
+            trackingDto.setRideRequestId(ride.getRideRequest().getId());
+        }
         trackingDto.setStatus(ride.getRideStatus() == null ? null : ride.getRideStatus().name());
         trackingDto.setPickupLocation(toPointDto(ride.getPickupLocation()));
         trackingDto.setDropOffLocation(toPointDto(ride.getDropOffLocation()));

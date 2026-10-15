@@ -21,6 +21,8 @@ describe("Velo HTTP client", () => {
         payload = envelope({ ticket: "ticket-1", expiresInSeconds: 60 });
       } else if (url.endsWith("/auth/logout")) {
         payload = envelope({ message: "Logged out" });
+      } else if (url.endsWith("/riders/cancel-request/33")) {
+        payload = envelope({ id: 33, rideRequestStatus: "CANCELLED" });
       } else {
         return new Response("{}", { status: 404 });
       }
@@ -38,6 +40,7 @@ describe("Velo HTTP client", () => {
     expect(profile.user.roles).toContain("RIDER");
     const ticket = await client.getWebSocketTicket();
     expect(ticket.ticket).toBe("ticket-1");
+    await client.cancelRiderRequest(33);
     await client.logout();
 
     const refreshRequest = requests.find((request) => request.url.endsWith("/auth/refresh"));
@@ -46,11 +49,12 @@ describe("Velo HTTP client", () => {
     expect(new Headers(profileRequest?.init.headers).get("authorization")).toBe("Bearer access-new");
     expect(new Headers(profileRequest?.init.headers).get("x-tenant-id")).toBeNull();
     expect(requests.map((request) => new URL(request.url).pathname)).toContain("/riders/getMyProfile");
+    expect(requests.map((request) => new URL(request.url).pathname)).toContain("/riders/cancel-request/33");
     const logoutRequest = requests.find((request) => request.url.endsWith("/auth/logout"));
     expect(JSON.parse(String(logoutRequest?.init.body))).toEqual({ refreshToken: "refresh-new" });
   });
 });
 
-function envelope<T>(data: T): { data: T; error: string; statusCode: number } {
-  return { data, error: "", statusCode: 200 };
+function envelope<T>(data: T): { data: T; error: null; timeStamp: string } {
+  return { data, error: null, timeStamp: "2026-10-15T22:00:00" };
 }

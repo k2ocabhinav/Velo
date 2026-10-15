@@ -147,6 +147,40 @@ public class RideOfferServiceImpl implements RideOfferService {
 
     @Override
     @Transactional
+    public List<RideOffer> revokeOpenOffers(Long rideRequestId, String reason) {
+        List<RideOffer> offered = rideOfferRepository.findByRideRequestIdAndStatus(
+                rideRequestId,
+                RideOfferStatus.OFFERED
+        );
+        if (offered.isEmpty()) {
+            return List.of();
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        for (RideOffer offer : offered) {
+            offer.setStatus(RideOfferStatus.REVOKED);
+            offer.setResolvedAt(now);
+            offer.setResolutionReason(reason);
+        }
+
+        List<RideOffer> saved = rideOfferRepository.saveAll(offered);
+        for (RideOffer offer : saved) {
+            if (offer.getDriver() == null || offer.getDriver().getUser() == null) {
+                continue;
+            }
+            notificationService.createNotification(
+                    offer.getDriver().getUser(),
+                    "Ride request cancelled",
+                    "The rider cancelled this ride request.",
+                    NotificationType.RIDE_OFFER_REVOKED,
+                    rideRequestId
+            );
+        }
+        return saved;
+    }
+
+    @Override
+    @Transactional
     public int expireStaleOffers() {
         LocalDateTime now = LocalDateTime.now();
         List<RideOffer> staleOffers = rideOfferRepository.findByStatusAndExpiresAtLessThanEqual(RideOfferStatus.OFFERED, now);

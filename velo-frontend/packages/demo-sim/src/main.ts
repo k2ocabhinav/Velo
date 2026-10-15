@@ -41,7 +41,7 @@ export async function runCli(args: string[], allowValue: string | undefined): Pr
     }
     shuttingDown = true;
     logger.event(options.tenants[0]!, "system", "shutdown", signal);
-    const forceExit = setTimeout(() => process.exit(0), 4_800);
+    const forceExit = setTimeout(() => process.exit(0), 65_000);
     await control.close();
     await orchestrator.stop();
     if (forceExit) {

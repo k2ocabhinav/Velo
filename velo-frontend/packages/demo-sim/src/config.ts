@@ -29,7 +29,7 @@ export const SIM_TENANTS: Record<TenantSlug, SimTenant> = {
   default: {
     slug: "default",
     name: "Velo Business",
-    currency: "INR",
+    currency: "USD",
     simDomain: "sim.velobusiness.demo",
     drivers: accounts("default", "DRIVER", "driver", "sim.velobusiness.demo", [
       "Arjun Rao", "Meera Iyer", "Kabir Shah", "Nikhil Menon", "Sana Qureshi", "Rohit Kulkarni",

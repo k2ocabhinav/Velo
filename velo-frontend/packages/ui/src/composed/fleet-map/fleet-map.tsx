@@ -2,13 +2,13 @@
 
 import { memo, useCallback, useEffect, useRef, type MouseEvent, type RefObject } from "react";
 import L, { type Marker as LeafletMarker, type Polyline as LeafletPolyline } from "leaflet";
-import { MapContainer, TileLayer, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, useMap, ZoomControl } from "react-leaflet";
 import { getFleetDriverVisualState, interpolateFleetPosition, type FleetPosition } from "./animation";
+import { DEFAULT_CENTER, fitFleetMap, focusZoom } from "./camera";
 import { FleetMapStore, type FleetMapState } from "./store";
 import styles from "./fleet-map.module.css";
 import type { FleetMapDriver, FleetMapFocusRequest, FleetMapPoint, FleetMapRide, FleetMapSelection } from "./types";
 
-const DEFAULT_CENTER: [number, number] = [12.9716, 77.5946];
 const ANIMATION_MS = 3_000;
 const OSM_TILES = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 
@@ -74,16 +74,28 @@ function appendLine(parent: HTMLElement, className: string, value: string): void
   parent.append(line);
 }
 
+function appendText(parent: HTMLElement, tag: "strong" | "span", className: string, value: string): HTMLElement {
+  const element = document.createElement(tag);
+  element.className = className;
+  element.textContent = value;
+  parent.append(element);
+  return element;
+}
+
 function createDriverPopup(driver: FleetMapDriver, trip?: FleetMapRide): HTMLElement {
   const content = document.createElement("div");
   content.className = cssClass("popup");
-  const title = document.createElement("strong");
-  title.className = cssClass("popupTitle");
-  title.textContent = driver.name;
-  content.append(title);
-  appendLine(content, cssClass("popupLine"), driver.vehiclePlate || "Vehicle plate unavailable");
-  appendLine(content, cssClass("popupLine"), `${formatStatus(driver.status)}${driver.stale ? " · stale location" : ""}`);
-  appendLine(content, cssClass("popupLine"), `Last update · ${formatLastUpdate(driver.locationUpdatedAt)}`);
+  const heading = document.createElement("div");
+  heading.className = cssClass("popupHeading");
+  appendText(heading, "strong", cssClass("popupTitle"), driver.name);
+  appendText(heading, "span", cssClass("popupPlate"), driver.vehiclePlate || "Plate unavailable");
+  content.append(heading);
+  const meta = document.createElement("div");
+  meta.className = cssClass("popupMeta");
+  const status = appendText(meta, "span", cssClass("popupStatus"), `${formatStatus(driver.status)}${driver.stale ? " · stale" : ""}`);
+  status.dataset.tone = driver.status === "EN_ROUTE_TO_PICKUP" ? "warning" : driver.status === "ON_TRIP" ? "primary" : "success";
+  appendText(meta, "span", cssClass("popupUpdated"), `updated ${formatLastUpdate(driver.locationUpdatedAt)}`);
+  content.append(meta);
   if (trip) {
     appendLine(content, cssClass("popupTrip"), `${trip.riderName} · ${trip.status === "ONGOING" ? "On trip" : "To pickup"}`);
     appendLine(content, cssClass("popupLine"), `${trip.pickup.address ?? "Pickup"} → ${trip.dropOff.address ?? "Drop-off"}`);
@@ -149,16 +161,6 @@ function pointsForSnapshot(drivers: FleetMapDriver[], rides: FleetMapRide[]): [n
   ];
 }
 
-function fitMap(map: L.Map, points: [number, number][]): void {
-  if (!points.length) {
-    map.setView(DEFAULT_CENTER, 12, { animate: false });
-  } else if (points.length === 1) {
-    map.setView(points[0]!, 14, { animate: false });
-  } else {
-    map.fitBounds(points, { padding: [38, 38], maxZoom: 14, animate: false });
-  }
-}
-
 function snapshotPoints(state: FleetMapState): [number, number][] {
   return pointsForSnapshot(state.drivers, state.rides);
 }
@@ -170,8 +172,7 @@ function MapCamera({ store, actions }: { store: FleetMapStore; actions: RefObjec
   useEffect(() => {
     actions.current = {
       recenter: () => {
-        map.invalidateSize({ animate: false });
-        fitMap(map, snapshotPoints(store.getState()));
+        fitFleetMap(map, snapshotPoints(store.getState()));
       },
     };
     const fitInitial = () => {
@@ -179,7 +180,7 @@ function MapCamera({ store, actions }: { store: FleetMapStore; actions: RefObjec
       const points = snapshotPoints(store.getState());
       if (!points.length) return;
       hasFitted.current = true;
-      fitMap(map, points);
+      fitFleetMap(map, points);
     };
     fitInitial();
     const unsubscribe = store.subscribe((change) => {
@@ -220,8 +221,16 @@ function ImperativeMarkers({ store, reducedMotion }: { store: FleetMapStore; red
             return ride?.driverId ? driverMarkers.current.get(ride.driverId) : requestMarkers.current.get(selection.id);
           })();
       if (!record) return;
-      map.flyTo(record.marker.getLatLng(), Math.max(map.getZoom(), 14), { duration: reducedMotion ? 0 : 0.55 });
-      record.marker.openPopup();
+      map.flyTo(record.marker.getLatLng(), focusZoom(map.getZoom()), reducedMotion
+        ? { animate: false }
+        : { duration: 0.55 });
+      if (reducedMotion) {
+        record.marker.openPopup();
+      } else {
+        map.once("moveend", () => {
+          if (map.hasLayer(record.marker)) record.marker.openPopup();
+        });
+      }
     };
 
     const updateData = () => {
@@ -239,7 +248,7 @@ function ImperativeMarkers({ store, reducedMotion }: { store: FleetMapStore; red
         let record = driverMarkers.current.get(driver.driverId);
         if (!record) {
           const marker = L.marker(toLatLng(target), { icon: createDriverIcon(driver), title: driver.name, keyboard: true }).addTo(map);
-          marker.bindPopup(createDriverPopup(driver, driver.rideId ? tripsByRide.get(driver.rideId) : undefined), { closeButton: false, maxWidth: 270 });
+          marker.bindPopup(createDriverPopup(driver, driver.rideId ? tripsByRide.get(driver.rideId) : undefined), { closeButton: false, maxWidth: 240 });
           marker.on("click", () => store.select({ type: "driver", id: driver.driverId }));
           record = { marker, target, animationFrom: target, animationStartedAt: performance.now(), driver };
           driverMarkers.current.set(driver.driverId, record);
@@ -273,7 +282,7 @@ function ImperativeMarkers({ store, reducedMotion }: { store: FleetMapStore; red
         marker.getElement()?.setAttribute("data-testid", "fleet-request-marker");
         marker.getElement()?.setAttribute("data-request-id", String(ride.rideRequestId));
         marker.getElement()?.setAttribute("aria-label", `Waiting request · ${ride.riderName}`);
-        marker.bindPopup(createRequestPopup(ride), { closeButton: false, maxWidth: 270 });
+        marker.bindPopup(createRequestPopup(ride), { closeButton: false, maxWidth: 240 });
         marker.on("click", () => store.select({ type: "ride", id: ride.rideRequestId }));
         requestMarkers.current.set(ride.rideRequestId, { marker, ride });
       }
@@ -392,8 +401,9 @@ function FleetMapCanvas({ store, reducedMotion }: { store: FleetMapStore; reduce
   const actions = useRef<CameraActions | null>(null);
   return (
     <div className={styles.mapFrame}>
-      <MapContainer center={DEFAULT_CENTER} zoom={12} scrollWheelZoom className={cssClass("map")} aria-label="Live fleet map">
+      <MapContainer center={DEFAULT_CENTER} zoom={12} scrollWheelZoom zoomControl={false} className={cssClass("map")} aria-label="Live fleet map">
         <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>' url={OSM_TILES} maxZoom={19} />
+        <ZoomControl position="bottomleft" />
         <MapCamera store={store} actions={actions} />
         <ImperativeMarkers store={store} reducedMotion={reducedMotion} />
         <SelectedTripRoute store={store} />
