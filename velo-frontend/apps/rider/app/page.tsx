@@ -684,6 +684,7 @@ export default function RiderHomePage() {
       };
       setLastRequest(pendingRequest);
       setMessage(`${tripLabel} requested. We are now matching you with a nearby ${driverLabel.toLowerCase()}.`);
+      setBookingOpen(false);
       void loadTripLane(true, pendingRequest);
     } catch (requestError) {
       const requestErrorMessage = requestError instanceof Error ? requestError.message : "";

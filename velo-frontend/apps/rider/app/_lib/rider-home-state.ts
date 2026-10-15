@@ -159,58 +159,10 @@ export function selectTripLaneRide(
   rides: RiderHomeRide[],
   pendingRequest: RiderHomePendingRequest | null = null,
 ): RiderHomeTripLane {
-  if (rides.length === 0) {
-    const pendingStatus = normalizeStatus(pendingRequest?.rideRequestStatus);
-    if (pendingRequest && isPendingRequestStatus(pendingStatus)) {
-      return {
-        ride: null,
-        mode: "pending",
-        title: "Finding a driver",
-        description: getPendingRequestDescription(pendingStatus),
-        statusLabel: getRideStatusLabel(pendingStatus),
-        timeLabel: getPendingRequestTimeLabel(pendingRequest),
-        count: 0,
-      };
-    }
-
-    return {
-      ride: null,
-      mode: "empty",
-      title: "No active trip right now",
-      description: "Request a ride when you are ready. Your most recent trip will appear here once it starts.",
-      statusLabel: null,
-      timeLabel: null,
-      count: 0,
-    };
-  }
-
+  const pendingStatus = normalizeStatus(pendingRequest?.rideRequestStatus);
   const sorted = [...rides].sort(compareRidePriority);
   const activeRide = sorted.find((ride) => isActiveStatus(ride.rideStatus)) ?? null;
   const latestRide = sorted[0] ?? null;
-  if (!activeRide && !latestRide) {
-    const pendingStatus = normalizeStatus(pendingRequest?.rideRequestStatus);
-    if (pendingRequest && isPendingRequestStatus(pendingStatus)) {
-      return {
-        ride: null,
-        mode: "pending",
-        title: "Finding a driver",
-        description: getPendingRequestDescription(pendingStatus),
-        statusLabel: getRideStatusLabel(pendingStatus),
-        timeLabel: getPendingRequestTimeLabel(pendingRequest),
-        count: rides.length,
-      };
-    }
-
-    return {
-      ride: null,
-      mode: "empty",
-      title: "No active trip right now",
-      description: "Request a ride when you are ready. Your most recent trip will appear here once it starts.",
-      statusLabel: null,
-      timeLabel: null,
-      count: rides.length,
-    };
-  }
 
   if (activeRide) {
     return {
@@ -227,13 +179,37 @@ export function selectTripLaneRide(
     };
   }
 
+  if (pendingRequest && isPendingRequestStatus(pendingStatus)) {
+    return {
+      ride: null,
+      mode: "pending",
+      title: "Finding a driver",
+      description: getPendingRequestDescription(pendingStatus),
+      statusLabel: getRideStatusLabel(pendingStatus),
+      timeLabel: getPendingRequestTimeLabel(pendingRequest),
+      count: rides.length,
+    };
+  }
+
+  if (!latestRide) {
+    return {
+      ride: null,
+      mode: "empty",
+      title: "No active trip right now",
+      description: "Request a ride when you are ready. Your most recent trip will appear here once it starts.",
+      statusLabel: null,
+      timeLabel: null,
+      count: 0,
+    };
+  }
+
   return {
     ride: latestRide,
     mode: "recent",
     title: "Latest trip",
     description: "No active trip is running now, so this lane shows your most recent ride.",
-    statusLabel: latestRide ? getRideStatusLabel(latestRide.rideStatus) : null,
-    timeLabel: latestRide ? getRideTimeLabel(latestRide) : null,
+    statusLabel: getRideStatusLabel(latestRide.rideStatus),
+    timeLabel: getRideTimeLabel(latestRide),
     count: rides.length,
   };
 }

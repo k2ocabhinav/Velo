@@ -1,14 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { requestDriverProxy } from "./driver-client";
 import type { MapPoint } from "./map/routing";
 
 type DriverLocationPublisherState = {
   mode: "idle" | "publishing" | "degraded";
   message: string;
+  permissionDenied: boolean;
   lastPublishedAt: string | null;
   lastPublishedPoint: MapPoint | null;
+};
+
+export type DriverLocationPublisher = DriverLocationPublisherState & {
+  retry: () => void;
 };
 
 const ACTIVE_RIDE_STATUSES = new Set(["CONFIRMED", "ONGOING"]);
@@ -65,19 +70,26 @@ function isLocationPublishingEnabled(status: string | null | undefined): boolean
   return ACTIVE_RIDE_STATUSES.has((status ?? "").toUpperCase());
 }
 
-export function useDriverLocationPublisher(rideStatus: string | null | undefined): DriverLocationPublisherState {
+export function useDriverLocationPublisher(rideStatus: string | null | undefined): DriverLocationPublisher {
   const [state, setState] = useState<DriverLocationPublisherState>({
     mode: "idle",
     message: "Location publishing is idle.",
+    permissionDenied: false,
     lastPublishedAt: null,
     lastPublishedPoint: null,
   });
+  const [attempt, setAttempt] = useState(0);
+
+  const retry = useCallback(() => {
+    setAttempt((current) => current + 1);
+  }, []);
 
   useEffect(() => {
     if (!isLocationPublishingEnabled(rideStatus)) {
       setState({
         mode: "idle",
         message: "Location publishing is idle.",
+        permissionDenied: false,
         lastPublishedAt: null,
         lastPublishedPoint: null,
       });
@@ -87,7 +99,8 @@ export function useDriverLocationPublisher(rideStatus: string | null | undefined
     if (typeof window === "undefined" || !("geolocation" in navigator)) {
       setState({
         mode: "degraded",
-        message: "Geolocation is unavailable. Ride status updates continue without live location.",
+        message: "Live location isn't available in this browser. Trip updates still work.",
+        permissionDenied: false,
         lastPublishedAt: null,
         lastPublishedPoint: null,
       });
@@ -140,6 +153,7 @@ export function useDriverLocationPublisher(rideStatus: string | null | undefined
                 ...current,
                 mode: "publishing",
                 message: "Publishing live location updates.",
+                permissionDenied: false,
                 lastPublishedAt: publishedAt,
                 lastPublishedPoint: {
                   lat: position.coords.latitude,
@@ -161,7 +175,7 @@ export function useDriverLocationPublisher(rideStatus: string | null | undefined
               setState((current) => ({
                 ...current,
                 mode: "degraded",
-                message: "Location publish failed. Retrying with slower cadence.",
+                message: "Live location paused. Retrying shortly.",
               }));
               scheduleNext(
                 resolveLocationPublishIntervalMs({
@@ -177,14 +191,14 @@ export function useDriverLocationPublisher(rideStatus: string | null | undefined
             return;
           }
 
-          const message =
-            geoError.code === geoError.PERMISSION_DENIED
-              ? "Location permission denied. Ride status updates continue without live location."
-              : "Unable to read location right now. Retrying with slower cadence.";
+          const permissionDenied = geoError.code === geoError.PERMISSION_DENIED;
           setState((current) => ({
             ...current,
             mode: "degraded",
-            message,
+            message: permissionDenied
+              ? "Live location is off. Trip updates still work."
+              : "Can't read your location right now. Retrying shortly.",
+            permissionDenied,
           }));
           scheduleNext(
             resolveLocationPublishIntervalMs({
@@ -210,7 +224,7 @@ export function useDriverLocationPublisher(rideStatus: string | null | undefined
         window.clearTimeout(timeoutId);
       }
     };
-  }, [rideStatus]);
+  }, [attempt, rideStatus]);
 
-  return state;
+  return { ...state, retry };
 }

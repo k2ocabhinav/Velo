@@ -73,6 +73,44 @@ describe("rider home trip lane", () => {
     expect(lane.statusLabel).toBe("Driver assigned");
   });
 
+  it("shows the pending lane when the rider has prior history", () => {
+    const lane = selectTripLaneRide(
+      [
+        createRide({
+          id: 202,
+          rideStatus: "ENDED",
+          endedAt: "2026-04-08T08:00:00.000Z",
+        }),
+      ],
+      {
+        id: 77,
+        rideRequestStatus: "PENDING",
+      },
+    );
+
+    expect(lane.mode).toBe("pending");
+    expect(lane.title).toBe("Finding a driver");
+    expect(lane.statusLabel).toBe("Finding driver");
+    expect(lane.count).toBe(1);
+    expect(shouldShowTripBanner(lane)).toBe(true);
+  });
+
+  it("keeps the active trip ahead of recent history and a stale pending request", () => {
+    const lane = selectTripLaneRide(
+      [
+        createRide({ id: 202, rideStatus: "ENDED", endedAt: "2026-04-08T08:00:00.000Z" }),
+        createRide({ id: 303, rideStatus: "CONFIRMED", createdTime: "2026-04-08T10:05:00.000Z" }),
+      ],
+      {
+        id: 77,
+        rideRequestStatus: "PENDING",
+      },
+    );
+
+    expect(lane.mode).toBe("active");
+    expect(lane.ride?.id).toBe(303);
+  });
+
   it("falls back to recent lane for completed trips", () => {
     const lane = selectTripLaneRide([
       createRide({

@@ -21,6 +21,7 @@ import {
   normalizeDriverRidePage,
   selectCurrentDriverRide,
 } from "./_lib/driver-ride-state";
+import { formatOfferLocation, getRiderFirstName, resolveOfferExpiresAtMs } from "./_lib/driver-offer";
 import {
   useDriverNotificationSubscription,
   type DriverNotificationEvent,
@@ -29,7 +30,6 @@ import {
 const INCOMING_TYPES = new Set(["RIDE_REQUESTED", "RIDE_DISPATCHED"]);
 const DEFAULT_REFRESH_INTERVAL_MS = 30_000;
 const ACTIVE_RIDE_REFRESH_INTERVAL_MS = 10_000;
-const OFFER_TTL_MS = 45_000;
 
 function isIncomingRideType(type: string | null | undefined): boolean {
   return Boolean(type && INCOMING_TYPES.has(type));
@@ -102,19 +102,6 @@ function buildPickupPreviewUrl(point: { lat: number; lng: number }): string {
   const top = point.lat + delta;
   const bottom = point.lat - delta;
   return `https://www.openstreetmap.org/export/embed.html?bbox=${left}%2C${bottom}%2C${right}%2C${top}&layer=mapnik&marker=${point.lat}%2C${point.lng}`;
-}
-
-function toExpiryMs(createdTime: string | null | undefined): number | null {
-  if (!createdTime) {
-    return null;
-  }
-
-  const createdMs = new Date(createdTime).getTime();
-  if (!Number.isFinite(createdMs)) {
-    return null;
-  }
-
-  return createdMs + OFFER_TTL_MS;
 }
 
 type TenantBranding = {
@@ -291,6 +278,10 @@ export default function DriverHomePage() {
   );
 
   const realtime = useDriverNotificationSubscription(true, handleIncomingNotification);
+
+  const handleOfferExpired = useCallback(() => {
+    void loadIncoming(true);
+  }, [loadIncoming]);
 
   const queuedRequestCount = useMemo(() => incoming.length, [incoming]);
   const activeRideFare = getDriverRideFareValue(activeRide);
@@ -502,6 +493,10 @@ export default function DriverHomePage() {
               const preview = requestId !== null ? rideRequestPreviews[requestId] : null;
               const pickup = toMapPoint(preview?.pickupLocation);
               const cardContent = getIncomingCardContent(notification, tripLabel);
+              const riderName = getRiderFirstName(preview?.rider);
+              const pickupLabel = formatOfferLocation(preview?.pickupAddress, preview?.pickupLocation);
+              const dropOffLabel = formatOfferLocation(preview?.dropOffAddress, preview?.dropOffLocation);
+              const offerExpiresAtMs = resolveOfferExpiresAtMs(preview?.expiresAt, notification.createdTime);
               return (
                 <article className="driver-offer" key={notification.id}>
                   <div className="stack compact">
@@ -510,11 +505,23 @@ export default function DriverHomePage() {
                       {preview?.fare !== undefined && preview.fare !== null ? <Money amount={preview.fare} emphasis /> : null}
                     </div>
                     <p className="driver-section-copy">{cardContent.message}</p>
+                    {riderName || pickupLabel || dropOffLabel ? (
+                      <dl className="driver-offer-facts">
+                        {riderName ? <div><dt>Rider</dt><dd>{riderName}</dd></div> : null}
+                        {pickupLabel ? <div><dt>Pickup</dt><dd>{pickupLabel}</dd></div> : null}
+                        {dropOffLabel ? <div><dt>Drop-off</dt><dd>{dropOffLabel}</dd></div> : null}
+                      </dl>
+                    ) : null}
                     <RouteStrip stage={preview?.rideRequestStatus ?? "requested"} variant="static" showDriverMarker={false} />
                     <div className="driver-row-meta">
                       <DateTime value={notification.createdTime} />
-                      <MatchingIndicator label="Offer response window" expiresAtMs={toExpiryMs(notification.createdTime)} />
-                      <CountdownBadge expiresAtMs={toExpiryMs(notification.createdTime)} prefix="Offer expires in" />
+                      <MatchingIndicator label="Offer response window" />
+                      <CountdownBadge
+                        expiresAtMs={offerExpiresAtMs}
+                        prefix="Offer expires in"
+                        expiredLabel="Expired"
+                        onExpire={handleOfferExpired}
+                      />
                     </div>
                     {pickup ? (
                       <iframe
