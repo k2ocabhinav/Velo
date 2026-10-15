@@ -1127,6 +1127,15 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 22px;
   }
+
+  /* At two columns the absolutely-positioned stamp lands on top of the second
+     fact, so lift it into the flow as a right-aligned stamp above the list. */
+  .verifyStamp {
+    position: static;
+    display: block;
+    width: fit-content;
+    margin: 0 0 18px auto;
+  }
 }
 
 @media (max-width: 767px) {

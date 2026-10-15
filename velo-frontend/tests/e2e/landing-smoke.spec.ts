@@ -5,7 +5,6 @@ const whatsappDigits = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER?.replace(/\D/g, "
 const demoVideoUrl = process.env.NEXT_PUBLIC_DEMO_VIDEO_URL?.trim() ?? "";
 const contactAction = process.env.NEXT_PUBLIC_CONTACT_FORM_ACTION?.trim() ?? "";
 const contactEmail = process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() ?? "";
-const hasDemoDestination = Boolean(contactAction || contactEmail || whatsappDigits);
 
 test("primary navigation, mobile menu and demo links have working targets", async ({ page }) => {
   await page.goto("/");
@@ -109,7 +108,8 @@ test("contact form appears only when a demo request destination is configured", 
     await form.getByRole("button", { name: "Send demo request" }).click();
     await expect(page.getByRole("status")).toContainText("Your request was sent");
   } else {
-    await expect(page.locator(`a[href="mailto:${contactEmail}"]`)).toBeVisible();
+    // The email is shown both in the contact section and the footer.
+    await expect(page.locator(`a[href="mailto:${contactEmail}"]`).first()).toBeVisible();
   }
 });
 
