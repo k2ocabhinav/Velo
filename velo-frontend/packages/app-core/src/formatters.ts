@@ -2,7 +2,7 @@
 export function formatMoney(
   amount: number | string | null | undefined,
   currency = "USD",
-  locale = "en-US"
+  locale = currency === "INR" ? "en-IN" : "en-US"
 ): string {
   if (amount === null || amount === undefined || amount === "") return "—";
   const numericAmount = typeof amount === "number" ? amount : Number(amount);

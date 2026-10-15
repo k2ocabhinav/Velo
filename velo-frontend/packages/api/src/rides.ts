@@ -123,30 +123,30 @@ export function createRidesApi(client: AxiosInstance = createVeloClient()): Ride
     getRecurringTripTemplates: (params) =>
       requestPageData<RecurringTripTemplateDto>(client, {
         method: "GET",
-        url: "/riders/recurring-trip-templates",
+        url: "/api/v1/riders/recurring-trip-templates",
         params,
       }),
     createRecurringTripTemplate: (input) =>
       requestData<RecurringTripTemplateDto>(client, {
         method: "POST",
-        url: "/riders/recurring-trip-templates",
+        url: "/api/v1/riders/recurring-trip-templates",
         data: input,
       }),
     updateRecurringTripTemplate: (id, input) =>
       requestData<RecurringTripTemplateDto>(client, {
         method: "PUT",
-        url: `/riders/recurring-trip-templates/${id}`,
+        url: `/api/v1/riders/recurring-trip-templates/${id}`,
         data: input,
       }),
     setRecurringTripTemplateActive: (id, active) =>
       requestData<RecurringTripTemplateDto>(client, {
         method: "POST",
-        url: `/riders/recurring-trip-templates/${id}/${active ? "resume" : "pause"}`,
+        url: `/api/v1/riders/recurring-trip-templates/${id}/${active ? "resume" : "pause"}`,
       }),
     deleteRecurringTripTemplate: (id) =>
       requestData<void>(client, {
         method: "DELETE",
-        url: `/riders/recurring-trip-templates/${id}`,
+        url: `/api/v1/riders/recurring-trip-templates/${id}`,
       }).then(() => undefined),
   };
 }

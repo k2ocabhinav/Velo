@@ -69,6 +69,7 @@ describe("tenant branding fetch", () => {
     expect(branding).toMatchObject({
       tenantId: 8,
       brandName: "Northstar",
+      currency: "USD",
       primaryColor: "#0057B8",
       riderLabel: "Passenger",
       driverLabel: "Courier",

@@ -3,11 +3,13 @@ package com.velo.platform.services.impl;
 import com.velo.platform.dto.RiderWalletDto;
 import com.velo.platform.dto.RiderWalletTransactionDto;
 import com.velo.platform.entities.Rider;
+import com.velo.platform.entities.TenantConfiguration;
 import com.velo.platform.entities.User;
 import com.velo.platform.entities.Wallet;
 import com.velo.platform.entities.WalletTransaction;
 import com.velo.platform.exceptions.ResourceNotFoundException;
 import com.velo.platform.repositories.RiderRepository;
+import com.velo.platform.repositories.TenantConfigurationRepository;
 import com.velo.platform.repositories.WalletRepository;
 import com.velo.platform.repositories.WalletTransactionRepository;
 import com.velo.platform.security.UserPrincipal;
@@ -27,6 +29,7 @@ public class RiderWalletQueryServiceImpl implements RiderWalletQueryService {
     private final RiderRepository riderRepository;
     private final WalletRepository walletRepository;
     private final WalletTransactionRepository walletTransactionRepository;
+    private final TenantConfigurationRepository tenantConfigurationRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -42,10 +45,13 @@ public class RiderWalletQueryServiceImpl implements RiderWalletQueryService {
         var transactions = walletTransactionRepository
                 .findByWallet_IdAndTenantIdOrderByTimestampDescIdDesc(wallet.getId(), tenantId, pageable)
                 .map(this::toTransactionDto);
+        String currency = tenantConfigurationRepository.findByTenant_Id(tenantId)
+                .map(TenantConfiguration::getCurrency)
+                .orElse(DEFAULT_CURRENCY);
 
         return RiderWalletDto.builder()
                 .balance(wallet.getBalance())
-                .currency(DEFAULT_CURRENCY)
+                .currency(currency)
                 .transactions(transactions)
                 .build();
     }

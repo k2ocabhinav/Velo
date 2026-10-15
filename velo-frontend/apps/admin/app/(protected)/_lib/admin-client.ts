@@ -73,6 +73,7 @@ export type BrandingSettings = {
   riderLabel: string;
   driverLabel: string;
   tripLabel: string;
+  currency: string;
   dispatchMode: "RIDE_HAILING" | "DELIVERY_MERCHANT" | "FLEET_MANAGED";
   riderPortalEnabled: boolean;
 };

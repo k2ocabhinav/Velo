@@ -47,6 +47,10 @@ public class TenantConfiguration {
     @Builder.Default
     private String tripLabel = "Trip";
 
+    @Column(name = "currency", nullable = false, length = 3)
+    @Builder.Default
+    private String currency = "USD";
+
     @Enumerated(EnumType.STRING)
     @Column(name = "dispatch_mode", nullable = false, length = 32)
     @Builder.Default

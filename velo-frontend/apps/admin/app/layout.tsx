@@ -51,6 +51,7 @@ export default async function RootLayout({
       data-tenant-rider-label={branding.riderLabel}
       data-tenant-driver-label={branding.driverLabel}
       data-tenant-trip-label={branding.tripLabel}
+      data-tenant-currency={branding.currency}
     >
       <body>
         <TenantBrandingProvider branding={branding}>{children}</TenantBrandingProvider>

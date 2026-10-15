@@ -9,9 +9,9 @@ SET name = EXCLUDED.name,
     active = TRUE;
 
 INSERT INTO tenant_configuration (
-    tenant_id, brand_name, primary_color, logo_url, rider_label, driver_label, trip_label, dispatch_mode, updated_at
+    tenant_id, brand_name, primary_color, logo_url, rider_label, driver_label, trip_label, currency, dispatch_mode, updated_at
 )
-SELECT id, 'Velo Business', '#1A56FF', NULL, 'Rider', 'Driver', 'Trip', 'FLEET_MANAGED', NOW()
+SELECT id, 'Velo Business', '#1A56FF', NULL, 'Rider', 'Driver', 'Trip', 'USD', 'FLEET_MANAGED', NOW()
 FROM tenant
 WHERE slug = 'default'
 ON CONFLICT (tenant_id) DO UPDATE
@@ -21,13 +21,14 @@ SET brand_name = EXCLUDED.brand_name,
     rider_label = EXCLUDED.rider_label,
     driver_label = EXCLUDED.driver_label,
     trip_label = EXCLUDED.trip_label,
+    currency = EXCLUDED.currency,
     dispatch_mode = EXCLUDED.dispatch_mode,
     updated_at = NOW();
 
 INSERT INTO tenant_configuration (
-    tenant_id, brand_name, primary_color, logo_url, rider_label, driver_label, trip_label, dispatch_mode, updated_at
+    tenant_id, brand_name, primary_color, logo_url, rider_label, driver_label, trip_label, currency, dispatch_mode, updated_at
 )
-SELECT id, 'Saffron Routes', '#8A3D2B', NULL, 'Guest', 'Chauffeur', 'Transfer', 'FLEET_MANAGED', NOW()
+SELECT id, 'Saffron Routes', '#8A3D2B', NULL, 'Guest', 'Chauffeur', 'Transfer', 'INR', 'FLEET_MANAGED', NOW()
 FROM tenant
 WHERE slug = 'saffron-routes'
 ON CONFLICT (tenant_id) DO UPDATE
@@ -37,6 +38,7 @@ SET brand_name = EXCLUDED.brand_name,
     rider_label = EXCLUDED.rider_label,
     driver_label = EXCLUDED.driver_label,
     trip_label = EXCLUDED.trip_label,
+    currency = EXCLUDED.currency,
     dispatch_mode = EXCLUDED.dispatch_mode,
     updated_at = NOW();
 
@@ -322,6 +324,13 @@ WHERE tenant.slug = 'saffron-routes'
       WHERE existing.tenant_id = tenant.id AND existing.otp = '4826'
         AND existing.rider_id = rider.id AND existing.driver_id = driver.id
   );
+
+INSERT INTO payment (payment_method, user_id, ride_id, amount, payment_status, payment_time, version, tenant_id)
+SELECT ride.payment_method, rider.user_id, ride.id, ride.fare, 'PENDING', NULL, 0, ride.tenant_id
+FROM ride
+JOIN rider ON rider.id = ride.rider_id AND rider.tenant_id = ride.tenant_id
+WHERE ride.ride_status IN ('CONFIRMED', 'ONGOING')
+  AND NOT EXISTS (SELECT 1 FROM payment WHERE payment.ride_id = ride.id);
 
 INSERT INTO payment (payment_method, user_id, ride_id, amount, payment_status, payment_time, version, tenant_id)
 SELECT ride.payment_method, rider.user_id, ride.id, ride.fare, 'CONFIRMED', ride.ended_at, 0, ride.tenant_id

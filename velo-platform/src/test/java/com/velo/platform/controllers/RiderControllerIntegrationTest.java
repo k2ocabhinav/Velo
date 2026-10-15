@@ -11,6 +11,7 @@ import com.velo.platform.entities.User;
 import com.velo.platform.entities.Wallet;
 import com.velo.platform.entities.WalletTransaction;
 import com.velo.platform.entities.enums.PaymentMethod;
+import com.velo.platform.entities.enums.DriverOnboardingStatus;
 import com.velo.platform.entities.enums.RideRequestStatus;
 import com.velo.platform.entities.enums.Role;
 import com.velo.platform.entities.enums.TransactionMethod;
@@ -264,6 +265,30 @@ class RiderControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.id").value(pendingRequest.getId()))
                 .andExpect(jsonPath("$.data.rideRequestStatus").value("PENDING"));
+    }
+
+    @Test
+    @DisplayName("POST /riders/requestRide succeeds when the rider has seeded ride history")
+    void requestRide_DoesNotMapFlatRequestFieldsToTransientRide() throws Exception {
+        testDriver.setOnboardingStatus(DriverOnboardingStatus.APPROVED);
+        driverRepository.save(testDriver);
+
+        String response = mockMvc.perform(withRiderAuth(post("/riders/requestRide")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "pickupLocation": {"coordinates": [77.5946, 12.9716]},
+                                  "dropOffLocation": {"coordinates": [77.7060, 13.1986]},
+                                  "paymentMethod": "CASH"
+                                }
+                                """)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.rideRequestStatus").value("PENDING"))
+                .andReturn().getResponse().getContentAsString();
+
+        long requestId = objectMapper.readTree(response).path("data").path("id").asLong();
+        RideRequest savedRequest = rideRequestRepository.findById(requestId).orElseThrow();
+        org.junit.jupiter.api.Assertions.assertNull(savedRequest.getRide());
     }
 
     @Test

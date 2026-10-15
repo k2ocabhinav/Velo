@@ -66,6 +66,9 @@ public class TenantConfigurationServiceImpl implements TenantConfigurationServic
         config.setRiderLabel(updateDto.getRiderLabel().trim());
         config.setDriverLabel(updateDto.getDriverLabel().trim());
         config.setTripLabel(updateDto.getTripLabel().trim());
+        if (updateDto.getCurrency() != null) {
+            config.setCurrency(updateDto.getCurrency().trim());
+        }
         config.setDispatchMode(updateDto.getDispatchMode() == null ? DispatchMode.RIDE_HAILING : updateDto.getDispatchMode());
 
         TenantBrandingDto branding = toDto(tenantConfigurationRepository.save(config));
@@ -95,6 +98,7 @@ public class TenantConfigurationServiceImpl implements TenantConfigurationServic
                 .riderLabel(config.getRiderLabel())
                 .driverLabel(config.getDriverLabel())
                 .tripLabel(config.getTripLabel())
+                .currency(config.getCurrency())
                 .dispatchMode(config.getDispatchMode())
                 .riderPortalEnabled(config.getDispatchMode() != DispatchMode.DELIVERY_MERCHANT)
                 .build();

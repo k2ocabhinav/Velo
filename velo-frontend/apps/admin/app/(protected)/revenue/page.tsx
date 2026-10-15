@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { DataTable, EmptyState, ErrorState, Field, Money, Section, Select, StatCard } from "@velo/ui";
 import { formatMoney } from "@velo/app-core/formatters";
+import { useTenantBranding } from "@velo/ui/theme";
 import { PageFrame } from "../_components/page-frame";
 import { adminClient, type RevenueRow, type TopDriverRevenue } from "../_lib/admin-client";
 import { toActionErrorMessage } from "../_lib/ui-state";
@@ -26,6 +27,7 @@ function aggregate(rows: RevenueRow[]): PeriodStats {
 }
 
 function RevenueChart({ rows }: { rows: RevenueRow[] }) {
+  const { currency } = useTenantBranding();
   const values = useMemo(() => {
     const byDate = new Map(rows.map((row) => [row.date.slice(0, 10), numeric(row.grossRevenue)]));
     const range = dateRange(30);
@@ -59,10 +61,10 @@ function RevenueChart({ rows }: { rows: RevenueRow[] }) {
     <div className="admin-chart-scroll">
       <svg className="admin-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-labelledby={`${titleId} ${descriptionId}`} tabIndex={0}>
         <title id={titleId}>Daily gross revenue for the last 30 days</title>
-        <desc id={descriptionId}>{values.length ? `Thirty daily bars. Highest daily revenue was ${formatMoney(max)}.` : "No daily revenue values are available."}</desc>
+        <desc id={descriptionId}>{values.length ? `Thirty daily bars. Highest daily revenue was ${formatMoney(max, currency)}.` : "No daily revenue values are available."}</desc>
         {ticks.map((tick) => {
           const y = top + chartHeight * (1 - tick);
-          return <g key={tick}><line className="chart-grid" x1={left} x2={width - right} y1={y} y2={y} /><text x={left - 8} y={y + 4} textAnchor="end">{formatMoney(max * tick, "USD", "en-US")}</text></g>;
+          return <g key={tick}><line className="chart-grid" x1={left} x2={width - right} y1={y} y2={y} /><text x={left - 8} y={y + 4} textAnchor="end">{formatMoney(max * tick, currency)}</text></g>;
         })}
         <line className="chart-baseline" x1={left} x2={width - right} y1={top + chartHeight} y2={top + chartHeight} />
         {values.map((item, index) => {
@@ -70,12 +72,12 @@ function RevenueChart({ rows }: { rows: RevenueRow[] }) {
           const x = left + gap + index * (barWidth + gap);
           const y = top + chartHeight - barHeight;
           const tickDate = new Date(`${item.date}T00:00:00`);
-          return <g key={item.date}><rect className="chart-bar" x={x} y={y} width={Math.max(1, barWidth)} height={Math.max(1, barHeight)} rx="2"><title>{`${item.date}: ${formatMoney(item.amount)}`}</title></rect>{(index % 5 === 0 || index === values.length - 1) ? <text x={x + barWidth / 2} y={height - 14} textAnchor="middle">{new Intl.DateTimeFormat("en", { day: "numeric", month: "short" }).format(tickDate)}</text> : null}</g>;
+          return <g key={item.date}><rect className="chart-bar" x={x} y={y} width={Math.max(1, barWidth)} height={Math.max(1, barHeight)} rx="2"><title>{`${item.date}: ${formatMoney(item.amount, currency)}`}</title></rect>{(index % 5 === 0 || index === values.length - 1) ? <text x={x + barWidth / 2} y={height - 14} textAnchor="middle">{new Intl.DateTimeFormat("en", { day: "numeric", month: "short" }).format(tickDate)}</text> : null}</g>;
         })}
       </svg>
       <table className="sr-only" aria-label="Daily revenue values">
         <thead><tr><th scope="col">Date</th><th scope="col">Gross revenue</th></tr></thead>
-        <tbody>{values.map((item) => <tr key={item.date}><th scope="row">{item.date}</th><td>{formatMoney(item.amount)}</td></tr>)}</tbody>
+        <tbody>{values.map((item) => <tr key={item.date}><th scope="row">{item.date}</th><td>{formatMoney(item.amount, currency)}</td></tr>)}</tbody>
       </table>
     </div>
   );

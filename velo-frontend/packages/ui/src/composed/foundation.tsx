@@ -12,6 +12,7 @@ import {
   type TextareaHTMLAttributes,
 } from "react";
 import { formatDateTime, formatMoney } from "@velo/app-core/formatters";
+import { useTenantBrandingOrDefault } from "../theme/tenant-branding-provider";
 import { cn } from "../lib/cn";
 import { Skeleton as GenericSkeleton } from "../feedback/skeleton";
 
@@ -236,7 +237,7 @@ export function DefinitionList({
 export function Money({
   amount,
   className,
-  currency = "USD",
+  currency,
   emphasis = false,
   locale,
 }: {
@@ -246,9 +247,10 @@ export function Money({
   emphasis?: boolean;
   className?: string;
 }) {
+  const tenantBranding = useTenantBrandingOrDefault();
   return (
     <data className={cn("money", className)} data-emphasis={emphasis || undefined} value={amount ?? ""}>
-      {formatMoney(amount, currency, locale)}
+      {formatMoney(amount, currency ?? tenantBranding.currency, locale)}
     </data>
   );
 }

@@ -120,7 +120,7 @@ export default function RiderScheduledPage() {
     setTemplatesLoading(true);
     setTemplateError(null);
     try {
-      const payload = await requestRiderProxy<SpringPage<RecurringTemplate>>("riders/recurring-trip-templates?page=0&size=50");
+      const payload = await requestRiderProxy<SpringPage<RecurringTemplate>>("api/v1/riders/recurring-trip-templates?page=0&size=50");
       setTemplates(unwrapTemplates(payload));
     } catch (loadError) {
       setTemplateError(loadError instanceof Error ? loadError.message : "Couldn't load weekly trips.");
@@ -213,7 +213,7 @@ export default function RiderScheduledPage() {
 
     setTemplatePending(true);
     try {
-      await requestRiderProxy(editingTemplateId === null ? "riders/recurring-trip-templates" : `riders/recurring-trip-templates/${editingTemplateId}`, {
+      await requestRiderProxy(editingTemplateId === null ? "api/v1/riders/recurring-trip-templates" : `api/v1/riders/recurring-trip-templates/${editingTemplateId}`, {
         method: editingTemplateId === null ? "POST" : "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -243,7 +243,7 @@ export default function RiderScheduledPage() {
   async function toggleRecurringTrip(template: RecurringTemplate): Promise<void> {
     setTemplateError(null);
     try {
-      await requestRiderProxy(`riders/recurring-trip-templates/${template.id}/${template.active ? "pause" : "resume"}`, { method: "POST" });
+      await requestRiderProxy(`api/v1/riders/recurring-trip-templates/${template.id}/${template.active ? "pause" : "resume"}`, { method: "POST" });
       await loadTemplates();
     } catch (actionError) {
       setTemplateError(actionError instanceof Error ? actionError.message : "Couldn't update this weekly trip.");
@@ -253,7 +253,7 @@ export default function RiderScheduledPage() {
   async function deleteRecurringTrip(id: number): Promise<void> {
     setTemplateError(null);
     try {
-      await requestRiderProxy(`riders/recurring-trip-templates/${id}`, { method: "DELETE" });
+      await requestRiderProxy(`api/v1/riders/recurring-trip-templates/${id}`, { method: "DELETE" });
       setTemplateMessage("Weekly trip deleted.");
       await loadTemplates();
     } catch (actionError) {

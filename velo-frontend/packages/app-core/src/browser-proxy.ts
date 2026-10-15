@@ -69,15 +69,20 @@ export function unwrapPageItems<T>(payload: unknown): T[] {
   return [];
 }
 
-export function toCurrency(value: number | string | null | undefined, fallback = "--"): string {
+export function toCurrency(
+  value: number | string | null | undefined,
+  fallback = "--",
+  requestedCurrency?: string,
+): string {
   const numeric = typeof value === "string" ? Number(value) : value;
   if (typeof numeric !== "number" || Number.isNaN(numeric)) {
     return fallback;
   }
 
-  return new Intl.NumberFormat("en-US", {
+  const currency = requestedCurrency ?? (typeof document === "undefined" ? undefined : document.documentElement.dataset.tenantCurrency) ?? "USD";
+  return new Intl.NumberFormat(currency === "INR" ? "en-IN" : "en-US", {
     style: "currency",
-    currency: "USD",
+    currency,
     maximumFractionDigits: 2
   }).format(numeric);
 }
