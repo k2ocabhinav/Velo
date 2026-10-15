@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Field, PasswordField } from "@velo/ui/composed";
 
-export function RegisterForm() {
+export function RegisterForm({ initialError = null }: Readonly<{ initialError?: string | null }>) {
   const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialError);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -58,7 +58,7 @@ export function RegisterForm() {
   }
 
   return (
-    <form className="stack" onSubmit={handleSubmit}>
+    <form className="stack" method="post" action="/api/auth/register" onSubmit={handleSubmit}>
       <Field label="Full name">
         <input name="name" type="text" autoComplete="name" required className="ui-control" />
       </Field>

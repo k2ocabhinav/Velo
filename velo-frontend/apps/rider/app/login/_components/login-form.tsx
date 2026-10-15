@@ -5,9 +5,12 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Field, PasswordField } from "@velo/ui/composed";
 
-export function LoginForm({ nextPath }: Readonly<{ nextPath: string }>) {
+export function LoginForm({
+  nextPath,
+  initialError = null,
+}: Readonly<{ nextPath: string; initialError?: string | null }>) {
   const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialError);
   const [pending, setPending] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -44,7 +47,8 @@ export function LoginForm({ nextPath }: Readonly<{ nextPath: string }>) {
   }
 
   return (
-    <form className="stack" onSubmit={handleSubmit}>
+    <form className="stack" method="post" action="/api/auth/login" onSubmit={handleSubmit}>
+      <input type="hidden" name="next" value={nextPath} />
       <Field label="Email">
         <input name="email" type="email" autoComplete="email" required className="ui-control" />
       </Field>

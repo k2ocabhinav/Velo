@@ -1,24 +1,27 @@
 import Link from "next/link";
 import { AuthLayout } from "@velo/ui/composed";
+import { registerErrorMessage } from "@velo/app-core/auth-errors";
 import { RegisterForm } from "./_components/register-form";
 import { sanitizeNextPath } from "../login/_lib/redirect";
 
 type RegisterPageProps = {
   searchParams?: Promise<{
     next?: string | string[];
+    error?: string | string[];
   }>;
 };
 
-function readNextParam(searchParams: Awaited<RegisterPageProps["searchParams"]>): string | null {
-  const nextValue = searchParams?.next;
-  if (Array.isArray(nextValue)) {
-    return typeof nextValue[0] === "string" ? nextValue[0] : null;
+function readParam(value: string | string[] | undefined): string | null {
+  if (Array.isArray(value)) {
+    return typeof value[0] === "string" ? value[0] : null;
   }
-  return typeof nextValue === "string" ? nextValue : null;
+  return typeof value === "string" ? value : null;
 }
 
 export default async function RegisterPage({ searchParams }: RegisterPageProps) {
-  const nextPath = sanitizeNextPath(readNextParam(await searchParams));
+  const params = await searchParams;
+  const nextPath = sanitizeNextPath(readParam(params?.next));
+  const initialError = registerErrorMessage(readParam(params?.error));
 
   return (
     <AuthLayout
@@ -35,7 +38,7 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
         </>
       }
     >
-      <RegisterForm nextPath={nextPath} />
+      <RegisterForm nextPath={nextPath} initialError={initialError} />
     </AuthLayout>
   );
 }

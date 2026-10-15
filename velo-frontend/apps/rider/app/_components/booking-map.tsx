@@ -12,6 +12,7 @@ import {
 } from "react-leaflet";
 import L from "leaflet";
 import type { LatLngExpression } from "leaflet";
+import { isLeafletMapReady } from "@velo/app-core/map-viewport";
 import type { MapPoint } from "../_lib/map/routing";
 import { getTileProviderConfig } from "../_lib/map/providers";
 import type { SelectionTarget } from "../_lib/booking-map-state";
@@ -64,19 +65,19 @@ function FitBounds({ points }: { points: MapPoint[] }) {
 
   useEffect(() => {
     const key = points.map((p) => `${p.lat},${p.lng}`).join("|");
-    if (key === prevKey.current || points.length === 0) {
+    if (key === prevKey.current || points.length === 0 || !isLeafletMapReady(map)) {
       return;
     }
     prevKey.current = key;
 
     if (points.length === 1) {
-      map.setView(toLatLng(points[0]), 14);
+      map.setView(toLatLng(points[0]), 14, { animate: false });
       return;
     }
 
     map.fitBounds(
       points.map((p) => [p.lat, p.lng] as [number, number]),
-      { padding: [40, 40], maxZoom: 15 },
+      { padding: [40, 40], maxZoom: 15, animate: false },
     );
   }, [map, points]);
 

@@ -67,4 +67,27 @@ describe("rider map routing adapter", () => {
 
     expect(fallback.points).toEqual([START, END]);
   });
+
+  it("aborts a slow route request and falls back to a straight line", async () => {
+    const hangingFetch = vi.fn(
+      (_url: RequestInfo | URL, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () =>
+            reject(new DOMException("Aborted", "AbortError")),
+          );
+        }),
+    );
+
+    const route = await fetchRoutePath(
+      START,
+      END,
+      hangingFetch as unknown as typeof fetch,
+      { baseUrl: "https://router.project-osrm.org", profile: "driving" },
+      5,
+    );
+
+    expect(route.points).toEqual([START, END]);
+    expect(route.distanceMeters).toBeNull();
+    expect(route.durationSeconds).toBeNull();
+  });
 });

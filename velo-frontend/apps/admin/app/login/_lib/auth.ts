@@ -8,6 +8,8 @@ import {
   type LoginPayload,
   extractAuthValues,
   getApiBaseUrl,
+  handleLoginFormPost,
+  isFormSubmission,
   performLoginProxy as performSharedLoginProxy,
   performLogoutProxy as performSharedLogoutProxy,
   performRefreshProxy as performSharedRefreshProxy,
@@ -23,6 +25,8 @@ export {
   REFRESH_COOKIE_PATH,
   extractAuthValues,
   getApiBaseUrl,
+  handleLoginFormPost,
+  isFormSubmission,
   readResponsePayload,
   sanitizeNextPath
 };

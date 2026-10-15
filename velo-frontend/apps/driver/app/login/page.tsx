@@ -1,24 +1,27 @@
 import { AuthLayout } from "@velo/ui/composed";
 import Link from "next/link";
+import { loginErrorMessage } from "@velo/app-core/auth-errors";
 import { LoginForm } from "./_components/login-form";
 import { sanitizeNextPath } from "./_lib/redirect";
 
 type LoginPageProps = {
   searchParams?: Promise<{
     next?: string | string[];
+    error?: string | string[];
   }>;
 };
 
-function readNextParam(searchParams: Awaited<LoginPageProps["searchParams"]>): string | null {
-  const nextValue = searchParams?.next;
-  if (Array.isArray(nextValue)) {
-    return typeof nextValue[0] === "string" ? nextValue[0] : null;
+function readParam(value: string | string[] | undefined): string | null {
+  if (Array.isArray(value)) {
+    return typeof value[0] === "string" ? value[0] : null;
   }
-  return typeof nextValue === "string" ? nextValue : null;
+  return typeof value === "string" ? value : null;
 }
 
 export default async function DriverLoginPage({ searchParams }: LoginPageProps) {
-  const nextPath = sanitizeNextPath(readNextParam(await searchParams));
+  const params = await searchParams;
+  const nextPath = sanitizeNextPath(readParam(params?.next));
+  const initialError = loginErrorMessage(readParam(params?.error));
 
   return (
     <AuthLayout
@@ -35,7 +38,7 @@ export default async function DriverLoginPage({ searchParams }: LoginPageProps) 
         </>
       }
     >
-      <LoginForm nextPath={nextPath} />
+      <LoginForm nextPath={nextPath} initialError={initialError} />
     </AuthLayout>
   );
 }

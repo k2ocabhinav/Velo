@@ -1,9 +1,26 @@
 import Link from "next/link";
 import { AuthLayout } from "@velo/ui/composed";
+import { registerErrorMessage } from "@velo/app-core/auth-errors";
 import { Suspense } from "react";
 import { RegisterForm } from "./_components/register-form";
 
-export default function DriverRegisterPage() {
+type RegisterPageProps = {
+  searchParams?: Promise<{
+    error?: string | string[];
+  }>;
+};
+
+function readParam(value: string | string[] | undefined): string | null {
+  if (Array.isArray(value)) {
+    return typeof value[0] === "string" ? value[0] : null;
+  }
+  return typeof value === "string" ? value : null;
+}
+
+export default async function DriverRegisterPage({ searchParams }: RegisterPageProps) {
+  const params = await searchParams;
+  const initialError = registerErrorMessage(readParam(params?.error));
+
   return (
     <AuthLayout
       product="Driver"
@@ -20,7 +37,7 @@ export default function DriverRegisterPage() {
       }
     >
       <Suspense fallback={<p className="helper">Loading the application form…</p>}>
-        <RegisterForm />
+        <RegisterForm initialError={initialError} />
       </Suspense>
     </AuthLayout>
   );

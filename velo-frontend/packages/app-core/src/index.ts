@@ -1,4 +1,5 @@
 export * from "./auth";
+export * from "./auth-errors";
 export * from "./auth-middleware";
 export * from "./async-actions";
 export * from "./browser-proxy";

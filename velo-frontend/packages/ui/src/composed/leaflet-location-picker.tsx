@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import L from "leaflet";
 import { MapContainer, Marker, Polyline, TileLayer, useMap, useMapEvents } from "react-leaflet";
+import { isLeafletMapReady } from "@velo/app-core/map-viewport";
 
 export type LocationPoint = { lat: number; lng: number };
 export type LocationTarget = "pickup" | "dropoff";
@@ -20,13 +21,13 @@ function FitLocations({ points }: { points: LocationPoint[] }) {
   const currentKey = useRef("");
   useEffect(() => {
     const nextKey = points.map((point) => `${point.lat}:${point.lng}`).join("|");
-    if (!points.length || nextKey === currentKey.current) return;
+    if (!points.length || nextKey === currentKey.current || !isLeafletMapReady(map)) return;
     currentKey.current = nextKey;
     if (points.length === 1) {
       const onlyPoint = points[0];
-      if (onlyPoint) map.setView(toLatLng(onlyPoint), 14);
+      if (onlyPoint) map.setView(toLatLng(onlyPoint), 14, { animate: false });
     } else {
-      map.fitBounds(points.map(toLatLng), { padding: [24, 24], maxZoom: 15 });
+      map.fitBounds(points.map(toLatLng), { padding: [24, 24], maxZoom: 15, animate: false });
     }
   }, [map, points]);
   return null;
