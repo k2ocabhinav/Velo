@@ -6,6 +6,7 @@ import com.velo.platform.entities.RideRequest;
 import com.velo.platform.entities.enums.NotificationType;
 import com.velo.platform.entities.enums.RideOfferStatus;
 import com.velo.platform.entities.enums.RideRequestStatus;
+import com.velo.platform.configs.DispatchProperties;
 import com.velo.platform.repositories.RideOfferRepository;
 import com.velo.platform.repositories.RideRequestRepository;
 import com.velo.platform.services.NotificationService;
@@ -32,15 +33,16 @@ public class RideOfferServiceImpl implements RideOfferService {
     private final RideRequestRepository rideRequestRepository;
     private final NotificationService notificationService;
     private final RideRealtimeService rideRealtimeService;
+    private final DispatchProperties dispatchProperties;
 
     @Override
     @Transactional
-    public List<RideOffer> createOffers(RideRequest rideRequest, List<Driver> drivers, long ttlSeconds) {
+    public List<RideOffer> createOffers(RideRequest rideRequest, List<Driver> drivers) {
         if (rideRequest == null || drivers == null || drivers.isEmpty()) {
             return List.of();
         }
 
-        LocalDateTime expiry = LocalDateTime.now().plusSeconds(Math.max(1, ttlSeconds));
+        LocalDateTime expiry = LocalDateTime.now().plusSeconds(Math.max(1, dispatchProperties.getOfferTtlSeconds()));
         List<RideOffer> offers = new ArrayList<>(drivers.size());
         for (Driver driver : drivers) {
             offers.add(RideOffer.builder()

@@ -11,6 +11,7 @@ import com.velo.platform.dto.admin.AdminPendingRideRequestDto;
 import com.velo.platform.dto.admin.AdminActiveRideDto;
 import com.velo.platform.dto.admin.AdminReasonRequestDto;
 import com.velo.platform.dto.admin.AdminRideOfferDto;
+import com.velo.platform.dto.admin.AdminLiveDispatchDto;
 import com.velo.platform.dto.admin.DashboardDto;
 import com.velo.platform.dto.admin.PendingDriverDto;
 import com.velo.platform.dto.admin.RevenueReportDto;
@@ -267,6 +268,16 @@ public class AdminController {
             @RequestParam(defaultValue = "10") int size) {
         PageRequest pageRequest = PageRequest.of(page, size);
         return ResponseEntity.ok(adminDispatchService.getActiveRides(pageRequest));
+    }
+
+    @GetMapping("/dispatch/live")
+    @Tag(name = "Admin", description = "Admin management and analytics")
+    @Operation(summary = "Get a tenant-scoped live dispatch snapshot")
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<AdminLiveDispatchDto> getLiveDispatch() {
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                .body(adminDispatchService.getLiveDispatch());
     }
 
     @GetMapping("/dispatch/recent-addresses")

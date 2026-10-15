@@ -9,7 +9,7 @@ import java.util.Optional;
 
 public interface RideOfferService {
 
-    List<RideOffer> createOffers(RideRequest rideRequest, List<Driver> drivers, long ttlSeconds);
+    List<RideOffer> createOffers(RideRequest rideRequest, List<Driver> drivers);
 
     Optional<RideOffer> findAcceptableOffer(Long rideRequestId, Long driverId);
 

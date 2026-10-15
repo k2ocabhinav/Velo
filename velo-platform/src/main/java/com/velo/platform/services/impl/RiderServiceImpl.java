@@ -55,8 +55,6 @@ import java.util.List;
 @Slf4j
 public class RiderServiceImpl implements RiderService {
 
-    private static final long DRIVER_OFFER_TTL_SECONDS = 45L;
-
     private final ModelMapper modelMapper;
     private final RideStrategyManager rideStrategyManager;
     private final RideRequestRepository rideRequestRepository;
@@ -120,7 +118,7 @@ public class RiderServiceImpl implements RiderService {
                 .driverMatchingStrategy(rider.getRating())
                 .findMatchingDrivers(savedRideRequest);
 
-        rideOfferService.createOffers(savedRideRequest, matchedDrivers, DRIVER_OFFER_TTL_SECONDS);
+        rideOfferService.createOffers(savedRideRequest, matchedDrivers);
         if (matchedDrivers.isEmpty()) {
             savedRideRequest.setRideRequestStatus(RideRequestStatus.EXPIRED);
             RideRequest expiredRequest = rideRequestRepository.save(savedRideRequest);

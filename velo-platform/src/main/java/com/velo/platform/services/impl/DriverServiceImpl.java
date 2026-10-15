@@ -368,6 +368,9 @@ public class DriverServiceImpl implements DriverService {
         DriverLocationUpdateRequestDto normalizedUpdate = normalizeLocationUpdate(locationUpdate);
         PointDto pointDto = new PointDto(new double[]{normalizedUpdate.getLng(), normalizedUpdate.getLat()});
         driver.setCurrentLocation(GeometryUtil.createPoint(pointDto));
+        driver.setLocationUpdatedAt(LocalDateTime.now());
+        driver.setLocationHeading(normalizedUpdate.getHeading());
+        driver.setLocationSpeedKph(normalizedUpdate.getSpeedKph());
         driverRepository.save(driver);
 
         rideRepository

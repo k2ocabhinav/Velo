@@ -45,6 +45,15 @@ public class Driver {
     @Column(columnDefinition = "Geometry(Point, 4326)")
     private Point currentLocation;
 
+    @Column(name = "location_updated_at")
+    private LocalDateTime locationUpdatedAt;
+
+    @Column(name = "location_heading")
+    private Double locationHeading;
+
+    @Column(name = "location_speed_kph")
+    private Double locationSpeedKph;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 
