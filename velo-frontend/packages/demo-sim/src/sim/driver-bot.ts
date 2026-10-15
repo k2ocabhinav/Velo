@@ -43,6 +43,8 @@ export class DriverBot {
   private movementController = new AbortController();
   private activeRouteController: AbortController | null = null;
   private rideController: AbortController | null = null;
+  private idleHeartbeatCancel: (() => void) | null = null;
+  private idleHeartbeatEnabled = false;
   private unsubscribe: (() => void) | null = null;
   private completedCount = 0;
   private repositioningStarted = false;
@@ -120,6 +122,7 @@ export class DriverBot {
     this.desiredOnline = online;
     await this.options.api.setAvailability(online);
     this.setState(online ? "idle" : "offline");
+    if (online) this.startIdleHeartbeat();
     this.options.logger.event(this.tenant, this.options.account.key, online ? "online" : "offline", this.currentPoi.id);
   }
 
@@ -148,8 +151,9 @@ export class DriverBot {
       if (!online) this.setState("offline");
       return;
     }
-    if (!online && this.rideIdValue !== null) return;
     if (!online) {
+      this.stopIdleHeartbeat();
+      if (this.rideIdValue !== null) return;
       this.activeRouteController?.abort(new Error("Driver is going offline"));
       await this.options.api.setAvailability(false);
       this.setState("offline");
@@ -161,6 +165,7 @@ export class DriverBot {
       this.setState("idle");
       this.options.logger.event(this.tenant, this.options.account.key, "online");
     }
+    this.startIdleHeartbeat();
   }
 
   applyTrafficDelay(seconds: number): number {
@@ -200,6 +205,7 @@ export class DriverBot {
 
   stopMovement(): void {
     this.setState("stopping");
+    this.stopIdleHeartbeat();
     this.movementController.abort(new Error("Simulator is shutting down"));
     this.rideController?.abort(new Error("Simulator is shutting down"));
     this.activeRouteController?.abort(new Error("Simulator is shutting down"));
@@ -381,6 +387,36 @@ export class DriverBot {
     } catch (error) {
       this.options.logger.error(this.tenant, this.options.account.key, "location update", error);
     }
+  }
+
+  private startIdleHeartbeat(): void {
+    if (!this.desiredOnline || this.stateValue === "stopping") return;
+    this.idleHeartbeatEnabled = true;
+    this.scheduleIdleHeartbeat();
+  }
+
+  private stopIdleHeartbeat(): void {
+    this.idleHeartbeatEnabled = false;
+    this.idleHeartbeatCancel?.();
+    this.idleHeartbeatCancel = null;
+  }
+
+  private scheduleIdleHeartbeat(): void {
+    if (!this.idleHeartbeatEnabled || this.idleHeartbeatCancel !== null) return;
+    const intervalMs = integerBetween(this.options.random, 20, 30) * 1_000;
+    let cancelInterval: () => void = () => undefined;
+    cancelInterval = this.options.clock.every(intervalMs, () => {
+      cancelInterval();
+      if (this.idleHeartbeatCancel === cancelInterval) this.idleHeartbeatCancel = null;
+      void this.publishIdleHeartbeat().finally(() => this.scheduleIdleHeartbeat());
+    });
+    this.idleHeartbeatCancel = cancelInterval;
+  }
+
+  private async publishIdleHeartbeat(): Promise<void> {
+    const point = this.currentPoi;
+    if (!this.idleHeartbeatEnabled || !this.desiredOnline || this.stateValue !== "idle" || !point) return;
+    await this.publishLocation(point, 0, 0);
   }
 
   private async repositionLoop(): Promise<void> {

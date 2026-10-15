@@ -22,6 +22,7 @@ import {
   selectCurrentDriverRide,
 } from "./_lib/driver-ride-state";
 import { formatOfferLocation, getRiderFirstName, resolveOfferExpiresAtMs } from "./_lib/driver-offer";
+import { useDriverLocationPublisher } from "./_lib/driver-location-publisher";
 import {
   useDriverNotificationSubscription,
   type DriverNotificationEvent,
@@ -83,27 +84,6 @@ function getNextTripActionLabel(status: string): string {
   return "Continue trip";
 }
 
-function toMapPoint(point: DriverRideRequestPreview["pickupLocation"]): { lat: number; lng: number } | null {
-  if (!point || !Array.isArray(point.coordinates) || point.coordinates.length < 2) {
-    return null;
-  }
-  const lng = Number(point.coordinates[0]);
-  const lat = Number(point.coordinates[1]);
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-    return null;
-  }
-  return { lat, lng };
-}
-
-function buildPickupPreviewUrl(point: { lat: number; lng: number }): string {
-  const delta = 0.0125;
-  const left = point.lng - delta;
-  const right = point.lng + delta;
-  const top = point.lat + delta;
-  const bottom = point.lat - delta;
-  return `https://www.openstreetmap.org/export/embed.html?bbox=${left}%2C${bottom}%2C${right}%2C${top}&layer=mapnik&marker=${point.lat}%2C${point.lng}`;
-}
-
 type TenantBranding = {
   riderLabel?: string;
   tripLabel?: string;
@@ -135,6 +115,7 @@ export default function DriverHomePage() {
   const [retryAction, setRetryAction] = useState<(() => void) | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [branding, setBranding] = useState<TenantBranding | null>(null);
+  const locationPublisher = useDriverLocationPublisher(null, profile?.available === true);
 
   const tripLabel = branding?.tripLabel ?? "Trip";
 
@@ -431,6 +412,9 @@ export default function DriverHomePage() {
               <strong>{profile.available ? "You're online" : "You're offline"}</strong>
               <p>{profile.available ? "New trip offers can reach you." : "Go online when you're ready to drive."}</p>
               {profile.vehicleId ? <p>Vehicle {profile.vehicleId}</p> : null}
+              {profile.available && locationPublisher.mode === "degraded" ? (
+                <p className="helper" role="status">{locationPublisher.message}</p>
+              ) : null}
             </div>
             <Button
               className="driver-availability-toggle"
@@ -491,7 +475,6 @@ export default function DriverHomePage() {
               const requestId = getRideRequestId(notification);
               const busy = requestId !== null && acceptingRequestId === requestId;
               const preview = requestId !== null ? rideRequestPreviews[requestId] : null;
-              const pickup = toMapPoint(preview?.pickupLocation);
               const cardContent = getIncomingCardContent(notification, tripLabel);
               const riderName = getRiderFirstName(preview?.rider);
               const pickupLabel = formatOfferLocation(preview?.pickupAddress, preview?.pickupLocation);
@@ -523,16 +506,6 @@ export default function DriverHomePage() {
                         onExpire={handleOfferExpired}
                       />
                     </div>
-                    {pickup ? (
-                      <iframe
-                        title="Pickup map preview"
-                        className="incoming-map-preview"
-                        src={buildPickupPreviewUrl(pickup)}
-                        loading="lazy"
-                      />
-                    ) : (
-                      <p className="helper">Pickup map unavailable.</p>
-                    )}
                   </div>
                   <div className="driver-offer-actions">
                     <Button

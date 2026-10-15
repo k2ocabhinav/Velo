@@ -608,6 +608,8 @@
       const toast = $("#toast");
       toast.textContent = message;
       toast.dataset.kind = kind;
+      toast.setAttribute("role", kind === "error" ? "alert" : "status");
+      toast.setAttribute("aria-live", kind === "error" ? "assertive" : "polite");
       toast.hidden = false;
       clearTimeout(state.toastTimer);
       state.toastTimer = setTimeout(() => { toast.hidden = true; }, 5200);

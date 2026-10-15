@@ -21,28 +21,20 @@ const ACTIVE_RIDE_STATUSES = new Set(["CONFIRMED", "ONGOING"]);
 type PublishIntervalInput = {
   rideStatus: string | null | undefined;
   speedKph: number | null | undefined;
+  online?: boolean;
   reconnecting?: boolean;
 };
 
-export function resolveLocationPublishIntervalMs({
-  rideStatus,
-  speedKph,
-  reconnecting = false,
-}: PublishIntervalInput): number {
+export function resolveLocationPublishIntervalMs({ rideStatus, speedKph, online = false, reconnecting = false }: PublishIntervalInput): number {
   const normalizedStatus = (rideStatus ?? "").toUpperCase();
-  if (!ACTIVE_RIDE_STATUSES.has(normalizedStatus)) {
-    return 0;
-  }
-
-  if (reconnecting) {
+  if (ACTIVE_RIDE_STATUSES.has(normalizedStatus)) {
+    if (reconnecting) return 10_000;
+    if (typeof speedKph === "number" && Number.isFinite(speedKph) && speedKph >= 2) return 3_000;
     return 10_000;
   }
 
-  if (typeof speedKph === "number" && Number.isFinite(speedKph) && speedKph >= 2) {
-    return 3_000;
-  }
-
-  return 10_000;
+  if (online) return reconnecting ? 30_000 : 25_000;
+  return 0;
 }
 
 function toHeading(value: number | null): number | null {
@@ -66,11 +58,14 @@ function toAccuracy(value: number | null): number | null {
   return value;
 }
 
-function isLocationPublishingEnabled(status: string | null | undefined): boolean {
-  return ACTIVE_RIDE_STATUSES.has((status ?? "").toUpperCase());
+function isLocationPublishingEnabled(status: string | null | undefined, online: boolean): boolean {
+  return online || ACTIVE_RIDE_STATUSES.has((status ?? "").toUpperCase());
 }
 
-export function useDriverLocationPublisher(rideStatus: string | null | undefined): DriverLocationPublisher {
+export function useDriverLocationPublisher(
+  rideStatus: string | null | undefined,
+  online = false,
+): DriverLocationPublisher {
   const [state, setState] = useState<DriverLocationPublisherState>({
     mode: "idle",
     message: "Location publishing is idle.",
@@ -85,7 +80,7 @@ export function useDriverLocationPublisher(rideStatus: string | null | undefined
   }, []);
 
   useEffect(() => {
-    if (!isLocationPublishingEnabled(rideStatus)) {
+    if (!isLocationPublishingEnabled(rideStatus, online)) {
       setState({
         mode: "idle",
         message: "Location publishing is idle.",
@@ -120,7 +115,7 @@ export function useDriverLocationPublisher(rideStatus: string | null | undefined
     };
 
     const publishCurrentLocation = async (): Promise<void> => {
-      if (disposed || !isLocationPublishingEnabled(rideStatus)) {
+      if (disposed || !isLocationPublishingEnabled(rideStatus, online)) {
         return;
       }
 
@@ -164,6 +159,7 @@ export function useDriverLocationPublisher(rideStatus: string | null | undefined
                 resolveLocationPublishIntervalMs({
                   rideStatus,
                   speedKph,
+                  online,
                 }),
               );
             })
@@ -181,6 +177,7 @@ export function useDriverLocationPublisher(rideStatus: string | null | undefined
                 resolveLocationPublishIntervalMs({
                   rideStatus,
                   speedKph,
+                  online,
                   reconnecting: true,
                 }),
               );
@@ -204,6 +201,7 @@ export function useDriverLocationPublisher(rideStatus: string | null | undefined
             resolveLocationPublishIntervalMs({
               rideStatus,
               speedKph: null,
+              online,
               reconnecting: true,
             }),
           );
@@ -224,7 +222,7 @@ export function useDriverLocationPublisher(rideStatus: string | null | undefined
         window.clearTimeout(timeoutId);
       }
     };
-  }, [attempt, rideStatus]);
+  }, [attempt, online, rideStatus]);
 
   return { ...state, retry };
 }

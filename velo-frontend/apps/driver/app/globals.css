@@ -443,13 +443,6 @@
   border-radius: 0;
 }
 
-.incoming-map-preview {
-  width: min(100%, 24rem);
-  height: 11rem;
-  border: 1px solid hsl(var(--color-border));
-  border-radius: var(--radius-lg);
-}
-
 .driver-otp-input {
   max-width: 15rem;
   min-height: 3.5rem;
@@ -504,9 +497,6 @@
     min-height: 16rem;
   }
 
-  .incoming-map-preview {
-    width: 100%;
-  }
 }
 
 @media (min-width: 768px) {

@@ -29,12 +29,13 @@ function openTripSignature(snapshot: AdminLiveDispatchSnapshotDto): string {
     .join("|");
 }
 
-function lastUpdateLabel(value: string | null | undefined): string {
+function lastUpdateLabel(value: string | null | undefined, stale: boolean): string {
   if (!value) return "Last seen time unavailable";
-  const time = new Date(value).getTime();
-  if (Number.isNaN(time)) return "Last seen time unavailable";
-  const seconds = Math.max(0, Math.floor((Date.now() - time) / 1_000));
-  return seconds < 60 ? `Updated ${seconds} s ago` : `Updated ${Math.floor(seconds / 60)} min ago`;
+  const timestamp = new Date(value).getTime();
+  if (!Number.isFinite(timestamp)) return "Last seen time unavailable";
+  const seconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1_000));
+  const age = seconds < 60 ? `${seconds} s ago` : `${Math.floor(seconds / 60)} min ago`;
+  return `${stale ? "Last seen" : "Updated"} ${age}`;
 }
 
 function driverStatus(status: string, tripLabel: string): string {
@@ -185,9 +186,8 @@ export function LiveFleetPanel({ onOpenTripsChanged }: LiveFleetPanelProps) {
                         <span className={`${styles.rowIndicator} ${styles[`tone_${driver.status}`]}`} aria-hidden="true" />
                         <span className={styles.rowCopy}>
                           <span className={styles.rowTitle}>{driver.name}<span className={styles.plate}>{driver.vehiclePlate}</span></span>
-                          <span className={styles.rowMeta}>{driverStatus(driver.status, tripLabel)} · {lastUpdateLabel(driver.locationUpdatedAt)}</span>
+                          <span className={styles.rowMeta}>{driverStatus(driver.status, tripLabel)} · {lastUpdateLabel(driver.locationUpdatedAt, driver.stale)}</span>
                         </span>
-                        {driver.stale ? <span className={styles.staleLabel}>Stale</span> : null}
                       </button>
                     );
                   })}

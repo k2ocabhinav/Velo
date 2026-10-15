@@ -38,7 +38,7 @@ export class FakeClock implements Clock {
     return Promise.resolve();
   }
 
-  every(): () => void {
+  every(_milliseconds: number, _callback: () => void): () => void {
     return () => undefined;
   }
 }

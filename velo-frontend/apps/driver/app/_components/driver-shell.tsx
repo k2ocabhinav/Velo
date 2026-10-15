@@ -8,7 +8,8 @@ import { useTenantBranding } from "@velo/ui/theme";
 import { getTenantPluralTripLabel, getTenantWordmark } from "@velo/app-core/tenant";
 import { FadeIn } from "@velo/ui/motion";
 import { DriverNotificationsNavIndicator } from "../notifications/_components/nav-indicator";
-import { isPublicDriverRoute } from "../_lib/driver-shell-routes";
+import { isPublicDriverRoute, shouldPublishIdleDriverLocation } from "../_lib/driver-shell-routes";
+import { DriverIdleLocationHeartbeat } from "./driver-idle-location-heartbeat";
 
 const NAV_ITEMS = [
   { href: "/", label: "Home", icon: "home" as const },
@@ -47,6 +48,7 @@ export function DriverShell({ children }: Readonly<{ children: ReactNode }>) {
 
   return (
     <div className="driver-shell">
+      {shouldPublishIdleDriverLocation(pathname) ? <DriverIdleLocationHeartbeat /> : null}
       <AppTopBar
         className="driver-topbar"
         brand={<Link href="/" className="driver-wordmark" title={wordmark}>{wordmark}</Link>}

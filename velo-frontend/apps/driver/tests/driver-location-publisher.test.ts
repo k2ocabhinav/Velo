@@ -38,4 +38,15 @@ describe("driver location publisher cadence", () => {
       }),
     ).toBe(0);
   });
+
+  it("keeps an online driver visible between trips", () => {
+    expect(resolveLocationPublishIntervalMs({ rideStatus: null, speedKph: null, online: true })).toBe(25_000);
+    expect(resolveLocationPublishIntervalMs({ rideStatus: "ENDED", speedKph: null, online: true })).toBe(25_000);
+    expect(resolveLocationPublishIntervalMs({
+      rideStatus: null,
+      speedKph: null,
+      online: true,
+      reconnecting: true,
+    })).toBe(30_000);
+  });
 });
