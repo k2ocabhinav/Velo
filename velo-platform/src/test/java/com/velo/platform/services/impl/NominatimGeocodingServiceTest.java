@@ -65,23 +65,25 @@ class NominatimGeocodingServiceTest {
                 .andExpect(method(HttpMethod.GET))
                 .andExpect(header("User-Agent", "Velo geocoding tests"))
                 .andExpect(queryParam("q", "Central%20Market"))
+                .andExpect(queryParam("addressdetails", "1"))
                 .andExpect(queryParam("countrycodes", "in"))
                 .andExpect(queryParam("email", "geo@example.test"))
                 .andExpect(queryParam("viewbox", "77.35000,13.05000,77.65000,12.75000"))
                 .andRespond(withSuccess("""
-                        [{"display_name":"Central Market, Bengaluru","lat":"12.9","lon":"77.5","type":"market"}]
+                        [{"name":"Central Market","display_name":"Central Market, Bengaluru, Karnataka, India","address":{"marketplace":"Central Market","city":"Bengaluru","state":"Karnataka","country":"India"},"lat":"12.9","lon":"77.5","type":"market"}]
                         """, MediaType.APPLICATION_JSON));
 
         List<GeocodingResultDto> results = service.search("  Central   Market ", "12.9,77.5");
 
-        assertThat(results).containsExactly(new GeocodingResultDto("Central Market, Bengaluru", 12.9, 77.5, "market"));
+        assertThat(results).containsExactly(new GeocodingResultDto(
+                "Central Market, Bengaluru", "Central Market, Bengaluru, Karnataka, India", 12.9, 77.5, "market"));
     }
 
     @Test
     void cachesSearchResultsInMemoryWhenRedisHasNoEntry() {
         provider.expect(requestTo(org.hamcrest.Matchers.containsString("https://geo.test/search")))
                 .andRespond(withSuccess("""
-                        [{"display_name":"City Library","lat":"12.91","lon":"77.51","type":"library"}]
+                        [{"display_name":"City Library, Bengaluru, India","address":{"library":"City Library","city":"Bengaluru","country":"India"},"lat":"12.91","lon":"77.51","type":"library"}]
                         """, MediaType.APPLICATION_JSON));
 
         List<GeocodingResultDto> first = service.search("City Library", null);
@@ -95,12 +97,14 @@ class NominatimGeocodingServiceTest {
         provider.expect(requestTo(org.hamcrest.Matchers.containsString("https://geo.test/reverse")))
                 .andExpect(queryParam("lat", "12.9"))
                 .andExpect(queryParam("lon", "77.5"))
+                .andExpect(queryParam("addressdetails", "1"))
                 .andRespond(withSuccess("""
-                        {"display_name":"12 Main Road, Bengaluru","lat":"12.9","lon":"77.5","type":"road"}
+                        {"display_name":"12 Main Road, Bengaluru, Karnataka, India","address":{"house_number":"12","road":"Main Road","suburb":"Indiranagar","city":"Bengaluru","state":"Karnataka","country":"India"},"lat":"12.9","lon":"77.5","type":"road"}
                         """, MediaType.APPLICATION_JSON));
 
         assertThat(service.reverse(12.9, 77.5))
-                .isEqualTo(new GeocodingResultDto("12 Main Road, Bengaluru", 12.9, 77.5, "road"));
+                .isEqualTo(new GeocodingResultDto(
+                        "12 Main Road, Indiranagar", "12 Main Road, Bengaluru, Karnataka, India", 12.9, 77.5, "road"));
     }
 
     @Test

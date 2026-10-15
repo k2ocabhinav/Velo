@@ -206,8 +206,13 @@
 }
 
 .driver-offer-facts dd {
+  display: -webkit-box;
+  min-width: 0;
   margin: 0;
+  overflow: hidden;
   overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   font-weight: 600;
 }
 
