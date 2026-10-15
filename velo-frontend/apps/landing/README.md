@@ -16,7 +16,7 @@ The same app can be built locally from `velo-frontend/` with `npm run build --wo
 | Variable | Purpose | Default |
 |---|---|---|
 | `NEXT_PUBLIC_CONTACT_FORM_ACTION` | Optional HTTPS endpoint that accepts a `POST` with `multipart/form-data` and returns a 2xx response on success. | Unset |
-| `NEXT_PUBLIC_CONTACT_EMAIL` | Recipient used by the mailto fallback, footer and policy pages. | Unset |
+| `NEXT_PUBLIC_CONTACT_EMAIL` | Recipient used by the mailto fallback, footer and policy pages. | Set in `.env.production` |
 | `NEXT_PUBLIC_SITE_URL` | Canonical site origin used in metadata, `sitemap.xml` and `robots.txt`. | `https://velo.app` |
 
 Configure the form endpoint with the endpoint URL supplied by your form provider. If only an email recipient is set, the form opens a prefilled mailto draft. If neither destination is configured, no request form is shown and no demo details are collected.
