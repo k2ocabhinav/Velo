@@ -22,10 +22,15 @@ const inter = Inter({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: "Velo Admin",
-  description: "Admin workspace for Velo operations",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const requestHeaders = await headers();
+  const tenantSlug = requestHeaders.get(TENANT_SLUG_HEADER) ?? getDefaultTenantSlug();
+  const branding = await fetchTenantBranding(tenantSlug) ?? DEFAULT_TENANT_BRANDING;
+  return {
+    title: `${branding.brandName} Admin`,
+    description: `Admin workspace for ${branding.brandName} operations`,
+  };
+}
 
 export default async function RootLayout({
   children,

@@ -7,7 +7,7 @@ import { performClientLogout } from "@velo/app-core/logout";
 import { Menu } from "@velo/ui";
 import { useDarkMode, useTenantBranding } from "@velo/ui/theme";
 import { FadeIn } from "@velo/ui/motion";
-import { getTenantWordmark } from "@velo/app-core/tenant";
+import { getTenantPluralTripLabel, getTenantWordmark } from "@velo/app-core/tenant";
 import { adminClient } from "../_lib/admin-client";
 
 const NAV_GROUPS = [
@@ -50,7 +50,7 @@ export function AdminShell({ children }: Readonly<{ children: ReactNode }>) {
   const [loggingOut, setLoggingOut] = useState(false);
   const [counts, setCounts] = useState<NavCounts>({ drivers: 0, payouts: 0, promos: 0, scheduled: 0 });
   const { isDark, toggle } = useDarkMode();
-  const { brandName } = useTenantBranding();
+  const { brandName, tripLabel } = useTenantBranding();
 
   useEffect(() => {
     let cancelled = false;
@@ -75,6 +75,14 @@ export function AdminShell({ children }: Readonly<{ children: ReactNode }>) {
   }, []);
 
   const wordmark = getTenantWordmark(brandName);
+  const tripsLabel = getTenantPluralTripLabel(tripLabel);
+
+  function getNavigationLabel(href: string, label: string): string {
+    if (href === "/trip-sheet") return `${tripLabel} sheet`;
+    if (href === "/scheduled-rides") return `Scheduled ${tripsLabel.toLowerCase()}`;
+    if (href === "/recurring-trips") return `Recurring ${tripsLabel.toLowerCase()}`;
+    return label;
+  }
 
   async function handleLogout(): Promise<void> {
     setLoggingOut(true);
@@ -117,7 +125,7 @@ export function AdminShell({ children }: Readonly<{ children: ReactNode }>) {
                         data-active={active ? "true" : "false"}
                         aria-current={active ? "page" : undefined}
                       >
-                        <span>{item.label}</span>
+                        <span>{getNavigationLabel(item.href, item.label)}</span>
                         {count > 0 ? <span className="admin-nav-count" aria-label={`${count} needs attention`}>{count}</span> : null}
                       </Link>
                     );

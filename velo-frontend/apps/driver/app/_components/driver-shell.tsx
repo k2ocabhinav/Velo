@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AppTopBar, BottomNav } from "@velo/ui/composed";
 import { useTenantBranding } from "@velo/ui/theme";
-import { getTenantWordmark } from "@velo/app-core/tenant";
+import { getTenantPluralTripLabel, getTenantWordmark } from "@velo/app-core/tenant";
 import { FadeIn } from "@velo/ui/motion";
 import { DriverNotificationsNavIndicator } from "../notifications/_components/nav-indicator";
 import { isPublicDriverRoute } from "../_lib/driver-shell-routes";
@@ -21,9 +21,9 @@ function isActiveRidePage(pathname: string): boolean {
   return /^\/ride\/[^/]+$/.test(pathname);
 }
 
-function getPageTitle(pathname: string): string {
-  if (isActiveRidePage(pathname)) return "Trip";
-  if (pathname === "/rides" || pathname.startsWith("/rides/")) return "Trips";
+function getPageTitle(pathname: string, tripLabel: string, tripsLabel: string): string {
+  if (isActiveRidePage(pathname)) return tripLabel;
+  if (pathname === "/rides" || pathname.startsWith("/rides/")) return tripsLabel;
   if (pathname === "/earnings") return "Earnings";
   if (pathname === "/notifications") return "Notifications";
   if (pathname === "/me") return "Me";
@@ -32,8 +32,9 @@ function getPageTitle(pathname: string): string {
 
 export function DriverShell({ children }: Readonly<{ children: ReactNode }>) {
   const pathname = usePathname() ?? "/";
-  const { brandName } = useTenantBranding();
+  const { brandName, tripLabel } = useTenantBranding();
   const wordmark = getTenantWordmark(brandName);
+  const tripsLabel = getTenantPluralTripLabel(tripLabel);
 
   if (isPublicDriverRoute(pathname)) {
     return <>{children}</>;
@@ -49,13 +50,13 @@ export function DriverShell({ children }: Readonly<{ children: ReactNode }>) {
       <AppTopBar
         className="driver-topbar"
         brand={<Link href="/" className="driver-wordmark" title={wordmark}>{wordmark}</Link>}
-        title={getPageTitle(pathname)}
+        title={getPageTitle(pathname, tripLabel, tripsLabel)}
         actions={(
           <>
             <nav className="driver-desktop-nav" aria-label="Main navigation">
               {NAV_ITEMS.map((item) => (
                 <Link key={item.href} href={item.href} aria-current={currentPath === item.href ? "page" : undefined}>
-                  {item.label}
+                  {item.href === "/rides" ? tripsLabel : item.label}
                 </Link>
               ))}
             </nav>
@@ -67,7 +68,7 @@ export function DriverShell({ children }: Readonly<{ children: ReactNode }>) {
       <BottomNav
         className="driver-bottom-nav"
         currentPath={currentPath}
-        items={NAV_ITEMS}
+        items={NAV_ITEMS.map((item) => item.href === "/rides" ? { ...item, label: tripsLabel } : item)}
       />
     </div>
   );

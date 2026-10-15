@@ -2,7 +2,7 @@
 
 ## Before recording
 
-Run `./scripts/demo-up.sh` and use the printed ports. Keep one Velo Business Admin tab at `http://default.localhost:<admin-port>/dispatch`, one Saffron Routes Admin tab at `http://saffron-routes.localhost:<admin-port>/dispatch`, and the rider and driver portals ready on the printed ports. The default ports are 4100–4103. All accounts use `password123`.
+Run `./scripts/demo-up.sh` and use the printed ports. The launcher builds the production frontends before starting the portals, so allow the build to finish before opening the tabs. Keep one Velo Business Admin tab at `http://default.localhost:<admin-port>/dispatch`, one Saffron Routes Admin tab at `http://saffron-routes.localhost:<admin-port>/dispatch`, and the rider and driver portals ready on the printed ports. The default ports are 4100–4103. All accounts use `password123`.
 
 | Tenant | Admin | Rider | Driver |
 |---|---|---|---|

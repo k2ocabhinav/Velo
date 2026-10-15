@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { DEFAULT_TENANT_BRANDING, fetchTenantBranding, getTenantWordmark, resolveTenantSlug } from "../src/tenant";
+import { NextRequest, NextResponse } from "next/server";
+import { attachTenantSlugHeader, DEFAULT_TENANT_BRANDING, fetchTenantBranding, getTenantPluralTripLabel, getTenantWordmark, resolveTenantSlug, TENANT_SLUG_HEADER } from "../src/tenant";
 
 describe("tenant resolution", () => {
   it("uses a tenant subdomain and leaves platform hosts on the development default", () => {
@@ -14,6 +15,26 @@ describe("tenant resolution", () => {
     expect(resolveTenantSlug({ hostname: "-bad.localhost" })).toBe("default");
     expect(resolveTenantSlug({ hostname: "localhost", defaultTenantSlug: "../admin" })).toBe("default");
   });
+
+  it("resolves the tenant from the incoming host when Next's URL uses an internal host", () => {
+    const request = new NextRequest("http://localhost:6401/dispatch", {
+      headers: { host: "saffron-routes.localhost:6401" },
+    });
+
+    const response = attachTenantSlugHeader(request, NextResponse.next());
+
+    expect(response.headers.get("x-middleware-request-" + TENANT_SLUG_HEADER)).toBe("saffron-routes");
+  });
+
+  it("uses the forwarded host for tenant resolution behind a reverse proxy", () => {
+    const request = new NextRequest("http://localhost:6401/dispatch", {
+      headers: { host: "localhost:6401", "x-forwarded-host": "saffron-routes.localhost:6401" },
+    });
+
+    const response = attachTenantSlugHeader(request, NextResponse.next());
+
+    expect(response.headers.get("x-middleware-request-" + TENANT_SLUG_HEADER)).toBe("saffron-routes");
+  });
 });
 
 describe("tenant branding fetch", () => {
@@ -21,6 +42,13 @@ describe("tenant branding fetch", () => {
     expect(getTenantWordmark(" Northstar Mobility ")).toBe("Northstar Mobility");
     expect(getTenantWordmark("Velo")).toBe("VELO");
     expect(getTenantWordmark(" ")).toBe("VELO");
+  });
+
+  it("pluralizes tenant trip labels for navigation", () => {
+    expect(getTenantPluralTripLabel("Trip")).toBe("Trips");
+    expect(getTenantPluralTripLabel("Transfer")).toBe("Transfers");
+    expect(getTenantPluralTripLabel("Transfers")).toBe("Transfers");
+    expect(getTenantPluralTripLabel(null)).toBe("Trips");
   });
 
   it("loads the public envelope using the Next fetch revalidation cache", async () => {
