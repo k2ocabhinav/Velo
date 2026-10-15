@@ -45,8 +45,6 @@ import java.util.List;
 public class ScheduledRideServiceImpl implements ScheduledRideService {
 
     private static final ZoneId UTC = ZoneId.of("UTC");
-    private static final long DRIVER_OFFER_TTL_SECONDS = 45L;
-
     private final RideRequestRepository rideRequestRepository;
     private final RiderService riderService;
     private final RideStrategyManager rideStrategyManager;
@@ -185,7 +183,7 @@ public class ScheduledRideServiceImpl implements ScheduledRideService {
                 .driverMatchingStrategy(rider.getRating())
                 .findMatchingDrivers(savedRideRequest);
 
-        rideOfferService.createOffers(savedRideRequest, matchedDrivers, DRIVER_OFFER_TTL_SECONDS);
+        rideOfferService.createOffers(savedRideRequest, matchedDrivers);
         if (matchedDrivers.isEmpty()) {
             savedRideRequest.setRideRequestStatus(RideRequestStatus.EXPIRED);
             rideRequestRepository.save(savedRideRequest);

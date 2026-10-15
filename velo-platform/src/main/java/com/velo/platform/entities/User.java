@@ -35,6 +35,10 @@ public class User {
     @Builder.Default
     private Boolean active = Boolean.TRUE;
     @Builder.Default
+    @JsonIgnore
+    @Column(nullable = false)
+    private Boolean simulated = Boolean.FALSE;
+    @Builder.Default
     @Column(name = "tenant_id", nullable = false)
     private Long tenantId = 1L;
 
@@ -55,6 +59,9 @@ public class User {
     void applyDefaults() {
         if (active == null) {
             active = Boolean.TRUE;
+        }
+        if (simulated == null) {
+            simulated = Boolean.FALSE;
         }
         if (tenantId == null) {
             tenantId = 1L;

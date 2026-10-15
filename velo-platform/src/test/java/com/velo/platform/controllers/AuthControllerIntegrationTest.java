@@ -69,6 +69,33 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
+    @DisplayName("signup and profile updates cannot set a user's simulated flag")
+    void publicAuthEndpoints_ShouldIgnoreSimulatedFlag() throws Exception {
+        mockMvc.perform(post("/auth/signup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name":"Public User","email":"public-sim@test.com","password":"password123","simulated":true}
+                                """))
+                .andExpect(status().isCreated());
+
+        var user = userRepository.findByEmail("public-sim@test.com").orElseThrow();
+        org.assertj.core.api.Assertions.assertThat(user.getSimulated()).isFalse();
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/auth/profile")
+                        .header("X-Test-User-Id", user.getId())
+                        .header("X-Test-Email", user.getEmail())
+                        .header("X-Test-Role", "RIDER")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"firstName":"Public","lastName":"Updated","phoneNumber":"+15550001000","simulated":true}
+                                """))
+                .andExpect(status().isOk());
+
+        org.assertj.core.api.Assertions.assertThat(userRepository.findById(user.getId()).orElseThrow().getSimulated())
+                .isFalse();
+    }
+
+    @Test
     @DisplayName("POST /auth/signup with duplicate email should return 409")
     void signup_WithDuplicateEmail_ShouldReturn409() throws Exception {
         SignupDto signupDto = new SignupDto();

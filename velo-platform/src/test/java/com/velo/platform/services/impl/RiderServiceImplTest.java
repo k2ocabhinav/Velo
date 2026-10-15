@@ -210,7 +210,7 @@ class RiderServiceImplTest {
         when(rideStrategyManager.driverMatchingStrategy(testRider.getRating())).thenReturn(driverMatchingStrategy);
         Driver matchedDriver = Driver.builder().id(10L).build();
         when(driverMatchingStrategy.findMatchingDrivers(testRideRequest)).thenReturn(List.of(matchedDriver));
-        when(rideOfferService.createOffers(testRideRequest, List.of(matchedDriver), 45L)).thenReturn(List.of());
+        when(rideOfferService.createOffers(testRideRequest, List.of(matchedDriver))).thenReturn(List.of());
         when(modelMapper.map(testRideRequest, RideRequestDto.class)).thenReturn(testRideRequestDto);
 
         RideRequestDto result = riderService.requestRide(testRideRequestDto);
@@ -218,7 +218,7 @@ class RiderServiceImplTest {
         assertThat(result).isNotNull();
         verify(rideRequestRepository).save(testRideRequest);
         assertThat(testRideRequest.getFare()).isEqualByComparingTo(BigDecimal.valueOf(150.0));
-        verify(rideOfferService).createOffers(testRideRequest, List.of(matchedDriver), 45L);
+        verify(rideOfferService).createOffers(testRideRequest, List.of(matchedDriver));
         verify(eventPublisher).publishEvent(any());
     }
 

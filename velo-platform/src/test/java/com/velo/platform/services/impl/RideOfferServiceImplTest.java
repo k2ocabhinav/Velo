@@ -7,6 +7,7 @@ import com.velo.platform.entities.Rider;
 import com.velo.platform.entities.User;
 import com.velo.platform.entities.enums.RideOfferStatus;
 import com.velo.platform.entities.enums.RideRequestStatus;
+import com.velo.platform.configs.DispatchProperties;
 import com.velo.platform.repositories.RideOfferRepository;
 import com.velo.platform.repositories.RideRequestRepository;
 import com.velo.platform.services.NotificationService;
@@ -41,15 +42,18 @@ class RideOfferServiceImplTest {
     @Mock
     private RideRealtimeService rideRealtimeService;
 
+    private DispatchProperties dispatchProperties;
     private RideOfferServiceImpl rideOfferService;
 
     @BeforeEach
     void setUp() {
+        dispatchProperties = new DispatchProperties();
         rideOfferService = new RideOfferServiceImpl(
                 rideOfferRepository,
                 rideRequestRepository,
                 notificationService,
-                rideRealtimeService
+                rideRealtimeService,
+                dispatchProperties
         );
     }
 
@@ -62,7 +66,7 @@ class RideOfferServiceImplTest {
 
         when(rideOfferRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        List<RideOffer> offers = rideOfferService.createOffers(request, List.of(d1, d2), 45L);
+        List<RideOffer> offers = rideOfferService.createOffers(request, List.of(d1, d2));
 
         assertThat(offers).hasSize(2);
         assertThat(offers).allSatisfy((offer) -> {
@@ -70,6 +74,18 @@ class RideOfferServiceImplTest {
             assertThat(offer.getRideRequest()).isEqualTo(request);
             assertThat(offer.getExpiresAt()).isAfter(LocalDateTime.now().plusSeconds(40));
         });
+    }
+
+    @Test
+    @DisplayName("createOffers uses the configured offer TTL")
+    void createOffers_UsesConfiguredTtl() {
+        RideRequest request = RideRequest.builder().id(100L).build();
+        dispatchProperties.setOfferTtlSeconds(90L);
+        when(rideOfferRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        List<RideOffer> offers = rideOfferService.createOffers(request, List.of(Driver.builder().id(1L).build()));
+
+        assertThat(offers.get(0).getExpiresAt()).isAfter(LocalDateTime.now().plusSeconds(85));
     }
 
     @Test

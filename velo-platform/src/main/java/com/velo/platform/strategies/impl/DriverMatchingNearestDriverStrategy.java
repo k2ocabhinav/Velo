@@ -2,6 +2,8 @@ package com.velo.platform.strategies.impl;
 
 import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.RideRequest;
+import com.velo.platform.entities.Rider;
+import com.velo.platform.entities.User;
 import com.velo.platform.repositories.DriverRepository;
 import com.velo.platform.strategies.DriverMatchingStrategy;
 import lombok.RequiredArgsConstructor;
@@ -21,15 +23,16 @@ public class DriverMatchingNearestDriverStrategy implements DriverMatchingStrate
     @Override
     public List<Driver> findMatchingDrivers(RideRequest rideRequest) {
         Long tenantId = rideRequest.getTenantId() == null ? 1L : rideRequest.getTenantId();
+        boolean simulated = isSimulated(rideRequest);
         List<Driver> nearest = rideRequest.getPickupLocation() == null
                 ? List.of()
-                : driverRepository.findTenNearestDrivers(rideRequest.getPickupLocation(), tenantId);
+                : driverRepository.findTenNearestDrivers(rideRequest.getPickupLocation(), tenantId, simulated);
 
         if (nearest.size() >= MAX_MATCHED_DRIVERS) {
             return nearest;
         }
 
-        List<Driver> fallback = driverRepository.findFallbackDrivers(tenantId, MAX_MATCHED_DRIVERS);
+        List<Driver> fallback = driverRepository.findFallbackDrivers(tenantId, MAX_MATCHED_DRIVERS, simulated);
         Map<Long, Driver> merged = new LinkedHashMap<>();
 
         for (Driver driver : nearest) {
@@ -40,5 +43,11 @@ public class DriverMatchingNearestDriverStrategy implements DriverMatchingStrate
         }
 
         return merged.values().stream().limit(MAX_MATCHED_DRIVERS).toList();
+    }
+
+    private boolean isSimulated(RideRequest rideRequest) {
+        Rider rider = rideRequest.getRider();
+        User user = rider == null ? null : rider.getUser();
+        return user != null && Boolean.TRUE.equals(user.getSimulated());
     }
 }

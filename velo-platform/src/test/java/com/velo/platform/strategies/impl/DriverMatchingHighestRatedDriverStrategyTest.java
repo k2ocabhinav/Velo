@@ -2,6 +2,8 @@ package com.velo.platform.strategies.impl;
 
 import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.RideRequest;
+import com.velo.platform.entities.Rider;
+import com.velo.platform.entities.User;
 import com.velo.platform.repositories.DriverRepository;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
@@ -37,13 +39,13 @@ class DriverMatchingHighestRatedDriverStrategyTest {
                 .build();
 
         Driver fallbackDriver = Driver.builder().id(8L).available(true).build();
-        when(driverRepository.findFallbackDrivers(1L, 10))
+        when(driverRepository.findFallbackDrivers(1L, 10, false))
                 .thenReturn(List.of(fallbackDriver));
 
         List<Driver> matched = strategy.findMatchingDrivers(rideRequest);
 
         assertThat(matched).extracting(Driver::getId).containsExactly(8L);
-        verify(driverRepository).findFallbackDrivers(1L, 10);
+        verify(driverRepository).findFallbackDrivers(1L, 10, false);
     }
 
     @Test
@@ -58,13 +60,30 @@ class DriverMatchingHighestRatedDriverStrategyTest {
         Driver fallbackDriver = Driver.builder().id(8L).build();
         Driver duplicateTopRated = Driver.builder().id(3L).build();
 
-        when(driverRepository.findTenNearbyTopRatedDrivers(pickup, 1L))
+        when(driverRepository.findTenNearbyTopRatedDrivers(pickup, 1L, false))
                 .thenReturn(List.of(topRatedNearby));
-        when(driverRepository.findFallbackDrivers(1L, 10))
+        when(driverRepository.findFallbackDrivers(1L, 10, false))
                 .thenReturn(List.of(duplicateTopRated, fallbackDriver));
 
         List<Driver> matched = strategy.findMatchingDrivers(rideRequest);
 
         assertThat(matched).extracting(Driver::getId).containsExactly(3L, 8L);
+    }
+
+    @Test
+    void shouldUseSimulatedCandidatesForSimulatedRiders() {
+        Point pickup = geometryFactory.createPoint(new Coordinate(77.5946, 12.9716));
+        RideRequest rideRequest = RideRequest.builder()
+                .tenantId(1L)
+                .pickupLocation(pickup)
+                .rider(Rider.builder().user(User.builder().simulated(true).build()).build())
+                .build();
+        Driver simulatedDriver = Driver.builder().id(9L).build();
+        when(driverRepository.findTenNearbyTopRatedDrivers(pickup, 1L, true)).thenReturn(List.of(simulatedDriver));
+
+        List<Driver> matched = strategy.findMatchingDrivers(rideRequest);
+
+        assertThat(matched).containsExactly(simulatedDriver);
+        verify(driverRepository).findTenNearbyTopRatedDrivers(pickup, 1L, true);
     }
 }

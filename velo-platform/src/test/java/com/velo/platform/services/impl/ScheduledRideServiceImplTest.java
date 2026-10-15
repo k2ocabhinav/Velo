@@ -262,7 +262,7 @@ class ScheduledRideServiceImplTest {
             when(rideRequestRepository.save(any(RideRequest.class))).thenReturn(testRideRequest);
             when(rideStrategyManager.driverMatchingStrategy(anyDouble())).thenReturn(driverMatchingStrategy);
             when(driverMatchingStrategy.findMatchingDrivers(any())).thenReturn(List.of(matchedDriver));
-            when(rideOfferService.createOffers(eq(testRideRequest), anyList(), eq(45L))).thenReturn(List.of());
+            when(rideOfferService.createOffers(eq(testRideRequest), anyList())).thenReturn(List.of());
 
             int dispatched = scheduledRideService.dispatchScheduledRides();
 
@@ -275,7 +275,7 @@ class ScheduledRideServiceImplTest {
                             && rideRequestedEvent.isScheduledDispatch()
                             && rideRequestedEvent.getMatchedDrivers().contains(matchedDriver)
                             && rideRequestedEvent.getRideRequest().getId().equals(testRideRequest.getId())));
-            verify(rideOfferService).createOffers(eq(testRideRequest), anyList(), eq(45L));
+            verify(rideOfferService).createOffers(eq(testRideRequest), anyList());
         }
 
         @Test
@@ -303,7 +303,7 @@ class ScheduledRideServiceImplTest {
             when(rideRequestRepository.save(any(RideRequest.class))).thenReturn(testRideRequest);
             when(rideStrategyManager.driverMatchingStrategy(anyDouble())).thenReturn(driverMatchingStrategy);
             when(driverMatchingStrategy.findMatchingDrivers(any())).thenReturn(Collections.emptyList());
-            when(rideOfferService.createOffers(eq(testRideRequest), anyList(), eq(45L))).thenReturn(List.of());
+            when(rideOfferService.createOffers(eq(testRideRequest), anyList())).thenReturn(List.of());
 
             int dispatched = scheduledRideService.dispatchScheduledRides();
 
@@ -333,7 +333,7 @@ class ScheduledRideServiceImplTest {
             when(rideRequestRepository.save(rideRequest2)).thenReturn(rideRequest2);
             when(rideStrategyManager.driverMatchingStrategy(anyDouble())).thenReturn(driverMatchingStrategy);
             when(driverMatchingStrategy.findMatchingDrivers(any())).thenReturn(Collections.emptyList());
-            when(rideOfferService.createOffers(eq(rideRequest2), anyList(), eq(45L))).thenReturn(List.of());
+            when(rideOfferService.createOffers(eq(rideRequest2), anyList())).thenReturn(List.of());
 
             int dispatched = scheduledRideService.dispatchScheduledRides();
 

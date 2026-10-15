@@ -4,7 +4,7 @@
 
 - Swagger UI: `http://localhost:8080/swagger-ui/index.html`
 - OpenAPI JSON: `http://localhost:8080/v3/api-docs`
-- Controller inventory: **100 HTTP operations across 10 groups**
+- Controller inventory: **101 HTTP operations across 10 groups**
 
 ## Security
 
@@ -68,7 +68,7 @@
 - `GET /api/v1/public/tenant/branding`, `/api/v1/tenant/branding`, `/api/v1/admin/branding`
 - `PUT /api/v1/admin/branding`
 
-## Admin (34)
+## Admin (35)
 
 - `GET /api/v1/admin/stats/dashboard`, `/api/v1/admin/stats/daily`, `/api/v1/admin/stats/revenue`
 - `GET /api/v1/admin/stats/revenue/top-drivers?days=30` — top drivers by gross, commission, net earnings, and trips (1–90 days)
@@ -82,7 +82,7 @@
 - `GET /api/v1/admin/trip-sheet/attention`, `/attention/count`
 - `GET /api/v1/admin/trip-sheet/export?date=YYYY-MM-DD` — CSV includes booking and reason fields
 - `POST /api/v1/admin/trip-sheet/{rideRequestId}/cancel`, `/no-show`
-- `GET /api/v1/admin/dispatch/requests`, `/api/v1/admin/dispatch/active-rides`, `/api/v1/admin/dispatch/requests/{rideRequestId}/offers`, `/api/v1/admin/dispatch/audit`
+- `GET /api/v1/admin/dispatch/requests`, `/api/v1/admin/dispatch/active-rides`, `/api/v1/admin/dispatch/live`, `/api/v1/admin/dispatch/requests/{rideRequestId}/offers`, `/api/v1/admin/dispatch/audit`
 - `POST /api/v1/admin/dispatch/requests`, `/api/v1/admin/dispatch/requests/{rideRequestId}/assign`, `/api/v1/admin/dispatch/requests/{rideRequestId}/cancel`
 - `POST /api/v1/admin/dispatch/rides/{rideId}/reassign`, `/api/v1/admin/dispatch/rides/{rideId}/cancel`
 - `GET /api/v1/admin/ops-health`
