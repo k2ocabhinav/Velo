@@ -143,7 +143,10 @@ export function attachTenantSlugHeader(
   if (response.headers.has("location")) return response;
 
   const requestHeaders = new Headers(request.headers);
-  const forwardedHost = request.headers.get("x-forwarded-host")?.split(",", 1)[0]?.trim();
+  const trustProxy = getEnvValue("VELO_TRUST_PROXY") === "1";
+  const forwardedHost = trustProxy
+    ? request.headers.get("x-forwarded-host")?.split(",", 1)[0]?.trim()
+    : undefined;
   const requestHost = forwardedHost || request.headers.get("host") || request.nextUrl.hostname;
   requestHeaders.set(
     TENANT_SLUG_HEADER,

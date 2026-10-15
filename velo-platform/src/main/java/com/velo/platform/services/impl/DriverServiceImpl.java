@@ -131,14 +131,33 @@ public class DriverServiceImpl implements DriverService {
             throw new RuntimeConflictException("Cross-tenant ride request access is not allowed.");
         }
         if (!RideRequestStatus.PENDING.equals(rideRequest.getRideRequestStatus())) {
-            return modelMapper.map(rideRequest, RideRequestDto.class);
+            return toRideRequestDto(rideRequest, null);
         }
-        if (rideOfferService.hasAnyOffer(rideRequestId) &&
-                rideOfferService.findAcceptableOffer(rideRequestId, currentDriver.getId()).isEmpty()) {
-            throw new RuntimeConflictException("This ride has already been assigned.");
+        LocalDateTime expiresAt = null;
+        if (rideOfferService.hasAnyOffer(rideRequestId)) {
+            RideOffer offer = rideOfferService.findAcceptableOffer(rideRequestId, currentDriver.getId())
+                    .orElseThrow(() -> new RuntimeConflictException("This ride has already been assigned."));
+            expiresAt = offer.getExpiresAt();
         }
 
-        return modelMapper.map(rideRequest, RideRequestDto.class);
+        return toRideRequestDto(rideRequest, expiresAt);
+    }
+
+    private RideRequestDto toRideRequestDto(RideRequest rideRequest, LocalDateTime expiresAt) {
+        RideRequestDto dto = modelMapper.map(rideRequest, RideRequestDto.class);
+        dto.setPickupAddress(rideRequest.getPickupAddress());
+        dto.setDropOffAddress(rideRequest.getDropOffAddress());
+        dto.setExpiresAt(expiresAt);
+        Rider rider = rideRequest.getRider();
+        if (rider != null && rider.getUser() != null) {
+            RiderDto riderDto = dto.getRider();
+            if (riderDto == null) {
+                riderDto = modelMapper.map(rider, RiderDto.class);
+            }
+            populateRiderName(rider, riderDto);
+            dto.setRider(riderDto);
+        }
+        return dto;
     }
 
     @Override
@@ -274,6 +293,11 @@ public class DriverServiceImpl implements DriverService {
             riderDto = modelMapper.map(rider, RiderDto.class);
             dto.setRider(riderDto);
         }
+        populateRiderName(rider, riderDto);
+        return dto;
+    }
+
+    private void populateRiderName(Rider rider, RiderDto riderDto) {
         UserDto userDto = riderDto.getUser();
         if (userDto == null) {
             userDto = modelMapper.map(rider.getUser(), UserDto.class);
@@ -284,7 +308,6 @@ public class DriverServiceImpl implements DriverService {
         String fullName = ((user.getFirstName() == null ? "" : user.getFirstName().trim()) + " "
                 + (user.getLastName() == null ? "" : user.getLastName().trim())).trim();
         userDto.setName(fullName.isEmpty() ? null : fullName);
-        return dto;
     }
 
     @Override

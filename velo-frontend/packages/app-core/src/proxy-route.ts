@@ -60,7 +60,8 @@ export async function proxyBackendRequest(
     tokenCookieName: options.tokenCookieName,
     refreshCookieName: options.refreshCookieName,
     userIdCookieName: options.userIdCookieName,
-    roleCookieName: options.roleCookieName
+    roleCookieName: options.roleCookieName,
+    requestHost: request.headers.get("host") ?? undefined
   };
   let rotatedSession: RefreshSessionResult | null = null;
   if (!token && refreshToken) {

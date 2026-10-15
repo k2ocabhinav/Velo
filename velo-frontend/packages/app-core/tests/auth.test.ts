@@ -86,6 +86,25 @@ describe("performLoginProxy", () => {
     expect(response.cookies.get("velo_token")?.secure).toBe(true);
   });
 
+  it("disables Secure only for explicitly enabled local demo hosts", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VELO_INSECURE_LOCAL_COOKIES", "1");
+
+    const localResponse = await performLoginProxy(
+      { email: "user@velo.dev", password: "secret" },
+      async () => createJsonResponse({ data: { token: "token-local", refreshToken: "refresh-local", userId: 42 } }),
+      { requestHost: "default.localhost:6701" },
+    );
+    const remoteResponse = await performLoginProxy(
+      { email: "user@velo.dev", password: "secret" },
+      async () => createJsonResponse({ data: { token: "token-remote", refreshToken: "refresh-remote", userId: 42 } }),
+      { requestHost: "demo.example.com" },
+    );
+
+    expect(localResponse.cookies.get("velo_token")?.secure).toBe(false);
+    expect(remoteResponse.cookies.get("velo_token")?.secure).toBe(true);
+  });
+
   it("allows secure cookies to be enabled for local HTTPS", async () => {
     vi.stubEnv("VELO_AUTH_COOKIE_SECURE", "true");
 

@@ -157,6 +157,7 @@ FROM rider
 JOIN app_user ON app_user.id = rider.user_id
 JOIN tenant ON tenant.id = rider.tenant_id
 WHERE request.rider_id = rider.id
+  AND request.id = 1
   AND app_user.email = 'dave@example.com'
   AND tenant.slug = 'default'
   AND request.ride_request_status = 'PENDING'
@@ -194,6 +195,7 @@ FROM rider
 JOIN app_user ON app_user.id = rider.user_id
 JOIN tenant ON tenant.id = rider.tenant_id
 WHERE request.rider_id = rider.id
+  AND request.id IN (2, 3)
   AND tenant.slug = 'default'
   AND request.ride_request_status = 'SCHEDULED'
   AND request.external_reference IS NULL
@@ -266,6 +268,111 @@ WHERE request.external_reference IN ('DEMO-VELO-PENDING-01', 'DEMO-SAFFRON-PENDI
         AND existing.tenant_id = tenant.id
   );
 
+-- Give only the known baseline fixture rows durable identities before resetting their demo state.
+UPDATE ride
+SET external_reference = CASE ride.id
+    WHEN 1 THEN 'DEMO-VELO-ENDED-01'
+    WHEN 2 THEN 'DEMO-VELO-CANCELLED-01'
+    WHEN 3 THEN 'DEMO-VELO-ONGOING-01'
+    WHEN 4 THEN 'DEMO-VELO-ENDED-02'
+END
+FROM tenant
+JOIN rider ON rider.tenant_id = tenant.id
+JOIN app_user rider_user ON rider_user.id = rider.user_id
+JOIN driver ON driver.tenant_id = tenant.id
+JOIN app_user driver_user ON driver_user.id = driver.user_id
+WHERE ride.tenant_id = tenant.id
+  AND tenant.slug = 'default'
+  AND ride.rider_id = rider.id
+  AND ride.driver_id = driver.id
+  AND (
+      (ride.id = 1 AND rider_user.email = 'alice@example.com' AND driver_user.email = 'bob.driver@example.com'
+          AND ride.ride_status = 'ENDED' AND ride.fare = 150.00)
+      OR (ride.id = 2 AND rider_user.email = 'dave@example.com' AND driver_user.email = 'carol.driver@example.com'
+          AND ride.ride_status = 'CANCELLED' AND ride.fare = 90.00)
+      OR (ride.id = 3 AND rider_user.email = 'bob.driver@example.com' AND driver_user.email = 'bob.driver@example.com'
+          AND ride.ride_status = 'ONGOING' AND ride.fare = 120.00)
+      OR (ride.id = 4 AND rider_user.email = 'dave@example.com' AND driver_user.email = 'bob.driver@example.com'
+          AND ride.ride_status = 'CONFIRMED' AND ride.fare = 200.00)
+  );
+
+-- Backfill identities for the earlier repeatable-seed rows using their full fixture pairing and route.
+UPDATE ride
+SET external_reference = 'DEMO-VELO-ENDED-03'
+FROM tenant
+JOIN rider ON rider.tenant_id = tenant.id
+JOIN app_user rider_user ON rider_user.id = rider.user_id
+JOIN driver ON driver.tenant_id = tenant.id
+JOIN app_user driver_user ON driver_user.id = driver.user_id
+WHERE ride.tenant_id = tenant.id
+  AND tenant.slug = 'default'
+  AND ride.rider_id = rider.id
+  AND ride.driver_id = driver.id
+  AND rider_user.email = 'alice@example.com'
+  AND driver_user.email = 'bob.driver@example.com'
+  AND ride.ride_status = 'ENDED'
+  AND ride.fare = 640.00
+  AND ST_Equals(ride.pickup_location, ST_SetSRID(ST_MakePoint(77.5946, 12.9716), 4326))
+  AND ST_Equals(ride.drop_off_location, ST_SetSRID(ST_MakePoint(77.6200, 12.9350), 4326))
+  AND ride.external_reference IS NULL;
+
+UPDATE ride
+SET external_reference = 'DEMO-SAFFRON-ENDED-01'
+FROM tenant
+JOIN rider ON rider.tenant_id = tenant.id
+JOIN app_user rider_user ON rider_user.id = rider.user_id
+JOIN driver ON driver.tenant_id = tenant.id
+JOIN app_user driver_user ON driver_user.id = driver.user_id
+WHERE ride.tenant_id = tenant.id
+  AND tenant.slug = 'saffron-routes'
+  AND ride.rider_id = rider.id
+  AND ride.driver_id = driver.id
+  AND rider_user.email = 'guest@saffronroutes.demo'
+  AND driver_user.email = 'chauffeur1@saffronroutes.demo'
+  AND ride.ride_status = 'ENDED'
+  AND ride.fare = 1450.00
+  AND ST_Equals(ride.pickup_location, ST_SetSRID(ST_MakePoint(77.6200, 12.9350), 4326))
+  AND ST_Equals(ride.drop_off_location, ST_SetSRID(ST_MakePoint(77.7060, 13.1986), 4326))
+  AND ride.external_reference IS NULL;
+
+UPDATE ride
+SET external_reference = 'DEMO-SAFFRON-ENDED-02'
+FROM tenant
+JOIN rider ON rider.tenant_id = tenant.id
+JOIN app_user rider_user ON rider_user.id = rider.user_id
+JOIN driver ON driver.tenant_id = tenant.id
+JOIN app_user driver_user ON driver_user.id = driver.user_id
+WHERE ride.tenant_id = tenant.id
+  AND tenant.slug = 'saffron-routes'
+  AND ride.rider_id = rider.id
+  AND ride.driver_id = driver.id
+  AND rider_user.email = 'guest2@saffronroutes.demo'
+  AND driver_user.email = 'chauffeur2@saffronroutes.demo'
+  AND ride.ride_status = 'ENDED'
+  AND ride.fare = 825.00
+  AND ST_Equals(ride.pickup_location, ST_SetSRID(ST_MakePoint(77.5950, 12.9750), 4326))
+  AND ST_Equals(ride.drop_off_location, ST_SetSRID(ST_MakePoint(77.6100, 12.9700), 4326))
+  AND ride.external_reference IS NULL;
+
+UPDATE ride
+SET external_reference = 'DEMO-SAFFRON-ONGOING-01'
+FROM tenant
+JOIN rider ON rider.tenant_id = tenant.id
+JOIN app_user rider_user ON rider_user.id = rider.user_id
+JOIN driver ON driver.tenant_id = tenant.id
+JOIN app_user driver_user ON driver_user.id = driver.user_id
+WHERE ride.tenant_id = tenant.id
+  AND tenant.slug = 'saffron-routes'
+  AND ride.rider_id = rider.id
+  AND ride.driver_id = driver.id
+  AND rider_user.email = 'guest@saffronroutes.demo'
+  AND driver_user.email = 'chauffeur2@saffronroutes.demo'
+  AND ride.ride_status = 'ONGOING'
+  AND ride.fare = 1580.00
+  AND ST_Equals(ride.pickup_location, ST_SetSRID(ST_MakePoint(77.6100, 12.9350), 4326))
+  AND ST_Equals(ride.drop_off_location, ST_SetSRID(ST_MakePoint(77.7060, 13.1986), 4326))
+  AND ride.external_reference IS NULL;
+
 -- Reuse the original Velo in-progress row, pairing Alice with Carol so Bob can accept a new request.
 UPDATE ride
 SET rider_id = (SELECT rider.id FROM rider JOIN app_user ON app_user.id = rider.user_id WHERE app_user.email = 'alice@example.com'),
@@ -275,8 +382,7 @@ SET rider_id = (SELECT rider.id FROM rider JOIN app_user ON app_user.id = rider.
     created_time = NOW() - INTERVAL '18 minutes', started_at = NOW() - INTERVAL '9 minutes',
     ended_at = NULL, payment_method = 'CASH', ride_status = 'ONGOING', fare = 640.00, otp = '2468'
 WHERE tenant_id = (SELECT id FROM tenant WHERE slug = 'default')
-  AND otp = '2468'
-  AND ride_status = 'ONGOING';
+  AND external_reference = 'DEMO-VELO-ONGOING-01';
 
 -- The original V2 sample marks Dave's assigned trip as CONFIRMED. Keep it as history so he can use his account
 -- for the seeded dispatch request while the single active Velo trip remains available to show live tracking.
@@ -285,53 +391,44 @@ SET started_at = COALESCE(started_at, NOW() - INTERVAL '1 day'),
     ended_at = COALESCE(ended_at, NOW() - INTERVAL '23 hours'),
     ride_status = 'ENDED'
 WHERE tenant_id = (SELECT id FROM tenant WHERE slug = 'default')
-  AND otp = '1357'
-  AND ride_status = 'CONFIRMED';
+  AND external_reference = 'DEMO-VELO-ENDED-02';
 
 INSERT INTO ride (
     pickup_location, drop_off_location, created_time, started_at, ended_at, rider_id, driver_id,
-    payment_method, ride_status, fare, otp, version, tenant_id
+    payment_method, ride_status, fare, otp, external_reference, version, tenant_id
 )
 SELECT ST_SetSRID(ST_MakePoint(seed.pickup_lon, seed.pickup_lat), 4326),
        ST_SetSRID(ST_MakePoint(seed.drop_lon, seed.drop_lat), 4326),
        NOW() - seed.age_days * INTERVAL '1 day', NOW() - (seed.age_days * INTERVAL '1 day') + INTERVAL '25 minutes',
        NOW() - (seed.age_days * INTERVAL '1 day') + INTERVAL '58 minutes', rider.id, driver.id,
-       'CASH', 'ENDED', seed.fare, seed.otp, 0, tenant.id
+       'CASH', 'ENDED', seed.fare, seed.otp, seed.external_reference, 0, tenant.id
 FROM (VALUES
-    ('alice@example.com', 'bob.driver@example.com', 77.5946::DOUBLE PRECISION, 12.9716::DOUBLE PRECISION, 77.6200::DOUBLE PRECISION, 12.9350::DOUBLE PRECISION, 2, 640.00::NUMERIC, '1904', 'default'),
-    ('guest@saffronroutes.demo', 'chauffeur1@saffronroutes.demo', 77.6200::DOUBLE PRECISION, 12.9350::DOUBLE PRECISION, 77.7060::DOUBLE PRECISION, 13.1986::DOUBLE PRECISION, 2, 1450.00::NUMERIC, '5182', 'saffron-routes'),
-    ('guest2@saffronroutes.demo', 'chauffeur2@saffronroutes.demo', 77.5950::DOUBLE PRECISION, 12.9750::DOUBLE PRECISION, 77.6100::DOUBLE PRECISION, 12.9700::DOUBLE PRECISION, 1, 825.00::NUMERIC, '7394', 'saffron-routes')
-) AS seed(rider_email, driver_email, pickup_lon, pickup_lat, drop_lon, drop_lat, age_days, fare, otp, tenant_slug)
+    ('alice@example.com', 'bob.driver@example.com', 77.5946::DOUBLE PRECISION, 12.9716::DOUBLE PRECISION, 77.6200::DOUBLE PRECISION, 12.9350::DOUBLE PRECISION, 2, 640.00::NUMERIC, '1904', 'DEMO-VELO-ENDED-03', 'default'),
+    ('guest@saffronroutes.demo', 'chauffeur1@saffronroutes.demo', 77.6200::DOUBLE PRECISION, 12.9350::DOUBLE PRECISION, 77.7060::DOUBLE PRECISION, 13.1986::DOUBLE PRECISION, 2, 1450.00::NUMERIC, '5182', 'DEMO-SAFFRON-ENDED-01', 'saffron-routes'),
+    ('guest2@saffronroutes.demo', 'chauffeur2@saffronroutes.demo', 77.5950::DOUBLE PRECISION, 12.9750::DOUBLE PRECISION, 77.6100::DOUBLE PRECISION, 12.9700::DOUBLE PRECISION, 1, 825.00::NUMERIC, '7394', 'DEMO-SAFFRON-ENDED-02', 'saffron-routes')
+) AS seed(rider_email, driver_email, pickup_lon, pickup_lat, drop_lon, drop_lat, age_days, fare, otp, external_reference, tenant_slug)
 JOIN tenant ON tenant.slug = seed.tenant_slug
 JOIN app_user rider_user ON rider_user.email = seed.rider_email
 JOIN rider ON rider.user_id = rider_user.id AND rider.tenant_id = tenant.id
 JOIN app_user driver_user ON driver_user.email = seed.driver_email
 JOIN driver ON driver.user_id = driver_user.id AND driver.tenant_id = tenant.id
-WHERE NOT EXISTS (
-    SELECT 1 FROM ride existing
-    WHERE existing.tenant_id = tenant.id AND existing.otp = seed.otp
-      AND existing.rider_id = rider.id AND existing.driver_id = driver.id
-);
+WHERE NOT EXISTS (SELECT 1 FROM ride existing WHERE existing.external_reference = seed.external_reference);
 
 INSERT INTO ride (
     pickup_location, drop_off_location, created_time, started_at, ended_at, rider_id, driver_id,
-    payment_method, ride_status, fare, otp, version, tenant_id
+    payment_method, ride_status, fare, otp, external_reference, version, tenant_id
 )
 SELECT ST_SetSRID(ST_MakePoint(77.6100, 12.9350), 4326),
        ST_SetSRID(ST_MakePoint(77.7060, 13.1986), 4326),
        NOW() - INTERVAL '16 minutes', NOW() - INTERVAL '7 minutes', NULL,
-       rider.id, driver.id, 'CASH', 'ONGOING', 1580.00, '4826', 0, tenant.id
+       rider.id, driver.id, 'CASH', 'ONGOING', 1580.00, '4826', 'DEMO-SAFFRON-ONGOING-01', 0, tenant.id
 FROM tenant
 JOIN app_user rider_user ON rider_user.email = 'guest@saffronroutes.demo'
 JOIN rider ON rider.user_id = rider_user.id AND rider.tenant_id = tenant.id
 JOIN app_user driver_user ON driver_user.email = 'chauffeur2@saffronroutes.demo'
 JOIN driver ON driver.user_id = driver_user.id AND driver.tenant_id = tenant.id
 WHERE tenant.slug = 'saffron-routes'
-  AND NOT EXISTS (
-      SELECT 1 FROM ride existing
-      WHERE existing.tenant_id = tenant.id AND existing.otp = '4826'
-        AND existing.rider_id = rider.id AND existing.driver_id = driver.id
-  );
+  AND NOT EXISTS (SELECT 1 FROM ride existing WHERE existing.external_reference = 'DEMO-SAFFRON-ONGOING-01');
 
 INSERT INTO payment (payment_method, user_id, ride_id, amount, payment_status, payment_time, version, tenant_id)
 SELECT ride.payment_method, rider.user_id, ride.id, ride.fare, 'PENDING', NULL, 0, ride.tenant_id
@@ -345,14 +442,20 @@ SELECT ride.payment_method, rider.user_id, ride.id, ride.fare, 'CONFIRMED', ride
 FROM ride
 JOIN rider ON rider.id = ride.rider_id AND rider.tenant_id = ride.tenant_id
 WHERE ride.ride_status = 'ENDED'
-  AND ride.otp IN ('1234', '1357', '1904', '5182', '7394')
+  AND ride.external_reference IN (
+      'DEMO-VELO-ENDED-01', 'DEMO-VELO-ENDED-02', 'DEMO-VELO-ENDED-03',
+      'DEMO-SAFFRON-ENDED-01', 'DEMO-SAFFRON-ENDED-02'
+  )
   AND NOT EXISTS (SELECT 1 FROM payment WHERE payment.ride_id = ride.id);
 
 INSERT INTO driver_earning (driver_id, ride_id, gross_fare, platform_commission, net_earning, created_time, version, tenant_id)
 SELECT ride.driver_id, ride.id, ride.fare, round(ride.fare * 0.30, 2), round(ride.fare * 0.70, 2), ride.ended_at, 0, ride.tenant_id
 FROM ride
 WHERE ride.ride_status = 'ENDED'
-  AND ride.otp IN ('1234', '1357', '1904', '5182', '7394')
+  AND ride.external_reference IN (
+      'DEMO-VELO-ENDED-01', 'DEMO-VELO-ENDED-02', 'DEMO-VELO-ENDED-03',
+      'DEMO-SAFFRON-ENDED-01', 'DEMO-SAFFRON-ENDED-02'
+  )
   AND NOT EXISTS (SELECT 1 FROM driver_earning WHERE driver_earning.ride_id = ride.id);
 
 INSERT INTO payout_request (driver_id, amount, status, requested_at, processed_at, admin_note, version, tenant_id)

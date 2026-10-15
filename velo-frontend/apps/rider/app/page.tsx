@@ -463,6 +463,8 @@ export default function RiderHomePage() {
     return {
       pickupLocation: pickup.point,
       dropOffLocation: drop.point,
+      pickupAddress: pickupAddress.trim() || undefined,
+      dropOffAddress: dropOffAddress.trim() || undefined,
       paymentMethod,
       promoCode: promoCode.trim() || undefined,
     };

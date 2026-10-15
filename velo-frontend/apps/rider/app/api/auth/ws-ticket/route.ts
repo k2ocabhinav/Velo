@@ -11,7 +11,8 @@ export async function POST(request: NextRequest) {
       tokenCookieName: LOGIN_COOKIE_NAME,
       refreshCookieName: REFRESH_COOKIE_NAME,
       userIdCookieName: "velo_rider_user_id",
-      roleCookieName: "velo_rider_role_hint"
+      roleCookieName: "velo_rider_role_hint",
+      requestHost: request.headers.get("host") ?? undefined
     }
   );
 }

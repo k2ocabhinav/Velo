@@ -263,6 +263,36 @@ class DriverServiceImplTest {
     }
 
     @Test
+    @DisplayName("Pending offer preview includes rider-selected addresses and server expiry")
+    void getRideRequestForAcceptance_WithOffer_ShouldReturnAddressesAndExpiry() {
+        mockAuthenticatedDriver();
+        User riderUser = User.builder().firstName("Henry").lastName("Rider").build();
+        Rider rider = Rider.builder().id(27L).user(riderUser).build();
+        RiderDto riderDto = new RiderDto();
+        UserDto riderUserDto = new UserDto();
+        testRideRequest.setRider(rider);
+        testRideRequest.setPickupAddress("The Leela Palace, Old Airport Road");
+        testRideRequest.setDropOffAddress("Kempegowda International Airport, Terminal 1");
+        RideRequestDto preview = new RideRequestDto();
+        LocalDateTime expiresAt = LocalDateTime.of(2026, 10, 15, 12, 0, 45);
+        RideOffer offer = RideOffer.builder().expiresAt(expiresAt).build();
+
+        when(rideRequestService.findRideRequestById(1L)).thenReturn(testRideRequest);
+        when(rideOfferService.hasAnyOffer(1L)).thenReturn(true);
+        when(rideOfferService.findAcceptableOffer(1L, testDriver.getId())).thenReturn(Optional.of(offer));
+        when(modelMapper.map(testRideRequest, RideRequestDto.class)).thenReturn(preview);
+        when(modelMapper.map(rider, RiderDto.class)).thenReturn(riderDto);
+        when(modelMapper.map(riderUser, UserDto.class)).thenReturn(riderUserDto);
+
+        RideRequestDto result = driverService.getRideRequestForAcceptance(1L);
+
+        assertThat(result.getPickupAddress()).isEqualTo("The Leela Palace, Old Airport Road");
+        assertThat(result.getDropOffAddress()).isEqualTo("Kempegowda International Airport, Terminal 1");
+        assertThat(result.getExpiresAt()).isEqualTo(expiresAt);
+        assertThat(result.getRider().getUser().getName()).isEqualTo("Henry Rider");
+    }
+
+    @Test
     @DisplayName("Accept ride when driver unavailable should throw exception")
     void acceptRide_WhenDriverUnavailable_ShouldThrowException() {
         mockAuthenticatedDriver();

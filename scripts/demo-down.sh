@@ -37,9 +37,9 @@ process_matches_job() {
   case "$name:$command_line" in
     backend:*mvnw*|backend:*spring-boot:run*) return 0 ;;
     landing:*http.server*) return 0 ;;
-    admin:*start-standalone.mjs*|admin:*server.js*) return 0 ;;
-    rider:*start-standalone.mjs*|rider:*server.js*) return 0 ;;
-    driver:*start-standalone.mjs*|driver:*server.js*) return 0 ;;
+    admin:*start-standalone.mjs\ admin\ *) return 0 ;;
+    rider:*start-standalone.mjs\ rider\ *) return 0 ;;
+    driver:*start-standalone.mjs\ driver\ *) return 0 ;;
     *) return 1 ;;
   esac
 }

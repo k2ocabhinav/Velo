@@ -163,6 +163,11 @@ if name == "backend":
     environment.update({
         "SPRING_PROFILES_ACTIVE": "local",
         "SERVER_PORT": api_port,
+        "CORS_ALLOWED_ORIGINS": ",".join(
+            f"http://{host}:{port}"
+            for host in ("localhost", "default.localhost", "saffron-routes.localhost")
+            for port in (admin_port, rider_port, driver_port)
+        ),
     })
     if simple_cache == "1":
         environment.update({
@@ -170,6 +175,8 @@ if name == "backend":
             "MANAGEMENT_HEALTH_REDIS_ENABLED": "false",
             "APP_AUTH_RATE_LIMIT_REDIS_ENABLED": "false",
         })
+elif name in {"admin", "rider", "driver"}:
+    environment["VELO_INSECURE_LOCAL_COOKIES"] = "1"
 
 with open(log_path, "ab", buffering=0) as log_file:
     process = subprocess.Popen(

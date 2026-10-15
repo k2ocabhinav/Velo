@@ -255,6 +255,8 @@ export interface RideRequestDto {
   id?: number;
   pickupLocation: PointDto;
   dropOffLocation: PointDto;
+  pickupAddress?: string | null;
+  dropOffAddress?: string | null;
   paymentMethod: string;
   requestedTime?: ISODateTime | null;
   fare?: DecimalValue | null;
@@ -263,6 +265,7 @@ export interface RideRequestDto {
   rider?: RiderDto | null;
   rideRequestStatus?: string | null;
   scheduledTime?: ISODateTime | null;
+  expiresAt?: ISODateTime | null;
 }
 
 export interface RideDto {

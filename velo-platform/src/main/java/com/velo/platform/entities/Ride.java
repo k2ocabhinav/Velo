@@ -66,6 +66,9 @@ public class Ride{
 
     private String otp;
 
+    @Column(name = "external_reference")
+    private String externalReference;
+
     @ToString.Exclude
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ride_request_id", unique = true)

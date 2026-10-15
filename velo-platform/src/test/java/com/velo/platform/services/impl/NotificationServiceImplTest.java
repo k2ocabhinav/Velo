@@ -77,7 +77,7 @@ class NotificationServiceImplTest {
         notificationService.createNotification(testUser, "Title", "Message", NotificationType.RIDE_REQUESTED, 1L);
 
         verify(notificationRepository).save(any(Notification.class));
-        verify(messagingTemplate).convertAndSendToUser(eq("1"), eq("/queue/notifications"), any(NotificationDto.class));
+        verify(messagingTemplate).convertAndSendToUser(eq("user@test.com"), eq("/queue/notifications"), any(NotificationDto.class));
     }
 
     @Test

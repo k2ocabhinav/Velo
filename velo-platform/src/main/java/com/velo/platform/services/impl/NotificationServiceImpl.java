@@ -49,7 +49,7 @@ public class NotificationServiceImpl implements NotificationService {
         
         try {
             messagingTemplate.convertAndSendToUser(
-                    user.getId().toString(),
+                    user.getEmail(),
                     "/queue/notifications",
                     dto
             );

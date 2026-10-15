@@ -5,7 +5,7 @@ import { handleLoginFormPost, isFormSubmission, performLoginProxy } from "../../
 
 export async function POST(request: NextRequest) {
   if (isFormSubmission(request)) {
-    return handleLoginFormPost(request, performLoginProxy);
+    return handleLoginFormPost(request, (formBody) => performLoginProxy(formBody, fetch, request.headers.get("host") ?? undefined));
   }
 
   let body: LoginPayload;
@@ -16,5 +16,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Request body must be JSON." }, { status: 400 });
   }
 
-  return performLoginProxy(body);
+  return performLoginProxy(body, fetch, request.headers.get("host") ?? undefined);
 }
