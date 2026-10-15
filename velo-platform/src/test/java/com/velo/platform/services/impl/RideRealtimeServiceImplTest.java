@@ -18,23 +18,26 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class RideRealtimeServiceImplTest {
 
+    private static final String RIDE_UPDATES_DESTINATION = "/queue/ride-updates";
+
     @Mock
     private SimpMessagingTemplate messagingTemplate;
 
     @Test
-    @DisplayName("Ride status updates should publish typed status event to rider and driver")
+    @DisplayName("Ride status updates should publish typed status event to the rider and driver email destinations")
     void publishRideStatus_ShouldPublishToRiderAndDriver() {
         RideRealtimeServiceImpl service = new RideRealtimeServiceImpl(messagingTemplate);
-        User riderUser = User.builder().id(11L).build();
-        User driverUser = User.builder().id(22L).build();
+        User riderUser = User.builder().id(11L).email("rider@test.com").build();
+        User driverUser = User.builder().id(22L).email("driver@test.com").build();
         Rider rider = Rider.builder().id(101L).user(riderUser).build();
         Driver driver = Driver.builder().id(202L).user(driverUser).build();
         Ride ride = Ride.builder()
@@ -47,25 +50,33 @@ class RideRealtimeServiceImplTest {
         service.publishRideStatus(ride, RideStatus.ENDED);
 
         ArgumentCaptor<RideUpdateEventDto> payloadCaptor = ArgumentCaptor.forClass(RideUpdateEventDto.class);
-        verify(messagingTemplate, times(2)).convertAndSendToUser(
-                org.mockito.ArgumentMatchers.anyString(),
-                org.mockito.ArgumentMatchers.eq("/queue/ride-updates"),
+        verify(messagingTemplate).convertAndSendToUser(
+                org.mockito.ArgumentMatchers.eq("rider@test.com"),
+                org.mockito.ArgumentMatchers.eq(RIDE_UPDATES_DESTINATION),
+                payloadCaptor.capture()
+        );
+        verify(messagingTemplate).convertAndSendToUser(
+                org.mockito.ArgumentMatchers.eq("driver@test.com"),
+                org.mockito.ArgumentMatchers.eq(RIDE_UPDATES_DESTINATION),
                 payloadCaptor.capture()
         );
 
-        RideUpdateEventDto payload = payloadCaptor.getValue();
-        assertThat(payload.getEventType()).isEqualTo("RIDE_COMPLETED");
-        assertThat(payload.getRideId()).isEqualTo(303L);
-        assertThat(payload.getStatus()).isEqualTo("ENDED");
-        assertThat(payload.getRiderId()).isEqualTo(101L);
-        assertThat(payload.getDriverId()).isEqualTo(202L);
+        List<RideUpdateEventDto> payloads = payloadCaptor.getAllValues();
+        assertThat(payloads).hasSize(2);
+        assertThat(payloads).allSatisfy(payload -> {
+            assertThat(payload.getEventType()).isEqualTo("RIDE_COMPLETED");
+            assertThat(payload.getRideId()).isEqualTo(303L);
+            assertThat(payload.getStatus()).isEqualTo("ENDED");
+            assertThat(payload.getRiderId()).isEqualTo(101L);
+            assertThat(payload.getDriverId()).isEqualTo(202L);
+        });
     }
 
     @Test
-    @DisplayName("Driver location updates should publish location payload to rider queue")
+    @DisplayName("Driver location updates should publish location payload to the rider email destination")
     void publishDriverLocation_ShouldPublishLocationPayload() {
         RideRealtimeServiceImpl service = new RideRealtimeServiceImpl(messagingTemplate);
-        User riderUser = User.builder().id(11L).build();
+        User riderUser = User.builder().id(11L).email("rider@test.com").build();
         Rider rider = Rider.builder().id(101L).user(riderUser).build();
         Driver driver = Driver.builder().id(202L).build();
         Ride ride = Ride.builder()
@@ -87,9 +98,14 @@ class RideRealtimeServiceImplTest {
 
         ArgumentCaptor<RideUpdateEventDto> payloadCaptor = ArgumentCaptor.forClass(RideUpdateEventDto.class);
         verify(messagingTemplate).convertAndSendToUser(
-                org.mockito.ArgumentMatchers.eq("11"),
-                org.mockito.ArgumentMatchers.eq("/queue/ride-updates"),
+                org.mockito.ArgumentMatchers.eq("rider@test.com"),
+                org.mockito.ArgumentMatchers.eq(RIDE_UPDATES_DESTINATION),
                 payloadCaptor.capture()
+        );
+        verify(messagingTemplate, never()).convertAndSendToUser(
+                org.mockito.ArgumentMatchers.eq("11"),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.any()
         );
 
         RideUpdateEventDto payload = payloadCaptor.getValue();
@@ -102,10 +118,10 @@ class RideRealtimeServiceImplTest {
     }
 
     @Test
-    @DisplayName("Pending ride requests should publish rider status event")
+    @DisplayName("Pending ride requests should publish rider status event to the rider email destination")
     void publishRideRequestPending_ShouldPublishPendingStatus() {
         RideRealtimeServiceImpl service = new RideRealtimeServiceImpl(messagingTemplate);
-        User riderUser = User.builder().id(11L).build();
+        User riderUser = User.builder().id(11L).email("rider@test.com").build();
         Rider rider = Rider.builder().id(101L).user(riderUser).build();
         RideRequest request = RideRequest.builder()
                 .id(555L)
@@ -117,8 +133,8 @@ class RideRealtimeServiceImplTest {
 
         ArgumentCaptor<RideUpdateEventDto> payloadCaptor = ArgumentCaptor.forClass(RideUpdateEventDto.class);
         verify(messagingTemplate).convertAndSendToUser(
-                org.mockito.ArgumentMatchers.eq("11"),
-                org.mockito.ArgumentMatchers.eq("/queue/ride-updates"),
+                org.mockito.ArgumentMatchers.eq("rider@test.com"),
+                org.mockito.ArgumentMatchers.eq(RIDE_UPDATES_DESTINATION),
                 payloadCaptor.capture()
         );
 

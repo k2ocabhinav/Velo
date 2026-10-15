@@ -5,8 +5,10 @@ import com.velo.platform.dto.RideLocationDto;
 import com.velo.platform.dto.RideUpdateEventDto;
 import com.velo.platform.entities.Ride;
 import com.velo.platform.entities.RideRequest;
+import com.velo.platform.entities.User;
 import com.velo.platform.entities.enums.RideStatus;
 import com.velo.platform.services.RideRealtimeService;
+import com.velo.platform.utils.UserDestinations;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -36,7 +38,7 @@ public class RideRealtimeServiceImpl implements RideRealtimeService {
         payload.setRiderId(rideRequest.getRider().getId());
         payload.setUpdatedAt(LocalDateTime.now());
 
-        sendToUser(rideRequest.getRider().getUser().getId(), payload);
+        sendToUser(rideRequest.getRider().getUser(), payload);
     }
 
     @Override
@@ -53,9 +55,9 @@ public class RideRealtimeServiceImpl implements RideRealtimeService {
         payload.setDriverId(ride.getDriver() == null ? null : ride.getDriver().getId());
         payload.setUpdatedAt(LocalDateTime.now());
 
-        sendToUser(ride.getRider().getUser().getId(), payload);
+        sendToUser(ride.getRider().getUser(), payload);
         if (ride.getDriver() != null && ride.getDriver().getUser() != null) {
-            sendToUser(ride.getDriver().getUser().getId(), payload);
+            sendToUser(ride.getDriver().getUser(), payload);
         }
     }
 
@@ -83,22 +85,22 @@ public class RideRealtimeServiceImpl implements RideRealtimeService {
         payload.setDriverLocation(location);
         payload.setUpdatedAt(LocalDateTime.now());
 
-        sendToUser(ride.getRider().getUser().getId(), payload);
+        sendToUser(ride.getRider().getUser(), payload);
     }
 
-    private void sendToUser(Long userId, RideUpdateEventDto payload) {
-        if (userId == null) {
+    private void sendToUser(User user, RideUpdateEventDto payload) {
+        if (user == null) {
             return;
         }
 
         try {
             messagingTemplate.convertAndSendToUser(
-                    userId.toString(),
+                    UserDestinations.resolve(user),
                     RIDER_RIDE_UPDATES_DESTINATION,
                     payload
             );
         } catch (Exception exception) {
-            log.error("Failed to publish ride update to user {}: {}", userId, exception.getMessage());
+            log.error("Failed to publish ride update to user {}: {}", user.getId(), exception.getMessage());
         }
     }
 
