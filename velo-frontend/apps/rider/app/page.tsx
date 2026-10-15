@@ -686,9 +686,11 @@ export default function RiderHomePage() {
       setMessage(`${tripLabel} requested. We are now matching you with a nearby ${driverLabel.toLowerCase()}.`);
       void loadTripLane(true, pendingRequest);
     } catch (requestError) {
-      const nextMessage =
-        requestError instanceof Error
-          ? mapApiError({ error: requestError.message }, "Unable to request a ride.")
+      const requestErrorMessage = requestError instanceof Error ? requestError.message : "";
+      const nextMessage = /insufficient wallet balance/i.test(requestErrorMessage)
+        ? "Your wallet balance does not cover this trip. Add funds or choose Cash before requesting."
+        : requestError instanceof Error
+          ? mapApiError({ error: requestErrorMessage }, "Unable to request a ride.")
           : "Unable to request a ride.";
       setError(nextMessage);
       setFailedAction("request");
@@ -995,7 +997,7 @@ export default function RiderHomePage() {
               </div>
               <DefinitionList items={[
                 { label: "Distance", value: `${estimate.distanceKm} km` },
-                { label: "Estimated time", value: `${estimate.durationMinutes} min` },
+                { label: "Estimated time", value: `${Math.round(estimate.durationMinutes)} min` },
                 { label: "Base fare", value: <Money amount={estimate.baseFare} /> },
                 ...(estimate.discountAmount ? [{ label: "Discount", value: <Money amount={estimate.discountAmount} /> }] : []),
               ]} />

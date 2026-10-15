@@ -30,7 +30,6 @@ type RideItem = {
   startedAt?: string | null;
   endedAt?: string | null;
   fare?: DecimalValue | null;
-  fair?: DecimalValue | null;
 };
 
 const PAGE_SIZE = 10;
@@ -221,7 +220,7 @@ export default function RiderRidesPage() {
                   </div>
                 </div>
                 <div className="trip-row-actions">
-                  <Money amount={ride.fare ?? ride.fair ?? null} />
+                  <Money amount={ride.fare ?? null} />
                   {isCompleted(ride.rideStatus) ? (
                     <div className="trip-rating" aria-label="Rate this trip">
                       <div className="rating-stars" role="group" aria-label="Choose a star rating">

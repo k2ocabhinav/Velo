@@ -54,11 +54,11 @@ class FareEstimationControllerIntegrationTest {
 
         responseDto = FareEstimateDto.builder()
                 .estimatedFare(BigDecimal.valueOf(150.0))
-                .baseFare(BigDecimal.valueOf(150.0))
+                .baseFare(BigDecimal.valueOf(5.0))
                 .surgeMultiplier(1.0)
                 .discountAmount(BigDecimal.ZERO)
                 .distanceKm(5.0)
-                .durationMinutes(15.0)
+                .durationMinutes(15)
                 .applicablePromos(Collections.emptyList())
                 .build();
     }

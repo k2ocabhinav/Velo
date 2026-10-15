@@ -53,7 +53,6 @@ export interface DriverRide {
   rider?: DriverRidePerson | null;
   driver?: DriverRidePerson | null;
   fare?: DecimalValue | null;
-  fair?: DecimalValue | null;
   otp?: string | null;
   createdTime?: string | null;
   startedAt?: string | null;

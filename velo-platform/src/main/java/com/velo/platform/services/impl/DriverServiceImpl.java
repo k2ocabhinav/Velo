@@ -7,10 +7,13 @@ import com.velo.platform.dto.PointDto;
 import com.velo.platform.dto.RideDto;
 import com.velo.platform.dto.RideRequestDto;
 import com.velo.platform.dto.RiderDto;
+import com.velo.platform.dto.UserDto;
 import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.Ride;
 import com.velo.platform.entities.RideOffer;
 import com.velo.platform.entities.RideRequest;
+import com.velo.platform.entities.Rider;
+import com.velo.platform.entities.User;
 import com.velo.platform.entities.enums.RideRequestStatus;
 import com.velo.platform.entities.enums.RideStatus;
 import com.velo.platform.events.RideAcceptedEvent;
@@ -109,7 +112,7 @@ public class DriverServiceImpl implements DriverService {
             }
 
             eventPublisher.publishEvent(new RideAcceptedEvent(this, ride, currentDriver));
-            return modelMapper.map(ride, RideDto.class);
+            return toRideDto(ride);
         } catch (ObjectOptimisticLockingFailureException optimisticFailure) {
             if (acceptedOffer != null) {
                 rideOfferService.markRevoked(acceptedOffer, "Ride accepted by another driver.");
@@ -128,7 +131,7 @@ public class DriverServiceImpl implements DriverService {
             throw new RuntimeConflictException("Cross-tenant ride request access is not allowed.");
         }
         if (!RideRequestStatus.PENDING.equals(rideRequest.getRideRequestStatus())) {
-            throw new RuntimeConflictException("This ride has already been assigned or cancelled.");
+            return modelMapper.map(rideRequest, RideRequestDto.class);
         }
         if (rideOfferService.hasAnyOffer(rideRequestId) &&
                 rideOfferService.findAcceptableOffer(rideRequestId, currentDriver.getId()).isEmpty()) {
@@ -160,7 +163,7 @@ public class DriverServiceImpl implements DriverService {
 
         eventPublisher.publishEvent(new RideCancelledEvent(this, ride));
 
-        return modelMapper.map(ride, RideDto.class);
+        return toRideDto(ride);
     }
 
     @Override
@@ -192,7 +195,7 @@ public class DriverServiceImpl implements DriverService {
 
         eventPublisher.publishEvent(new RideStartedEvent(this, savedRide));
 
-        return modelMapper.map(savedRide, RideDto.class);
+        return toRideDto(savedRide);
     }
 
     @Override
@@ -223,7 +226,7 @@ public class DriverServiceImpl implements DriverService {
         // Auto-create earning record for the driver
         driverEarningsService.createEarningRecord(savedRide);
 
-        return modelMapper.map(savedRide, RideDto.class);
+        return toRideDto(savedRide);
     }
 
     @Override
@@ -255,8 +258,33 @@ public class DriverServiceImpl implements DriverService {
     public Page<RideDto> getAllMyRides(PageRequest pageRequest) {
         Driver currentDriver = getCurrentDriver();
         return rideService.getAllRidesOfDriver(currentDriver, pageRequest).map(
-                ride -> modelMapper.map(ride, RideDto.class)
+                this::toRideDto
         );
+    }
+
+    private RideDto toRideDto(Ride ride) {
+        RideDto dto = modelMapper.map(ride, RideDto.class);
+        Rider rider = ride.getRider();
+        if (rider == null || rider.getUser() == null) {
+            return dto;
+        }
+
+        RiderDto riderDto = dto.getRider();
+        if (riderDto == null) {
+            riderDto = modelMapper.map(rider, RiderDto.class);
+            dto.setRider(riderDto);
+        }
+        UserDto userDto = riderDto.getUser();
+        if (userDto == null) {
+            userDto = modelMapper.map(rider.getUser(), UserDto.class);
+            riderDto.setUser(userDto);
+        }
+
+        User user = rider.getUser();
+        String fullName = ((user.getFirstName() == null ? "" : user.getFirstName().trim()) + " "
+                + (user.getLastName() == null ? "" : user.getLastName().trim())).trim();
+        userDto.setName(fullName.isEmpty() ? null : fullName);
+        return dto;
     }
 
     @Override

@@ -186,6 +186,9 @@ export default function DriverHomePage() {
           }
           try {
             const preview = await requestDriverProxy<DriverRideRequestPreview>(`drivers/ride-requests/${requestId}`);
+            if ((preview.rideRequestStatus ?? "").toUpperCase() !== "PENDING") {
+              return;
+            }
             previewUpdates[requestId] = preview;
             actionable.push(item);
           } catch {
@@ -265,6 +268,9 @@ export default function DriverHomePage() {
         if (requestId) {
           void requestDriverProxy<DriverRideRequestPreview>(`drivers/ride-requests/${requestId}`)
             .then((preview) => {
+              if ((preview.rideRequestStatus ?? "").toUpperCase() !== "PENDING") {
+                return;
+              }
               setRideRequestPreviews((current) => ({ ...current, [requestId]: preview }));
               setIncoming((current) => {
                 if (current.some((item) => item.id === normalized.id)) {

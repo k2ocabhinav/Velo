@@ -32,7 +32,7 @@ public class DriverController {
     }
 
     @GetMapping("/ride-requests/{rideRequestId}")
-    @Operation(summary = "Get pending ride request details before accepting")
+    @Operation(summary = "Get ride request details and current status before accepting")
     public ResponseEntity<RideRequestDto> getRideRequestForAcceptance(@PathVariable Long rideRequestId) {
         return ResponseEntity.ok(driverService.getRideRequestForAcceptance(rideRequestId));
     }
