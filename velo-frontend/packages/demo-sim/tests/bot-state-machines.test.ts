@@ -16,6 +16,41 @@ const fixtureDirectory = fileURLToPath(new URL("./fixtures/", import.meta.url));
 const fixedRandom: RandomSource = { next: () => 0.5 };
 
 describe("rider and driver simulator bots", () => {
+  it("refreshes an online idle driver's last known location on a jittered heartbeat", async () => {
+    const catalogue = await loadRouteCatalogue(fixtureDirectory);
+    const clock = new IntervalCaptureClock();
+    const api = new FakeApi();
+    const driver = new DriverBot({
+      account: SIM_TENANTS.default.drivers[0]!,
+      api,
+      stomp: new FakeStompSession().session,
+      catalogue,
+      clock,
+      simulationClock: new SimulationClock(clock, () => 4),
+      random: fixedRandom,
+      speedFactor: () => 4,
+      logger: new SimLogger(clock, () => undefined),
+      registry: createRegistry(),
+    });
+
+    await driver.start();
+    expect(api.locations).toHaveLength(1);
+    expect(clock.activeInterval()?.milliseconds).toBeGreaterThanOrEqual(20_000);
+    expect(clock.activeInterval()?.milliseconds).toBeLessThanOrEqual(30_000);
+
+    clock.activeInterval()?.fire();
+    await new Promise<void>((resolve) => setImmediate(resolve));
+
+    expect(api.locations).toHaveLength(2);
+    expect(api.locations[1]).toMatchObject({ lat: api.locations[0]?.lat, lng: api.locations[0]?.lng, speedKph: 0 });
+    expect(clock.activeInterval()?.milliseconds).toBeGreaterThanOrEqual(20_000);
+    expect(clock.activeInterval()?.milliseconds).toBeLessThanOrEqual(30_000);
+
+    driver.stopMovement();
+    expect(clock.activeInterval()).toBeNull();
+    await driver.closeSocket();
+  });
+
   it("posts a typed WALLET request and releases its slot on a completion event", async () => {
     const catalogue = await loadRouteCatalogue(fixtureDirectory);
     const clock = new FakeClock();
@@ -305,5 +340,20 @@ class RouteGateClock extends FakeClock {
       });
     }
     return super.sleep(milliseconds, signal);
+  }
+}
+
+class IntervalCaptureClock extends FakeClock {
+  private readonly intervals: { milliseconds: number; callback: () => void; cancelled: boolean }[] = [];
+
+  override every(milliseconds: number, callback: () => void): () => void {
+    const interval = { milliseconds, callback, cancelled: false };
+    this.intervals.push(interval);
+    return () => { interval.cancelled = true; };
+  }
+
+  activeInterval(): { milliseconds: number; fire: () => void } | null {
+    const interval = [...this.intervals].reverse().find((candidate) => !candidate.cancelled);
+    return interval ? { milliseconds: interval.milliseconds, fire: interval.callback } : null;
   }
 }

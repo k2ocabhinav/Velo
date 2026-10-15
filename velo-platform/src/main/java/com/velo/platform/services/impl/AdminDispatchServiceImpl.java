@@ -71,6 +71,8 @@ import java.util.stream.Collectors;
 @Slf4j
 public class AdminDispatchServiceImpl implements AdminDispatchService {
 
+    private static final long LIVE_LOCATION_STALE_AFTER_SECONDS = 90;
+
     private final RideRequestRepository rideRequestRepository;
     private final RideRepository rideRepository;
     private final RideOfferRepository rideOfferRepository;
@@ -317,7 +319,7 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
                 toDouble(row[7]),
                 toDouble(row[8]),
                 locationUpdatedAt,
-                locationUpdatedAt.isBefore(generatedAt.minusSeconds(60)),
+                locationUpdatedAt.isBefore(generatedAt.minusSeconds(LIVE_LOCATION_STALE_AFTER_SECONDS)),
                 Boolean.TRUE.equals(row[10]),
                 toLong(row[11])
         );

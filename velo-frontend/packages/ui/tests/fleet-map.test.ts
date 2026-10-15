@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Map as LeafletMap } from "leaflet";
 import { getFleetDriverVisualState, interpolateFleetPosition, shortestHeadingDelta } from "../src/composed/fleet-map/animation";
 import { fitFleetMap, focusZoom } from "../src/composed/fleet-map/camera";
+import { formatFleetLastUpdate } from "../src/composed/fleet-map/format";
 
 describe("fleet map marker animation", () => {
   it("maps driver statuses to semantic marker tones and preserves stale state", () => {
@@ -45,5 +46,14 @@ describe("fleet map camera", () => {
     fitFleetMap(map as unknown as Pick<LeafletMap, "invalidateSize" | "setView" | "fitBounds">, [[12.9, 77.5], [13.1, 77.7]]);
 
     expect(calls).toEqual(["invalidateSize", "fitBounds"]);
+  });
+});
+
+describe("fleet location age labels", () => {
+  it("uses quiet last-seen copy for stale positions", () => {
+    const now = Date.parse("2026-10-16T12:02:00Z");
+    expect(formatFleetLastUpdate("2026-10-16T12:00:00Z", true, now)).toBe("Last seen 2 min ago");
+    expect(formatFleetLastUpdate("2026-10-16T12:01:48Z", false, now)).toBe("Updated 12 s ago");
+    expect(formatFleetLastUpdate("not-a-time", true, now)).toBe("Last seen time unavailable");
   });
 });

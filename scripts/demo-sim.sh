@@ -38,8 +38,19 @@ control_request() {
   fi
   status="${response##*$'\n'}"
   response_body="${response%$'\n'*}"
+  if (( status >= 400 )); then
+    local error_message
+    error_message="$(python3 -c 'import json,sys
+try:
+    body=json.loads(sys.argv[1])
+except (json.JSONDecodeError, TypeError):
+    body=None
+message=body.get("error") if isinstance(body, dict) else None
+print(message or f"Request failed with status {sys.argv[2]}")' "$response_body" "$status")"
+    printf 'Simulator control request failed (HTTP %s): %s\n' "$status" "$error_message" >&2
+    return 1
+  fi
   printf '%s\n' "$response_body"
-  if (( status >= 400 )); then return 1; fi
 }
 
 patch_body() {

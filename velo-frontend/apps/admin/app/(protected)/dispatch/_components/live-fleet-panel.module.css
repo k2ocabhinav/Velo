@@ -338,16 +338,6 @@
   white-space: nowrap;
 }
 
-.staleLabel {
-  flex: 0 0 auto;
-  padding: 3px 6px;
-  border-radius: var(--radius-full);
-  background: hsl(var(--color-muted) / 0.13);
-  color: hsl(var(--color-muted));
-  font-size: 0.62rem;
-  font-weight: 700;
-}
-
 .listEmpty {
   margin: auto 0;
   padding: var(--space-4);

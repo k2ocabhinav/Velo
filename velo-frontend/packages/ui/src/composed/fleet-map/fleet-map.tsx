@@ -5,6 +5,7 @@ import L, { type Marker as LeafletMarker, type Polyline as LeafletPolyline } fro
 import { MapContainer, TileLayer, useMap, ZoomControl } from "react-leaflet";
 import { getFleetDriverVisualState, interpolateFleetPosition, type FleetPosition } from "./animation";
 import { DEFAULT_CENTER, fitFleetMap, focusZoom } from "./camera";
+import { formatFleetLastUpdate } from "./format";
 import { FleetMapStore, type FleetMapState } from "./store";
 import styles from "./fleet-map.module.css";
 import type { FleetMapDriver, FleetMapFocusRequest, FleetMapPoint, FleetMapRide, FleetMapSelection } from "./types";
@@ -51,16 +52,6 @@ function toLatLng(point: FleetMapPoint | FleetPosition): [number, number] {
   return [point.lat, point.lng];
 }
 
-function formatLastUpdate(value: string | null | undefined): string {
-  if (!value) return "Update time unavailable";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Update time unavailable";
-  const seconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1_000));
-  if (seconds < 60) return `${seconds} s ago`;
-  const minutes = Math.floor(seconds / 60);
-  return `${minutes} min ago`;
-}
-
 function formatStatus(status: FleetMapDriver["status"]): string {
   if (status === "EN_ROUTE_TO_PICKUP") return "To pickup";
   if (status === "ON_TRIP") return "On trip";
@@ -92,9 +83,9 @@ function createDriverPopup(driver: FleetMapDriver, trip?: FleetMapRide): HTMLEle
   content.append(heading);
   const meta = document.createElement("div");
   meta.className = cssClass("popupMeta");
-  const status = appendText(meta, "span", cssClass("popupStatus"), `${formatStatus(driver.status)}${driver.stale ? " · stale" : ""}`);
+  const status = appendText(meta, "span", cssClass("popupStatus"), formatStatus(driver.status));
   status.dataset.tone = driver.status === "EN_ROUTE_TO_PICKUP" ? "warning" : driver.status === "ON_TRIP" ? "primary" : "success";
-  appendText(meta, "span", cssClass("popupUpdated"), `updated ${formatLastUpdate(driver.locationUpdatedAt)}`);
+  appendText(meta, "span", cssClass("popupUpdated"), formatFleetLastUpdate(driver.locationUpdatedAt, driver.stale));
   content.append(meta);
   if (trip) {
     appendLine(content, cssClass("popupTrip"), `${trip.riderName} · ${trip.status === "ONGOING" ? "On trip" : "To pickup"}`);
@@ -121,8 +112,9 @@ function setDriverMarkerAttributes(marker: LeafletMarker, driver: FleetMapDriver
   const visualState = getFleetDriverVisualState(driver.status, driver.stale);
   element.dataset.testid = "fleet-driver-marker";
   element.dataset.driverId = String(driver.driverId);
-  element.title = `${driver.name} · ${formatStatus(driver.status)}${driver.stale ? " · stale" : ""}`;
-  element.setAttribute("aria-label", `${driver.name}, ${formatStatus(driver.status)}${driver.stale ? ", stale location" : ""}`);
+  const lastUpdate = formatFleetLastUpdate(driver.locationUpdatedAt, driver.stale);
+  element.title = `${driver.name} · ${formatStatus(driver.status)} · ${lastUpdate}`;
+  element.setAttribute("aria-label", `${driver.name}, ${formatStatus(driver.status)}${driver.stale ? `, ${lastUpdate}` : ""}`);
   const badge = element.querySelector<HTMLElement>(`.${cssClass("driverMarker")}`);
   badge?.classList.remove(cssClass("toneAvailable"), cssClass("toneToPickup"), cssClass("toneOnTrip"), cssClass("stale"));
   badge?.classList.add(toneClass(visualState.tone));

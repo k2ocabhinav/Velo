@@ -73,6 +73,7 @@ class AdminLiveDispatchControllerIntegrationTest {
         LocalDateTime now = LocalDateTime.now();
         Driver available = persistDriver("Available", 1L, true, true, now.minusSeconds(20));
         Driver confirmed = persistDriver("Confirmed", 1L, false, false, now.minusSeconds(75));
+        Driver staleRecent = persistDriver("Stale recent", 1L, true, false, now.minusSeconds(95));
         Driver ongoing = persistDriver("Ongoing", 1L, false, false, now.minusSeconds(30));
         persistDriver("Unavailable", 1L, false, false, now.minusSeconds(10));
         persistDriver("Stale", 1L, true, false, now.minusMinutes(16));
@@ -100,7 +101,7 @@ class AdminLiveDispatchControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
                 .andExpect(jsonPath("$.data.generatedAt").isNotEmpty())
-                .andExpect(jsonPath("$.data.drivers.length()").value(3))
+                .andExpect(jsonPath("$.data.drivers.length()").value(4))
                 .andExpect(jsonPath("$.data.drivers[0].driverId").value(available.getId()))
                 .andExpect(jsonPath("$.data.drivers[0].name").value("Available Test"))
                 .andExpect(jsonPath("$.data.drivers[0].vehiclePlate").value("KA01AA0001"))
@@ -111,10 +112,12 @@ class AdminLiveDispatchControllerIntegrationTest {
                 .andExpect(jsonPath("$.data.drivers[0].stale").value(false))
                 .andExpect(jsonPath("$.data.drivers[1].driverId").value(confirmed.getId()))
                 .andExpect(jsonPath("$.data.drivers[1].status").value("EN_ROUTE_TO_PICKUP"))
-                .andExpect(jsonPath("$.data.drivers[1].stale").value(true))
+                .andExpect(jsonPath("$.data.drivers[1].stale").value(false))
                 .andExpect(jsonPath("$.data.drivers[1].rideId").isNotEmpty())
-                .andExpect(jsonPath("$.data.drivers[2].driverId").value(ongoing.getId()))
-                .andExpect(jsonPath("$.data.drivers[2].status").value("ON_TRIP"))
+                .andExpect(jsonPath("$.data.drivers[2].driverId").value(staleRecent.getId()))
+                .andExpect(jsonPath("$.data.drivers[2].stale").value(true))
+                .andExpect(jsonPath("$.data.drivers[3].driverId").value(ongoing.getId()))
+                .andExpect(jsonPath("$.data.drivers[3].status").value("ON_TRIP"))
                 .andExpect(jsonPath("$.data.rides.length()").value(3))
                 .andExpect(jsonPath("$.data.rides[0].rideId").value(nullValue()))
                 .andExpect(jsonPath("$.data.rides[0].rideRequestId").value(pending.getId()))
