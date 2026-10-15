@@ -148,7 +148,7 @@ SET balance = EXCLUDED.balance,
 UPDATE ride_request request
 SET customer_name = 'Dave Rider',
     customer_phone = '+91-9000000004',
-    pickup_address = 'The Leela Palace, Old Airport Road',
+    pickup_address = 'Cubbon Park, Bengaluru',
     drop_off_address = 'Kempegowda International Airport, Terminal 1',
     external_reference = 'DEMO-VELO-PENDING-01',
     requested_time = NOW() - INTERVAL '5 minutes',
@@ -159,9 +159,7 @@ JOIN tenant ON tenant.id = rider.tenant_id
 WHERE request.rider_id = rider.id
   AND request.id = 1
   AND app_user.email = 'dave@example.com'
-  AND tenant.slug = 'default'
-  AND request.ride_request_status = 'PENDING'
-  AND request.external_reference IS NULL;
+  AND tenant.slug = 'default';
 
 INSERT INTO ride_request (
     pickup_location, drop_off_location, requested_time, rider_id, payment_method,
@@ -171,7 +169,7 @@ INSERT INTO ride_request (
 SELECT ST_SetSRID(ST_MakePoint(77.5946, 12.9716), 4326),
        ST_SetSRID(ST_MakePoint(77.7060, 13.1986), 4326), NOW() - INTERVAL '5 minutes', rider.id,
        'CASH', 'PENDING', 185.00, 0, tenant.id, 'Dave Rider', '+91-9000000004',
-       'The Leela Palace, Old Airport Road', 'Kempegowda International Airport, Terminal 1',
+       'Cubbon Park, Bengaluru', 'Kempegowda International Airport, Terminal 1',
        'DEMO-VELO-PENDING-01'
 FROM tenant
 JOIN rider ON rider.tenant_id = tenant.id
@@ -203,8 +201,16 @@ WHERE request.rider_id = rider.id
 UPDATE ride_request request
 SET customer_name = concat(app_user.first_name, ' ', app_user.last_name),
     customer_phone = app_user.phone_number,
-    pickup_address = CASE WHEN request.id % 2 = 0 THEN 'Taj MG Road, Bengaluru' ELSE 'Indiranagar Metro, Bengaluru' END,
-    drop_off_address = CASE WHEN request.id % 2 = 0 THEN 'Kempegowda International Airport' ELSE 'UB City, Bengaluru' END,
+    pickup_location = CASE request.id
+        WHEN 2 THEN ST_SetSRID(ST_MakePoint(77.5846, 12.9842), 4326)
+        ELSE ST_SetSRID(ST_MakePoint(77.6408, 12.9784), 4326)
+    END,
+    drop_off_location = CASE request.id
+        WHEN 2 THEN ST_SetSRID(ST_MakePoint(77.5963, 12.9716), 4326)
+        ELSE ST_SetSRID(ST_MakePoint(77.7060, 13.1986), 4326)
+    END,
+    pickup_address = CASE WHEN request.id = 2 THEN 'Taj West End, Bengaluru' ELSE 'Indiranagar Metro, Bengaluru' END,
+    drop_off_address = CASE WHEN request.id = 2 THEN 'UB City, Bengaluru' ELSE 'Kempegowda International Airport, Terminal 1' END,
     scheduled_time = NOW() + ((request.id % 3) + 1) * INTERVAL '1 day',
     external_reference = CASE app_user.email
         WHEN 'alice@example.com' THEN 'DEMO-VELO-SCHEDULED-01'
@@ -218,7 +224,6 @@ WHERE request.rider_id = rider.id
   AND request.id IN (2, 3)
   AND tenant.slug = 'default'
   AND request.ride_request_status = 'SCHEDULED'
-  AND request.external_reference IS NULL
   AND app_user.email IN ('alice@example.com', 'frank@example.com');
 
 -- Databases that ran older seed versions may have already lost the Henry request the refresher clears.
@@ -228,11 +233,11 @@ INSERT INTO ride_request (
     ride_request_status, fare, version, tenant_id, customer_name, customer_phone,
     pickup_address, drop_off_address, external_reference
 )
-SELECT ST_SetSRID(ST_MakePoint(77.5850, 12.9550), 4326),
-       ST_SetSRID(ST_MakePoint(77.5750, 12.9450), 4326), NOW(),
+SELECT ST_SetSRID(ST_MakePoint(77.6408, 12.9784), 4326),
+       ST_SetSRID(ST_MakePoint(77.7060, 13.1986), 4326), NOW(),
        NOW() + INTERVAL '3 days', rider.id, 'WALLET', 'SCHEDULED',
        205.00, 0, tenant.id, concat(app_user.first_name, ' ', app_user.last_name), app_user.phone_number,
-       'Indiranagar Metro, Bengaluru', 'UB City, Bengaluru', 'DEMO-VELO-SCHEDULED-02'
+       'Indiranagar Metro, Bengaluru', 'Kempegowda International Airport, Terminal 1', 'DEMO-VELO-SCHEDULED-02'
 FROM tenant
 JOIN app_user ON app_user.email = 'frank@example.com'
 JOIN rider ON rider.user_id = app_user.id AND rider.tenant_id = tenant.id
@@ -250,8 +255,8 @@ SELECT ST_SetSRID(ST_MakePoint(seed.pickup_lon, seed.pickup_lat), 4326),
        seed.fare, 0, tenant.id, seed.customer_name, app_user.phone_number,
        seed.pickup_address, seed.drop_address, seed.external_reference
 FROM (VALUES
-    ('guest@saffronroutes.demo', 'Ananya Shah', 77.6200::DOUBLE PRECISION, 12.9350::DOUBLE PRECISION, 77.6450::DOUBLE PRECISION, 12.9550::DOUBLE PRECISION, 2, 1350.00::NUMERIC, 'ITC Gardenia, Bengaluru', 'Kempegowda International Airport', 'DEMO-SAFFRON-SCHEDULED-01'),
-    ('guest2@saffronroutes.demo', 'Rohan Mehta', 77.5950::DOUBLE PRECISION, 12.9750::DOUBLE PRECISION, 77.6100::DOUBLE PRECISION, 12.9700::DOUBLE PRECISION, 3, 820.00::NUMERIC, 'Taj West End, Bengaluru', 'Bengaluru City Railway Station', 'DEMO-SAFFRON-SCHEDULED-02')
+    ('guest@saffronroutes.demo', 'Ananya Shah', 77.5950::DOUBLE PRECISION, 12.9666::DOUBLE PRECISION, 77.7060::DOUBLE PRECISION, 13.1986::DOUBLE PRECISION, 2, 1350.00::NUMERIC, 'ITC Gardenia, Bengaluru', 'Kempegowda International Airport, Terminal 1', 'DEMO-SAFFRON-SCHEDULED-01'),
+    ('guest2@saffronroutes.demo', 'Rohan Mehta', 77.5846::DOUBLE PRECISION, 12.9842::DOUBLE PRECISION, 77.5713::DOUBLE PRECISION, 12.9767::DOUBLE PRECISION, 3, 820.00::NUMERIC, 'Taj West End, Bengaluru', 'KSR Bengaluru City Railway Station', 'DEMO-SAFFRON-SCHEDULED-02')
 ) AS seed(email, customer_name, pickup_lon, pickup_lat, drop_lon, drop_lat, advance_days, fare, pickup_address, drop_address, external_reference)
 JOIN tenant ON tenant.slug = 'saffron-routes'
 JOIN app_user ON app_user.email = seed.email
@@ -265,10 +270,10 @@ INSERT INTO ride_request (
     ride_request_status, fare, version, tenant_id, customer_name, customer_phone,
     pickup_address, drop_off_address, external_reference
 )
-SELECT ST_SetSRID(ST_MakePoint(77.6050, 12.9680), 4326),
+SELECT ST_SetSRID(ST_MakePoint(77.6050, 12.9729), 4326),
        ST_SetSRID(ST_MakePoint(77.7060, 13.1986), 4326), NOW() - INTERVAL '3 minutes', rider.id,
        'CASH', 'PENDING', 1425.00, 0, tenant.id, 'Rohan Mehta', app_user.phone_number,
-       'The Oberoi, Bengaluru', 'Kempegowda International Airport, Terminal 1',
+       'Trinity Circle, Bengaluru', 'Kempegowda International Airport, Terminal 1',
        'DEMO-SAFFRON-PENDING-01'
 FROM tenant
 JOIN app_user ON app_user.email = 'guest2@saffronroutes.demo'
@@ -276,26 +281,39 @@ JOIN rider ON rider.user_id = app_user.id
 WHERE tenant.slug = 'saffron-routes'
   AND NOT EXISTS (SELECT 1 FROM ride_request WHERE external_reference = 'DEMO-SAFFRON-PENDING-01');
 
+UPDATE ride_request request
+SET pickup_location = ST_SetSRID(ST_MakePoint(seed.pickup_lon, seed.pickup_lat), 4326),
+    drop_off_location = ST_SetSRID(ST_MakePoint(seed.drop_lon, seed.drop_lat), 4326),
+    pickup_address = seed.pickup_address,
+    drop_off_address = seed.drop_address
+FROM (VALUES
+    ('DEMO-VELO-PENDING-01', 'default', 77.5946::DOUBLE PRECISION, 12.9716::DOUBLE PRECISION, 77.7060::DOUBLE PRECISION, 13.1986::DOUBLE PRECISION, 'Cubbon Park, Bengaluru', 'Kempegowda International Airport, Terminal 1'),
+    ('DEMO-VELO-SCHEDULED-01', 'default', 77.5846::DOUBLE PRECISION, 12.9842::DOUBLE PRECISION, 77.5963::DOUBLE PRECISION, 12.9716::DOUBLE PRECISION, 'Taj West End, Bengaluru', 'UB City, Bengaluru'),
+    ('DEMO-VELO-SCHEDULED-02', 'default', 77.6408::DOUBLE PRECISION, 12.9784::DOUBLE PRECISION, 77.7060::DOUBLE PRECISION, 13.1986::DOUBLE PRECISION, 'Indiranagar Metro, Bengaluru', 'Kempegowda International Airport, Terminal 1'),
+    ('DEMO-SAFFRON-PENDING-01', 'saffron-routes', 77.6050::DOUBLE PRECISION, 12.9729::DOUBLE PRECISION, 77.7060::DOUBLE PRECISION, 13.1986::DOUBLE PRECISION, 'Trinity Circle, Bengaluru', 'Kempegowda International Airport, Terminal 1'),
+    ('DEMO-SAFFRON-SCHEDULED-01', 'saffron-routes', 77.5950::DOUBLE PRECISION, 12.9666::DOUBLE PRECISION, 77.7060::DOUBLE PRECISION, 13.1986::DOUBLE PRECISION, 'ITC Gardenia, Bengaluru', 'Kempegowda International Airport, Terminal 1'),
+    ('DEMO-SAFFRON-SCHEDULED-02', 'saffron-routes', 77.5846::DOUBLE PRECISION, 12.9842::DOUBLE PRECISION, 77.5713::DOUBLE PRECISION, 12.9767::DOUBLE PRECISION, 'Taj West End, Bengaluru', 'KSR Bengaluru City Railway Station')
+) AS seed(reference, tenant_slug, pickup_lon, pickup_lat, drop_lon, drop_lat, pickup_address, drop_address)
+JOIN tenant ON tenant.slug = seed.tenant_slug
+WHERE request.tenant_id = tenant.id
+  AND request.external_reference = seed.reference;
+
 -- Keep one pending offer ready for each demo fleet so the driver workflow is available after startup.
-UPDATE ride_offer offer
-SET status = 'OFFERED', offered_at = NOW() - INTERVAL '1 minute',
-    expires_at = NOW() + INTERVAL '7 days', accepted_at = NULL,
-    resolved_at = NULL, resolution_reason = NULL
-FROM ride_request request
-JOIN tenant ON tenant.id = request.tenant_id
-WHERE offer.ride_request_id = request.id
-  AND request.external_reference IN ('DEMO-VELO-PENDING-01', 'DEMO-SAFFRON-PENDING-01')
-  AND tenant.slug IN ('default', 'saffron-routes');
+DELETE FROM ride_offer
+WHERE ride_request_id IN (
+    SELECT id FROM ride_request
+    WHERE external_reference IN ('DEMO-VELO-PENDING-01', 'DEMO-SAFFRON-PENDING-01')
+);
 
 INSERT INTO ride_offer (
     ride_request_id, driver_id, status, offered_at, expires_at, version, tenant_id
 )
-SELECT request.id, driver.id, 'OFFERED', NOW() - INTERVAL '1 minute', NOW() + INTERVAL '7 days', 0, tenant.id
+SELECT request.id, driver.id, 'OFFERED', NOW(), NOW() + INTERVAL '90 seconds', 0, tenant.id
 FROM ride_request request
 JOIN tenant ON tenant.id = request.tenant_id
 JOIN app_user driver_user ON driver_user.email = CASE tenant.slug
-    WHEN 'default' THEN 'bob.driver@example.com'
-    ELSE 'chauffeur1@saffronroutes.demo'
+    WHEN 'default' THEN 'carol.driver@example.com'
+    ELSE 'chauffeur2@saffronroutes.demo'
 END
 JOIN driver ON driver.user_id = driver_user.id AND driver.tenant_id = tenant.id
 WHERE request.external_reference IN ('DEMO-VELO-PENDING-01', 'DEMO-SAFFRON-PENDING-01')
@@ -468,6 +486,80 @@ JOIN driver ON driver.user_id = driver_user.id AND driver.tenant_id = tenant.id
 WHERE tenant.slug = 'saffron-routes'
   AND NOT EXISTS (SELECT 1 FROM ride existing WHERE existing.external_reference = 'DEMO-SAFFRON-ONGOING-01');
 
+-- Ride addresses live on ride_request, so give every seeded ride a stable address-bearing request.
+INSERT INTO ride_request (
+    pickup_location, drop_off_location, requested_time, rider_id, payment_method,
+    ride_request_status, fare, version, tenant_id, customer_name, customer_phone,
+    pickup_address, drop_off_address, external_reference
+)
+SELECT ST_SetSRID(ST_MakePoint(seed.pickup_lon, seed.pickup_lat), 4326),
+       ST_SetSRID(ST_MakePoint(seed.drop_lon, seed.drop_lat), 4326),
+       NOW() - seed.age_days * INTERVAL '1 day', rider.id, 'CASH', seed.request_status,
+       seed.fare, 0, tenant.id, concat(app_user.first_name, ' ', app_user.last_name), app_user.phone_number,
+       seed.pickup_address, seed.drop_address, seed.request_reference
+FROM (VALUES
+    ('DEMO-VELO-RIDE-ENDED-01', 'default', 'alice@example.com', 'EXPIRED', 4, 77.5946::DOUBLE PRECISION, 12.9716::DOUBLE PRECISION, 77.6200::DOUBLE PRECISION, 12.9350::DOUBLE PRECISION, 640.00::NUMERIC, 'Cubbon Park, Bengaluru', 'JP Nagar, Bengaluru'),
+    ('DEMO-VELO-RIDE-CANCELLED-01', 'default', 'dave@example.com', 'CANCELLED', 3, 77.5848::DOUBLE PRECISION, 12.9507::DOUBLE PRECISION, 77.5946::DOUBLE PRECISION, 12.9716::DOUBLE PRECISION, 90.00::NUMERIC, 'Lalbagh Botanical Garden, Bengaluru', 'Cubbon Park, Bengaluru'),
+    ('DEMO-VELO-RIDE-ONGOING-01', 'default', 'alice@example.com', 'CONFIRMED', 0, 77.5946::DOUBLE PRECISION, 12.9716::DOUBLE PRECISION, 77.6200::DOUBLE PRECISION, 12.9350::DOUBLE PRECISION, 640.00::NUMERIC, 'Cubbon Park, Bengaluru', 'JP Nagar, Bengaluru'),
+    ('DEMO-VELO-RIDE-ENDED-02', 'default', 'dave@example.com', 'EXPIRED', 3, 77.5846::DOUBLE PRECISION, 12.9842::DOUBLE PRECISION, 77.5963::DOUBLE PRECISION, 12.9716::DOUBLE PRECISION, 200.00::NUMERIC, 'Taj West End, Bengaluru', 'UB City, Bengaluru'),
+    ('DEMO-VELO-RIDE-ENDED-03', 'default', 'alice@example.com', 'EXPIRED', 2, 77.5946::DOUBLE PRECISION, 12.9716::DOUBLE PRECISION, 77.6200::DOUBLE PRECISION, 12.9350::DOUBLE PRECISION, 640.00::NUMERIC, 'Cubbon Park, Bengaluru', 'JP Nagar, Bengaluru'),
+    ('DEMO-SAFFRON-RIDE-ENDED-01', 'saffron-routes', 'guest@saffronroutes.demo', 'EXPIRED', 2, 77.6200::DOUBLE PRECISION, 12.9350::DOUBLE PRECISION, 77.7060::DOUBLE PRECISION, 13.1986::DOUBLE PRECISION, 1450.00::NUMERIC, 'JP Nagar, Bengaluru', 'Kempegowda International Airport, Terminal 1'),
+    ('DEMO-SAFFRON-RIDE-ENDED-02', 'saffron-routes', 'guest2@saffronroutes.demo', 'EXPIRED', 1, 77.5950::DOUBLE PRECISION, 12.9750::DOUBLE PRECISION, 77.6100::DOUBLE PRECISION, 12.9700::DOUBLE PRECISION, 825.00::NUMERIC, 'Cubbon Park, Bengaluru', 'Trinity Circle, Bengaluru'),
+    ('DEMO-SAFFRON-RIDE-ONGOING-01', 'saffron-routes', 'guest@saffronroutes.demo', 'CONFIRMED', 0, 77.6100::DOUBLE PRECISION, 12.9350::DOUBLE PRECISION, 77.7060::DOUBLE PRECISION, 13.1986::DOUBLE PRECISION, 1580.00::NUMERIC, 'JP Nagar, Bengaluru', 'Kempegowda International Airport, Terminal 1')
+) AS seed(request_reference, tenant_slug, rider_email, request_status, age_days, pickup_lon, pickup_lat, drop_lon, drop_lat, fare, pickup_address, drop_address)
+JOIN tenant ON tenant.slug = seed.tenant_slug
+JOIN app_user ON app_user.email = seed.rider_email AND app_user.tenant_id = tenant.id
+JOIN rider ON rider.user_id = app_user.id AND rider.tenant_id = tenant.id
+WHERE NOT EXISTS (
+    SELECT 1 FROM ride_request existing
+    WHERE existing.tenant_id = tenant.id AND existing.external_reference = seed.request_reference
+);
+
+UPDATE ride_request request
+SET scheduled_time = NULL,
+    pickup_address = CASE request.external_reference
+        WHEN 'DEMO-VELO-RIDE-ENDED-01' THEN 'Cubbon Park, Bengaluru'
+        WHEN 'DEMO-VELO-RIDE-CANCELLED-01' THEN 'Lalbagh Botanical Garden, Bengaluru'
+        WHEN 'DEMO-VELO-RIDE-ONGOING-01' THEN 'Cubbon Park, Bengaluru'
+        WHEN 'DEMO-VELO-RIDE-ENDED-02' THEN 'Taj West End, Bengaluru'
+        WHEN 'DEMO-VELO-RIDE-ENDED-03' THEN 'Cubbon Park, Bengaluru'
+        WHEN 'DEMO-SAFFRON-RIDE-ENDED-01' THEN 'JP Nagar, Bengaluru'
+        WHEN 'DEMO-SAFFRON-RIDE-ENDED-02' THEN 'Cubbon Park, Bengaluru'
+        ELSE 'JP Nagar, Bengaluru'
+    END,
+    drop_off_address = CASE request.external_reference
+        WHEN 'DEMO-VELO-RIDE-ENDED-01' THEN 'JP Nagar, Bengaluru'
+        WHEN 'DEMO-VELO-RIDE-CANCELLED-01' THEN 'Cubbon Park, Bengaluru'
+        WHEN 'DEMO-VELO-RIDE-ONGOING-01' THEN 'JP Nagar, Bengaluru'
+        WHEN 'DEMO-VELO-RIDE-ENDED-02' THEN 'UB City, Bengaluru'
+        WHEN 'DEMO-VELO-RIDE-ENDED-03' THEN 'JP Nagar, Bengaluru'
+        WHEN 'DEMO-SAFFRON-RIDE-ENDED-01' THEN 'Kempegowda International Airport, Terminal 1'
+        WHEN 'DEMO-SAFFRON-RIDE-ENDED-02' THEN 'Trinity Circle, Bengaluru'
+        ELSE 'Kempegowda International Airport, Terminal 1'
+    END
+WHERE request.external_reference IN (
+    'DEMO-VELO-RIDE-ENDED-01', 'DEMO-VELO-RIDE-CANCELLED-01', 'DEMO-VELO-RIDE-ONGOING-01',
+    'DEMO-VELO-RIDE-ENDED-02', 'DEMO-VELO-RIDE-ENDED-03', 'DEMO-SAFFRON-RIDE-ENDED-01',
+    'DEMO-SAFFRON-RIDE-ENDED-02', 'DEMO-SAFFRON-RIDE-ONGOING-01'
+);
+
+UPDATE ride
+SET ride_request_id = request.id,
+    pickup_location = request.pickup_location,
+    drop_off_location = request.drop_off_location
+FROM ride_request request
+WHERE ride.tenant_id = request.tenant_id
+  AND request.external_reference = CASE ride.external_reference
+      WHEN 'DEMO-VELO-ENDED-01' THEN 'DEMO-VELO-RIDE-ENDED-01'
+      WHEN 'DEMO-VELO-CANCELLED-01' THEN 'DEMO-VELO-RIDE-CANCELLED-01'
+      WHEN 'DEMO-VELO-ONGOING-01' THEN 'DEMO-VELO-RIDE-ONGOING-01'
+      WHEN 'DEMO-VELO-ENDED-02' THEN 'DEMO-VELO-RIDE-ENDED-02'
+      WHEN 'DEMO-VELO-ENDED-03' THEN 'DEMO-VELO-RIDE-ENDED-03'
+      WHEN 'DEMO-SAFFRON-ENDED-01' THEN 'DEMO-SAFFRON-RIDE-ENDED-01'
+      WHEN 'DEMO-SAFFRON-ENDED-02' THEN 'DEMO-SAFFRON-RIDE-ENDED-02'
+      WHEN 'DEMO-SAFFRON-ONGOING-01' THEN 'DEMO-SAFFRON-RIDE-ONGOING-01'
+  END;
+
 INSERT INTO payment (payment_method, user_id, ride_id, amount, payment_status, payment_time, version, tenant_id)
 SELECT ride.payment_method, rider.user_id, ride.id, ride.fare, 'PENDING', NULL, 0, ride.tenant_id
 FROM ride
@@ -523,6 +615,40 @@ WHERE tenant.slug = 'saffron-routes'
       WHERE existing.tenant_id = tenant.id AND existing.user_id = app_user.id
         AND existing.reference_id = request.id AND existing.title = 'Transfer request received'
   );
+
+-- Seed a small, repeatable operator history for each tenant's fixture fleet.
+INSERT INTO admin_dispatch_audit (
+    action_type, actor_user_id, ride_request_id, ride_id, previous_driver_id, next_driver_id,
+    reason, created_at, tenant_id
+)
+SELECT seed.action_type, actor.id, request.id, ride.id, previous_driver.id, next_driver.id,
+       seed.reason, ride.created_time + seed.minutes_after_creation * INTERVAL '1 minute', tenant.id
+FROM (VALUES
+    ('default', 'ASSIGN_REQUEST', 'DEMO-VELO-RIDE-ENDED-01', NULL::text, 'bob.driver@example.com', 'Assigned the closest available driver after the rider confirmed the pickup point.', 2),
+    ('default', 'REASSIGN_RIDE', 'DEMO-VELO-RIDE-ENDED-02', 'carol.driver@example.com', 'bob.driver@example.com', 'Reassigned to Bob after Carol reported that her earlier appointment was running late.', 4),
+    ('default', 'REASSIGN_RIDE', 'DEMO-VELO-RIDE-ONGOING-01', 'bob.driver@example.com', 'carol.driver@example.com', 'Moved the pickup to Carol when Bob reported a vehicle issue before departure.', 5),
+    ('saffron-routes', 'ASSIGN_REQUEST', 'DEMO-SAFFRON-RIDE-ENDED-01', NULL::text, 'chauffeur1@saffronroutes.demo', 'Matched the airport transfer with Karan for the early terminal pickup.', 2),
+    ('saffron-routes', 'REASSIGN_RIDE', 'DEMO-SAFFRON-RIDE-ENDED-02', 'chauffeur1@saffronroutes.demo', 'chauffeur2@saffronroutes.demo', 'Reassigned to Mehul after the guest requested help with additional luggage.', 4),
+    ('saffron-routes', 'REASSIGN_RIDE', 'DEMO-SAFFRON-RIDE-ONGOING-01', 'chauffeur1@saffronroutes.demo', 'chauffeur2@saffronroutes.demo', 'Moved the airport pickup to Mehul after Karan reported a vehicle warning.', 5)
+) AS seed(tenant_slug, action_type, request_reference, previous_driver_email, next_driver_email, reason, minutes_after_creation)
+JOIN tenant ON tenant.slug = seed.tenant_slug
+JOIN app_user actor ON actor.email = CASE tenant.slug
+    WHEN 'default' THEN 'admin@velo-platform.com'
+    ELSE 'owner@saffronroutes.demo'
+END AND actor.tenant_id = tenant.id
+JOIN ride_request request ON request.tenant_id = tenant.id AND request.external_reference = seed.request_reference
+JOIN ride ON ride.ride_request_id = request.id AND ride.tenant_id = tenant.id
+LEFT JOIN app_user previous_user ON previous_user.email = seed.previous_driver_email AND previous_user.tenant_id = tenant.id
+LEFT JOIN driver previous_driver ON previous_driver.user_id = previous_user.id AND previous_driver.tenant_id = tenant.id
+JOIN app_user next_user ON next_user.email = seed.next_driver_email AND next_user.tenant_id = tenant.id
+JOIN driver next_driver ON next_driver.user_id = next_user.id AND next_driver.tenant_id = tenant.id
+WHERE NOT EXISTS (
+    SELECT 1 FROM admin_dispatch_audit existing
+    WHERE existing.tenant_id = tenant.id
+      AND existing.ride_request_id = request.id
+      AND existing.action_type = seed.action_type
+      AND existing.reason = seed.reason
+);
 
 -- Replace the internal fixture wording on the seeded assignment history with operator-facing copy.
 UPDATE admin_dispatch_audit

@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ErrorState, LiveStatusPill, ReconnectingIndicator } from "@velo/ui";
 import { useTenantBrandingOrDefault } from "@velo/ui/theme";
-import { getTenantPluralTripLabel } from "@velo/app-core/tenant";
+import { getTenantLabelForCount, getTenantPluralLabel, getTenantPluralTripLabel } from "@velo/app-core/tenant";
 import type { AdminLiveDispatchSnapshotDto } from "@velo/api/types";
 import type { FleetMapFocusRequest, FleetMapSelection } from "@velo/ui/fleet-map";
 import { useLiveDispatch } from "./use-live-dispatch";
@@ -22,11 +22,6 @@ type LiveFleetPanelProps = {
   onOpenTripsChanged: () => void;
 };
 
-function pluralLabel(label: string): string {
-  const clean = label.trim() || "Driver";
-  return /s$/i.test(clean) ? clean : `${clean}s`;
-}
-
 function openTripSignature(snapshot: AdminLiveDispatchSnapshotDto): string {
   return snapshot.rides
     .map((ride) => ride.rideId === null ? `request:${ride.rideRequestId}` : `ride:${ride.rideId}`)
@@ -42,15 +37,18 @@ function lastUpdateLabel(value: string | null | undefined): string {
   return seconds < 60 ? `Updated ${seconds} s ago` : `Updated ${Math.floor(seconds / 60)} min ago`;
 }
 
-function driverStatus(status: string): string {
+function driverStatus(status: string, tripLabel: string): string {
   if (status === "EN_ROUTE_TO_PICKUP") return "To pickup";
-  if (status === "ON_TRIP") return "On trip";
+  if (status === "ON_TRIP") return `On ${getTenantLabelForCount(1, tripLabel, { midSentence: true })}`;
   return "Available";
 }
 
-function rideStatus(status: string): string {
+function rideStatus(status: string, tripLabel: string): string {
+  if (status === "REQUESTED") {
+    return tripLabel.trim().toLowerCase() === "trip" ? "Waiting" : `${tripLabel} requested`;
+  }
   if (status === "CONFIRMED") return "To pickup";
-  if (status === "ONGOING") return "On trip";
+  if (status === "ONGOING") return `On ${getTenantLabelForCount(1, tripLabel, { midSentence: true })}`;
   return "Waiting";
 }
 
@@ -81,7 +79,7 @@ function ListSkeleton() {
 }
 
 export function LiveFleetPanel({ onOpenTripsChanged }: LiveFleetPanelProps) {
-  const { driverLabel, tripLabel } = useTenantBrandingOrDefault();
+  const { riderLabel, driverLabel, tripLabel } = useTenantBrandingOrDefault();
   const live = useLiveDispatch();
   const [selection, setSelection] = useState<FleetMapSelection | null>(null);
   const [focusRequest, setFocusRequest] = useState<FleetMapFocusRequest | null>(null);
@@ -112,7 +110,10 @@ export function LiveFleetPanel({ onOpenTripsChanged }: LiveFleetPanelProps) {
   }
 
   const simulatedCount = snapshot?.drivers.filter((driver) => driver.simulated).length ?? 0;
-  const heading = pluralLabel(driverLabel);
+  const heading = getTenantPluralLabel(driverLabel, "Driver");
+  const riderWord = getTenantLabelForCount(1, riderLabel, { midSentence: true, fallback: "Rider" });
+  const tripWord = getTenantLabelForCount(1, tripLabel, { midSentence: true, fallback: "Trip" });
+  const waitingRiderLabel = riderLabel.trim().toLowerCase() === "rider" ? "Waiting request" : `Waiting ${riderWord}`;
   const tripPlural = getTenantPluralTripLabel(tripLabel);
   const hasError = Boolean(live.error);
 
@@ -161,7 +162,7 @@ export function LiveFleetPanel({ onOpenTripsChanged }: LiveFleetPanelProps) {
             <div className={styles.stats} aria-label="Live fleet counts">
               <Stat label="Available" value={counts.available} />
               <Stat label="To pickup" value={counts.pickup} />
-              <Stat label="On trip" value={counts.onTrip} />
+              <Stat label={`On ${tripWord}`} value={counts.onTrip} />
               <Stat label="Waiting requests" value={counts.waiting} />
             </div>
           ) : live.error ? <div className={styles.sideError}>Fleet counts will return when the connection is restored.</div> : <StatsSkeleton />}
@@ -184,7 +185,7 @@ export function LiveFleetPanel({ onOpenTripsChanged }: LiveFleetPanelProps) {
                         <span className={`${styles.rowIndicator} ${styles[`tone_${driver.status}`]}`} aria-hidden="true" />
                         <span className={styles.rowCopy}>
                           <span className={styles.rowTitle}>{driver.name}<span className={styles.plate}>{driver.vehiclePlate}</span></span>
-                          <span className={styles.rowMeta}>{driverStatus(driver.status)} · {lastUpdateLabel(driver.locationUpdatedAt)}</span>
+                          <span className={styles.rowMeta}>{driverStatus(driver.status, tripLabel)} · {lastUpdateLabel(driver.locationUpdatedAt)}</span>
                         </span>
                         {driver.stale ? <span className={styles.staleLabel}>Stale</span> : null}
                       </button>
@@ -195,14 +196,14 @@ export function LiveFleetPanel({ onOpenTripsChanged }: LiveFleetPanelProps) {
               {snapshot.rides.length ? (
                 <>
                   <h4 className={styles.groupHeading}>{tripPlural}</h4>
-                  {snapshot.rides.map((ride) => {
+            {snapshot.rides.map((ride) => {
                     const active = selection?.type === "ride" && selection.id === ride.rideRequestId;
                     return (
                       <button className={styles.listRow} data-selected={active} key={`ride:${ride.rideRequestId}`} type="button" onClick={() => focusFromList({ type: "ride", id: ride.rideRequestId })}>
                         <span className={`${styles.rowIndicator} ${styles.rideIndicator}`} aria-hidden="true" />
                         <span className={styles.rowCopy}>
-                          <span className={styles.rowTitle}>{ride.riderName || "Waiting request"}<span className={styles.tripNumber}>{ride.rideId ? `${tripLabel} ${ride.rideId}` : "New request"}</span></span>
-                          <span className={styles.rowMeta}>{rideStatus(ride.status)} · {ride.pickup.address ?? "Pickup location"}</span>
+                          <span className={styles.rowTitle}>{ride.riderName || waitingRiderLabel}<span className={styles.tripNumber}>{ride.rideId ? `${tripLabel} ${ride.rideId}` : `New ${tripWord}`}</span></span>
+                          <span className={styles.rowMeta}>{rideStatus(ride.status, tripLabel)} · {ride.pickup.address || "Address not set"}</span>
                         </span>
                       </button>
                     );
@@ -215,7 +216,7 @@ export function LiveFleetPanel({ onOpenTripsChanged }: LiveFleetPanelProps) {
             </div>
           ) : live.error ? <p className={styles.listEmpty}>Fleet details will return when the connection is restored.</p> : <ListSkeleton />}
 
-          {snapshot ? <p className={styles.footer}>{simulatedCount > 0 ? `Includes ${simulatedCount} simulated drivers` : ""}</p> : null}
+          {snapshot ? <p className={styles.footer}>{simulatedCount > 0 ? `Includes ${simulatedCount} simulated ${getTenantPluralLabel(driverLabel, "Driver").toLowerCase()}` : ""}</p> : null}
         </aside>
       </div>
     </section>

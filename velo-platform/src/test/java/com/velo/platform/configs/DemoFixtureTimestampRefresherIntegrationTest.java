@@ -12,6 +12,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -179,6 +180,53 @@ class DemoFixtureTimestampRefresherIntegrationTest {
         assertThat(driverState(realDriverId)).isEqualTo("online");
     }
 
+    @Test
+    void run_keepsFixtureOffersOffPresenterDriversWithARealisticDisplayWindow() {
+        runRefresher();
+        runRefresher();
+
+        assertThat(offerCount("DEMO-VELO-PENDING-01")).isEqualTo(1);
+        assertThat(offeredDriverEmail("DEMO-VELO-PENDING-01")).isEqualTo("carol.driver@example.com");
+        assertThat(offerTtlSeconds("DEMO-VELO-PENDING-01")).isEqualTo(90.0);
+        assertThat(fixtureNotificationCount("DEMO-VELO-PENDING-01", "bob.driver@example.com")).isZero();
+        assertThat(fixtureNotificationCount("DEMO-VELO-PENDING-01", "carol.driver@example.com")).isEqualTo(1);
+        assertThat(offerCount("DEMO-SAFFRON-PENDING-01")).isEqualTo(1);
+        assertThat(offeredDriverEmail("DEMO-SAFFRON-PENDING-01")).isEqualTo("chauffeur2@saffronroutes.demo");
+        assertThat(offerTtlSeconds("DEMO-SAFFRON-PENDING-01")).isEqualTo(90.0);
+        assertThat(fixtureNotificationCount("DEMO-SAFFRON-PENDING-01", "chauffeur1@saffronroutes.demo")).isZero();
+        assertThat(fixtureNotificationCount("DEMO-SAFFRON-PENDING-01", "chauffeur2@saffronroutes.demo")).isEqualTo(1);
+    }
+
+    @Test
+    void run_preservesAddressBearingRequestsForEverySeededRide() {
+        runRefresher();
+
+        Long ridesWithAddresses = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM ride
+                JOIN ride_request request ON request.id = ride.ride_request_id AND request.tenant_id = ride.tenant_id
+                WHERE (ride.external_reference LIKE 'DEMO-VELO-%'
+                   OR ride.external_reference LIKE 'DEMO-SAFFRON-%')
+                  AND NULLIF(BTRIM(request.pickup_address), '') IS NOT NULL
+                  AND NULLIF(BTRIM(request.drop_off_address), '') IS NOT NULL
+                """, Long.class);
+        assertThat(ridesWithAddresses).isEqualTo(8);
+        assertThat(addressForRide("DEMO-VELO-ONGOING-01"))
+                .containsExactly("Cubbon Park, Bengaluru", "JP Nagar, Bengaluru");
+        assertThat(addressForRide("DEMO-SAFFRON-ONGOING-01"))
+                .containsExactly("JP Nagar, Bengaluru", "Kempegowda International Airport, Terminal 1");
+    }
+
+    @Test
+    void seed_containsThreeOperatorAuditRowsForEachDemoTenant() {
+        assertThat(auditCount("default")).isGreaterThanOrEqualTo(3);
+        assertThat(auditCount("saffron-routes")).isGreaterThanOrEqualTo(3);
+
+        runRefresher();
+
+        assertThat(auditCount("default")).isGreaterThanOrEqualTo(3);
+        assertThat(auditCount("saffron-routes")).isGreaterThanOrEqualTo(3);
+    }
+
     private void runRefresher() {
         new DemoFixtureTimestampRefresher(jdbcTemplate).run(null);
     }
@@ -214,6 +262,59 @@ class DemoFixtureTimestampRefresherIntegrationTest {
     private long rideIdByReference(String externalReference) {
         return jdbcTemplate.queryForObject(
                 "SELECT id FROM ride WHERE external_reference = ?", Long.class, externalReference);
+    }
+
+    private long offerCount(String requestReference) {
+        return jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM ride_offer offer
+                JOIN ride_request request ON request.id = offer.ride_request_id
+                WHERE request.external_reference = ? AND offer.status = 'OFFERED'
+                """, Long.class, requestReference);
+    }
+
+    private String offeredDriverEmail(String requestReference) {
+        return jdbcTemplate.queryForObject("""
+                SELECT app_user.email FROM ride_offer offer
+                JOIN ride_request request ON request.id = offer.ride_request_id
+                JOIN driver ON driver.id = offer.driver_id
+                JOIN app_user ON app_user.id = driver.user_id
+                WHERE request.external_reference = ? AND offer.status = 'OFFERED'
+                """, String.class, requestReference);
+    }
+
+    private Double offerTtlSeconds(String requestReference) {
+        return jdbcTemplate.queryForObject("""
+                SELECT EXTRACT(EPOCH FROM (offer.expires_at - offer.offered_at))
+                FROM ride_offer offer
+                JOIN ride_request request ON request.id = offer.ride_request_id
+                WHERE request.external_reference = ? AND offer.status = 'OFFERED'
+                """, Double.class, requestReference);
+    }
+
+    private long fixtureNotificationCount(String requestReference, String email) {
+        return jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM notification
+                WHERE reference_id = (SELECT id FROM ride_request WHERE external_reference = ?)
+                  AND user_id = (SELECT id FROM app_user WHERE email = ?)
+                """, Long.class, requestReference, email);
+    }
+
+    private List<String> addressForRide(String rideReference) {
+        return jdbcTemplate.queryForObject("""
+                SELECT request.pickup_address, request.drop_off_address
+                FROM ride
+                JOIN ride_request request ON request.id = ride.ride_request_id
+                WHERE ride.external_reference = ?
+                """, (resultSet, rowNumber) -> List.of(
+                resultSet.getString(1), resultSet.getString(2)), rideReference);
+    }
+
+    private long auditCount(String tenantSlug) {
+        return jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM admin_dispatch_audit audit
+                JOIN tenant ON tenant.id = audit.tenant_id
+                WHERE tenant.slug = ? AND audit.action_type IN ('ASSIGN_REQUEST', 'REASSIGN_RIDE')
+                """, Long.class, tenantSlug);
     }
 
     private String requestRiderEmailOf(long requestId) {

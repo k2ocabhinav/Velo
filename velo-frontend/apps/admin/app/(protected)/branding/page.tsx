@@ -39,6 +39,9 @@ export default function BrandingPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const riderLabel = form.riderLabel.trim() || "Rider";
+  const driverLabel = form.driverLabel.trim() || "Driver";
+  const tripLabel = form.tripLabel.trim() || "Trip";
 
   async function load(): Promise<void> {
     setLoading(true);
@@ -100,9 +103,9 @@ export default function BrandingPage() {
             </Section>
             <Section title="Labels">
               <div className="stack">
-                <Field label="Rider label"><input className="ui-control" value={form.riderLabel} onChange={(event) => setForm((current) => ({ ...current, riderLabel: event.target.value }))} /></Field>
-                <Field label="Driver label"><input className="ui-control" value={form.driverLabel} onChange={(event) => setForm((current) => ({ ...current, driverLabel: event.target.value }))} /></Field>
-                <Field label="Trip label"><input className="ui-control" value={form.tripLabel} onChange={(event) => setForm((current) => ({ ...current, tripLabel: event.target.value }))} /></Field>
+                <Field label={`${riderLabel} label`}><input className="ui-control" value={form.riderLabel} onChange={(event) => setForm((current) => ({ ...current, riderLabel: event.target.value }))} /></Field>
+                <Field label={`${driverLabel} label`}><input className="ui-control" value={form.driverLabel} onChange={(event) => setForm((current) => ({ ...current, driverLabel: event.target.value }))} /></Field>
+                <Field label={`${tripLabel} label`}><input className="ui-control" value={form.tripLabel} onChange={(event) => setForm((current) => ({ ...current, tripLabel: event.target.value }))} /></Field>
               </div>
             </Section>
             <Section title="Dispatch mode">
@@ -120,17 +123,17 @@ export default function BrandingPage() {
             <Button loading={saving} onClick={() => void save()}>Save branding</Button>
           </div>
 
-          <Section title="Rider preview">
+          <Section title={`${riderLabel} preview`}>
             <div className="stack">
-              <p className="helper">A preview of the rider app brand bar and primary action.</p>
+              <p className="helper">A preview of the {riderLabel.toLowerCase()} app brand bar and primary action.</p>
               <div className="admin-preview-bar">
                 <span className="admin-preview-brand">
                   {form.logoUrl.trim() ? <span className="admin-preview-logo" role="img" aria-label={`${form.brandName || "Brand"} logo`} style={{ backgroundImage: `url("${form.logoUrl.trim()}")` }} /> : (form.brandName || "Brand")}
                 </span>
-                <span className="helper">{form.riderLabel || "Rider"}</span>
+                <span className="helper">{riderLabel}</span>
               </div>
               <button className="ui-button" data-variant="primary" data-size="md" type="button" style={{ backgroundColor: form.primaryColor, borderColor: form.primaryColor }}>
-                Request {form.tripLabel.toLowerCase() || "trip"}
+                Request {tripLabel.toLowerCase()}
               </button>
             </div>
           </Section>

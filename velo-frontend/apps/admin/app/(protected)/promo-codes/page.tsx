@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Button, ConfirmDialog, DataTable, DateTime, EmptyState, ErrorState, Field, Money, PageHeader, Section, SegmentedControl, Select, Sheet, Skeleton, StatusBadge, type DataTableColumn } from "@velo/ui";
 import { adminClient, type PromoCode, type PromoCodeMutation } from "../_lib/admin-client";
 import { toActionErrorMessage } from "../_lib/ui-state";
+import { getTenantPluralTripLabel } from "@velo/app-core/tenant";
+import { useTenantBrandingOrDefault } from "@velo/ui/theme";
 
 type PromoFormState = {
   code: string;
@@ -52,6 +54,8 @@ function formFromPromo(promo: PromoCode): PromoFormState {
 }
 
 export default function PromoCodesPage() {
+  const { tripLabel } = useTenantBrandingOrDefault();
+  const tripsLabel = getTenantPluralTripLabel(tripLabel).toLowerCase();
   const [rows, setRows] = useState<PromoCode[]>([]);
   const [filter, setFilter] = useState("ALL");
   const [loading, setLoading] = useState(true);
@@ -180,7 +184,7 @@ export default function PromoCodesPage() {
         </form>
       </Sheet>
 
-      <ConfirmDialog open={Boolean(deactivateTarget)} onOpenChange={(open) => { if (!open) setDeactivateTarget(null); }} title="Deactivate promo code?" description={deactivateTarget ? `${deactivateTarget.code} will stop applying to new trips.` : "This promo will stop applying to new trips."} confirmLabel="Deactivate promo" onConfirm={deactivatePromo} />
+      <ConfirmDialog open={Boolean(deactivateTarget)} onOpenChange={(open) => { if (!open) setDeactivateTarget(null); }} title="Deactivate promo code?" description={deactivateTarget ? `${deactivateTarget.code} will stop applying to new ${tripsLabel}.` : `This promo will stop applying to new ${tripsLabel}.`} confirmLabel="Deactivate promo" onConfirm={deactivatePromo} />
     </div>
   );
 }

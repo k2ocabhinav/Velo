@@ -40,9 +40,7 @@ export function getTenantWordmark(brandName: string | null | undefined): string 
 }
 
 export function getTenantPluralTripLabel(tripLabel: string | null | undefined): string {
-  const normalized = tripLabel?.trim();
-  if (!normalized) return "Trips";
-  return /s$/i.test(normalized) ? normalized : `${normalized}s`;
+  return getTenantPluralLabel(tripLabel, DEFAULT_TENANT_BRANDING.tripLabel);
 }
 
 export interface TripLabelOptions {
@@ -52,17 +50,44 @@ export interface TripLabelOptions {
    * "1 completed trip" / "3 completed transfers".
    */
   midSentence?: boolean;
+  fallback?: string;
+}
+
+/** Adds a simple English plural suffix to a tenant noun while preserving its casing. */
+export function getTenantPluralLabel(label: string | null | undefined, fallback = ""): string {
+  const normalized = label?.trim() || fallback.trim();
+  if (!normalized) return "";
+  return /s$/i.test(normalized) ? normalized : `${normalized}s`;
+}
+
+/** Uses the existing account-page wording for Velo and the tenant noun for white-label rider accounts. */
+export function getTenantAdminUsersLabel(riderLabel: string | null | undefined): string {
+  const normalized = riderLabel?.trim();
+  if (!normalized || normalized.toLowerCase() === DEFAULT_TENANT_BRANDING.riderLabel.toLowerCase()) return "Users";
+  return getTenantPluralLabel(normalized);
+}
+
+/** Selects a tenant noun's singular or plural form and optionally lowers it for sentence copy. */
+export function getTenantLabelForCount(
+  count: number,
+  label: string | null | undefined,
+  { midSentence = false, fallback = "" }: TripLabelOptions = {},
+): string {
+  const singular = label?.trim() || fallback.trim();
+  const selected = count === 1 ? singular : getTenantPluralLabel(singular);
+  return midSentence ? selected.toLowerCase() : selected;
 }
 
 /** The tenant's trip label, pluralised to match the count ("1 Trip", "4 Trips"). */
 export function getTenantTripLabelForCount(
   count: number,
   tripLabel: string | null | undefined,
-  { midSentence = false }: TripLabelOptions = {},
+  { midSentence = false, fallback = DEFAULT_TENANT_BRANDING.tripLabel }: TripLabelOptions = {},
 ): string {
-  const singular = tripLabel?.trim() || DEFAULT_TENANT_BRANDING.tripLabel;
-  const label = count === 1 ? singular : getTenantPluralTripLabel(singular);
-  return midSentence ? label.toLowerCase() : label;
+  return getTenantLabelForCount(count, tripLabel, {
+    midSentence,
+    fallback,
+  });
 }
 
 export interface TenantSlugOptions {

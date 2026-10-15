@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest, NextResponse } from "next/server";
-import { attachTenantSlugHeader, DEFAULT_TENANT_BRANDING, fetchTenantBranding, getTenantPluralTripLabel, getTenantTripLabelForCount, getTenantWordmark, resolveTenantSlug, TENANT_SLUG_HEADER } from "../src/tenant";
+import { attachTenantSlugHeader, DEFAULT_TENANT_BRANDING, fetchTenantBranding, getTenantAdminUsersLabel, getTenantLabelForCount, getTenantPluralLabel, getTenantPluralTripLabel, getTenantTripLabelForCount, getTenantWordmark, resolveTenantSlug, TENANT_SLUG_HEADER } from "../src/tenant";
 
 afterEach(() => vi.unstubAllEnvs());
 
@@ -62,6 +62,19 @@ describe("tenant branding fetch", () => {
     expect(getTenantPluralTripLabel("Transfer")).toBe("Transfers");
     expect(getTenantPluralTripLabel("Transfers")).toBe("Transfers");
     expect(getTenantPluralTripLabel(null)).toBe("Trips");
+  });
+
+  it("maps tenant rider, driver, and trip nouns in title and sentence case", () => {
+    expect(getTenantPluralLabel("Guest")).toBe("Guests");
+    expect(getTenantPluralLabel("Chauffeur")).toBe("Chauffeurs");
+    expect(getTenantPluralLabel("Transfer")).toBe("Transfers");
+    expect(getTenantLabelForCount(1, "Guest")).toBe("Guest");
+    expect(getTenantLabelForCount(3, "Chauffeur")).toBe("Chauffeurs");
+    expect(getTenantLabelForCount(1, "Transfer", { midSentence: true })).toBe("transfer");
+    expect(getTenantLabelForCount(4, "Transfer", { midSentence: true })).toBe("transfers");
+    expect(getTenantLabelForCount(0, null, { fallback: "Driver" })).toBe("Drivers");
+    expect(getTenantAdminUsersLabel("Rider")).toBe("Users");
+    expect(getTenantAdminUsersLabel("Guest")).toBe("Guests");
   });
 
   it("selects the trip label that matches a count", () => {

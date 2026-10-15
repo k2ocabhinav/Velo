@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { DataTable, EmptyState, ErrorState, Field, Money, Section, Select, StatCard } from "@velo/ui";
 import { formatMoney } from "@velo/app-core/formatters";
-import { getTenantTripLabelForCount } from "@velo/app-core/tenant";
+import { getTenantPluralLabel, getTenantPluralTripLabel, getTenantTripLabelForCount } from "@velo/app-core/tenant";
 import { useTenantBranding } from "@velo/ui/theme";
 import { PageFrame } from "../_components/page-frame";
 import { adminClient, type RevenueRow, type TopDriverRevenue } from "../_lib/admin-client";
@@ -85,7 +85,10 @@ function RevenueChart({ rows }: { rows: RevenueRow[] }) {
 }
 
 export default function RevenuePage() {
-  const { tripLabel } = useTenantBranding();
+  const { driverLabel, tripLabel } = useTenantBranding();
+  const driversLabel = getTenantPluralLabel(driverLabel, "Driver");
+  const tripsLabel = getTenantPluralTripLabel(tripLabel);
+  const driverWord = driverLabel.toLowerCase();
   const [today, setToday] = useState<PeriodStats | null>(null);
   const [week, setWeek] = useState<PeriodStats | null>(null);
   const [month, setMonth] = useState<PeriodStats | null>(null);
@@ -168,28 +171,28 @@ export default function RevenuePage() {
           <Section title="Daily revenue · last 30 days">
             {hasRevenue ? <RevenueChart rows={dailyRows} /> : <EmptyState title="No revenue recorded yet" description="Daily revenue will appear here after completed rides." action={<Link className="secondary-button" href="/dispatch">Open dispatch</Link>} />}
           </Section>
-          <Section title="Top drivers" actions={
+          <Section title={`Top ${driversLabel.toLowerCase()}`} actions={
             <Field label="Range">
-              <Select aria-label="Top drivers date range" value={driverDays} onChange={(event) => setDriverDays(Number(event.target.value))}>
+              <Select aria-label={`Top ${driversLabel.toLowerCase()} date range`} value={driverDays} onChange={(event) => setDriverDays(Number(event.target.value))}>
                 <option value={7}>Last 7 days</option>
                 <option value={30}>Last 30 days</option>
                 <option value={90}>Last 90 days</option>
               </Select>
             </Field>
           }>
-            {driversError ? <ErrorState title="Couldn't load top drivers" description={driversError} onRetry={() => setDriversReloadVersion((value) => value + 1)} /> : null}
-            {driversLoading ? <DataTable.Skeleton rows={4} columns={5} label="Loading top drivers" /> : null}
+            {driversError ? <ErrorState title={`Couldn't load top ${driversLabel.toLowerCase()}`} description={driversError} onRetry={() => setDriversReloadVersion((value) => value + 1)} /> : null}
+            {driversLoading ? <DataTable.Skeleton rows={4} columns={5} label={`Loading top ${driversLabel.toLowerCase()}`} /> : null}
             {!driversLoading && !driversError && topDrivers.length === 0 ? (
-              <EmptyState title="No driver earnings in this period" description="Driver totals will appear after completed trips in the selected range." />
+              <EmptyState title={`No ${driverWord} earnings in this period`} description={`${driverLabel} totals will appear after completed ${tripsLabel.toLowerCase()} in the selected range.`} />
             ) : null}
             {!driversLoading && !driversError && topDrivers.length > 0 ? (
               <DataTable
-                ariaLabel="Top drivers by net earnings"
+                ariaLabel={`Top ${driversLabel.toLowerCase()} by net earnings`}
                 data={topDrivers}
                 getRowKey={(driver) => driver.driverId}
                 columns={[
-                  { header: "Driver", cell: (driver) => driver.driverName },
-                  { header: "Trips", accessorKey: "trips", align: "right" },
+                  { header: driverLabel, cell: (driver) => driver.driverName },
+                  { header: tripsLabel, accessorKey: "trips", align: "right" },
                   { header: "Gross", cell: (driver) => <Money amount={driver.gross} />, align: "right" },
                   { header: "Commission", cell: (driver) => <Money amount={driver.commission} />, align: "right" },
                   { header: "Net", cell: (driver) => <Money amount={driver.net} emphasis />, align: "right" },

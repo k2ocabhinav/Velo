@@ -7,7 +7,7 @@ import { performClientLogout } from "@velo/app-core/logout";
 import { Menu } from "@velo/ui";
 import { useDarkMode, useTenantBranding } from "@velo/ui/theme";
 import { FadeIn } from "@velo/ui/motion";
-import { getTenantPluralTripLabel, getTenantWordmark } from "@velo/app-core/tenant";
+import { getTenantAdminUsersLabel, getTenantPluralLabel, getTenantPluralTripLabel, getTenantWordmark } from "@velo/app-core/tenant";
 import { adminClient } from "../_lib/admin-client";
 
 const NAV_GROUPS = [
@@ -50,7 +50,7 @@ export function AdminShell({ children }: Readonly<{ children: ReactNode }>) {
   const [loggingOut, setLoggingOut] = useState(false);
   const [counts, setCounts] = useState<NavCounts>({ drivers: 0, payouts: 0, promos: 0, scheduled: 0 });
   const { isDark, toggle } = useDarkMode();
-  const { brandName, tripLabel } = useTenantBranding();
+  const { brandName, riderLabel, driverLabel, tripLabel } = useTenantBranding();
 
   useEffect(() => {
     let cancelled = false;
@@ -81,6 +81,8 @@ export function AdminShell({ children }: Readonly<{ children: ReactNode }>) {
     if (href === "/trip-sheet") return `${tripLabel} sheet`;
     if (href === "/scheduled-rides") return `Scheduled ${tripsLabel.toLowerCase()}`;
     if (href === "/recurring-trips") return `Recurring ${tripsLabel.toLowerCase()}`;
+    if (href === "/drivers") return getTenantPluralLabel(driverLabel, "Driver");
+    if (href === "/users") return getTenantAdminUsersLabel(riderLabel);
     return label;
   }
 
