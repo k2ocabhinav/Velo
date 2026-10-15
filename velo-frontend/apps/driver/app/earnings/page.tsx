@@ -148,7 +148,7 @@ export default function DriverEarningsPage() {
           <div className="stack">
             <div>
               <p className="helper driver-earnings-title">Net earnings</p>
-              <p className="driver-earnings-trip-count">{summary.rideCount ?? 0} {getTenantTripLabelForCount(summary.rideCount ?? 0, tripLabel)}</p>
+              <p className="driver-earnings-trip-count">{summary.rideCount ?? 0} {getTenantTripLabelForCount(summary.rideCount ?? 0, tripLabel, { midSentence: true })}</p>
               <Money className="driver-key-figure" amount={summary.totalNet} emphasis />
             </div>
             <dl className="driver-money-breakdown">

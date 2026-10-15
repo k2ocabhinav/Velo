@@ -72,6 +72,15 @@ describe("tenant branding fetch", () => {
     expect(getTenantTripLabelForCount(3, null)).toBe("Trips");
   });
 
+  it("lower-cases the trip label for mid-sentence use", () => {
+    expect(getTenantTripLabelForCount(1, "Trip", { midSentence: true })).toBe("trip");
+    expect(getTenantTripLabelForCount(4, "Trip", { midSentence: true })).toBe("trips");
+    expect(getTenantTripLabelForCount(1, "Transfer", { midSentence: true })).toBe("transfer");
+    expect(getTenantTripLabelForCount(3, "Transfer", { midSentence: true })).toBe("transfers");
+    expect(getTenantTripLabelForCount(0, "Airport Transfer", { midSentence: true })).toBe("airport transfers");
+    expect(getTenantTripLabelForCount(2, null, { midSentence: true })).toBe("trips");
+  });
+
   it("loads the public envelope using the Next fetch revalidation cache", async () => {
     const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       data: {

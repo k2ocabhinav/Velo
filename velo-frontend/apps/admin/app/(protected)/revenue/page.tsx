@@ -161,9 +161,9 @@ export default function RevenuePage() {
       {!loading && today && week && month ? (
         <>
           <div className="dashboard-kpis">
-            <StatCard title="Today" value={<Money amount={today.revenue} />} helperText={`${today.rides} completed ${getTenantTripLabelForCount(today.rides, tripLabel)}`} />
-            <StatCard title="This week" value={<Money amount={week.revenue} />} helperText={`${week.rides} completed ${getTenantTripLabelForCount(week.rides, tripLabel)}`} />
-            <StatCard title="Last 30 days" value={<Money amount={month.revenue} />} helperText={`${month.rides} completed ${getTenantTripLabelForCount(month.rides, tripLabel)}`} />
+            <StatCard title="Today" value={<Money amount={today.revenue} />} helperText={`${today.rides} completed ${getTenantTripLabelForCount(today.rides, tripLabel, { midSentence: true })}`} />
+            <StatCard title="This week" value={<Money amount={week.revenue} />} helperText={`${week.rides} completed ${getTenantTripLabelForCount(week.rides, tripLabel, { midSentence: true })}`} />
+            <StatCard title="Last 30 days" value={<Money amount={month.revenue} />} helperText={`${month.rides} completed ${getTenantTripLabelForCount(month.rides, tripLabel, { midSentence: true })}`} />
           </div>
           <Section title="Daily revenue · last 30 days">
             {hasRevenue ? <RevenueChart rows={dailyRows} /> : <EmptyState title="No revenue recorded yet" description="Daily revenue will appear here after completed rides." action={<Link className="secondary-button" href="/dispatch">Open dispatch</Link>} />}
