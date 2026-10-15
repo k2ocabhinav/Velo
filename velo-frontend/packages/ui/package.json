@@ -16,6 +16,7 @@
     "./styles.css": "./src/styles.css",
     "./primitives": "./src/primitives/index.ts",
     "./composed": "./src/composed/index.ts",
+    "./fleet-map": "./src/composed/fleet-map/index.ts",
     "./leaflet-map": "./src/composed/leaflet-location-picker.tsx",
     "./feedback": "./src/feedback/index.ts",
     "./motion": "./src/motion/index.ts",

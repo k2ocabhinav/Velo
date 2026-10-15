@@ -487,6 +487,51 @@ export interface AdminDispatchAuditDto {
   createdAt?: ISODateTime | null;
 }
 
+export type AdminLiveDriverStatus = "AVAILABLE" | "EN_ROUTE_TO_PICKUP" | "ON_TRIP";
+export type AdminLiveRideStatus = "REQUESTED" | "CONFIRMED" | "ONGOING";
+
+export interface AdminLiveDispatchPointDto {
+  lat: number;
+  lng: number;
+  address?: string | null;
+}
+
+export interface AdminLiveDriverDto {
+  driverId: number;
+  name: string;
+  vehiclePlate: string;
+  rating: number;
+  status: AdminLiveDriverStatus;
+  lat: number;
+  lng: number;
+  heading: number | null;
+  speedKph: number | null;
+  locationUpdatedAt: ISODateTime;
+  stale: boolean;
+  simulated: boolean;
+  rideId: number | null;
+}
+
+export interface AdminLiveRideDto {
+  rideId: number | null;
+  rideRequestId: number;
+  status: AdminLiveRideStatus;
+  riderName: string;
+  driverId: number | null;
+  pickup: AdminLiveDispatchPointDto;
+  dropOff: AdminLiveDispatchPointDto;
+  requestedAt: ISODateTime;
+  startedAt: ISODateTime | null;
+  fare: DecimalValue | null;
+  simulated: boolean;
+}
+
+export interface AdminLiveDispatchSnapshotDto {
+  generatedAt: ISODateTime;
+  drivers: AdminLiveDriverDto[];
+  rides: AdminLiveRideDto[];
+}
+
 export interface AdminOpsHealthDto {
   redisAvailable: boolean;
   cacheHits: number;

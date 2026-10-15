@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import dynamic from "next/dynamic";
 import {
   AddressSearch, Button, ConfirmDialog, DataTable, DateTime, DefinitionList, EmptyState, ErrorState, Field, Menu, PageHeader, RouteStrip, Section, Select, Sheet, Skeleton, StatusBadge, Textarea,
@@ -13,6 +13,7 @@ import { adminClient, type AdminActiveRide, type AdminDispatchAudit, type AdminP
 import { requestAdminProxy } from "../_lib/http";
 import { toActionErrorMessage } from "../_lib/ui-state";
 import { executeDispatchOperation } from "../../_lib/dispatch-action";
+import { LiveFleetPanel } from "./_components/live-fleet-panel";
 
 const PAGE_SIZE = 10;
 const LeafletLocationPicker = dynamic(
@@ -108,6 +109,19 @@ export default function AdminDispatchPage() {
       setLoading(false);
     }
   }
+
+  const refreshOpenTripLists = useCallback(async () => {
+    try {
+      const [requests, rides] = await Promise.all([
+        adminClient.getPendingRideRequests(0, PAGE_SIZE),
+        adminClient.getActiveRides(0, PAGE_SIZE),
+      ]);
+      setPendingRequests(requests.content ?? []);
+      setActiveRides(rides.content ?? []);
+    } catch {
+      // Live refreshes stay quiet so a transient list failure does not replace usable rows.
+    }
+  }, []);
 
   useEffect(() => { void loadAll(); }, []);
 
@@ -333,6 +347,8 @@ export default function AdminDispatchPage() {
       <PageHeader title="Dispatch" description="Resolve requests and manage trips in progress." actions={<Button onClick={() => setCreateOpen(true)}>New trip</Button>} />
       {error ? <ErrorState title="Couldn't update dispatch" description={error} onRetry={() => void loadAll()} /> : null}
       {statusMessage ? <p role="status" className="helper">{statusMessage}</p> : null}
+
+      <LiveFleetPanel onOpenTripsChanged={refreshOpenTripLists} />
 
       <div className="dispatch-columns">
         <Section title="Pending requests" actions={<span className="helper">{pendingRequests.length} shown</span>}>
