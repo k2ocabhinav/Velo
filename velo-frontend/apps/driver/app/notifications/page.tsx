@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { getTenantLabelWords } from "@velo/app-core/tenant";
 import { Button } from "@velo/ui/primitives";
 import { DateTime, EmptyState, ErrorState, PageHeader, Section } from "@velo/ui/composed";
 import { ReconnectingIndicator, Skeleton } from "@velo/ui/feedback";
+import { useTenantBrandingOrDefault } from "@velo/ui/theme";
 import {
   requestDriverProxy,
   type DriverNotification,
@@ -28,14 +30,14 @@ function normalizeNotification(event: DriverNotificationEvent): DriverNotificati
   };
 }
 
-function renderTripReferences(message: string) {
+function renderTripReferences(message: string, tripLabel: string) {
   const pattern = /\b(?:ride|trip)\s*#(\d+)\b/gi;
   const result = [];
   let cursor = 0;
   let match: RegExpExecArray | null;
   while ((match = pattern.exec(message)) !== null) {
     if (match.index > cursor) result.push(message.slice(cursor, match.index));
-    result.push(<code className="driver-reference" key={`${match.index}-${match[1]}`}>Trip {match[1]}</code>);
+    result.push(<code className="driver-reference" key={`${match.index}-${match[1]}`}>{tripLabel} {match[1]}</code>);
     cursor = match.index + match[0].length;
   }
   if (cursor < message.length) result.push(message.slice(cursor));
@@ -43,6 +45,7 @@ function renderTripReferences(message: string) {
 }
 
 export default function DriverNotificationsPage() {
+  const words = getTenantLabelWords(useTenantBrandingOrDefault());
   const [items, setItems] = useState<DriverNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<number | null>(null);
@@ -114,7 +117,7 @@ export default function DriverNotificationsPage() {
 
   return (
     <main className="stack">
-      <PageHeader title="Stay up to date" description="Review trip and payout updates in one place." />
+      <PageHeader title="Stay up to date" description={`Review ${words.tripWord} and payout updates in one place.`} />
 
       {loadError ? <ErrorState title="Couldn't load notifications" description={loadError} onRetry={() => void loadNotifications()} /> : null}
       {actionError ? (
@@ -154,7 +157,7 @@ export default function DriverNotificationsPage() {
         {!loading && !loadError && items.length === 0 ? (
           <EmptyState
             title="You're all caught up"
-            description="Trip and payout updates will appear here."
+            description={`${words.trip} and payout updates will appear here.`}
             action={<Link href="/" className="ui-button" data-variant="secondary">Back to home</Link>}
           />
         ) : null}
@@ -164,12 +167,12 @@ export default function DriverNotificationsPage() {
               <article className="driver-notification-row" key={notification.id}>
                 <div className="driver-notification-copy">
                   <div className="driver-row-meta">
-                    <h3>{renderTripReferences(notification.title)}</h3>
+                    <h3>{renderTripReferences(notification.title, words.trip)}</h3>
                     <span className="badge" data-tone={notification.read ? "neutral" : "attention"}>
                       {notification.read ? "Read" : "Unread"}
                     </span>
                   </div>
-                  <p>{renderTripReferences(notification.message)}</p>
+                  <p>{renderTripReferences(notification.message, words.trip)}</p>
                   <DateTime value={notification.createdTime} />
                 </div>
                 {!notification.read ? (

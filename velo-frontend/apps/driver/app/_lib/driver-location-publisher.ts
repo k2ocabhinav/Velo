@@ -65,6 +65,7 @@ function isLocationPublishingEnabled(status: string | null | undefined, online: 
 export function useDriverLocationPublisher(
   rideStatus: string | null | undefined,
   online = false,
+  tripLabel = "Trip",
 ): DriverLocationPublisher {
   const [state, setState] = useState<DriverLocationPublisherState>({
     mode: "idle",
@@ -94,7 +95,7 @@ export function useDriverLocationPublisher(
     if (typeof window === "undefined" || !("geolocation" in navigator)) {
       setState({
         mode: "degraded",
-        message: "Live location isn't available in this browser. Trip updates still work.",
+        message: `Live location isn't available in this browser. ${tripLabel} updates still work.`,
         permissionDenied: false,
         lastPublishedAt: null,
         lastPublishedPoint: null,
@@ -193,7 +194,7 @@ export function useDriverLocationPublisher(
             ...current,
             mode: "degraded",
             message: permissionDenied
-              ? "Live location is off. Trip updates still work."
+              ? `Live location is off. ${tripLabel} updates still work.`
               : "Can't read your location right now. Retrying shortly.",
             permissionDenied,
           }));
@@ -222,7 +223,7 @@ export function useDriverLocationPublisher(
         window.clearTimeout(timeoutId);
       }
     };
-  }, [attempt, online, rideStatus]);
+  }, [attempt, online, rideStatus, tripLabel]);
 
   return { ...state, retry };
 }

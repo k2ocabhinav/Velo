@@ -4,9 +4,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { isActionPending, setActionPending } from "@velo/app-core/async-actions";
+import { getTenantLabelWords } from "@velo/app-core/tenant";
 import { Button } from "@velo/ui/primitives";
-import { DateTime, EmptyState, ErrorState, Money, PageHeader, RouteStrip, Section, StatusBadge } from "@velo/ui/composed";
+import { createRouteStageLabels, DateTime, EmptyState, ErrorState, Money, PageHeader, RouteStrip, Section, StatusBadge } from "@velo/ui/composed";
 import { CountdownBadge, LiveStatusPill, MatchingIndicator, ReconnectingIndicator, Skeleton } from "@velo/ui/feedback";
+import { useTenantBrandingOrDefault } from "@velo/ui/theme";
 import {
   requestDriverProxy,
   type DriverNotification,
@@ -21,7 +23,7 @@ import {
   normalizeDriverRidePage,
   selectCurrentDriverRide,
 } from "./_lib/driver-ride-state";
-import { formatOfferLocation, getRiderFirstName, resolveOfferExpiresAtMs } from "./_lib/driver-offer";
+import { formatOfferLocation, getIncomingOfferContent, getNextTripActionLabel, getRiderFirstName, resolveOfferExpiresAtMs } from "./_lib/driver-offer";
 import { useDriverLocationPublisher } from "./_lib/driver-location-publisher";
 import {
   useDriverNotificationSubscription,
@@ -60,37 +62,10 @@ function getRideRequestId(notification: DriverNotification): number | null {
   return typeof notification.referenceId === "number" ? notification.referenceId : null;
 }
 
-function getIncomingCardContent(
-  notification: DriverNotification,
-  tripLabel: string,
-): Readonly<{ title: string; message: string }> {
-  const tripNoun = tripLabel.toLowerCase();
-  if (notification.type === "RIDE_DISPATCHED") {
-    return {
-      title: `Scheduled ${tripNoun} offer`,
-      message: "A scheduled trip is ready for your response.",
-    };
-  }
-
-  return {
-    title: `New ${tripNoun} offer`,
-    message: "A trip request is waiting for your response.",
-  };
-}
-
-function getNextTripActionLabel(status: string): string {
-  if (status.toUpperCase() === "CONFIRMED") return "Start trip";
-  if (status.toUpperCase() === "ONGOING") return "Complete trip";
-  return "Continue trip";
-}
-
-type TenantBranding = {
-  riderLabel?: string;
-  tripLabel?: string;
-};
-
 export default function DriverHomePage() {
   const router = useRouter();
+  const words = getTenantLabelWords(useTenantBrandingOrDefault());
+  const stageLabels = createRouteStageLabels(words.trip, words.driver);
 
   const [profile, setProfile] = useState<DriverProfile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
@@ -114,10 +89,7 @@ export default function DriverHomePage() {
   const [error, setError] = useState<string | null>(null);
   const [retryAction, setRetryAction] = useState<(() => void) | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [branding, setBranding] = useState<TenantBranding | null>(null);
-  const locationPublisher = useDriverLocationPublisher(null, profile?.available === true);
-
-  const tripLabel = branding?.tripLabel ?? "Trip";
+  const locationPublisher = useDriverLocationPublisher(null, profile?.available === true, words.trip);
 
   const loadProfile = useCallback(async () => {
     setProfileError(null);
@@ -168,12 +140,12 @@ export default function DriverHomePage() {
       setRideRequestPreviews((current) => ({ ...current, ...previewUpdates }));
       setIncoming(actionable);
     } catch (incomingError) {
-      setIncomingError(incomingError instanceof Error ? incomingError.message : "Unable to load trip offers.");
+      setIncomingError(incomingError instanceof Error ? incomingError.message : `Unable to load ${words.tripWord} offers.`);
     } finally {
       setLoadingIncoming(false);
       setRefreshingIncoming(false);
     }
-  }, []);
+  }, [words.tripWord]);
 
   const loadActiveRide = useCallback(async (refresh = false) => {
     if (refresh) {
@@ -189,22 +161,19 @@ export default function DriverHomePage() {
       setActiveRide(selectCurrentDriverRide(rides));
     } catch (activeRideLoadError) {
       setActiveRideError(
-        activeRideLoadError instanceof Error ? activeRideLoadError.message : "Unable to load active ride status.",
+        activeRideLoadError instanceof Error ? activeRideLoadError.message : `Unable to load active ${words.tripWord} status.`,
       );
       setActiveRide(null);
     } finally {
       setLoadingActiveRide(false);
       setRefreshingActiveRide(false);
     }
-  }, []);
+  }, [words.tripWord]);
 
   useEffect(() => {
     void loadProfile();
     void loadIncoming();
     void loadActiveRide();
-    void requestDriverProxy<TenantBranding>("api/v1/tenant/branding")
-      .then((payload) => setBranding(payload))
-      .catch(() => setBranding(null));
   }, [loadProfile, loadIncoming, loadActiveRide]);
 
   useEffect(() => {
@@ -338,8 +307,8 @@ export default function DriverHomePage() {
     } catch (acceptError) {
       const nextMessage =
         acceptError instanceof Error
-          ? mapApiError({ error: acceptError.message }, "Unable to accept this ride request.")
-          : "Unable to accept this ride request.";
+          ? mapApiError({ error: acceptError.message }, `Unable to accept this ${words.tripWord} request.`, words)
+          : `Unable to accept this ${words.tripWord} request.`;
       setError(nextMessage);
       setRetryAction(() => () => { void acceptRide(notification); });
       if (nextMessage.toLowerCase().includes("already been assigned") || nextMessage.toLowerCase().includes("cancelled")) {
@@ -381,8 +350,8 @@ export default function DriverHomePage() {
   return (
     <main className="stack">
       <PageHeader
-        title="Ready for your next trip"
-        description={`Manage availability and respond to ${tripLabel.toLowerCase()} offers from here.`}
+        title={`Ready for your next ${words.tripWord}`}
+        description={`Manage availability and respond to ${words.tripWord} offers from here.`}
       />
 
       {error ? (
@@ -410,7 +379,7 @@ export default function DriverHomePage() {
           <div className="driver-availability">
             <div className="driver-availability-copy">
               <strong>{profile.available ? "You're online" : "You're offline"}</strong>
-              <p>{profile.available ? "New trip offers can reach you." : "Go online when you're ready to drive."}</p>
+              <p>{profile.available ? `New ${words.tripWord} offers can reach you.` : "Go online when you're ready to drive."}</p>
               {profile.vehicleId ? <p>Vehicle {profile.vehicleId}</p> : null}
               {profile.available && locationPublisher.mode === "degraded" ? (
                 <p className="helper" role="status">{locationPublisher.message}</p>
@@ -432,7 +401,7 @@ export default function DriverHomePage() {
       </Section>
 
       <Section
-        title="Trip offers"
+        title={`${words.trip} offers`}
         actions={(
           <Button variant="secondary" disabled={refreshingIncoming} onClick={() => void loadIncoming(true)}>
             {refreshingIncoming ? "Refreshing…" : "Refresh offers"}
@@ -453,17 +422,17 @@ export default function DriverHomePage() {
           {queuedRequestCount > 0 ? <span className="badge" data-tone="attention">{queuedRequestCount} waiting</span> : null}
         </div>
         {incomingError ? (
-          <ErrorState title="Couldn't load trip offers" description={incomingError} onRetry={() => void loadIncoming()} />
+          <ErrorState title={`Couldn't load ${words.tripWord} offers`} description={incomingError} onRetry={() => void loadIncoming()} />
         ) : null}
         {loadingIncoming ? (
-          <div className="driver-offer-list" role="status" aria-label="Loading trip offers" aria-busy="true">
+          <div className="driver-offer-list" role="status" aria-label={`Loading ${words.tripWord} offers`} aria-busy="true">
             {[0, 1].map((item) => <Skeleton key={item} className="h-32 w-full" />)}
           </div>
         ) : null}
         {!loadingIncoming && !incomingError && incoming.length === 0 ? (
           <EmptyState
-            title="No trip offers yet"
-            description={profile?.available ? "Keep your availability on and new offers will appear here." : "Go online when you're ready to receive trip offers."}
+            title={`No ${words.tripWord} offers yet`}
+            description={profile?.available ? "Keep your availability on and new offers will appear here." : `Go online when you're ready to receive ${words.tripWord} offers.`}
             action={!profile?.available
               ? <Button onClick={() => void toggleAvailability()} disabled={!profile || togglingAvailability}>Go online</Button>
               : undefined}
@@ -475,7 +444,7 @@ export default function DriverHomePage() {
               const requestId = getRideRequestId(notification);
               const busy = requestId !== null && acceptingRequestId === requestId;
               const preview = requestId !== null ? rideRequestPreviews[requestId] : null;
-              const cardContent = getIncomingCardContent(notification, tripLabel);
+              const cardContent = getIncomingOfferContent(notification.type, words.tripWord);
               const riderName = getRiderFirstName(preview?.rider);
               const pickupLabel = formatOfferLocation(preview?.pickupAddress, preview?.pickupLocation);
               const dropOffLabel = formatOfferLocation(preview?.dropOffAddress, preview?.dropOffLocation);
@@ -490,12 +459,12 @@ export default function DriverHomePage() {
                     <p className="driver-section-copy">{cardContent.message}</p>
                     {riderName || pickupLabel || dropOffLabel ? (
                       <dl className="driver-offer-facts">
-                        {riderName ? <div><dt>Rider</dt><dd>{riderName}</dd></div> : null}
+                        {riderName ? <div><dt>{words.rider}</dt><dd>{riderName}</dd></div> : null}
                         {pickupLabel ? <div><dt>Pickup</dt><dd title={pickupLabel}>{pickupLabel}</dd></div> : null}
                         {dropOffLabel ? <div><dt>Drop-off</dt><dd title={dropOffLabel}>{dropOffLabel}</dd></div> : null}
                       </dl>
                     ) : null}
-                    <RouteStrip stage={preview?.rideRequestStatus ?? "requested"} variant="static" showDriverMarker={false} />
+                    <RouteStrip stage={preview?.rideRequestStatus ?? "requested"} variant="static" showDriverMarker={false} stageLabels={stageLabels} />
                     <div className="driver-row-meta">
                       <DateTime value={notification.createdTime} />
                       <MatchingIndicator label="Offer response window" />
@@ -512,7 +481,7 @@ export default function DriverHomePage() {
                       disabled={busy || requestId === null || (requestId !== null && isActionPending(pendingActions, `accept:${requestId}`))}
                       onClick={() => void acceptRide(notification)}
                     >
-                      {busy ? "Accepting…" : "Accept trip"}
+                      {busy ? "Accepting…" : `Accept ${words.tripWord}`}
                     </Button>
                     <Button
                       variant="secondary"
@@ -530,7 +499,7 @@ export default function DriverHomePage() {
       </Section>
 
       <Section
-        title="Current trip"
+        title={`Current ${words.tripWord}`}
         actions={(
           <Button variant="secondary" disabled={refreshingActiveRide} onClick={() => void loadActiveRide(true)}>
             {refreshingActiveRide ? "Refreshing…" : "Refresh"}
@@ -538,35 +507,35 @@ export default function DriverHomePage() {
         )}
       >
         {loadingActiveRide ? (
-          <div className="stack compact" role="status" aria-label="Loading current trip" aria-busy="true">
+          <div className="stack compact" role="status" aria-label={`Loading current ${words.tripWord}`} aria-busy="true">
             <Skeleton className="h-4 w-32" />
             <Skeleton className="h-14 w-full" />
             <Skeleton className="h-20 w-full" />
           </div>
         ) : null}
         {!loadingActiveRide && activeRideError ? (
-          <ErrorState title="Couldn't load your current trip" description={activeRideError} onRetry={() => void loadActiveRide()} />
+          <ErrorState title={`Couldn't load your current ${words.tripWord}`} description={activeRideError} onRetry={() => void loadActiveRide()} />
         ) : null}
         {!loadingActiveRide && !activeRideError && !activeRide ? (
           <EmptyState
-            title="No active trip"
-            description="Your accepted trip will appear here with the next action when one is assigned."
-            action={<Link href="/rides" className="ui-button" data-variant="secondary">View trips</Link>}
+            title={`No active ${words.tripWord}`}
+            description={`Your accepted ${words.tripWord} will appear here with the next action when one is assigned.`}
+            action={<Link href="/rides" className="ui-button" data-variant="secondary">{`View ${words.tripsWord}`}</Link>}
           />
         ) : null}
         {!loadingActiveRide && !activeRideError && activeRide ? (
           <div className="driver-trip-summary">
             <div className="driver-row-meta">
-              <code className="driver-reference">Trip {activeRide.id}</code>
-              <StatusBadge domain="ride" status={activeRide.rideStatus} />
+              <code className="driver-reference">{words.trip} {activeRide.id}</code>
+              <StatusBadge domain="ride" status={activeRide.rideStatus} labels={words} />
               <DateTime value={activeRide.startedAt ?? activeRide.createdTime} />
             </div>
-            <RouteStrip stage={activeRide.rideStatus} />
-            <p>{activeRide.rider?.user?.name?.trim() || "Rider"}</p>
+            <RouteStrip stage={activeRide.rideStatus} stageLabels={stageLabels} />
+            <p>{activeRide.rider?.user?.name?.trim() || words.rider}</p>
             <div className="driver-row-meta">
               {activeRideFare !== null && activeRideFare !== undefined ? <Money amount={activeRideFare} emphasis /> : null}
               <Link href={`/ride/${activeRide.id}`} className="ui-button" data-variant="primary">
-                {getNextTripActionLabel(activeRide.rideStatus)}
+                {getNextTripActionLabel(activeRide.rideStatus, words.tripWord)}
               </Link>
             </div>
           </div>

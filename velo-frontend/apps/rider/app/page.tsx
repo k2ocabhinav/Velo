@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { MatchingIndicator, ReconnectingIndicator } from "@velo/ui/feedback";
 import { formatDateTime, formatDistance, getCurrencyLocale } from "@velo/app-core/formatters";
+import { getTenantLabelWords } from "@velo/app-core/tenant";
 import {
   requestRiderProxy,
   type DecimalValue,
@@ -42,6 +43,7 @@ import { fetchRoutePath, type MapPoint, type RoutePath } from "./_lib/map/routin
 import { BookingMapLoader } from "./_components/booking-map-loader";
 import {
   AddressSearch,
+  createRouteStageLabels,
   DefinitionList,
   ErrorState,
   Field,
@@ -54,6 +56,7 @@ import {
   ConfirmDialog,
   type AddressSuggestion,
 } from "@velo/ui";
+import { useTenantBrandingOrDefault } from "@velo/ui/theme";
 import { Button } from "@velo/ui/primitives";
 
 type FareEstimate = {
@@ -86,17 +89,6 @@ type SavedPlace = {
   lat: number;
   lon: number;
   type: string;
-};
-
-type TenantBranding = {
-  brandName?: string;
-  riderLabel?: string;
-  driverLabel?: string;
-  tripLabel?: string;
-  currency?: string;
-  primaryColor?: string;
-  dispatchMode?: "RIDE_HAILING" | "DELIVERY_MERCHANT" | "FLEET_MANAGED";
-  riderPortalEnabled?: boolean;
 };
 
 const ACTIVE_TRIP_REFRESH_INTERVAL_MS = 10_000;
@@ -143,6 +135,9 @@ const INITIAL_TRIP_LANE: RiderHomeTripLane = {
 
 export default function RiderHomePage() {
   useActiveRideRedirect("/");
+  const branding = useTenantBrandingOrDefault();
+  const words = getTenantLabelWords(branding);
+  const stageLabels = createRouteStageLabels(words.trip, words.driver);
 
   const [bookingOpen, setBookingOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
@@ -170,8 +165,6 @@ export default function RiderHomePage() {
   const [cancelingRideId, setCancelingRideId] = useState<number | null>(null);
   const [failedAction, setFailedAction] = useState<"estimate" | "request" | null>(null);
   const [lastTripLaneSyncAt, setLastTripLaneSyncAt] = useState<string | null>(null);
-  const [branding, setBranding] = useState<TenantBranding | null>(null);
-  const [loadingBranding, setLoadingBranding] = useState(true);
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
   const [savedPlacesLoading, setSavedPlacesLoading] = useState(false);
   const [savedPlacesError, setSavedPlacesError] = useState<string | null>(null);
@@ -202,36 +195,6 @@ export default function RiderHomePage() {
     [dropLat, dropLng, paymentMethod, pickupLat, pickupLng, promoCode],
   );
   const hasFreshEstimate = Boolean(estimate && estimateSignature && estimateSignature === currentDraftSignature);
-  const riderLabel = branding?.riderLabel ?? "Rider";
-  const driverLabel = branding?.driverLabel ?? "Driver";
-  const tripLabel = branding?.tripLabel ?? "Trip";
-  const riderPortalEnabled = branding?.riderPortalEnabled ?? true;
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoadingBranding(true);
-
-    void requestRiderProxy<TenantBranding>("api/v1/tenant/branding")
-      .then((payload) => {
-        if (!cancelled) {
-          setBranding(payload);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setBranding(null);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoadingBranding(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     if (!bookingOpen) return;
@@ -368,8 +331,8 @@ export default function RiderHomePage() {
         if (failedResult?.status === "rejected") {
           setTripLaneError(
             failedResult.reason instanceof Error
-              ? mapApiError({ error: failedResult.reason.message }, "Couldn't check your current trip.")
-              : "Couldn't check your current trip.",
+              ? mapApiError({ error: failedResult.reason.message }, `Couldn't check your current ${words.tripWord}.`)
+              : `Couldn't check your current ${words.tripWord}.`,
           );
         } else {
           setLastTripLaneSyncAt(new Date().toISOString());
@@ -379,7 +342,7 @@ export default function RiderHomePage() {
         setRefreshingTripLane(false);
       }
     },
-    [lastRequest],
+    [lastRequest, words.tripWord],
   );
 
   useEffect(() => {
@@ -407,16 +370,16 @@ export default function RiderHomePage() {
 
       const eventType = event.type?.toUpperCase();
       if (eventType === "RIDE_CANCELLED") {
-        setMessage("Your driver cancelled the trip. Please request a new ride.");
+        setMessage(`Your ${words.driverWord} cancelled the ${words.tripWord}. Please request a new ${words.tripWord}.`);
       }
       if (eventType === "RIDE_ACCEPTED") {
-        setMessage(`Ride accepted — ${driverLabel} is on the way.`);
+        setMessage(`${words.trip} accepted — ${words.driver} is on the way.`);
       }
 
       setLastTripLaneSyncAt(new Date().toISOString());
       void loadTripLane(true);
     },
-    [driverLabel, loadTripLane],
+    [loadTripLane, words.driver, words.driverWord, words.tripWord],
   );
 
   const realtime = useRiderNotificationSubscription(true, handleRealtimeNotification);
@@ -430,11 +393,11 @@ export default function RiderHomePage() {
     if (lastTripLaneSyncAt) {
       const syncedAt = new Date(lastTripLaneSyncAt);
       const syncLabel = Number.isNaN(syncedAt.getTime()) ? "recently" : formatDateTime(syncedAt);
-      return `Trip status updated ${syncLabel}.`;
+      return `${words.trip} status updated ${syncLabel}.`;
     }
 
     return base;
-  }, [lastTripLaneSyncAt, realtime.lastError, realtime.reconnectAttempts, realtime.state]);
+  }, [lastTripLaneSyncAt, realtime.lastError, realtime.reconnectAttempts, realtime.state, words.trip]);
 
   const pendingRequestExpiresAtMs = useMemo(() => {
     const createdTime = lastRequest?.createdTime;
@@ -656,19 +619,19 @@ export default function RiderHomePage() {
   async function requestRide(): Promise<void> {
     clearActionFeedback();
     if (loadingTripLane) {
-      setError("Checking your current trip status. Please try again in a moment.");
+      setError(`Checking your current ${words.tripWord} status. Please try again in a moment.`);
       return;
     }
     if (hasInFlightTrip) {
-      setError("You already have a pending or active trip request.");
+      setError(`You already have a pending or active ${words.tripWord} request.`);
       return;
     }
     if (!hasSelectedLocations) {
-      setError("Set pickup and drop-off before requesting a ride.");
+      setError(`Set pickup and drop-off before requesting a ${words.tripWord}.`);
       return;
     }
     if (!hasFreshEstimate) {
-      setError("Estimate fare with the latest trip details before requesting a ride.");
+      setError(`Estimate fare with the latest ${words.tripWord} details before requesting a ride.`);
       setFailedAction("estimate");
       return;
     }
@@ -686,16 +649,16 @@ export default function RiderHomePage() {
         createdTime: response.requestedTime ?? new Date().toISOString(),
       };
       setLastRequest(pendingRequest);
-      setMessage(`${tripLabel} requested. We are now matching you with a nearby ${driverLabel.toLowerCase()}.`);
+      setMessage(`${words.trip} requested. We are now matching you with a nearby ${words.driverWord}.`);
       setBookingOpen(false);
       void loadTripLane(true, pendingRequest);
     } catch (requestError) {
       const requestErrorMessage = requestError instanceof Error ? requestError.message : "";
       const nextMessage = /insufficient wallet balance/i.test(requestErrorMessage)
-        ? "Your wallet balance does not cover this trip. Add funds or choose Cash before requesting."
+        ? `Your wallet balance does not cover this ${words.tripWord}. Add funds or choose Cash before requesting.`
         : requestError instanceof Error
-          ? mapApiError({ error: requestErrorMessage }, "Unable to request a ride.")
-          : "Unable to request a ride.";
+          ? mapApiError({ error: requestErrorMessage }, `Unable to request a ${words.tripWord}.`)
+          : `Unable to request a ${words.tripWord}.`;
       setError(nextMessage);
       setFailedAction("request");
     } finally {
@@ -735,13 +698,13 @@ export default function RiderHomePage() {
       setEstimate(null);
       setEstimateSignature(null);
       setActiveTarget("pickup");
-      setMessage(`${tripLabel} cancelled. Request a new ${tripLabel.toLowerCase()} when ready.`);
+      setMessage(`${words.trip} cancelled. Request a new ${words.tripWord} when ready.`);
       await loadTripLane(true, updatedRequest);
     } catch (cancelError) {
       const nextMessage =
         cancelError instanceof Error
-          ? mapApiError({ error: cancelError.message }, "Unable to cancel ride.")
-          : "Unable to cancel ride.";
+          ? mapApiError({ error: cancelError.message }, `Unable to cancel ${words.tripWord}.`)
+          : `Unable to cancel ${words.tripWord}.`;
       setError(nextMessage);
     } finally {
       setCancelingRideId(null);
@@ -765,11 +728,11 @@ export default function RiderHomePage() {
     }
   }
 
-  if (!loadingBranding && !riderPortalEnabled) {
+  if (!branding.riderPortalEnabled) {
     return (
       <main className="app-shell rider-page">
         <ErrorState
-          title={`${riderLabel} booking is unavailable`}
+          title={`${words.rider} booking is unavailable`}
           description="This service is not available for this account. Contact the operations team for help."
           retryLabel="Check again"
           onRetry={() => window.location.reload()}
@@ -807,7 +770,7 @@ export default function RiderHomePage() {
               Where to?
             </button>
           </div>
-          <Button variant="secondary" onClick={() => setBookingOpen(true)}>Plan a trip</Button>
+          <Button variant="secondary" onClick={() => setBookingOpen(true)}>{`Plan a ${words.tripWord}`}</Button>
         </div>
         <p className="map-instruction" aria-live="polite">
           {loadingRoute ? "Updating route" : routePath ? "Route ready" : `Tap the map to set ${activeTarget === "pickup" ? "pickup" : "destination"}`}
@@ -816,25 +779,26 @@ export default function RiderHomePage() {
 
       <div className="booking-overlay-content">
         {loadingTripLane ? (
-          <div className="trip-banner-skeleton" aria-label="Checking for an active trip">
+          <div className="trip-banner-skeleton" aria-label={`Checking for an active ${words.tripWord}`}>
             <Skeleton className="skeleton-line skeleton-line-wide" />
             <Skeleton className="skeleton-line" />
           </div>
         ) : tripLaneError ? (
           <ErrorState
             className="trip-banner-error"
-            title="Couldn't check your current trip"
-            description="Refresh to check for a trip in progress."
+            title={`Couldn't check your current ${words.tripWord}`}
+            description={`Refresh to check for a ${words.tripWord} in progress.`}
             onRetry={() => void loadTripLane(true)}
           />
         ) : shouldShowTripBanner(tripLane) ? (
-          <section className="trip-banner" aria-label="Trip status">
+          <section className="trip-banner" aria-label={`${words.trip} status`}>
             <div className="trip-banner-copy">
               <StatusBadge
                 domain={tripLane.ride ? "ride" : "request"}
                 status={tripLane.ride?.rideStatus ?? lastRequest?.rideRequestStatus ?? "PENDING"}
+                labels={words}
               />
-              <strong>{tripLane.ride ? "Your trip is underway" : "Finding a driver nearby"}</strong>
+              <strong>{tripLane.ride ? `Your ${words.tripWord} is underway` : `Finding a ${words.driverWord} nearby`}</strong>
               {realtime.state !== "error" && realtime.state !== "reconnecting" ? <p>{tripLaneSyncMessage}</p> : null}
               <ReconnectingIndicator
                 state={realtime.state}
@@ -845,20 +809,20 @@ export default function RiderHomePage() {
               />
               {tripLane.ride ? <Money className="trip-banner-fare" amount={getRideFareValue(tripLane.ride)} /> : null}
               {tripLane.ride ? (
-                <RouteStrip stage={tripLane.ride.rideStatus} variant="static" />
+                <RouteStrip stage={tripLane.ride.rideStatus} variant="static" stageLabels={stageLabels} />
               ) : (
                 <div className="trip-matching-row">
-                  <MatchingIndicator label={`Matching you with a nearby ${driverLabel.toLowerCase()}`} expiresAtMs={pendingRequestExpiresAtMs} />
+                  <MatchingIndicator label={`Matching you with a nearby ${words.driverWord}`} expiresAtMs={pendingRequestExpiresAtMs} />
                 </div>
               )}
             </div>
             <div className="trip-banner-actions">
               <Link className="ui-button" data-variant="secondary" href={tripLane.ride ? "/ride/active" : "/rides"}>
-                View trip
+                {`View ${words.tripWord}`}
               </Link>
               {tripLane.ride && isRideCancelableFromTripLane(tripLane.ride.rideStatus) ? (
                 <Button variant="ghost" disabled={cancelingRideId !== null} onClick={() => setCancelDialogOpen(true)}>
-                  Cancel trip
+                  {`Cancel ${words.tripWord}`}
                 </Button>
               ) : null}
             </div>
@@ -883,7 +847,7 @@ export default function RiderHomePage() {
         open={bookingOpen}
         onOpenChange={setBookingOpen}
         side="bottom"
-        title={`Plan a ${tripLabel.toLowerCase()}`}
+        title={`Plan a ${words.tripWord}`}
         description="Choose locations on the map, then review your fare."
       >
         <div className="stack booking-form">
@@ -999,7 +963,7 @@ export default function RiderHomePage() {
                 <Money amount={estimate.discountedFare ?? estimate.estimatedFare} emphasis />
               </div>
               <DefinitionList items={[
-                { label: "Distance", value: formatDistance(estimate.distanceKm, getCurrencyLocale(branding?.currency)) },
+                { label: "Distance", value: formatDistance(estimate.distanceKm, getCurrencyLocale(branding.currency)) },
                 { label: "Estimated time", value: `${Math.round(estimate.durationMinutes)} min` },
                 { label: "Base fare", value: <Money amount={estimate.baseFare} /> },
                 ...(estimate.discountAmount ? [{ label: "Discount", value: <Money amount={estimate.discountAmount} /> }] : []),
@@ -1014,20 +978,20 @@ export default function RiderHomePage() {
           {error ? (
             <ErrorState
               title={error}
-              retryLabel={failedAction === "estimate" ? "Retry fare estimate" : failedAction === "request" ? "Retry trip request" : "Retry location"}
+              retryLabel={failedAction === "estimate" ? "Retry fare estimate" : failedAction === "request" ? `Retry ${words.tripWord} request` : "Retry location"}
               onRetry={() => void (failedAction ? retryLastAction() : setPickupToCurrentLocation())}
             />
           ) : null}
 
           {!hasSelectedLocations ? <p className="helper">Choose a pickup and destination on the map to estimate your fare.</p> : null}
-          {estimate && !hasFreshEstimate ? <p className="helper">Trip details changed. Update the estimate before you request.</p> : null}
-          {hasInFlightTrip ? <p className="helper">Finish or cancel your current trip before requesting another.</p> : null}
+          {estimate && !hasFreshEstimate ? <p className="helper">{`${words.trip} details changed. Update the estimate before you request.`}</p> : null}
+          {hasInFlightTrip ? <p className="helper">{`Finish or cancel your current ${words.tripWord} before requesting another.`}</p> : null}
 
           <Button variant="secondary" loading={estimating} disabled={!canEstimate} onClick={() => void estimateFare()}>
             {estimate && !hasFreshEstimate ? "Update estimate" : "Estimate fare"}
           </Button>
           <Button loading={requesting} disabled={!canRequest} onClick={() => void requestRide()}>
-            Request trip
+            {`Request ${words.tripWord}`}
           </Button>
         </div>
       </Sheet>
@@ -1035,9 +999,9 @@ export default function RiderHomePage() {
       <ConfirmDialog
         open={cancelDialogOpen}
         onOpenChange={setCancelDialogOpen}
-        title="Cancel this trip?"
-        description="Your driver will be notified that the trip is cancelled."
-        confirmLabel="Cancel trip"
+        title={`Cancel this ${words.tripWord}?`}
+        description={`Your ${words.driverWord} will be notified that the ${words.tripWord} is cancelled.`}
+        confirmLabel={`Cancel ${words.tripWord}`}
         onConfirm={cancelActiveRide}
       />
     </main>

@@ -29,6 +29,18 @@ const STATUS_ALIASES: Record<string, RouteStage> = {
   CANCELED: "cancelled",
 };
 
+/** Builds route-stage copy from the tenant nouns so live and history strips match the brand. */
+export function createRouteStageLabels(tripLabel = "Trip", driverLabel = "Driver"): RouteStageLabels {
+  return {
+    requested: `${tripLabel} requested`,
+    assigned: `${driverLabel} assigned`,
+    arriving: `${driverLabel} arriving`,
+    on_trip: `${tripLabel} in progress`,
+    completed: `${tripLabel} completed`,
+    cancelled: `${tripLabel} cancelled`,
+  };
+}
+
 /**
  * Show the pickup-to-drop-off progress line with text that communicates its current stage.
  * The static variant is intended for history rows and never displays a live marker.

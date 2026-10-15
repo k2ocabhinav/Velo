@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { getTenantLabelWords } from "@velo/app-core/tenant";
 import {
   Button,
   DateTime,
@@ -12,6 +13,7 @@ import {
   Section,
   Skeleton,
 } from "@velo/ui";
+import { useTenantBrandingOrDefault } from "@velo/ui/theme";
 import { mapApiError } from "../_lib/ride-forms";
 import { requestRiderProxy, type SpringPage } from "../_lib/rider-client";
 import {
@@ -59,6 +61,7 @@ function upsertNotification(current: RiderNotification[], event: RiderNotificati
 }
 
 export default function RiderNotificationsPage() {
+  const words = getTenantLabelWords(useTenantBrandingOrDefault());
   const [items, setItems] = useState<RiderNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -138,7 +141,7 @@ export default function RiderNotificationsPage() {
 
   return (
     <main className="app-shell rider-page stack">
-      <PageHeader title="Notifications" description="Ride updates and account activity, all in one place." />
+      <PageHeader title="Notifications" description={`${words.trip} updates and account activity, all in one place.`} />
       <Section title="Recent activity" actions={
         <div className="notification-actions">
           <span className="helper">{unreadCount} unread</span>
@@ -173,8 +176,8 @@ export default function RiderNotificationsPage() {
         {!loading && !error && items.length === 0 ? (
           <EmptyState
             title="No notifications yet"
-            description="Updates about your trips will appear here."
-            action={<Link className="ui-button" data-variant="primary" href="/">Book a trip</Link>}
+            description={`Updates about your ${words.tripsWord} will appear here.`}
+            action={<Link className="ui-button" data-variant="primary" href="/">{`Book a ${words.tripWord}`}</Link>}
           />
         ) : null}
         {!loading && !error && items.length > 0 ? (

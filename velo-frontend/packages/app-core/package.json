@@ -18,7 +18,8 @@
     "./ws-ticket": "./src/ws-ticket.ts",
     "./redirect": "./src/redirect.ts",
     "./formatters": "./src/formatters.ts",
-    "./tenant": "./src/tenant.ts"
+    "./tenant": "./src/tenant.ts",
+    "./tenant-server": "./src/tenant-server.ts"
   },
   "scripts": {
     "lint": "eslint .",

@@ -8,14 +8,21 @@ function toNumber(value: string): number | null {
   return parsed;
 }
 
-export function mapApiError(payload: unknown, fallback: string): string {
+export interface ApiErrorLabels {
+  driver?: string;
+  driverWord?: string;
+}
+
+export function mapApiError(payload: unknown, fallback: string, labels: ApiErrorLabels = {}): string {
+  const driverLabel = labels.driver?.trim() || "Driver";
+  const driverWord = labels.driverWord?.trim() || "driver";
   const normalizeConflict = (message: string): string => {
     const lower = message.toLowerCase();
     if (lower.includes("driver not found for user id")) {
-      return "No driver profile is linked to this session. Please sign out and sign back into the Driver portal.";
+      return `No ${driverWord} profile is linked to this session. Please sign out and sign back into the ${driverLabel} portal.`;
     }
     if (lower.includes("already been assigned") || lower.includes("already accepted")) {
-      return "This ride has already been assigned to another driver.";
+      return `This ride has already been assigned to another ${driverWord}.`;
     }
     if (lower.includes("cancelled")) {
       return "This ride request was cancelled.";

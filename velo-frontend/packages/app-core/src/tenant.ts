@@ -90,6 +90,54 @@ export function getTenantTripLabelForCount(
   });
 }
 
+/** Title-case and sentence-case forms of the tenant nouns, ready to drop into rider and driver copy. */
+export interface TenantLabelWords {
+  rider: string;
+  driver: string;
+  trip: string;
+  riders: string;
+  drivers: string;
+  trips: string;
+  riderWord: string;
+  driverWord: string;
+  tripWord: string;
+  tripsWord: string;
+}
+
+/**
+ * Resolves every form of the rider, driver and trip nouns once so screens can build
+ * "Accept transfer", "Your chauffeur" and "Your transfers" without repeating the casing rules.
+ */
+export function getTenantLabelWords(
+  branding: Pick<TenantBranding, "riderLabel" | "driverLabel" | "tripLabel">,
+): TenantLabelWords {
+  const rider = branding.riderLabel?.trim() || DEFAULT_TENANT_BRANDING.riderLabel;
+  const driver = branding.driverLabel?.trim() || DEFAULT_TENANT_BRANDING.driverLabel;
+  const trip = branding.tripLabel?.trim() || DEFAULT_TENANT_BRANDING.tripLabel;
+  const trips = getTenantPluralLabel(trip);
+  return {
+    rider,
+    driver,
+    trip,
+    riders: getTenantPluralLabel(rider),
+    drivers: getTenantPluralLabel(driver),
+    trips,
+    riderWord: rider.toLowerCase(),
+    driverWord: driver.toLowerCase(),
+    tripWord: trip.toLowerCase(),
+    tripsWord: trips.toLowerCase(),
+  };
+}
+
+/** Reads the tenant slug middleware attached to a request, falling back to the configured default. */
+export function resolveTenantSlugFromHeader(
+  headerValue: string | null | undefined,
+  defaultTenantSlug = getDefaultTenantSlug(),
+): string {
+  const value = headerValue?.trim();
+  return value ? value : defaultTenantSlug;
+}
+
 export interface TenantSlugOptions {
   hostname: string;
   defaultTenantSlug?: string;

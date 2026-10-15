@@ -8,8 +8,11 @@ import { fetchRoutePath, type MapPoint, type RoutePath } from "../../_lib/map/ro
 import { mapApiError, validateRatingInput } from "../../_lib/ride-forms";
 import { useRiderRideUpdatesSubscription, type RiderRideUpdateEvent } from "../../_lib/rider-ws";
 import { ReconnectingIndicator } from "@velo/ui/feedback";
+import { getTenantLabelWords } from "@velo/app-core/tenant";
+import { useTenantBrandingOrDefault } from "@velo/ui/theme";
 import {
   Button,
+  createRouteStageLabels,
   DateTime,
   DefinitionList,
   EmptyState,
@@ -69,13 +72,6 @@ type RiderRideItem = {
   endedAt?: string | null;
 };
 
-type TenantBranding = {
-  riderLabel?: string;
-  driverLabel?: string;
-  tripLabel?: string;
-  primaryColor?: string;
-};
-
 function toMapPoint(point: PointDto | null | undefined): MapPoint | null {
   if (!point || !Array.isArray(point.coordinates) || point.coordinates.length < 2) {
     return null;
@@ -105,6 +101,8 @@ function toDriverPoint(location: RiderTrackingPayload["lastDriverLocation"]): Ma
 }
 
 export default function RiderActiveRidePage() {
+  const words = getTenantLabelWords(useTenantBrandingOrDefault());
+  const stageLabels = createRouteStageLabels(words.trip, words.driver);
   const [tracking, setTracking] = useState<RiderTrackingPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -121,10 +119,8 @@ export default function RiderActiveRidePage() {
   const [submittingEndTrip, setSubmittingEndTrip] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [endDialogOpen, setEndDialogOpen] = useState(false);
-  const [branding, setBranding] = useState<TenantBranding | null>(null);
 
   const lifecycleStatus = normalizeRideLifecycleStatus(tracking?.status);
-  const driverLabel = branding?.driverLabel ?? "Driver";
 
   const pickup = useMemo(() => toMapPoint(tracking?.pickupLocation), [tracking?.pickupLocation]);
   const dropOff = useMemo(() => toMapPoint(tracking?.dropOffLocation), [tracking?.dropOffLocation]);
@@ -159,23 +155,20 @@ export default function RiderActiveRidePage() {
       } catch (loadError) {
         setError(
           loadError instanceof Error
-            ? mapApiError({ error: loadError.message }, "Unable to load active ride state.")
-            : "Unable to load active ride state.",
+            ? mapApiError({ error: loadError.message }, `Unable to load active ${words.tripWord} state.`)
+            : `Unable to load active ${words.tripWord} state.`,
         );
       } finally {
         setLoading(false);
         setRefreshing(false);
       }
     },
-    [],
+    [words.tripWord],
   );
 
   useEffect(() => {
     void loadTracking();
     void loadRecentEndedRide();
-    void requestRiderProxy<TenantBranding>("api/v1/tenant/branding")
-      .then((payload) => setBranding(payload))
-      .catch(() => setBranding(null));
   }, [loadRecentEndedRide, loadTracking]);
 
   useEffect(() => {
@@ -253,15 +246,15 @@ export default function RiderActiveRidePage() {
       });
 
       if (event.eventType === "RIDE_COMPLETED") {
-        setMessage("Ride completed. Please rate your driver.");
+        setMessage(`${words.trip} completed. Please rate your ${words.driverWord}.`);
         void loadRecentEndedRide();
       } else if (event.eventType === "RIDE_CANCELLED") {
-        setMessage("Ride cancelled.");
+        setMessage(`${words.trip} cancelled.`);
       }
 
       void loadTracking(true);
     },
-    [lifecycleStatus, loadRecentEndedRide, loadTracking],
+    [lifecycleStatus, loadRecentEndedRide, loadTracking, words.driverWord, words.trip],
   );
 
   const realtime = useRiderRideUpdatesSubscription(true, handleRideUpdate);
@@ -279,14 +272,14 @@ export default function RiderActiveRidePage() {
 
     try {
       await requestRiderProxy(`riders/cancelRide/${tracking.rideId}`, { method: "POST" });
-      setMessage("Trip cancelled.");
+      setMessage(`${words.trip} cancelled.`);
       await loadTracking(true);
       await loadRecentEndedRide();
     } catch (cancelError) {
       setActionError(
         cancelError instanceof Error
-          ? mapApiError({ error: cancelError.message }, "Unable to cancel active ride.")
-          : "Unable to cancel active ride.",
+          ? mapApiError({ error: cancelError.message }, `Unable to cancel active ${words.tripWord}.`)
+          : `Unable to cancel active ${words.tripWord}.`,
       );
       setRetryAction("cancel");
     } finally {
@@ -307,14 +300,14 @@ export default function RiderActiveRidePage() {
 
     try {
       await requestRiderProxy(`riders/endRide/${tracking.rideId}`, { method: "POST" });
-      setMessage("Trip completed.");
+      setMessage(`${words.trip} completed.`);
       await loadTracking(true);
       await loadRecentEndedRide();
     } catch (endError) {
       setActionError(
         endError instanceof Error
-          ? mapApiError({ error: endError.message }, "Unable to end this trip.")
-          : "Unable to end this trip.",
+          ? mapApiError({ error: endError.message }, `Unable to end this ${words.tripWord}.`)
+          : `Unable to end this ${words.tripWord}.`,
       );
       setRetryAction("end");
     } finally {
@@ -349,7 +342,7 @@ export default function RiderActiveRidePage() {
           rating: validation.rating,
         }),
       });
-      setMessage("Thanks for rating your driver.");
+      setMessage(`Thanks for rating your ${words.driverWord}.`);
       await loadRecentEndedRide();
     } catch (ratingError) {
       setActionError(
@@ -364,27 +357,27 @@ export default function RiderActiveRidePage() {
   }
 
   const statusHeadline = lifecycleStatus === "PENDING"
-    ? "Finding a driver"
+    ? `Finding a ${words.driverWord}`
     : lifecycleStatus === "CONFIRMED"
-      ? typeof tracking?.etaMinutes === "number" ? `Driver arriving in ${tracking.etaMinutes} min` : "Driver assigned"
+      ? typeof tracking?.etaMinutes === "number" ? `${words.driver} arriving in ${tracking.etaMinutes} min` : `${words.driver} assigned`
       : lifecycleStatus === "ONGOING"
-        ? "Your trip is in progress"
+        ? `Your ${words.tripWord} is in progress`
         : lifecycleStatus === "ENDED"
-          ? "Trip complete"
+          ? `${words.trip} complete`
           : lifecycleStatus === "CANCELLED"
-            ? "Trip cancelled"
-            : "Your trip";
+            ? `${words.trip} cancelled`
+            : `Your ${words.tripWord}`;
   const canCancel = Boolean(tracking?.rideId && tracking.canCancel && lifecycleStatus === "CONFIRMED");
   const fareValue = ratingRide?.fare ?? null;
 
   return (
     <main className="app-shell rider-page stack">
-      <PageHeader title="Your trip" description="Follow your driver and see the latest trip updates." />
+      <PageHeader title={`Your ${words.tripWord}`} description={`Follow your ${words.driverWord} and see the latest ${words.tripWord} updates.`} />
 
       {error ? (
         <ErrorState
-          title="Couldn't refresh trip details"
-          description="Check your connection, then retry to get the latest trip status."
+          title={`Couldn't refresh ${words.tripWord} details`}
+          description={`Check your connection, then retry to get the latest ${words.tripWord} status.`}
           onRetry={() => void loadTracking(true)}
         />
       ) : null}
@@ -404,16 +397,16 @@ export default function RiderActiveRidePage() {
         <ReconnectingIndicator
           state={realtime.state}
           attempts={realtime.reconnectAttempts}
-          message="Live updates paused. Trip details refresh automatically."
-          retryLabel="Refresh trip"
+          message={`Live updates paused. ${words.trip} details refresh automatically.`}
+          retryLabel={`Refresh ${words.tripWord}`}
           retrying={refreshing}
           onRetry={() => void loadTracking(true)}
         />
       ) : null}
 
       {loading ? (
-        <Section title="Loading your trip">
-          <div className="stack" role="status" aria-label="Loading trip details" aria-busy="true">
+        <Section title={`Loading your ${words.tripWord}`}>
+          <div className="stack" role="status" aria-label={`Loading ${words.tripWord} details`} aria-busy="true">
             <Skeleton className="skeleton-line skeleton-line-wide" />
             <Skeleton className="skeleton-card" />
             <Skeleton className="active-map-skeleton" />
@@ -425,40 +418,40 @@ export default function RiderActiveRidePage() {
         <>
           <Section className="active-trip-hero">
             <div className="active-trip-status-row">
-              <StatusBadge status={tracking.status} domain="ride" />
+              <StatusBadge status={tracking.status} domain="ride" labels={words} />
               {tracking.updatedAt ? <span className="helper">Updated <DateTime value={tracking.updatedAt} /></span> : null}
             </div>
             <h2 className="active-trip-headline">{statusHeadline}</h2>
-            <RouteStrip stage={tracking.status ?? "PENDING"} />
+            <RouteStrip stage={tracking.status ?? "PENDING"} stageLabels={stageLabels} />
             {message ? <p className="booking-feedback" role="status">{message}</p> : null}
           </Section>
 
           {lifecycleStatus === "CONFIRMED" && tracking.otp ? (
-            <Section title="Start your trip">
-              <p className="helper">Share this code with your driver when you meet.</p>
+            <Section title={`Start your ${words.tripWord}`}>
+              <p className="helper">{`Share this code with your ${words.driverWord} when you meet.`}</p>
               <code className="trip-otp">{tracking.otp}</code>
             </Section>
           ) : null}
 
-          <Section title={driverLabel}>
+          <Section title={words.driver}>
             {tracking.driver ? (
               <DefinitionList items={[
-                { label: "Name", value: tracking.driver.name || "Driver assigned" },
+                { label: "Name", value: tracking.driver.name || `${words.driver} assigned` },
                 ...(tracking.driver.vehicleId ? [{ label: "Vehicle plate", value: tracking.driver.vehicleId }] : []),
                 ...(typeof tracking.driver.rating === "number" ? [{ label: "Rating", value: `${tracking.driver.rating.toFixed(1)} out of 5` }] : []),
               ]} />
-            ) : <p className="helper">We’ll show your driver details when someone accepts your trip.</p>}
+            ) : <p className="helper">{`We’ll show your ${words.driverWord} details when someone accepts your ${words.tripWord}.`}</p>}
           </Section>
 
           <Section title="Live map">
             {loadingRoute ? <p className="helper">Updating route…</p> : null}
             {pickup && dropOff ? (
-              <ActiveRideMap pickup={pickup} dropOff={dropOff} driver={driver} routePoints={routePath?.points ?? []} />
+              <ActiveRideMap pickup={pickup} dropOff={dropOff} driver={driver} routePoints={routePath?.points ?? []} driverLabel={words.driver} />
             ) : (
               <EmptyState
                 title="Map details are not ready yet"
-                description="Refresh the trip to check for updated pickup and destination details."
-                action={<Button variant="secondary" loading={refreshing} onClick={() => void loadTracking(true)}>Refresh trip</Button>}
+                description={`Refresh the ${words.tripWord} to check for updated pickup and destination details.`}
+                action={<Button variant="secondary" loading={refreshing} onClick={() => void loadTracking(true)}>{`Refresh ${words.tripWord}`}</Button>}
               />
             )}
           </Section>
@@ -466,12 +459,12 @@ export default function RiderActiveRidePage() {
           <div className="active-trip-actions">
             {canCancel ? (
               <Button variant="danger" disabled={submittingCancel} onClick={() => setCancelDialogOpen(true)}>
-                Cancel trip
+                {`Cancel ${words.tripWord}`}
               </Button>
             ) : null}
             {lifecycleStatus === "ONGOING" ? (
               <Button variant="secondary" loading={submittingEndTrip} onClick={() => setEndDialogOpen(true)}>
-                End trip
+                {`End ${words.tripWord}`}
               </Button>
             ) : null}
             <Button variant="secondary" loading={refreshing} onClick={() => void loadTracking(true)}>
@@ -484,16 +477,16 @@ export default function RiderActiveRidePage() {
       {!loading && !error && !tracking ? (
         <>
           <EmptyState
-            title="No active trip"
-            description="Book a trip when you’re ready. Your recent completed trip is shown below for rating."
-            action={<a className="ui-button" data-variant="primary" href="/">Book a trip</a>}
+            title={`No active ${words.tripWord}`}
+            description={`Book a ${words.tripWord} when you’re ready. Your recent completed ${words.tripWord} is shown below for rating.`}
+            action={<a className="ui-button" data-variant="primary" href="/">{`Book a ${words.tripWord}`}</a>}
           />
           {ratingRide ? (
-            <Section title="Rate your last trip">
+            <Section title={`Rate your last ${words.tripWord}`}>
               <div className="completed-trip-summary">
                 <div>
                   <StatusBadge status="ENDED" domain="ride" />
-                  <p className="helper">{ratingRide.endedAt ? <DateTime value={ratingRide.endedAt} /> : "Completed trip"}</p>
+                  <p className="helper">{ratingRide.endedAt ? <DateTime value={ratingRide.endedAt} /> : `Completed ${words.tripWord}`}</p>
                 </div>
                 <Money amount={fareValue} />
               </div>
@@ -519,17 +512,17 @@ export default function RiderActiveRidePage() {
       <ConfirmDialog
         open={cancelDialogOpen}
         onOpenChange={setCancelDialogOpen}
-        title="Cancel this trip?"
-        description="Your driver will be notified that the trip is cancelled."
-        confirmLabel="Cancel trip"
+        title={`Cancel this ${words.tripWord}?`}
+        description={`Your ${words.driverWord} will be notified that the ${words.tripWord} is cancelled.`}
+        confirmLabel={`Cancel ${words.tripWord}`}
         onConfirm={cancelRide}
       />
       <ConfirmDialog
         open={endDialogOpen}
         onOpenChange={setEndDialogOpen}
-        title="End this trip?"
-        description="This will mark the current trip as complete."
-        confirmLabel="End trip"
+        title={`End this ${words.tripWord}?`}
+        description={`This will mark the current ${words.tripWord} as complete.`}
+        confirmLabel={`End ${words.tripWord}`}
         destructive={false}
         onConfirm={endRide}
       />

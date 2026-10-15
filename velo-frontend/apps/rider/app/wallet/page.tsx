@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { getTenantLabelWords } from "@velo/app-core/tenant";
 import {
   Button,
   DateTime,
@@ -15,6 +16,7 @@ import {
   Skeleton,
   ConfirmDialog,
 } from "@velo/ui";
+import { useTenantBrandingOrDefault } from "@velo/ui/theme";
 import { requestRiderProxy, type DecimalValue, type SpringPage } from "../_lib/rider-client";
 
 type PaymentMethod = {
@@ -48,14 +50,15 @@ function transactionTypeLabel(type: string): string {
   return "Wallet transaction";
 }
 
-function transactionMethodLabel(method: string): string {
+function transactionMethodLabel(method: string, tripLabel: string): string {
   if (method === "BANKING") return "Bank transfer";
-  if (method === "RIDE") return "Trip payment";
+  if (method === "RIDE") return `${tripLabel} payment`;
   if (method === "WALLET") return "Wallet";
   return "Payment method";
 }
 
 export default function RiderWalletPage() {
+  const words = getTenantLabelWords(useTenantBrandingOrDefault());
   const [methods, setMethods] = useState<PaymentMethod[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -202,7 +205,7 @@ export default function RiderWalletPage() {
         ) : wallet ? (
           <>
             <Money amount={wallet.balance} currency={wallet.currency} emphasis className="wallet-balance-figure" />
-            <p className="helper">Available for your next trip.</p>
+            <p className="helper">{`Available for your next ${words.tripWord}.`}</p>
           </>
         ) : null}
       </Section>
@@ -214,7 +217,7 @@ export default function RiderWalletPage() {
           </div>
         ) : null}
         {!walletLoading && !walletError && transactions.length === 0 ? (
-          <EmptyState title="No wallet transactions yet" description="Wallet activity will appear here after a balance change or trip payment." />
+          <EmptyState title="No wallet transactions yet" description={`Wallet activity will appear here after a balance change or ${words.tripWord} payment.`} />
         ) : null}
         {!walletLoading && !walletError && transactions.length > 0 ? (
           <>
@@ -226,9 +229,9 @@ export default function RiderWalletPage() {
                     <p className="helper">
                       <DateTime value={transaction.timestamp} />
                       <span aria-hidden="true"> · </span>
-                      {transactionMethodLabel(transaction.method)}
+                      {transactionMethodLabel(transaction.method, words.trip)}
                       {transaction.rideReference !== null && transaction.rideReference !== undefined ? (
-                        <span className="wallet-ride-reference"> · <span className="mono">Trip #{transaction.rideReference}</span></span>
+                        <span className="wallet-ride-reference"> · <span className="mono">{words.trip} #{transaction.rideReference}</span></span>
                       ) : null}
                     </p>
                   </div>
@@ -298,7 +301,7 @@ export default function RiderWalletPage() {
         onOpenChange={setAddSheetOpen}
         side="bottom"
         title="Add payment method"
-        description="Save a card or wallet option for future trips."
+        description={`Save a card or wallet option for future ${words.tripsWord}.`}
       >
         <div className="stack payment-method-form">
           {error ? <p className="error-text" role="alert">{error}</p> : null}

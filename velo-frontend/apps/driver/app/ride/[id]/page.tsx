@@ -4,8 +4,10 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@velo/ui/primitives";
-import { ConfirmDialog, DateTime, EmptyState, ErrorState, Field, Money, PageHeader, RouteStrip, Section, Select, StatusBadge } from "@velo/ui/composed";
+import { createRouteStageLabels, ConfirmDialog, DateTime, EmptyState, ErrorState, Field, Money, PageHeader, RouteStrip, Section, Select, StatusBadge } from "@velo/ui/composed";
 import { ReconnectingIndicator } from "@velo/ui/feedback";
+import { getTenantLabelWords } from "@velo/app-core/tenant";
+import { useTenantBrandingOrDefault } from "@velo/ui/theme";
 import { requestDriverProxy, type DriverRide, type SpringPage } from "../../_lib/driver-client";
 import {
   canSubmitCancelRide,
@@ -40,6 +42,8 @@ function getNavigationUrl(point: { lat: number; lng: number } | null): string | 
 export default function DriverRidePage() {
   const params = useParams<{ id: string }>();
   const rideId = Number(params?.id);
+  const words = getTenantLabelWords(useTenantBrandingOrDefault());
+  const stageLabels = createRouteStageLabels(words.trip, words.driver);
   const [ride, setRide] = useState<DriverRide | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -76,19 +80,19 @@ export default function DriverRidePage() {
       setNotFound(!selectedRide);
       setRide(selectedRide);
     } catch (loadErrorValue) {
-      setLoadError(loadErrorValue instanceof Error ? loadErrorValue.message : "Unable to load trip details.");
+      setLoadError(loadErrorValue instanceof Error ? loadErrorValue.message : `Unable to load ${words.tripWord} details.`);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [rideId]);
+  }, [rideId, words.tripWord]);
 
   useEffect(() => {
     void loadRide();
   }, [loadRide]);
 
   const status = ride?.rideStatus ?? null;
-  const locationPublisher = useDriverLocationPublisher(status);
+  const locationPublisher = useDriverLocationPublisher(status, false, words.trip);
   const pickupPoint = useMemo(() => toMapPoint(ride?.pickupLocation), [ride?.pickupLocation]);
   const dropOffPoint = useMemo(() => toMapPoint(ride?.dropOffLocation), [ride?.dropOffLocation]);
   const driverPoint = locationPublisher.lastPublishedPoint;
@@ -146,9 +150,9 @@ export default function DriverRidePage() {
         body: JSON.stringify({ otp: otpValidation.value }),
       });
       setRide(updated);
-      setMessage("Trip started.");
+      setMessage(`${words.trip} started.`);
     } catch (actionErrorValue) {
-      setActionError(actionErrorValue instanceof Error ? mapApiError({ error: actionErrorValue.message }, "Unable to start trip.") : "Unable to start trip.");
+      setActionError(actionErrorValue instanceof Error ? mapApiError({ error: actionErrorValue.message }, `Unable to start ${words.tripWord}.`, words) : `Unable to start ${words.tripWord}.`);
       setRetryAction(() => () => { void startRide(); });
     } finally {
       setPendingAction(null);
@@ -164,9 +168,9 @@ export default function DriverRidePage() {
     try {
       const updated = await requestDriverProxy<DriverRide>(`drivers/endRide/${ride.id}`, { method: "POST" });
       setRide(updated);
-      setMessage(ride.rider ? "Trip completed. Please rate the rider." : "Trip completed.");
+      setMessage(ride.rider ? `${words.trip} completed. Please rate the ${words.riderWord}.` : `${words.trip} completed.`);
     } catch (actionErrorValue) {
-      setActionError(actionErrorValue instanceof Error ? mapApiError({ error: actionErrorValue.message }, "Unable to complete trip.") : "Unable to complete trip.");
+      setActionError(actionErrorValue instanceof Error ? mapApiError({ error: actionErrorValue.message }, `Unable to complete ${words.tripWord}.`, words) : `Unable to complete ${words.tripWord}.`);
       setRetryAction(() => () => { void endRide(); });
     } finally {
       setPendingAction(null);
@@ -182,9 +186,9 @@ export default function DriverRidePage() {
     try {
       const updated = await requestDriverProxy<DriverRide>(`drivers/cancelRide/${ride.id}`, { method: "POST" });
       setRide(updated);
-      setMessage("Trip cancelled.");
+      setMessage(`${words.trip} cancelled.`);
     } catch (actionErrorValue) {
-      setActionError(actionErrorValue instanceof Error ? mapApiError({ error: actionErrorValue.message }, "Unable to cancel trip.") : "Unable to cancel trip.");
+      setActionError(actionErrorValue instanceof Error ? mapApiError({ error: actionErrorValue.message }, `Unable to cancel ${words.tripWord}.`, words) : `Unable to cancel ${words.tripWord}.`);
       setRetryAction(() => () => { void cancelRide(); });
     } finally {
       setPendingAction(null);
@@ -209,9 +213,9 @@ export default function DriverRidePage() {
         body: JSON.stringify({ rideId: ride.id, rating: validation.value }),
       });
       setRatedRideId(ride.id);
-      setMessage("Rider rating submitted.");
+      setMessage(`${words.rider} rating submitted.`);
     } catch (ratingError) {
-      setActionError(ratingError instanceof Error ? mapApiError({ error: ratingError.message }, "Unable to submit rider rating.") : "Unable to submit rider rating.");
+      setActionError(ratingError instanceof Error ? mapApiError({ error: ratingError.message }, `Unable to submit ${words.riderWord} rating.`) : `Unable to submit ${words.riderWord} rating.`);
       setRetryAction(() => () => { void rateRider(); });
     } finally {
       setSubmittingRating(false);
@@ -220,21 +224,21 @@ export default function DriverRidePage() {
 
   return (
     <main className="stack">
-      <PageHeader title="Trip details" description="Follow the route and complete the next action when you’re ready." />
+      <PageHeader title={`${words.trip} details`} description="Follow the route and complete the next action when you’re ready." />
 
       {actionError ? (
         <ErrorState
-          title="Couldn't update this trip"
+          title={`Couldn't update this ${words.tripWord}`}
           description={actionError}
           onRetry={retryAction ?? (() => void loadRide(true))}
-          retryLabel={retryAction ? "Retry action" : "Refresh trip"}
+          retryLabel={retryAction ? "Retry action" : `Refresh ${words.tripWord}`}
         />
       ) : null}
       {message ? <p role="status" className="helper">{message}</p> : null}
 
       {loading ? (
-        <Section title="Loading trip">
-          <div className="stack compact" role="status" aria-label="Loading trip details" aria-busy="true">
+        <Section title={`Loading ${words.tripWord}`}>
+          <div className="stack compact" role="status" aria-label={`Loading ${words.tripWord} details`} aria-busy="true">
             <div className="h-5 w-32 animate-pulse rounded-md bg-[hsl(var(--color-surface-hover))]" />
             <div className="h-14 w-full animate-pulse rounded-md bg-[hsl(var(--color-surface-hover))]" />
             <div className="h-64 w-full animate-pulse rounded-md bg-[hsl(var(--color-surface-hover))]" />
@@ -242,31 +246,31 @@ export default function DriverRidePage() {
         </Section>
       ) : null}
       {!loading && !ride && loadError ? (
-        <ErrorState title="Couldn't load this trip" description={loadError} onRetry={() => void loadRide()} />
+        <ErrorState title={`Couldn't load this ${words.tripWord}`} description={loadError} onRetry={() => void loadRide()} />
       ) : null}
       {!loading && !ride && !loadError ? (
-        <EmptyState title={notFound ? "Trip unavailable" : "No trip selected"} description={notFound ? "This trip isn’t in your recent history." : "Open a trip from your history to see its details."} action={<Link href="/rides" className="ui-button" data-variant="secondary">Back to trips</Link>} />
+        <EmptyState title={notFound ? `${words.trip} unavailable` : `No ${words.tripWord} selected`} description={notFound ? `This ${words.tripWord} isn’t in your recent history.` : `Open a ${words.tripWord} from your history to see its details.`} action={<Link href="/rides" className="ui-button" data-variant="secondary">{`Back to ${words.tripsWord}`}</Link>} />
       ) : null}
 
       {!loading && ride ? (
         <>
-          <Section title="Trip progress" actions={<Button variant="secondary" disabled={refreshing} onClick={() => void loadRide(true)}>{refreshing ? "Refreshing…" : "Refresh"}</Button>}>
+          <Section title={`${words.trip} progress`} actions={<Button variant="secondary" disabled={refreshing} onClick={() => void loadRide(true)}>{refreshing ? "Refreshing…" : "Refresh"}</Button>}>
             <div className="driver-trip-summary">
               <div className="driver-row-meta">
-                <code className="driver-reference">Trip {ride.id}</code>
-                <StatusBadge domain="ride" status={ride.rideStatus} />
+                <code className="driver-reference">{words.trip} {ride.id}</code>
+                <StatusBadge domain="ride" status={ride.rideStatus} labels={words} />
                 <DateTime value={ride.startedAt ?? ride.createdTime ?? ride.endedAt} />
               </div>
-              <RouteStrip stage={status ?? "requested"} />
+              <RouteStrip stage={status ?? "requested"} stageLabels={stageLabels} />
               <dl className="driver-money-breakdown">
-                <div><dt>Rider</dt><dd>{ride.rider?.user?.name ?? "Dispatch rider"}</dd></div>
+                <div><dt>{words.rider}</dt><dd>{ride.rider?.user?.name ?? `Dispatch ${words.riderWord}`}</dd></div>
                 <div><dt>Fare</dt><dd><Money amount={getDriverRideFareValue(ride)} emphasis /></dd></div>
                 <div><dt>Payment</dt><dd>{getPaymentMethodLabel(ride.paymentMethod)}</dd></div>
                 {ride.promoCode ? <div><dt>Promotion</dt><dd>{ride.promoCode}</dd></div> : null}
               </dl>
               <div className="driver-map-actions">
                 {navigationUrl ? <a className="ui-button" data-variant="secondary" href={navigationUrl} target="_blank" rel="noreferrer">Navigate to {status === "ONGOING" ? "drop-off" : "pickup"}</a> : null}
-                {ride.rider?.user?.phoneNumber ? <a className="ui-button" data-variant="secondary" href={`tel:${ride.rider.user.phoneNumber}`}>Call rider</a> : null}
+                {ride.rider?.user?.phoneNumber ? <a className="ui-button" data-variant="secondary" href={`tel:${ride.rider.user.phoneNumber}`}>{`Call ${words.riderWord}`}</a> : null}
                 {loadingRoute ? <span className="helper" role="status">Updating route…</span> : null}
               </div>
             </div>
@@ -276,9 +280,9 @@ export default function DriverRidePage() {
             <ReconnectingIndicator
               state={realtime.state}
               attempts={realtime.reconnectAttempts}
-              message="Live updates paused. Trip details refresh automatically."
+              message={`Live updates paused. ${words.trip} details refresh automatically.`}
               onRetry={() => void loadRide(true)}
-              retryLabel="Refresh trip"
+              retryLabel={`Refresh ${words.tripWord}`}
               retrying={loading}
             />
             {locationPublisher.mode === "degraded" ? (
@@ -289,12 +293,12 @@ export default function DriverRidePage() {
                 </Button>
               </div>
             ) : <p className="helper">{locationPublisher.message}</p>}
-            <DriverRideMapLoader pickup={pickupPoint} dropOff={dropOffPoint} driver={driverPoint} routePoints={routePath?.points ?? []} />
+            <DriverRideMapLoader pickup={pickupPoint} dropOff={dropOffPoint} driver={driverPoint} routePoints={routePath?.points ?? []} driverLabel={words.driver} />
           </Section>
 
           <Section title="Next action">
             {canEnterStartDetails && otpRequired ? (
-              <Field label="Rider OTP" hint="Enter the 4-digit code from the rider to start the trip.">
+              <Field label={`${words.rider} OTP`} hint={`Enter the 4-digit code from the ${words.riderWord} to start the ${words.tripWord}.`}>
                 <input
                   className="ui-control driver-otp-input"
                   value={otp}
@@ -302,19 +306,19 @@ export default function DriverRidePage() {
                   placeholder="••••"
                   inputMode="numeric"
                   autoComplete="one-time-code"
-                  aria-label="4-digit rider OTP"
+                  aria-label={`4-digit ${words.riderWord} OTP`}
                   maxLength={4}
                 />
               </Field>
             ) : null}
-            {canEnterStartDetails && !otpRequired ? <p className="helper">This dispatch trip does not require an OTP.</p> : null}
-            {canEnterStartDetails ? <Button className="driver-action-button" disabled={!canStart} loading={pendingAction === "START"} onClick={() => void startRide()}>Start trip</Button> : null}
-            {canEnd ? <Button className="driver-action-button" loading={pendingAction === "END"} onClick={() => void endRide()}>Complete trip</Button> : null}
-            {!canEnterStartDetails && !canEnd ? <p className="helper">No trip action is needed right now.</p> : null}
-            {canCancel ? <Button variant="secondary" className="driver-action-button" onClick={() => setCancelDialogOpen(true)}>Cancel trip</Button> : null}
+            {canEnterStartDetails && !otpRequired ? <p className="helper">{`This dispatch ${words.tripWord} does not require an OTP.`}</p> : null}
+            {canEnterStartDetails ? <Button className="driver-action-button" disabled={!canStart} loading={pendingAction === "START"} onClick={() => void startRide()}>{`Start ${words.tripWord}`}</Button> : null}
+            {canEnd ? <Button className="driver-action-button" loading={pendingAction === "END"} onClick={() => void endRide()}>{`Complete ${words.tripWord}`}</Button> : null}
+            {!canEnterStartDetails && !canEnd ? <p className="helper">{`No ${words.tripWord} action is needed right now.`}</p> : null}
+            {canCancel ? <Button variant="secondary" className="driver-action-button" onClick={() => setCancelDialogOpen(true)}>{`Cancel ${words.tripWord}`}</Button> : null}
             {ride.rider && status === "ENDED" ? (
               <div className="driver-actions">
-                <Field label="Rate rider">
+                <Field label={`Rate ${words.riderWord}`}>
                   <Select value={ratingValue} onChange={(event) => setRatingValue(event.target.value)}>
                     <option value="5">5 stars</option>
                     <option value="4">4 stars</option>
@@ -333,9 +337,9 @@ export default function DriverRidePage() {
           <ConfirmDialog
             open={cancelDialogOpen}
             onOpenChange={setCancelDialogOpen}
-            title="Cancel this trip?"
-            description="The trip will be cancelled and removed from your active work."
-            confirmLabel="Cancel trip"
+            title={`Cancel this ${words.tripWord}?`}
+            description={`The ${words.tripWord} will be cancelled and removed from your active work.`}
+            confirmLabel={`Cancel ${words.tripWord}`}
             onConfirm={cancelRide}
           />
         </>

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getTenantLabelWords } from "@velo/app-core/tenant";
+import { useTenantBrandingOrDefault } from "@velo/ui/theme";
 import { requestDriverProxy, type DriverProfile } from "../_lib/driver-client";
 import { useDriverLocationPublisher } from "../_lib/driver-location-publisher";
 
@@ -8,6 +10,7 @@ const PROFILE_REFRESH_INTERVAL_MS = 30_000;
 
 export function DriverIdleLocationHeartbeat() {
   const [online, setOnline] = useState(false);
+  const { trip } = getTenantLabelWords(useTenantBrandingOrDefault());
 
   useEffect(() => {
     let disposed = false;
@@ -32,6 +35,6 @@ export function DriverIdleLocationHeartbeat() {
     };
   }, []);
 
-  useDriverLocationPublisher(null, online);
+  useDriverLocationPublisher(null, online, trip);
   return null;
 }

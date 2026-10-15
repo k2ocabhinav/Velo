@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { AuthLayout } from "@velo/ui/composed";
 import { registerErrorMessage } from "@velo/app-core/auth-errors";
+import { getTenantLabelWords } from "@velo/app-core/tenant";
+import { getRequestTenantContext } from "@velo/app-core/tenant-server";
 import { Suspense } from "react";
 import { RegisterForm } from "./_components/register-form";
 
@@ -20,11 +22,13 @@ function readParam(value: string | string[] | undefined): string | null {
 export default async function DriverRegisterPage({ searchParams }: RegisterPageProps) {
   const params = await searchParams;
   const initialError = registerErrorMessage(readParam(params?.error));
+  const { branding } = await getRequestTenantContext();
+  const words = getTenantLabelWords(branding);
 
   return (
     <AuthLayout
-      product="Driver"
-      statement="Go online, accept trips and track every payout."
+      product={words.driver}
+      statement={`Go online, accept ${words.tripsWord} and track every payout.`}
       title="Apply to drive"
       description="Create your account and add your vehicle. An admin reviews every application."
       footer={

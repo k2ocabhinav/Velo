@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import type { CSSProperties, ReactNode } from "react";
 import { Barlow_Condensed, Inter } from "next/font/google";
-import { DEFAULT_TENANT_BRANDING, fetchTenantBranding, getDefaultTenantSlug, TENANT_SLUG_HEADER } from "@velo/app-core/tenant";
+import { getRequestTenantContext } from "@velo/app-core/tenant-server";
 import { resolveTenantPrimaryStyle, TenantBrandingProvider } from "@velo/ui/theme";
 import { DriverShell } from "./_components/driver-shell";
 import "leaflet/dist/leaflet.css";
@@ -24,12 +23,10 @@ const inter = Inter({
 });
 
 export async function generateMetadata(): Promise<Metadata> {
-  const requestHeaders = await headers();
-  const tenantSlug = requestHeaders.get(TENANT_SLUG_HEADER) ?? getDefaultTenantSlug();
-  const branding = await fetchTenantBranding(tenantSlug) ?? DEFAULT_TENANT_BRANDING;
+  const { branding } = await getRequestTenantContext();
   return {
-    title: `${branding.brandName} Driver`,
-    description: `Driver workspace for ${branding.brandName}`,
+    title: `${branding.brandName} ${branding.driverLabel}`,
+    description: `${branding.driverLabel} workspace for ${branding.brandName}`,
   };
 }
 
@@ -38,9 +35,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: ReactNode;
 }>) {
-  const requestHeaders = await headers();
-  const tenantSlug = requestHeaders.get(TENANT_SLUG_HEADER) ?? getDefaultTenantSlug();
-  const branding = await fetchTenantBranding(tenantSlug) ?? DEFAULT_TENANT_BRANDING;
+  const { tenantSlug, branding } = await getRequestTenantContext();
 
   return (
     <html

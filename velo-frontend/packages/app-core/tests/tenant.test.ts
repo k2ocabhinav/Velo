@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest, NextResponse } from "next/server";
-import { attachTenantSlugHeader, DEFAULT_TENANT_BRANDING, fetchTenantBranding, getTenantAdminUsersLabel, getTenantLabelForCount, getTenantPluralLabel, getTenantPluralTripLabel, getTenantTripLabelForCount, getTenantWordmark, resolveTenantSlug, TENANT_SLUG_HEADER } from "../src/tenant";
+import { attachTenantSlugHeader, DEFAULT_TENANT_BRANDING, fetchTenantBranding, getTenantAdminUsersLabel, getTenantLabelForCount, getTenantLabelWords, getTenantPluralLabel, getTenantPluralTripLabel, getTenantTripLabelForCount, getTenantWordmark, resolveTenantSlug, resolveTenantSlugFromHeader, TENANT_SLUG_HEADER } from "../src/tenant";
 
 afterEach(() => vi.unstubAllEnvs());
 
@@ -92,6 +92,43 @@ describe("tenant branding fetch", () => {
     expect(getTenantTripLabelForCount(3, "Transfer", { midSentence: true })).toBe("transfers");
     expect(getTenantTripLabelForCount(0, "Airport Transfer", { midSentence: true })).toBe("airport transfers");
     expect(getTenantTripLabelForCount(2, null, { midSentence: true })).toBe("trips");
+  });
+
+  it("resolves every title and sentence case form of the tenant nouns in one pass", () => {
+    expect(getTenantLabelWords({ riderLabel: "Guest", driverLabel: "Chauffeur", tripLabel: "Transfer" })).toEqual({
+      rider: "Guest",
+      driver: "Chauffeur",
+      trip: "Transfer",
+      riders: "Guests",
+      drivers: "Chauffeurs",
+      trips: "Transfers",
+      riderWord: "guest",
+      driverWord: "chauffeur",
+      tripWord: "transfer",
+      tripsWord: "transfers",
+    });
+  });
+
+  it("falls back to the Velo nouns when the tenant has no labels", () => {
+    expect(getTenantLabelWords({ riderLabel: "", driverLabel: "", tripLabel: "" })).toEqual({
+      rider: "Rider",
+      driver: "Driver",
+      trip: "Trip",
+      riders: "Riders",
+      drivers: "Drivers",
+      trips: "Trips",
+      riderWord: "rider",
+      driverWord: "driver",
+      tripWord: "trip",
+      tripsWord: "trips",
+    });
+  });
+
+  it("reads the middleware tenant header and falls back when it is absent", () => {
+    expect(resolveTenantSlugFromHeader("saffron-routes", "default")).toBe("saffron-routes");
+    expect(resolveTenantSlugFromHeader("  saffron-routes  ", "default")).toBe("saffron-routes");
+    expect(resolveTenantSlugFromHeader(null, "default")).toBe("default");
+    expect(resolveTenantSlugFromHeader("   ", "default")).toBe("default");
   });
 
   it("loads the public envelope using the Next fetch revalidation cache", async () => {
