@@ -44,9 +44,10 @@
 - [x] E2E determinism: mock API for server-side branding; 48 passed, 0 failed (3 consecutive runs + orchestrator CI run)
 - [x] Landing polish: debug-looking labels removed; README screenshots refreshed (day + night) (small fleets, pre-booked transfers), pricing hypothesis, contact form; Netlify-free-tier deployable
 - [x] Demo rehearsal fixes: per-host tenant branding, production demo stack, fresh fixture reset, ride request mapping, tenant currency (V11), form-post login with same-origin check, realistic fares/wallets, offer addresses and expiry (V12)
-- [ ] Live fleet map on admin Dispatch (`GET /admin/dispatch/live`, decision 0024)
-- [ ] Demo fleet simulator (`packages/demo-sim`, simulated accounts, matching isolation, V13; decision 0024)
-- [ ] Demo polish: single request countdown, driver name on profile, operator-style audit seed text, rounded distance, plurals
+- [x] Live fleet map on admin Dispatch (`GET /admin/dispatch/live`, decision 0024)
+- [x] Demo fleet simulator (`packages/demo-sim`, simulated accounts, matching isolation incl. manual assignment, V13, live controls panel + `scripts/demo-sim.sh`; decision 0024)
+- [x] Rider live trip updates delivered over WebSocket (principal fix, decision 0025)
+- [x] Demo polish: single request countdown, driver name on profile, operator-style audit seed text, rounded distance, plurals; demo seed fixtures repaired
 
 ### After program acceptance (parked; depth features)
 - Corporate accounts + contract tariffs + monthly statements; driver/vehicle document readiness + incidents; DPDP features (consent, export/deletion, retention); PWA + web push; OSRM road-based ETA dispatch; Hindi localization
