@@ -12,6 +12,7 @@ type BrandingForm = {
   riderLabel: string;
   driverLabel: string;
   tripLabel: string;
+  currency: string;
   dispatchMode: BrandingSettings["dispatchMode"];
 };
 
@@ -23,6 +24,7 @@ function toForm(settings: BrandingSettings): BrandingForm {
     riderLabel: settings.riderLabel ?? "Rider",
     driverLabel: settings.driverLabel ?? "Driver",
     tripLabel: settings.tripLabel ?? "Trip",
+    currency: settings.currency ?? "USD",
     dispatchMode: settings.dispatchMode ?? "RIDE_HAILING",
   };
 }
@@ -32,7 +34,7 @@ function isHexColor(value: string): boolean {
 }
 
 export default function BrandingPage() {
-  const [form, setForm] = useState<BrandingForm>({ brandName: "Velo", primaryColor: "#1A56FF", logoUrl: "", riderLabel: "Rider", driverLabel: "Driver", tripLabel: "Trip", dispatchMode: "RIDE_HAILING" });
+  const [form, setForm] = useState<BrandingForm>({ brandName: "Velo", primaryColor: "#1A56FF", logoUrl: "", riderLabel: "Rider", driverLabel: "Driver", tripLabel: "Trip", currency: "USD", dispatchMode: "RIDE_HAILING" });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +66,7 @@ export default function BrandingPage() {
         riderLabel: form.riderLabel.trim(),
         driverLabel: form.driverLabel.trim(),
         tripLabel: form.tripLabel.trim(),
+        currency: form.currency.trim(),
         dispatchMode: form.dispatchMode,
       });
       setForm(toForm(updated));
@@ -108,6 +111,11 @@ export default function BrandingPage() {
                 <option value="DELIVERY_MERCHANT">Delivery merchant</option>
                 <option value="FLEET_MANAGED">Fleet managed</option>
               </Select></Field>
+            </Section>
+            <Section title="Currency">
+              <Field label="ISO currency code" hint="Use a three-letter code such as USD or INR.">
+                <input className="ui-control" aria-label="ISO currency code" maxLength={3} value={form.currency} onChange={(event) => setForm((current) => ({ ...current, currency: event.target.value.toUpperCase() }))} />
+              </Field>
             </Section>
             <Button loading={saving} onClick={() => void save()}>Save branding</Button>
           </div>

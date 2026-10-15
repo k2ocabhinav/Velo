@@ -18,6 +18,8 @@ public class TenantBrandingDto {
     private String riderLabel;
     private String driverLabel;
     private String tripLabel;
+    @Builder.Default
+    private String currency = "USD";
     private DispatchMode dispatchMode;
     private boolean riderPortalEnabled;
 }

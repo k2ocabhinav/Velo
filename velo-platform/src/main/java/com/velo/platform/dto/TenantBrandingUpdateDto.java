@@ -25,5 +25,7 @@ public class TenantBrandingUpdateDto {
     private String driverLabel;
     @NotBlank
     private String tripLabel;
+    @Pattern(regexp = "^[A-Z]{3}$", message = "Currency must be a three-letter ISO code such as USD or INR")
+    private String currency;
     private DispatchMode dispatchMode;
 }

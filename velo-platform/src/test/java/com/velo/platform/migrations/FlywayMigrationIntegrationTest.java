@@ -113,9 +113,11 @@ class FlywayMigrationIntegrationTest {
         assertThat(countByTenantSlug("ride", "saffron-routes")).isGreaterThanOrEqualTo(3);
         assertThat(countRideByOtpStatus("1357", "ENDED")).isEqualTo(1);
         assertThat(countRideByOtpStatus("1357", "CONFIRMED")).isZero();
+        assertThat(countPaymentByRideOtpStatus("4826", "PENDING")).isEqualTo(1);
         assertThat(countByTenantSlug("payout_request", "default")).isGreaterThanOrEqualTo(2);
         assertThat(countByTenantSlug("payout_request", "saffron-routes")).isEqualTo(2);
-        assertThat(countBranding("Saffron Routes", "#8A3D2B", "Guest", "Chauffeur", "Transfer")).isEqualTo(1);
+        assertThat(countBranding("saffron-routes", "Saffron Routes", "#8A3D2B", "Guest", "Chauffeur", "Transfer", "INR")).isEqualTo(1);
+        assertThat(countBranding("default", "Velo Business", "#1A56FF", "Rider", "Driver", "Trip", "USD")).isEqualTo(1);
 
         long usersAfterFirst = count(schemaName, "app_user");
         long ridesAfterFirst = count(schemaName, "ride");
@@ -214,20 +216,38 @@ class FlywayMigrationIntegrationTest {
         }
     }
 
-    private long countBranding(String brandName, String primaryColor, String riderLabel,
-                               String driverLabel, String tripLabel) throws Exception {
-        String sql = "SELECT COUNT(*) FROM " + schemaName + ".tenant_configuration configuration "
-                + "JOIN " + schemaName + ".tenant tenant ON tenant.id = configuration.tenant_id "
-                + "WHERE tenant.slug = 'saffron-routes' AND configuration.brand_name = ? "
-                + "AND configuration.primary_color = ? AND configuration.rider_label = ? "
-                + "AND configuration.driver_label = ? AND configuration.trip_label = ?";
+    private long countPaymentByRideOtpStatus(String otp, String paymentStatus) throws Exception {
+        String sql = "SELECT COUNT(*) FROM " + schemaName + ".payment payment "
+                + "JOIN " + schemaName + ".ride ride ON ride.id = payment.ride_id "
+                + "JOIN " + schemaName + ".tenant tenant ON tenant.id = ride.tenant_id "
+                + "WHERE tenant.slug = 'saffron-routes' AND ride.otp = ? AND payment.payment_status = ?";
         try (Connection connection = DriverManager.getConnection(JDBC_URL, JDBC_USERNAME, JDBC_PASSWORD);
              PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setString(1, brandName);
-            statement.setString(2, primaryColor);
-            statement.setString(3, riderLabel);
-            statement.setString(4, driverLabel);
-            statement.setString(5, tripLabel);
+            statement.setString(1, otp);
+            statement.setString(2, paymentStatus);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                resultSet.next();
+                return resultSet.getLong(1);
+            }
+        }
+    }
+
+    private long countBranding(String tenantSlug, String brandName, String primaryColor, String riderLabel,
+                               String driverLabel, String tripLabel, String currency) throws Exception {
+        String sql = "SELECT COUNT(*) FROM " + schemaName + ".tenant_configuration configuration "
+                + "JOIN " + schemaName + ".tenant tenant ON tenant.id = configuration.tenant_id "
+                + "WHERE tenant.slug = ? AND configuration.brand_name = ? "
+                + "AND configuration.primary_color = ? AND configuration.rider_label = ? "
+                + "AND configuration.driver_label = ? AND configuration.trip_label = ? AND configuration.currency = ?";
+        try (Connection connection = DriverManager.getConnection(JDBC_URL, JDBC_USERNAME, JDBC_PASSWORD);
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, tenantSlug);
+            statement.setString(2, brandName);
+            statement.setString(3, primaryColor);
+            statement.setString(4, riderLabel);
+            statement.setString(5, driverLabel);
+            statement.setString(6, tripLabel);
+            statement.setString(7, currency);
             try (ResultSet resultSet = statement.executeQuery()) {
                 resultSet.next();
                 return resultSet.getLong(1);

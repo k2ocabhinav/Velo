@@ -38,7 +38,8 @@ class TenantBrandingValidationIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(header().string("Cache-Control", "public, max-age=60, stale-while-revalidate=60"))
                 .andExpect(jsonPath("$.data.brandName").value("Velo"))
-                .andExpect(jsonPath("$.data.primaryColor").value("#2563EB"));
+                .andExpect(jsonPath("$.data.primaryColor").value("#2563EB"))
+                .andExpect(jsonPath("$.data.currency").value("USD"));
     }
 
     @Test
@@ -55,6 +56,27 @@ class TenantBrandingValidationIntegrationTest {
                                   "riderLabel": "Rider",
                                   "driverLabel": "Driver",
                                   "tripLabel": "Trip",
+                                  "dispatchMode": "RIDE_HAILING"
+                                }
+                                """))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void updateBrandingRejectsMalformedCurrencyCode() throws Exception {
+        mockMvc.perform(put("/api/v1/admin/branding")
+                        .header("X-Test-User-Id", "1")
+                        .header("X-Test-Email", "admin@test.com")
+                        .header("X-Test-Role", "ROLE_ADMIN")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "brandName": "Tenant",
+                                  "primaryColor": "#1A56FF",
+                                  "riderLabel": "Rider",
+                                  "driverLabel": "Driver",
+                                  "tripLabel": "Trip",
+                                  "currency": "DOLLARS",
                                   "dispatchMode": "RIDE_HAILING"
                                 }
                                 """))

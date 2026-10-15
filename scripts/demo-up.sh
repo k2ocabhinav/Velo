@@ -91,7 +91,7 @@ cleanup_on_failure() {
 trap cleanup_on_failure EXIT
 
 printf 'Building production frontend apps...\n'
-(cd "$FRONTEND_DIR" && npm run build -- --cache-dir=.turbo-demo)
+(cd "$FRONTEND_DIR" && NEXT_PUBLIC_API_BASE_URL="$API_BASE_URL" npm run build -- --cache-dir=.turbo-demo)
 
 if ! port_is_open 5432; then
   if ! command -v docker >/dev/null 2>&1; then

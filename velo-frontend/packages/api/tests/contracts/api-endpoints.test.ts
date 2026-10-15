@@ -429,7 +429,7 @@ describe("rider and supporting domains", () => {
     const mutation = createRecordingClient({ id: 9, active: true, daysOfWeek: ["TUESDAY"] });
     const api = createRidesApi(page.client);
     await api.getRecurringTripTemplates({ page: 0, size: 10 });
-    expect(page.requests[0]).toMatchObject({ method: "GET", url: "/riders/recurring-trip-templates", params: { page: 0, size: 10 } });
+    expect(page.requests[0]).toMatchObject({ method: "GET", url: "/api/v1/riders/recurring-trip-templates", params: { page: 0, size: 10 } });
 
     const mutationApi = createRidesApi(mutation.client);
     const input = {
@@ -444,9 +444,9 @@ describe("rider and supporting domains", () => {
     await mutationApi.createRecurringTripTemplate(input);
     await mutationApi.setRecurringTripTemplateActive(9, false);
     await mutationApi.deleteRecurringTripTemplate(9);
-    expect(mutation.requests[0]).toMatchObject({ method: "POST", url: "/riders/recurring-trip-templates", data: input });
-    expect(mutation.requests[1]).toMatchObject({ method: "POST", url: "/riders/recurring-trip-templates/9/pause" });
-    expect(mutation.requests[2]).toMatchObject({ method: "DELETE", url: "/riders/recurring-trip-templates/9" });
+    expect(mutation.requests[0]).toMatchObject({ method: "POST", url: "/api/v1/riders/recurring-trip-templates", data: input });
+    expect(mutation.requests[1]).toMatchObject({ method: "POST", url: "/api/v1/riders/recurring-trip-templates/9/pause" });
+    expect(mutation.requests[2]).toMatchObject({ method: "DELETE", url: "/api/v1/riders/recurring-trip-templates/9" });
   });
 
   it("loads the rider wallet with paginated transaction parameters", async () => {

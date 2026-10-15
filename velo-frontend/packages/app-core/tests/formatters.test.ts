@@ -5,6 +5,7 @@ describe("formatMoney", () => {
   it("formats the default currency and supports a tenant currency and locale", () => {
     expect(formatMoney(1234.5)).toBe("$1,234.50");
     expect(formatMoney("12.5", "EUR", "de-DE")).toBe("12,50 €");
+    expect(formatMoney(1234.5, "INR")).toBe("₹1,234.50");
   });
 
   it("returns a placeholder for missing or invalid amounts", () => {

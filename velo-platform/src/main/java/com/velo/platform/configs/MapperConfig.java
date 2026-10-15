@@ -1,8 +1,10 @@
 package com.velo.platform.configs;
 
 import com.velo.platform.dto.PointDto;
+import com.velo.platform.dto.RideRequestDto;
 import com.velo.platform.dto.SignupDto;
 import com.velo.platform.dto.UserDto;
+import com.velo.platform.entities.RideRequest;
 import com.velo.platform.entities.User;
 import com.velo.platform.utils.GeometryUtil;
 import org.locationtech.jts.geom.Point;
@@ -39,6 +41,10 @@ public class MapperConfig {
             };
             return new PointDto(coordinates);
         });
+
+        mapper.emptyTypeMap(RideRequestDto.class, RideRequest.class)
+                .addMappings(mapping -> mapping.skip(RideRequest::setRide))
+                .implicitMappings();
 
         mapper.typeMap(SignupDto.class, User.class).addMappings(mapping -> {
             mapping.skip(User::setFirstName);
