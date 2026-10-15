@@ -50,6 +50,7 @@ public class RideRealtimeServiceImpl implements RideRealtimeService {
         RideUpdateEventDto payload = new RideUpdateEventDto();
         payload.setEventType(resolveStatusEventType(rideStatus));
         payload.setRideId(ride.getId());
+        payload.setRideRequestId(ride.getRideRequest() == null ? null : ride.getRideRequest().getId());
         payload.setStatus(rideStatus == null ? null : rideStatus.name());
         payload.setRiderId(ride.getRider().getId());
         payload.setDriverId(ride.getDriver() == null ? null : ride.getDriver().getId());
@@ -79,6 +80,7 @@ public class RideRealtimeServiceImpl implements RideRealtimeService {
         RideUpdateEventDto payload = new RideUpdateEventDto();
         payload.setEventType("DRIVER_LOCATION_UPDATED");
         payload.setRideId(ride.getId());
+        payload.setRideRequestId(ride.getRideRequest() == null ? null : ride.getRideRequest().getId());
         payload.setStatus(ride.getRideStatus() == null ? null : ride.getRideStatus().name());
         payload.setRiderId(ride.getRider().getId());
         payload.setDriverId(ride.getDriver() == null ? null : ride.getDriver().getId());

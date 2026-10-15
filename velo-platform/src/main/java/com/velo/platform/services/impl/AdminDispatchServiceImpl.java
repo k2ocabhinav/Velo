@@ -18,6 +18,7 @@ import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.Ride;
 import com.velo.platform.entities.RideOffer;
 import com.velo.platform.entities.RideRequest;
+import com.velo.platform.entities.Rider;
 import com.velo.platform.entities.User;
 import com.velo.platform.entities.enums.AdminDispatchActionType;
 import com.velo.platform.entities.enums.DriverOnboardingStatus;
@@ -385,8 +386,15 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
     @Transactional(readOnly = true)
     public List<AdminRideOfferDto> getRideOffers(Long rideRequestId) {
         Long tenantId = tenantScopeService.requireCurrentTenantId();
+        RideRequest rideRequest = rideRequestRepository.findById(rideRequestId)
+                .orElseThrow(() -> new ResourceNotFoundException("Ride request not found with id: " + rideRequestId));
+        if (!tenantId.equals(rideRequest.getTenantId())) {
+            throw new RuntimeConflictException("Cross-tenant ride request access is not allowed.");
+        }
+        boolean simulatedRequest = isSimulatedRideRequest(rideRequest);
         return rideOfferRepository.findByRideRequestIdAndTenantIdOrderByOfferedAtDesc(rideRequestId, tenantId)
                 .stream()
+                .filter(offer -> isSimulatedUser(offer.getDriver() == null ? null : offer.getDriver().getUser()) == simulatedRequest)
                 .map(offer -> AdminRideOfferDto.builder()
                         .offerId(offer.getId())
                         .driverId(offer.getDriver() == null ? null : offer.getDriver().getId())
@@ -431,7 +439,7 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
             throw new RuntimeConflictException("Ride request is not pending and cannot be assigned.");
         }
 
-        Driver newDriver = resolveAssignableDriver(driverId);
+        Driver newDriver = resolveAssignableDriver(driverId, isSimulatedRideRequest(rideRequest));
         int claimed = rideRequestRepository.compareAndSetStatus(
                 rideRequestId,
                 tenantId,
@@ -469,7 +477,7 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
         }
 
         Driver previousDriver = ride.getDriver();
-        Driver newDriver = resolveAssignableDriver(newDriverId);
+        Driver newDriver = resolveAssignableDriver(newDriverId, isSimulatedRide(ride));
 
         if (previousDriver != null && previousDriver.getId().equals(newDriver.getId())) {
             return modelMapper.map(ride, RideDto.class);
@@ -573,7 +581,7 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
                 .build();
     }
 
-    private Driver resolveAssignableDriver(Long driverId) {
+    private Driver resolveAssignableDriver(Long driverId, boolean simulatedRide) {
         Long tenantId = tenantScopeService.requireCurrentTenantId();
         Driver driver = driverRepository.findById(driverId)
                 .orElseThrow(() -> new ResourceNotFoundException("Driver not found with id: " + driverId));
@@ -586,7 +594,28 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
         if (!Boolean.TRUE.equals(driver.getAvailable())) {
             throw new RuntimeConflictException("Driver is currently unavailable.");
         }
+        if (isSimulatedUser(driver.getUser()) != simulatedRide) {
+            throw new RuntimeConflictException(simulatedRide
+                    ? "Simulated rides can only be assigned to simulated drivers."
+                    : "Real rides cannot be assigned to simulated drivers.");
+        }
         return driver;
+    }
+
+    private static boolean isSimulatedRideRequest(RideRequest rideRequest) {
+        return rideRequest != null && isSimulatedRider(rideRequest.getRider());
+    }
+
+    private static boolean isSimulatedRide(Ride ride) {
+        return ride != null && isSimulatedRider(ride.getRider());
+    }
+
+    private static boolean isSimulatedRider(Rider rider) {
+        return rider != null && isSimulatedUser(rider.getUser());
+    }
+
+    private static boolean isSimulatedUser(User user) {
+        return user != null && Boolean.TRUE.equals(user.getSimulated());
     }
 
     private void releaseDriverIfNoActiveRides(Driver driver, Long excludingRideId) {

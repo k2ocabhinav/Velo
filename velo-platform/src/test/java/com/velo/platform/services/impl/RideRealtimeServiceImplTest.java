@@ -40,11 +40,13 @@ class RideRealtimeServiceImplTest {
         User driverUser = User.builder().id(22L).email("driver@test.com").build();
         Rider rider = Rider.builder().id(101L).user(riderUser).build();
         Driver driver = Driver.builder().id(202L).user(driverUser).build();
+        RideRequest rideRequest = RideRequest.builder().id(404L).build();
         Ride ride = Ride.builder()
                 .id(303L)
                 .rider(rider)
                 .driver(driver)
                 .rideStatus(RideStatus.ENDED)
+                .rideRequest(rideRequest)
                 .build();
 
         service.publishRideStatus(ride, RideStatus.ENDED);
@@ -66,6 +68,7 @@ class RideRealtimeServiceImplTest {
         assertThat(payloads).allSatisfy(payload -> {
             assertThat(payload.getEventType()).isEqualTo("RIDE_COMPLETED");
             assertThat(payload.getRideId()).isEqualTo(303L);
+            assertThat(payload.getRideRequestId()).isEqualTo(404L);
             assertThat(payload.getStatus()).isEqualTo("ENDED");
             assertThat(payload.getRiderId()).isEqualTo(101L);
             assertThat(payload.getDriverId()).isEqualTo(202L);
@@ -79,11 +82,13 @@ class RideRealtimeServiceImplTest {
         User riderUser = User.builder().id(11L).email("rider@test.com").build();
         Rider rider = Rider.builder().id(101L).user(riderUser).build();
         Driver driver = Driver.builder().id(202L).build();
+        RideRequest rideRequest = RideRequest.builder().id(404L).build();
         Ride ride = Ride.builder()
                 .id(303L)
                 .rider(rider)
                 .driver(driver)
                 .rideStatus(RideStatus.ONGOING)
+                .rideRequest(rideRequest)
                 .build();
         DriverLocationUpdateRequestDto location = new DriverLocationUpdateRequestDto(
                 12.9716,
@@ -111,6 +116,7 @@ class RideRealtimeServiceImplTest {
         RideUpdateEventDto payload = payloadCaptor.getValue();
         assertThat(payload.getEventType()).isEqualTo("DRIVER_LOCATION_UPDATED");
         assertThat(payload.getRideId()).isEqualTo(303L);
+        assertThat(payload.getRideRequestId()).isEqualTo(404L);
         assertThat(payload.getStatus()).isEqualTo("ONGOING");
         assertThat(payload.getDriverLocation()).isNotNull();
         assertThat(payload.getDriverLocation().getLat()).isEqualTo(12.9716);

@@ -5,13 +5,16 @@ import com.velo.platform.config.TestSecurityConfig;
 import com.velo.platform.dto.RideUpdateEventDto;
 import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.Ride;
+import com.velo.platform.entities.RideRequest;
 import com.velo.platform.entities.Rider;
 import com.velo.platform.entities.User;
 import com.velo.platform.entities.enums.PaymentMethod;
+import com.velo.platform.entities.enums.RideRequestStatus;
 import com.velo.platform.entities.enums.RideStatus;
 import com.velo.platform.entities.enums.Role;
 import com.velo.platform.repositories.DriverRepository;
 import com.velo.platform.repositories.RideRepository;
+import com.velo.platform.repositories.RideRequestRepository;
 import com.velo.platform.repositories.RiderRepository;
 import com.velo.platform.repositories.UserRepository;
 import com.velo.platform.security.JwtTokenProvider;
@@ -84,10 +87,14 @@ class RideRealtimeWebSocketIntegrationTest {
     @Autowired
     private RideRepository rideRepository;
 
+    @Autowired
+    private RideRequestRepository rideRequestRepository;
+
     private User riderUser;
     private User driverUser;
     private Rider rider;
     private Driver driver;
+    private RideRequest rideRequest;
     private Ride confirmedRide;
 
     @BeforeEach
@@ -117,6 +124,12 @@ class RideRealtimeWebSocketIntegrationTest {
                 .vehicleId("KA01WS0001")
                 .build());
 
+        rideRequest = rideRequestRepository.save(RideRequest.builder()
+                .rider(rider)
+                .paymentMethod(PaymentMethod.WALLET)
+                .rideRequestStatus(RideRequestStatus.CONFIRMED)
+                .build());
+
         confirmedRide = rideRepository.save(Ride.builder()
                 .rider(rider)
                 .driver(driver)
@@ -124,6 +137,7 @@ class RideRealtimeWebSocketIntegrationTest {
                 .paymentMethod(PaymentMethod.WALLET)
                 .fare(BigDecimal.valueOf(120.0))
                 .otp("4321")
+                .rideRequest(rideRequest)
                 .build());
     }
 
@@ -131,6 +145,9 @@ class RideRealtimeWebSocketIntegrationTest {
     void tearDown() {
         if (confirmedRide != null) {
             rideRepository.deleteById(confirmedRide.getId());
+        }
+        if (rideRequest != null) {
+            rideRequestRepository.deleteById(rideRequest.getId());
         }
         if (driver != null) {
             driverRepository.deleteById(driver.getId());
@@ -187,6 +204,7 @@ class RideRealtimeWebSocketIntegrationTest {
 
             assertThat(event.getEventType()).isEqualTo("DRIVER_LOCATION_UPDATED");
             assertThat(event.getRideId()).isEqualTo(confirmedRide.getId());
+            assertThat(event.getRideRequestId()).isEqualTo(rideRequest.getId());
             assertThat(event.getRiderId()).isEqualTo(rider.getId());
             assertThat(event.getDriverId()).isEqualTo(driver.getId());
             assertThat(event.getStatus()).isEqualTo(RideStatus.CONFIRMED.name());
