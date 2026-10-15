@@ -11,7 +11,8 @@
       ],
       "outputs": [
         ".next/**",
-        "dist/**"
+        "dist/**",
+        "out/**"
       ]
     },
     "lint": {

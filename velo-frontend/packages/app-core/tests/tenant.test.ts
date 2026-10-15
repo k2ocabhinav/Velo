@@ -1,6 +1,8 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest, NextResponse } from "next/server";
 import { attachTenantSlugHeader, DEFAULT_TENANT_BRANDING, fetchTenantBranding, getTenantPluralTripLabel, getTenantWordmark, resolveTenantSlug, TENANT_SLUG_HEADER } from "../src/tenant";
+
+afterEach(() => vi.unstubAllEnvs());
 
 describe("tenant resolution", () => {
   it("uses a tenant subdomain and leaves platform hosts on the development default", () => {
@@ -26,7 +28,18 @@ describe("tenant resolution", () => {
     expect(response.headers.get("x-middleware-request-" + TENANT_SLUG_HEADER)).toBe("saffron-routes");
   });
 
-  it("uses the forwarded host for tenant resolution behind a reverse proxy", () => {
+  it("ignores forwarded host values unless proxy trust is explicitly enabled", () => {
+    const request = new NextRequest("http://localhost:6401/dispatch", {
+      headers: { host: "localhost:6401", "x-forwarded-host": "saffron-routes.localhost:6401" },
+    });
+
+    const response = attachTenantSlugHeader(request, NextResponse.next());
+
+    expect(response.headers.get("x-middleware-request-" + TENANT_SLUG_HEADER)).toBe("default");
+  });
+
+  it("uses the forwarded host only behind an explicitly trusted proxy", () => {
+    vi.stubEnv("VELO_TRUST_PROXY", "1");
     const request = new NextRequest("http://localhost:6401/dispatch", {
       headers: { host: "localhost:6401", "x-forwarded-host": "saffron-routes.localhost:6401" },
     });

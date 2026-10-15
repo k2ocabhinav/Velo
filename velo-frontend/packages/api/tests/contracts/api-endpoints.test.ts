@@ -488,6 +488,9 @@ describe("rider and supporting domains", () => {
       id: 77,
       pickupLocation: { coordinates: [1, 2], type: "Point" },
       dropOffLocation: { coordinates: [3, 4], type: "Point" },
+      pickupAddress: "The Leela Palace, Old Airport Road",
+      dropOffAddress: "Kempegowda International Airport, Terminal 1",
+      expiresAt: "2026-10-15T12:00:45",
       paymentMethod: "CARD",
       rideRequestStatus: "REQUESTED",
     });
@@ -498,6 +501,8 @@ describe("rider and supporting domains", () => {
     const payload = {
       pickupLocation: { coordinates: [12.9, 77.5], type: "Point" as const },
       dropOffLocation: { coordinates: [12.95, 77.6], type: "Point" as const },
+      pickupAddress: "The Leela Palace, Old Airport Road",
+      dropOffAddress: "Kempegowda International Airport, Terminal 1",
       paymentMethod: "CARD",
       promoCode: "SAVE10",
     };

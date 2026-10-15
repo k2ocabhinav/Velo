@@ -32,6 +32,7 @@ export type AuthCookieNames = Readonly<{
   refreshCookieName?: string | undefined;
   userIdCookieName?: string | undefined;
   roleCookieName?: string | undefined;
+  requestHost?: string | undefined;
 }>;
 
 export type LoginProxyOptions = Readonly<{
@@ -41,6 +42,7 @@ export type LoginProxyOptions = Readonly<{
   refreshCookieName?: string | undefined;
   tokenCookieName?: string | undefined;
   userIdCookieName?: string | undefined;
+  requestHost?: string | undefined;
 }>;
 
 export const LOGIN_COOKIE_NAME = "velo_token";
@@ -157,10 +159,22 @@ export function extractRoleHints(payload: unknown): string[] {
   return Array.from(hints);
 }
 
-function buildCookieOptions(maxAge: number, path = "/") {
+function requestHostIsLocalhost(requestHost: string | undefined): boolean {
+  if (!requestHost?.trim()) return false;
+  try {
+    const hostname = new URL(`http://${requestHost.trim()}`).hostname.toLowerCase();
+    return hostname === "localhost" || hostname.endsWith(".localhost");
+  } catch {
+    return false;
+  }
+}
+
+function buildCookieOptions(maxAge: number, path = "/", requestHost?: string) {
   const secureOverride = getEnvValue("VELO_AUTH_COOKIE_SECURE")?.trim().toLowerCase();
   const isProduction = getEnvValue("NODE_ENV") === "production";
-  const secure = isProduction || secureOverride === "true";
+  const insecureLocalDemo = getEnvValue("VELO_INSECURE_LOCAL_COOKIES") === "1"
+    && requestHostIsLocalhost(requestHost);
+  const secure = isProduction ? !insecureLocalDemo : secureOverride === "true";
 
   return {
     httpOnly: true,
@@ -171,17 +185,17 @@ function buildCookieOptions(maxAge: number, path = "/") {
   };
 }
 
-function buildLoginCookieOptions(maxAge = LOGIN_COOKIE_MAX_AGE_SECONDS) {
-  return buildCookieOptions(maxAge);
+function buildLoginCookieOptions(maxAge = LOGIN_COOKIE_MAX_AGE_SECONDS, requestHost?: string) {
+  return buildCookieOptions(maxAge, "/", requestHost);
 }
 
-function buildRefreshCookieOptions() {
-  return buildCookieOptions(REFRESH_COOKIE_MAX_AGE_SECONDS, REFRESH_COOKIE_PATH);
+function buildRefreshCookieOptions(requestHost?: string) {
+  return buildCookieOptions(REFRESH_COOKIE_MAX_AGE_SECONDS, REFRESH_COOKIE_PATH, requestHost);
 }
 
-function buildClearedCookieOptions() {
+function buildClearedCookieOptions(requestHost?: string) {
   return {
-    ...buildCookieOptions(0),
+    ...buildCookieOptions(0, "/", requestHost),
     expires: new Date(0)
   };
 }
@@ -200,19 +214,19 @@ function setLoginCookies(
   const userIdCookieName = cookieNameOverrides.userIdCookieName ?? LOGIN_USER_ID_COOKIE_NAME;
   const roleCookieName = cookieNameOverrides.roleCookieName ?? LOGIN_ROLE_COOKIE_NAME;
 
-  response.cookies.set(tokenCookieName, token, buildLoginCookieOptions(expiresInSeconds ?? LOGIN_COOKIE_MAX_AGE_SECONDS));
-  response.cookies.set(refreshCookieName, refreshToken, buildRefreshCookieOptions());
+  response.cookies.set(tokenCookieName, token, buildLoginCookieOptions(expiresInSeconds ?? LOGIN_COOKIE_MAX_AGE_SECONDS, cookieNameOverrides.requestHost));
+  response.cookies.set(refreshCookieName, refreshToken, buildRefreshCookieOptions(cookieNameOverrides.requestHost));
 
   if (userId !== null) {
-    response.cookies.set(userIdCookieName, String(userId), buildLoginCookieOptions());
+    response.cookies.set(userIdCookieName, String(userId), buildLoginCookieOptions(LOGIN_COOKIE_MAX_AGE_SECONDS, cookieNameOverrides.requestHost));
   }
 
   if (roleHint) {
-    response.cookies.set(roleCookieName, roleHint, buildLoginCookieOptions());
+    response.cookies.set(roleCookieName, roleHint, buildLoginCookieOptions(LOGIN_COOKIE_MAX_AGE_SECONDS, cookieNameOverrides.requestHost));
     return;
   }
 
-  response.cookies.set(roleCookieName, "", buildClearedCookieOptions());
+  response.cookies.set(roleCookieName, "", buildClearedCookieOptions(cookieNameOverrides.requestHost));
 }
 
 export function clearLoginCookies(
@@ -223,10 +237,10 @@ export function clearLoginCookies(
   const refreshCookieName = cookieNameOverrides.refreshCookieName ?? REFRESH_COOKIE_NAME;
   const userIdCookieName = cookieNameOverrides.userIdCookieName ?? LOGIN_USER_ID_COOKIE_NAME;
   const roleCookieName = cookieNameOverrides.roleCookieName ?? LOGIN_ROLE_COOKIE_NAME;
-  const cleared = buildClearedCookieOptions();
+  const cleared = buildClearedCookieOptions(cookieNameOverrides.requestHost);
   response.cookies.set(tokenCookieName, "", cleared);
   response.cookies.set(refreshCookieName, "", {
-    ...buildRefreshCookieOptions(),
+    ...buildRefreshCookieOptions(cookieNameOverrides.requestHost),
     maxAge: 0,
     expires: new Date(0)
   });
@@ -362,7 +376,8 @@ export async function performLoginProxy(
     tokenCookieName: options.tokenCookieName,
     refreshCookieName: options.refreshCookieName,
     userIdCookieName: options.userIdCookieName,
-    roleCookieName: options.roleCookieName
+    roleCookieName: options.roleCookieName,
+    requestHost: options.requestHost
   });
   return response;
 }
@@ -580,7 +595,8 @@ export async function performLogoutProxy(
     tokenCookieName: options.tokenCookieName,
     refreshCookieName: options.refreshCookieName,
     userIdCookieName: options.userIdCookieName,
-    roleCookieName: options.roleCookieName
+    roleCookieName: options.roleCookieName,
+    requestHost: options.requestHost
   });
   return response;
 }

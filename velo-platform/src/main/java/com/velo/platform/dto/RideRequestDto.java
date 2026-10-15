@@ -24,6 +24,10 @@ public class RideRequestDto {
     @Valid
     private PointDto dropOffLocation;
 
+    private String pickupAddress;
+
+    private String dropOffAddress;
+
     @NotNull(message = "Payment method is required")
     private PaymentMethod paymentMethod;
 
@@ -37,4 +41,6 @@ public class RideRequestDto {
     private RideRequestStatus rideRequestStatus;
 
     private LocalDateTime scheduledTime;
+
+    private LocalDateTime expiresAt;
 }

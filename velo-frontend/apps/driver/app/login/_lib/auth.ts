@@ -44,7 +44,8 @@ export const LOGIN_ROLE_COOKIE_NAME = "velo_driver_role_hint";
 
 export async function performLoginProxy(
   body: LoginPayload,
-  fetchImpl: typeof fetch = fetch
+  fetchImpl: typeof fetch = fetch,
+  requestHost?: string
 ) {
   return performSharedLoginProxy(body, fetchImpl, {
     requiredRoleHint: "DRIVER",
@@ -52,24 +53,27 @@ export async function performLoginProxy(
     refreshCookieName: REFRESH_COOKIE_NAME,
     userIdCookieName: LOGIN_USER_ID_COOKIE_NAME,
     roleCookieName: LOGIN_ROLE_COOKIE_NAME,
-    roleGuardMessage: "This account is not authorized for the driver workspace."
+    roleGuardMessage: "This account is not authorized for the driver workspace.",
+    requestHost
   });
 }
 
-export function performRefreshProxy(refreshToken: string | null | undefined, fetchImpl: typeof fetch = fetch) {
+export function performRefreshProxy(refreshToken: string | null | undefined, fetchImpl: typeof fetch = fetch, requestHost?: string) {
   return performSharedRefreshProxy(refreshToken, {
     tokenCookieName: LOGIN_COOKIE_NAME,
     refreshCookieName: REFRESH_COOKIE_NAME,
     userIdCookieName: LOGIN_USER_ID_COOKIE_NAME,
-    roleCookieName: LOGIN_ROLE_COOKIE_NAME
+    roleCookieName: LOGIN_ROLE_COOKIE_NAME,
+    requestHost
   }, fetchImpl);
 }
 
-export function performLogoutProxy(refreshToken?: string | null) {
+export function performLogoutProxy(refreshToken?: string | null, requestHost?: string) {
   return performSharedLogoutProxy(refreshToken, {
     tokenCookieName: LOGIN_COOKIE_NAME,
     refreshCookieName: REFRESH_COOKIE_NAME,
     userIdCookieName: LOGIN_USER_ID_COOKIE_NAME,
-    roleCookieName: LOGIN_ROLE_COOKIE_NAME
+    roleCookieName: LOGIN_ROLE_COOKIE_NAME,
+    requestHost
   });
 }
