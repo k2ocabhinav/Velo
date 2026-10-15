@@ -40,9 +40,7 @@ export function Hero() {
             <div className={styles.bleed}>
               <DispatchIllustration />
             </div>
-            <p className={styles.caption}>
-              <span className={styles.captionText}>{landingCopy.hero.mapCaption}</span>
-            </p>
+            <p className={styles.caption}>{landingCopy.hero.mapCaption}</p>
           </div>
         </div>
       </div>

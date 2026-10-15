@@ -45,10 +45,24 @@ export function getTenantPluralTripLabel(tripLabel: string | null | undefined): 
   return /s$/i.test(normalized) ? normalized : `${normalized}s`;
 }
 
+export interface TripLabelOptions {
+  /**
+   * Lower-cases the label for mid-sentence use. Tenant labels are title-case
+   * nouns, so "1 completed Trip" reads wrong; mid-sentence we want
+   * "1 completed trip" / "3 completed transfers".
+   */
+  midSentence?: boolean;
+}
+
 /** The tenant's trip label, pluralised to match the count ("1 Trip", "4 Trips"). */
-export function getTenantTripLabelForCount(count: number, tripLabel: string | null | undefined): string {
+export function getTenantTripLabelForCount(
+  count: number,
+  tripLabel: string | null | undefined,
+  { midSentence = false }: TripLabelOptions = {},
+): string {
   const singular = tripLabel?.trim() || DEFAULT_TENANT_BRANDING.tripLabel;
-  return count === 1 ? singular : getTenantPluralTripLabel(singular);
+  const label = count === 1 ? singular : getTenantPluralTripLabel(singular);
+  return midSentence ? label.toLowerCase() : label;
 }
 
 export interface TenantSlugOptions {

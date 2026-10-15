@@ -59,7 +59,7 @@ export default defineConfig({
   projects: [
     {
       name: "landing-chromium",
-      testMatch: /landing-.*\.spec\.ts/,
+      testMatch: /(^|\/)landing-[^/]*\.spec\.ts$/,
       use: {
         ...devices["Desktop Chrome"],
         baseURL: landingBaseURL
@@ -67,7 +67,7 @@ export default defineConfig({
     },
     {
       name: "admin-chromium",
-      testMatch: /admin-.*\.spec\.ts/,
+      testMatch: /(^|\/)admin-[^/]*\.spec\.ts$/,
       use: {
         ...devices["Desktop Chrome"],
         baseURL: adminBaseURL
@@ -77,7 +77,7 @@ export default defineConfig({
       ? [
           {
             name: "admin-webkit",
-            testMatch: /admin-.*\.spec\.ts/,
+            testMatch: /(^|\/)admin-[^/]*\.spec\.ts$/,
             use: {
               ...devices["Desktop Safari"],
               baseURL: adminBaseURL
@@ -87,7 +87,7 @@ export default defineConfig({
       : []),
     {
       name: "driver-chromium",
-      testMatch: /driver-.*\.spec\.ts/,
+      testMatch: /(^|\/)driver-[^/]*\.spec\.ts$/,
       use: {
         ...devices["Desktop Chrome"],
         baseURL: driverBaseURL
@@ -95,7 +95,7 @@ export default defineConfig({
     },
     {
       name: "rider-chromium",
-      testMatch: /rider-.*\.spec\.ts/,
+      testMatch: /(^|\/)rider-[^/]*\.spec\.ts$/,
       use: {
         ...devices["Desktop Chrome"],
         baseURL: riderBaseURL
