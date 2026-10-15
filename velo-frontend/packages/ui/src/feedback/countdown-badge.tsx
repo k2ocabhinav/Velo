@@ -1,17 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-
-function toTwoDigits(value: number): string {
-  return value.toString().padStart(2, "0");
-}
-
-function formatClock(remainingSeconds: number): string {
-  const safe = Math.max(0, remainingSeconds);
-  const minutes = Math.floor(safe / 60);
-  const seconds = safe % 60;
-  return `${toTwoDigits(minutes)}:${toTwoDigits(seconds)}`;
-}
+import { formatCountdownDuration } from "./countdown-format";
 
 function getRemainingSeconds(expiresAtMs: number, nowMs: number): number {
   return Math.max(0, Math.ceil((expiresAtMs - nowMs) / 1000));
@@ -78,7 +68,7 @@ export function CountdownBadge({
       className="status-badge countdown-badge"
       data-tone={isExpired ? "danger" : isWarning ? "attention" : "info"}
     >
-      {isExpired ? expiredLabel : `${prefix} ${formatClock(remainingSeconds)}`}
+      {isExpired ? expiredLabel : `${prefix} ${formatCountdownDuration(remainingSeconds)}`}
     </span>
   );
 }

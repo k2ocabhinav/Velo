@@ -508,8 +508,8 @@ export default function DriverHomePage() {
                     {riderName || pickupLabel || dropOffLabel ? (
                       <dl className="driver-offer-facts">
                         {riderName ? <div><dt>Rider</dt><dd>{riderName}</dd></div> : null}
-                        {pickupLabel ? <div><dt>Pickup</dt><dd>{pickupLabel}</dd></div> : null}
-                        {dropOffLabel ? <div><dt>Drop-off</dt><dd>{dropOffLabel}</dd></div> : null}
+                        {pickupLabel ? <div><dt>Pickup</dt><dd title={pickupLabel}>{pickupLabel}</dd></div> : null}
+                        {dropOffLabel ? <div><dt>Drop-off</dt><dd title={dropOffLabel}>{dropOffLabel}</dd></div> : null}
                       </dl>
                     ) : null}
                     <RouteStrip stage={preview?.rideRequestStatus ?? "requested"} variant="static" showDriverMarker={false} />

@@ -379,7 +379,7 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
         double latitude = point.getY();
         double longitude = point.getX();
         String key = String.format(Locale.ROOT, "%.5f,%.5f", latitude, longitude);
-        addresses.putIfAbsent(key, new GeocodingResultDto(key, latitude, longitude, type));
+        addresses.putIfAbsent(key, new GeocodingResultDto(key, key, latitude, longitude, type));
     }
 
     @Override

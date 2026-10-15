@@ -71,7 +71,7 @@ public class NominatimGeocodingService implements GeocodingService {
                 .queryParam("format", "jsonv2")
                 .queryParam("q", searchQuery)
                 .queryParam("limit", SEARCH_LIMIT)
-                .queryParam("addressdetails", 0);
+                .queryParam("addressdetails", 1);
         addCountryBias(uri);
         addNearBias(uri, near);
         addProviderEmail(uri);
@@ -96,7 +96,8 @@ public class NominatimGeocodingService implements GeocodingService {
                 .queryParam("format", "jsonv2")
                 .queryParam("lat", latitude)
                 .queryParam("lon", longitude)
-                .queryParam("zoom", 18);
+                .queryParam("zoom", 18)
+                .queryParam("addressdetails", 1);
         addProviderEmail(uri);
         JsonNode response = get(uri.build().encode().toUri());
         GeocodingResultDto result = mapResult(response);
@@ -175,10 +176,10 @@ public class NominatimGeocodingService implements GeocodingService {
         if (result == null || !result.isObject()) {
             return null;
         }
-        String label = text(result, "display_name");
+        String fullAddress = text(result, "display_name");
         String latitude = text(result, "lat");
         String longitude = text(result, "lon");
-        if (label == null || latitude == null || longitude == null) {
+        if (fullAddress == null || latitude == null || longitude == null) {
             return null;
         }
         try {
@@ -186,8 +187,8 @@ public class NominatimGeocodingService implements GeocodingService {
             if (type == null) {
                 type = text(result, "class");
             }
-            return new GeocodingResultDto(label, Double.parseDouble(latitude), Double.parseDouble(longitude),
-                    type == null ? "address" : type);
+            return new GeocodingResultDto(NominatimAddressLabelBuilder.build(result), fullAddress,
+                    Double.parseDouble(latitude), Double.parseDouble(longitude), type == null ? "address" : type);
         } catch (NumberFormatException exception) {
             return null;
         }
@@ -253,7 +254,7 @@ public class NominatimGeocodingService implements GeocodingService {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             String input = String.join("|", parts);
-            return "velo:geo:v1:" + HexFormat.of().formatHex(digest.digest(input.getBytes(StandardCharsets.UTF_8)));
+            return "velo:geo:v5:" + HexFormat.of().formatHex(digest.digest(input.getBytes(StandardCharsets.UTF_8)));
         } catch (NoSuchAlgorithmException exception) {
             throw new IllegalStateException("SHA-256 is not available", exception);
         }

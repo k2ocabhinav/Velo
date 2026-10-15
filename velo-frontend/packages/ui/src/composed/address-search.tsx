@@ -5,6 +5,7 @@ import { cn } from "../lib/cn";
 
 export type AddressSuggestion = {
   label: string;
+  fullAddress?: string;
   lat: number;
   lon: number;
   type: string;
