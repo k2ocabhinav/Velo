@@ -214,6 +214,12 @@ describe("shared UI foundation", () => {
     expect(markup).toContain("Pickup");
   });
 
+  it("allows admin route stages to use tenant labels", () => {
+    const markup = html(h(RouteStrip, { stage: "PENDING", stageLabels: { requested: "Transfer requested" } }));
+    expect(markup).toContain('aria-label="Transfer requested, step 1 of 5"');
+    expect(markup).toContain(">Transfer requested</p>");
+  });
+
   it("renders a table with optional row action menu", () => {
     const markup = html(h(DataTable<{ id: number; name: string }>, {
       data: [{ id: 1, name: "Ari" }],

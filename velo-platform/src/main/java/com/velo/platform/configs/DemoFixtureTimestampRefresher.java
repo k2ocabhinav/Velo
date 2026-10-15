@@ -27,7 +27,10 @@ public class DemoFixtureTimestampRefresher implements ApplicationRunner {
               )
               AND COALESCE(request.external_reference, '') NOT IN (
                   'DEMO-VELO-PENDING-01', 'DEMO-VELO-SCHEDULED-01', 'DEMO-VELO-SCHEDULED-02',
-                  'DEMO-SAFFRON-PENDING-01', 'DEMO-SAFFRON-SCHEDULED-01', 'DEMO-SAFFRON-SCHEDULED-02'
+                  'DEMO-SAFFRON-PENDING-01', 'DEMO-SAFFRON-SCHEDULED-01', 'DEMO-SAFFRON-SCHEDULED-02',
+                  'DEMO-VELO-RIDE-ENDED-01', 'DEMO-VELO-RIDE-CANCELLED-01', 'DEMO-VELO-RIDE-ONGOING-01',
+                  'DEMO-VELO-RIDE-ENDED-02', 'DEMO-VELO-RIDE-ENDED-03',
+                  'DEMO-SAFFRON-RIDE-ENDED-01', 'DEMO-SAFFRON-RIDE-ENDED-02', 'DEMO-SAFFRON-RIDE-ONGOING-01'
               )
             """;
     private static final String SESSION_RIDE_IDS = """
@@ -89,6 +92,7 @@ public class DemoFixtureTimestampRefresher implements ApplicationRunner {
         removePreviousDemoSessionData();
         removeSimulatedFleetData();
         restoreFixtureRequests();
+        restoreFixtureRideRequests();
         restoreFixtureRides();
         restoreFixtureOffers();
         restoreFixturePayments();
@@ -198,7 +202,12 @@ public class DemoFixtureTimestampRefresher implements ApplicationRunner {
                 UPDATE ride_request
                 SET ride_request_status = 'PENDING',
                     requested_time = NOW() - INTERVAL '4 minutes',
-                    scheduled_time = NULL
+                    scheduled_time = NULL,
+                    pickup_address = CASE external_reference
+                        WHEN 'DEMO-VELO-PENDING-01' THEN 'Cubbon Park, Bengaluru'
+                        ELSE 'Trinity Circle, Bengaluru'
+                    END,
+                    drop_off_address = 'Kempegowda International Airport, Terminal 1'
                 WHERE external_reference IN ('DEMO-VELO-PENDING-01', 'DEMO-SAFFRON-PENDING-01')
                   AND tenant_id IN (%s)
                 """.formatted(DEMO_TENANT_IDS));
@@ -212,6 +221,17 @@ public class DemoFixtureTimestampRefresher implements ApplicationRunner {
                         WHEN 'DEMO-VELO-SCHEDULED-02' THEN NOW() + INTERVAL '3 days'
                         WHEN 'DEMO-SAFFRON-SCHEDULED-01' THEN NOW() + INTERVAL '2 hours'
                         ELSE NOW() + INTERVAL '4 hours'
+                    END,
+                    pickup_address = CASE external_reference
+                        WHEN 'DEMO-VELO-SCHEDULED-01' THEN 'Taj West End, Bengaluru'
+                        WHEN 'DEMO-VELO-SCHEDULED-02' THEN 'Indiranagar Metro, Bengaluru'
+                        WHEN 'DEMO-SAFFRON-SCHEDULED-01' THEN 'ITC Gardenia, Bengaluru'
+                        ELSE 'Taj West End, Bengaluru'
+                    END,
+                    drop_off_address = CASE external_reference
+                        WHEN 'DEMO-VELO-SCHEDULED-01' THEN 'UB City, Bengaluru'
+                        WHEN 'DEMO-SAFFRON-SCHEDULED-02' THEN 'KSR Bengaluru City Railway Station'
+                        ELSE 'Kempegowda International Airport, Terminal 1'
                     END
                 WHERE tenant_id IN (%s)
                   AND external_reference IN (
@@ -219,6 +239,33 @@ public class DemoFixtureTimestampRefresher implements ApplicationRunner {
                       'DEMO-SAFFRON-SCHEDULED-01', 'DEMO-SAFFRON-SCHEDULED-02'
                   )
                 """.formatted(DEMO_TENANT_IDS));
+    }
+
+    private void restoreFixtureRideRequests() {
+        jdbcTemplate.update("""
+                UPDATE ride_request request
+                SET ride_request_status = seed.request_status,
+                    requested_time = NOW() - seed.age_days * INTERVAL '1 day',
+                    scheduled_time = NULL,
+                    pickup_location = ST_SetSRID(ST_MakePoint(seed.pickup_lon, seed.pickup_lat), 4326),
+                    drop_off_location = ST_SetSRID(ST_MakePoint(seed.drop_lon, seed.drop_lat), 4326),
+                    pickup_address = seed.pickup_address,
+                    drop_off_address = seed.drop_address,
+                    fare = seed.fare
+                FROM (VALUES
+                    ('DEMO-VELO-RIDE-ENDED-01', 'default', 'EXPIRED', 4, 77.5946::DOUBLE PRECISION, 12.9716::DOUBLE PRECISION, 77.6200::DOUBLE PRECISION, 12.9350::DOUBLE PRECISION, 640.00::NUMERIC, 'Cubbon Park, Bengaluru', 'JP Nagar, Bengaluru'),
+                    ('DEMO-VELO-RIDE-CANCELLED-01', 'default', 'CANCELLED', 3, 77.5848::DOUBLE PRECISION, 12.9507::DOUBLE PRECISION, 77.5946::DOUBLE PRECISION, 12.9716::DOUBLE PRECISION, 90.00::NUMERIC, 'Lalbagh Botanical Garden, Bengaluru', 'Cubbon Park, Bengaluru'),
+                    ('DEMO-VELO-RIDE-ONGOING-01', 'default', 'CONFIRMED', 0, 77.5946::DOUBLE PRECISION, 12.9716::DOUBLE PRECISION, 77.6200::DOUBLE PRECISION, 12.9350::DOUBLE PRECISION, 640.00::NUMERIC, 'Cubbon Park, Bengaluru', 'JP Nagar, Bengaluru'),
+                    ('DEMO-VELO-RIDE-ENDED-02', 'default', 'EXPIRED', 3, 77.5846::DOUBLE PRECISION, 12.9842::DOUBLE PRECISION, 77.5963::DOUBLE PRECISION, 12.9716::DOUBLE PRECISION, 200.00::NUMERIC, 'Taj West End, Bengaluru', 'UB City, Bengaluru'),
+                    ('DEMO-VELO-RIDE-ENDED-03', 'default', 'EXPIRED', 2, 77.5946::DOUBLE PRECISION, 12.9716::DOUBLE PRECISION, 77.6200::DOUBLE PRECISION, 12.9350::DOUBLE PRECISION, 640.00::NUMERIC, 'Cubbon Park, Bengaluru', 'JP Nagar, Bengaluru'),
+                    ('DEMO-SAFFRON-RIDE-ENDED-01', 'saffron-routes', 'EXPIRED', 2, 77.6200::DOUBLE PRECISION, 12.9350::DOUBLE PRECISION, 77.7060::DOUBLE PRECISION, 13.1986::DOUBLE PRECISION, 1450.00::NUMERIC, 'JP Nagar, Bengaluru', 'Kempegowda International Airport, Terminal 1'),
+                    ('DEMO-SAFFRON-RIDE-ENDED-02', 'saffron-routes', 'EXPIRED', 1, 77.5950::DOUBLE PRECISION, 12.9750::DOUBLE PRECISION, 77.6100::DOUBLE PRECISION, 12.9700::DOUBLE PRECISION, 825.00::NUMERIC, 'Cubbon Park, Bengaluru', 'Trinity Circle, Bengaluru'),
+                    ('DEMO-SAFFRON-RIDE-ONGOING-01', 'saffron-routes', 'CONFIRMED', 0, 77.6100::DOUBLE PRECISION, 12.9350::DOUBLE PRECISION, 77.7060::DOUBLE PRECISION, 13.1986::DOUBLE PRECISION, 1580.00::NUMERIC, 'JP Nagar, Bengaluru', 'Kempegowda International Airport, Terminal 1')
+                ) AS seed(reference, tenant_slug, request_status, age_days, pickup_lon, pickup_lat, drop_lon, drop_lat, fare, pickup_address, drop_address)
+                JOIN tenant ON tenant.slug = seed.tenant_slug
+                WHERE request.tenant_id = tenant.id
+                  AND request.external_reference = seed.reference
+                """);
     }
 
     private void restoreFixtureRides() {
@@ -309,6 +356,25 @@ public class DemoFixtureTimestampRefresher implements ApplicationRunner {
                 WHERE tenant_id = (SELECT id FROM tenant WHERE slug = 'default')
                   AND external_reference = 'DEMO-VELO-CANCELLED-01'
                 """);
+
+        jdbcTemplate.update("""
+                UPDATE ride
+                SET ride_request_id = request.id,
+                    pickup_location = request.pickup_location,
+                    drop_off_location = request.drop_off_location
+                FROM ride_request request
+                WHERE ride.tenant_id = request.tenant_id
+                  AND request.external_reference = CASE ride.external_reference
+                      WHEN 'DEMO-VELO-ENDED-01' THEN 'DEMO-VELO-RIDE-ENDED-01'
+                      WHEN 'DEMO-VELO-CANCELLED-01' THEN 'DEMO-VELO-RIDE-CANCELLED-01'
+                      WHEN 'DEMO-VELO-ONGOING-01' THEN 'DEMO-VELO-RIDE-ONGOING-01'
+                      WHEN 'DEMO-VELO-ENDED-02' THEN 'DEMO-VELO-RIDE-ENDED-02'
+                      WHEN 'DEMO-VELO-ENDED-03' THEN 'DEMO-VELO-RIDE-ENDED-03'
+                      WHEN 'DEMO-SAFFRON-ENDED-01' THEN 'DEMO-SAFFRON-RIDE-ENDED-01'
+                      WHEN 'DEMO-SAFFRON-ENDED-02' THEN 'DEMO-SAFFRON-RIDE-ENDED-02'
+                      WHEN 'DEMO-SAFFRON-ONGOING-01' THEN 'DEMO-SAFFRON-RIDE-ONGOING-01'
+                  END
+                """);
     }
 
     private void restoreFixtureOffers() {
@@ -325,13 +391,13 @@ public class DemoFixtureTimestampRefresher implements ApplicationRunner {
                 INSERT INTO ride_offer (
                     ride_request_id, driver_id, status, offered_at, expires_at, version, tenant_id
                 )
-                SELECT request.id, driver.id, 'OFFERED', NOW() - INTERVAL '1 minute',
-                       NOW() + INTERVAL '7 days', 0, tenant.id
+                SELECT request.id, driver.id, 'OFFERED', NOW(),
+                       NOW() + INTERVAL '90 seconds', 0, tenant.id
                 FROM ride_request request
                 JOIN tenant ON tenant.id = request.tenant_id
                 JOIN app_user driver_user ON driver_user.email = CASE tenant.slug
-                    WHEN 'default' THEN 'bob.driver@example.com'
-                    ELSE 'chauffeur1@saffronroutes.demo'
+                    WHEN 'default' THEN 'carol.driver@example.com'
+                    ELSE 'chauffeur2@saffronroutes.demo'
                 END
                 JOIN driver ON driver.user_id = driver_user.id AND driver.tenant_id = tenant.id
                 WHERE (tenant.slug = 'default' AND request.external_reference = 'DEMO-VELO-PENDING-01')
@@ -423,8 +489,8 @@ public class DemoFixtureTimestampRefresher implements ApplicationRunner {
                 FROM ride_request request
                 JOIN tenant ON tenant.id = request.tenant_id
                 JOIN app_user ON app_user.email = CASE tenant.slug
-                    WHEN 'default' THEN 'bob.driver@example.com'
-                    ELSE 'chauffeur1@saffronroutes.demo'
+                    WHEN 'default' THEN 'carol.driver@example.com'
+                    ELSE 'chauffeur2@saffronroutes.demo'
                 END
                 WHERE (tenant.slug = 'default' AND request.external_reference = 'DEMO-VELO-PENDING-01')
                    OR (tenant.slug = 'saffron-routes' AND request.external_reference = 'DEMO-SAFFRON-PENDING-01')

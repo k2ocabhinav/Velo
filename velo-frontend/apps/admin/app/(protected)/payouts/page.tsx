@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ConfirmDialog, DataTable, EmptyState, ErrorState, PageHeader, Pagination, Section, SegmentedControl, StatusBadge, Money, DateTime, type DataTableColumn } from "@velo/ui";
 import { adminClient, type PayoutItem } from "../_lib/admin-client";
 import { normalizePageNumber, normalizeTotalPages, pageFallbackAfterMutation, toActionErrorMessage } from "../_lib/ui-state";
+import { useTenantBranding } from "@velo/ui/theme";
 
 const ACTION_NOTES = { approve: "Approved via admin payouts queue.", reject: "Rejected during admin payout review." } as const;
 type PayoutAction = "approve" | "reject" | "process";
@@ -11,6 +12,8 @@ type ConfirmAction = { payout: PayoutItem; action: PayoutAction };
 const FILTERS = ["ALL", "PENDING", "APPROVED", "REJECTED", "PROCESSED"] as const;
 
 export default function PayoutsPage() {
+  const { driverLabel } = useTenantBranding();
+  const driverWord = driverLabel.toLowerCase();
   const [rows, setRows] = useState<PayoutItem[]>([]);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -70,11 +73,11 @@ export default function PayoutsPage() {
   ];
 
   const confirmLabels: Record<PayoutAction, string> = { approve: "Approve payout", reject: "Reject payout", process: "Process payout" };
-  const descriptions: Record<PayoutAction, string> = { approve: "Approve this request so it can move to processing.", reject: "Reject this payout request. The driver will not receive this payment.", process: "Send this approved payout for processing." };
+  const descriptions: Record<PayoutAction, string> = { approve: "Approve this request so it can move to processing.", reject: `Reject this payout request. The ${driverWord} will not receive this payment.`, process: "Send this approved payout for processing." };
 
   return (
     <div className="stack">
-      <PageHeader title="Payouts" description="Review driver payout requests and track processing." />
+      <PageHeader title="Payouts" description={`Review ${driverWord} payout requests and track processing.`} />
       {error ? <ErrorState title="Couldn't update payouts" description={error} onRetry={() => void load(page)} /> : null}
       {statusMessage ? <p role="status" className="helper">{statusMessage}</p> : null}
       <Section title="Payout requests" actions={<SegmentedControl ariaLabel="Payout status filter" value={filter} onValueChange={(value) => setFilter(value as (typeof FILTERS)[number])} options={FILTERS.map((value) => ({ value, label: value === "ALL" ? "All" : value.charAt(0) + value.slice(1).toLowerCase() }))} />}>
@@ -84,7 +87,7 @@ export default function PayoutsPage() {
             columns={columns}
             getRowKey={(payout) => payout.id}
             ariaLabel="Payout requests"
-            emptyState={<EmptyState title={rows.length ? "No payouts in this status" : "No pending payouts"} description={rows.length ? "Choose another filter to see more requests." : "New driver payout requests will appear here for review."} action={rows.length ? <button className="secondary-button" type="button" onClick={() => setFilter("ALL")}>Show all payouts</button> : <a className="secondary-button" href="/drivers">Review drivers</a>} />}
+            emptyState={<EmptyState title={rows.length ? "No payouts in this status" : "No pending payouts"} description={rows.length ? "Choose another filter to see more requests." : `New ${driverWord} payout requests will appear here for review.`} action={rows.length ? <button className="secondary-button" type="button" onClick={() => setFilter("ALL")}>Show all payouts</button> : <a className="secondary-button" href="/drivers">Review {driverLabel.toLowerCase()}s</a>} />}
             rowActions={(payout) => {
               const status = String(payout.status).toUpperCase();
               if (status === "PENDING") return [

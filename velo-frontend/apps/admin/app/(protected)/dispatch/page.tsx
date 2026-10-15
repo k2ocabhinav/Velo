@@ -9,11 +9,14 @@ import {
 } from "@velo/ui";
 import type { LocationPoint, LocationTarget } from "@velo/ui/leaflet-map";
 import { isActionPending, setActionPending } from "@velo/app-core/async-actions";
+import { getTenantLabelForCount, getTenantPluralLabel } from "@velo/app-core/tenant";
+import { useTenantBrandingOrDefault } from "@velo/ui/theme";
 import { adminClient, type AdminActiveRide, type AdminDispatchAudit, type AdminPendingRideRequest, type AdminRideOffer, type BrandingSettings, type CreateDispatchRequestInput } from "../_lib/admin-client";
 import { requestAdminProxy } from "../_lib/http";
 import { toActionErrorMessage } from "../_lib/ui-state";
 import { executeDispatchOperation } from "../../_lib/dispatch-action";
 import { LiveFleetPanel } from "./_components/live-fleet-panel";
+import { TenantStatus } from "../_components/tenant-status";
 
 const PAGE_SIZE = 10;
 const LeafletLocationPicker = dynamic(
@@ -51,12 +54,14 @@ function reverseDispatchAddress(point: LocationPoint): Promise<AddressSuggestion
   return requestAdminProxy<AddressSuggestion>(`geo/reverse?${params.toString()}`);
 }
 
-function readableAuditAction(action: string | null | undefined): string {
+function readableAuditAction(action: string | null | undefined, driverLabel: string, tripLabel: string): string {
+  const driver = getTenantLabelForCount(1, driverLabel, { midSentence: true, fallback: "Driver" });
+  const trip = getTenantLabelForCount(1, tripLabel, { midSentence: true, fallback: "Trip" });
   const labels: Record<string, string> = {
-    ASSIGN_REQUEST: "Assigned a driver",
-    REASSIGN_RIDE: "Changed the assigned driver",
+    ASSIGN_REQUEST: `Assigned a ${driver}`,
+    REASSIGN_RIDE: `Changed the assigned ${driver}`,
     CANCEL_REQUEST: "Cancelled a request",
-    CANCEL_RIDE: "Cancelled a trip",
+    CANCEL_RIDE: `Cancelled a ${trip}`,
     CREATE_REQUEST: "Created a request",
   };
   if (!action) return "Dispatch action";
@@ -64,6 +69,7 @@ function readableAuditAction(action: string | null | undefined): string {
 }
 
 export default function AdminDispatchPage() {
+  const tenantBranding = useTenantBrandingOrDefault();
   const [pendingRequests, setPendingRequests] = useState<AdminPendingRideRequest[]>([]);
   const [activeRides, setActiveRides] = useState<AdminActiveRide[]>([]);
   const [auditRows, setAuditRows] = useState<AdminDispatchAudit[]>([]);
@@ -165,7 +171,7 @@ export default function AdminDispatchPage() {
     await runAction(`offers:${requestId}`, async () => {
       const offers = await adminClient.getRideRequestOffers(requestId);
       setOffersByRequest((current) => ({ ...current, [requestId]: offers }));
-    }, "Available driver offers loaded.");
+    }, `Available ${getTenantPluralLabel(branding?.driverLabel ?? tenantBranding.driverLabel, "Driver").toLowerCase()} loaded.`);
   }
 
   function openAssignment(target: AssignmentTarget): void {
@@ -179,7 +185,7 @@ export default function AdminDispatchPage() {
     const driverId = Number(assignment.driverId);
     const reason = assignment.reason.trim();
     if (!Number.isInteger(driverId) || driverId <= 0 || !reason) {
-      setError("Enter a valid driver ID and a reason.");
+      setError(`Enter a valid ${getTenantLabelForCount(1, branding?.driverLabel ?? tenantBranding.driverLabel, { midSentence: true, fallback: "Driver" })} ID and a reason.`);
       return;
     }
     const target = assignmentTarget;
@@ -188,7 +194,7 @@ export default function AdminDispatchPage() {
       () => target.kind === "request"
         ? adminClient.assignPendingRideRequest(target.id, driverId, reason)
         : adminClient.reassignRide(target.id, driverId, reason),
-      target.kind === "request" ? "Driver assigned." : "Driver reassigned.",
+      target.kind === "request" ? `${branding?.driverLabel ?? tenantBranding.driverLabel} assigned.` : `${branding?.driverLabel ?? tenantBranding.driverLabel} reassigned.`,
     );
     if (succeeded) setAssignmentTarget(null);
   }
@@ -212,7 +218,7 @@ export default function AdminDispatchPage() {
       () => target.kind === "request"
         ? adminClient.cancelPendingRideRequest(target.id, target.reason)
         : adminClient.cancelRide(target.id, target.reason),
-      target.kind === "request" ? "Request cancelled." : "Trip cancelled.",
+      target.kind === "request" ? "Request cancelled." : `${branding?.tripLabel ?? tenantBranding.tripLabel} cancelled.`,
     );
     setCancelConfirm(null);
   }
@@ -250,7 +256,7 @@ export default function AdminDispatchPage() {
           : { ...form, dropOffAddress: address.label });
       })
       .catch(() => {
-        if (requestId === reverseRequestId.current) setStatusMessage("Recent trip location selected; its address label is unavailable.");
+        if (requestId === reverseRequestId.current) setStatusMessage(`Recent ${getTenantLabelForCount(2, branding?.tripLabel ?? tenantBranding.tripLabel, { midSentence: true, fallback: "Trip" })} location selected; its address label is unavailable.`);
       })
       .finally(() => {
         if (requestId === reverseRequestId.current) setReverseLookupTarget(null);
@@ -321,7 +327,9 @@ export default function AdminDispatchPage() {
       dropOffAddress: safeReason(dispatchForm.dropOffAddress) ?? undefined,
       externalReference: safeReason(dispatchForm.externalReference) ?? undefined,
     };
-    const created = await runAction("create-dispatch-request", () => adminClient.createDispatchRequest(payload), "Trip request created and offered to nearby drivers.");
+    const tripLabel = branding?.tripLabel ?? tenantBranding.tripLabel;
+    const driverLabel = branding?.driverLabel ?? tenantBranding.driverLabel;
+    const created = await runAction("create-dispatch-request", () => adminClient.createDispatchRequest(payload), `${tripLabel} request created and offered to nearby ${getTenantPluralLabel(driverLabel, "Driver").toLowerCase()}.`);
     if (created) {
       reverseRequestId.current += 1;
       setReverseLookupTarget(null);
@@ -333,36 +341,53 @@ export default function AdminDispatchPage() {
   const auditColumns: DataTableColumn<AdminDispatchAudit>[] = [
     { header: "Time", cell: (row) => <DateTime value={row.createdAt} /> },
     { header: "By", cell: () => "Operations" },
-    { header: "Action", cell: (row) => readableAuditAction(row.actionType) },
-    { header: "Trip", cell: (row) => <span className="admin-code">{row.rideId || row.rideRequestId ? `Trip ${row.rideId ?? row.rideRequestId}` : "—"}</span> },
+    { header: "Action", cell: (row) => readableAuditAction(row.actionType, branding?.driverLabel ?? tenantBranding.driverLabel, branding?.tripLabel ?? tenantBranding.tripLabel) },
+    { header: branding?.tripLabel ?? tenantBranding.tripLabel, cell: (row) => <span className="admin-code">{row.rideId || row.rideRequestId ? `${branding?.tripLabel ?? tenantBranding.tripLabel} ${row.rideId ?? row.rideRequestId}` : "—"}</span> },
     { header: "Reason", cell: (row) => row.reason || "—" },
   ];
 
-  const riderLabel = branding?.riderLabel ?? "Rider";
-  const driverLabel = branding?.driverLabel ?? "Driver";
-  const tripLabel = branding?.tripLabel ?? "trip";
+  const riderLabel = branding?.riderLabel ?? tenantBranding.riderLabel;
+  const driverLabel = branding?.driverLabel ?? tenantBranding.driverLabel;
+  const tripLabel = branding?.tripLabel ?? tenantBranding.tripLabel;
+  const driverWord = getTenantLabelForCount(1, driverLabel, { midSentence: true, fallback: "Driver" });
+  const tripWord = getTenantLabelForCount(1, tripLabel, { midSentence: true, fallback: "Trip" });
+  const tripPlural = getTenantPluralLabel(tripLabel, "Trip");
+  const usesDefaultTripLabel = tripLabel.trim().toLowerCase() === "trip";
+  const routeStageLabels = {
+    requested: `${tripLabel} requested`,
+    assigned: `${driverLabel} assigned`,
+    arriving: `${driverLabel} arriving`,
+    on_trip: `${tripLabel} in progress`,
+    completed: `${tripLabel} completed`,
+    cancelled: `${tripLabel} cancelled`,
+  };
+  const pendingHeading = usesDefaultTripLabel ? "Pending requests" : `Pending ${tripPlural.toLowerCase()}`;
+  const noPendingTitle = usesDefaultTripLabel ? "No pending requests" : `No pending ${tripPlural.toLowerCase()}`;
+  const noPendingDescription = usesDefaultTripLabel
+    ? "New requests will appear here while a driver is being matched."
+    : `New ${tripPlural.toLowerCase()} will appear here while a ${driverWord} is being matched.`;
 
   return (
     <div className="stack">
-      <PageHeader title="Dispatch" description="Resolve requests and manage trips in progress." actions={<Button onClick={() => setCreateOpen(true)}>New trip</Button>} />
+      <PageHeader title="Dispatch" description={`Resolve requests and manage ${tripPlural.toLowerCase()} in progress.`} actions={<Button onClick={() => setCreateOpen(true)}>New {tripWord}</Button>} />
       {error ? <ErrorState title="Couldn't update dispatch" description={error} onRetry={() => void loadAll()} /> : null}
       {statusMessage ? <p role="status" className="helper">{statusMessage}</p> : null}
 
       <LiveFleetPanel onOpenTripsChanged={refreshOpenTripLists} />
 
       <div className="dispatch-columns">
-        <Section title="Pending requests" actions={<span className="helper">{pendingRequests.length} shown</span>}>
+        <Section title={pendingHeading} actions={<span className="helper">{pendingRequests.length} shown</span>}>
           {loading ? <div aria-label="Loading pending requests" aria-busy="true" className="stack">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-24" />)}</div> : pendingRequests.length === 0 ? (
-            <EmptyState title="No pending requests" description="New requests will appear here while a driver is being matched." action={<Button variant="secondary" onClick={() => void loadAll()}>Refresh requests</Button>} />
+            <EmptyState title={noPendingTitle} description={noPendingDescription} action={<Button variant="secondary" onClick={() => void loadAll()}>Refresh requests</Button>} />
           ) : pendingRequests.map((request) => (
             <article className="dispatch-request" key={request.rideRequestId}>
               <div className="dispatch-meta">
                 <strong>{request.customerName ?? request.riderName ?? `${riderLabel} request`}</strong>
-                <StatusBadge domain="request" status={request.status} />
+                {usesDefaultTripLabel ? <StatusBadge domain="request" status={request.status} /> : <TenantStatus domain="request" status={request.status} label={`Finding a ${driverWord}`} />}
               </div>
-              <RouteStrip stage={request.status ?? "PENDING"} pickupLabel="Pickup" dropoffLabel="Drop-off" />
+              <RouteStrip stage={request.status ?? "PENDING"} stageLabels={routeStageLabels} pickupLabel="Pickup" dropoffLabel="Drop-off" />
               <DefinitionList items={[
-                { label: "Pickup", value: request.pickupAddress || "Location available when assigned" },
+                { label: "Pickup", value: request.pickupAddress || "Address not set" },
                 { label: "Drop-off", value: request.dropOffAddress || "Destination not provided" },
                 { label: "Requested", value: <DateTime value={request.requestedTime} /> },
               ]} />
@@ -371,7 +396,7 @@ export default function AdminDispatchPage() {
                   data={offersByRequest[request.rideRequestId]}
                   ariaLabel="Driver offers"
                   columns={[
-                    { header: driverLabel, cell: (offer: AdminRideOffer) => offer.driverName || "Nearby driver" },
+                    { header: driverLabel, cell: (offer: AdminRideOffer) => offer.driverName || `Nearby ${driverWord}` },
                     { header: "Status", cell: (offer: AdminRideOffer) => <StatusBadge domain="request" status={offer.status} /> },
                     { header: "Expires", cell: (offer: AdminRideOffer) => <DateTime value={offer.expiresAt} /> },
                   ]}
@@ -384,8 +409,8 @@ export default function AdminDispatchPage() {
                   triggerLabel={`Actions for ${request.customerName ?? request.riderName ?? riderLabel}`}
                   items={[
                     { label: offersByRequest[request.rideRequestId] ? "Hide offers" : "Show offers", onSelect: () => void toggleOffers(request) },
-                    { label: "Assign driver", onSelect: () => openAssignment({ kind: "request", id: request.rideRequestId, label: "pending request" }) },
-                    { label: "Cancel request", destructive: true, onSelect: () => openCancellation({ kind: "request", id: request.rideRequestId, label: "pending request" }) },
+                    { label: `Assign ${driverWord}`, onSelect: () => openAssignment({ kind: "request", id: request.rideRequestId, label: `pending ${tripWord}` }) },
+                    { label: "Cancel request", destructive: true, onSelect: () => openCancellation({ kind: "request", id: request.rideRequestId, label: `pending ${tripWord}` }) },
                   ]}
                 />
               </div>
@@ -393,26 +418,26 @@ export default function AdminDispatchPage() {
           ))}
         </Section>
 
-        <Section title="Active trips" actions={<span className="helper">{activeRides.length} shown</span>}>
+        <Section title={`Active ${tripPlural.toLowerCase()}`} actions={<span className="helper">{activeRides.length} shown</span>}>
           {loading ? <div aria-label="Loading active trips" aria-busy="true" className="stack">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-24" />)}</div> : activeRides.length === 0 ? (
-            <EmptyState title="No active trips" description="Trips with a driver assigned will appear here." action={<Button variant="secondary" onClick={() => void loadAll()}>Refresh trips</Button>} />
+            <EmptyState title={`No active ${tripPlural.toLowerCase()}`} description={`${tripPlural} with a ${driverWord} assigned will appear here.`} action={<Button variant="secondary" onClick={() => void loadAll()}>Refresh ${tripPlural.toLowerCase()}</Button>} />
           ) : activeRides.map((ride) => (
             <article className="dispatch-ride" key={ride.rideId}>
               <div className="dispatch-meta">
                 <strong>{ride.riderName ?? riderLabel}</strong>
-                <StatusBadge domain="ride" status={ride.status} />
+                <TenantStatus domain="ride" status={ride.status} label={ride.status === "ONGOING" ? `${tripLabel} in progress` : `${driverLabel} assigned`} />
               </div>
-              <RouteStrip stage={ride.status ?? "CONFIRMED"} />
+              <RouteStrip stage={ride.status ?? "CONFIRMED"} stageLabels={routeStageLabels} />
               <DefinitionList items={[
-                { label: driverLabel, value: ride.driverName || "Awaiting driver" },
-                { label: "Started", value: <DateTime value={ride.startedAt ?? ride.createdTime} /> },
+                { label: driverLabel, value: ride.driverName || `Awaiting ${driverWord}` },
+                { label: ride.status === "ONGOING" ? "Started" : "Assigned", value: <DateTime value={ride.status === "ONGOING" ? ride.startedAt ?? ride.createdTime : ride.createdTime} /> },
               ]} />
               <div className="dispatch-actions">
                 <Menu
                   triggerLabel={`Actions for ${ride.riderName ?? riderLabel}`}
                   items={[
-                    { label: "Reassign driver", onSelect: () => openAssignment({ kind: "ride", id: ride.rideId, label: "active trip" }) },
-                    { label: "Cancel trip", destructive: true, onSelect: () => openCancellation({ kind: "ride", id: ride.rideId, label: "active trip" }) },
+                    { label: `Reassign ${driverWord}`, onSelect: () => openAssignment({ kind: "ride", id: ride.rideId, label: `active ${tripWord}` }) },
+                    { label: `Cancel ${tripWord}`, destructive: true, onSelect: () => openCancellation({ kind: "ride", id: ride.rideId, label: `active ${tripWord}` }) },
                   ]}
                 />
               </div>
@@ -427,7 +452,7 @@ export default function AdminDispatchPage() {
         )}
       </Section>
 
-      <Sheet open={createOpen} onOpenChange={(open) => { setCreateOpen(open); if (!open) { reverseRequestId.current += 1; setReverseLookupTarget(null); } }} title="New trip" description="Create a request and offer it to nearby drivers.">
+      <Sheet open={createOpen} onOpenChange={(open) => { setCreateOpen(open); if (!open) { reverseRequestId.current += 1; setReverseLookupTarget(null); } }} title={`New ${tripWord}`} description={`Create a request and offer it to nearby ${getTenantPluralLabel(driverLabel, "Driver").toLowerCase()}.`}>
         <form className="stack" onSubmit={(event) => void createDispatchRequest(event)}>
           <AddressSearch
             label="Pickup address"
@@ -435,7 +460,7 @@ export default function AdminDispatchPage() {
             selected={pickupPoint !== null}
             near={dropoffPoint ? `${dropoffPoint.lat},${dropoffPoint.lng}` : undefined}
             search={searchDispatchAddresses}
-            preSearchLabel="Recent addresses from the last 20 trips"
+            preSearchLabel={`Recent addresses from the last 20 ${tripPlural.toLowerCase()}`}
             preSearchPlaces={recentAddresses}
             onValueChange={(value) => changeAddress("pickup", value)}
             onSelect={(suggestion) => selectAddress("pickup", suggestion)}
@@ -447,7 +472,7 @@ export default function AdminDispatchPage() {
             selected={dropoffPoint !== null}
             near={pickupPoint ? `${pickupPoint.lat},${pickupPoint.lng}` : undefined}
             search={searchDispatchAddresses}
-            preSearchLabel="Recent addresses from the last 20 trips"
+            preSearchLabel={`Recent addresses from the last 20 ${tripPlural.toLowerCase()}`}
             preSearchPlaces={recentAddresses}
             onValueChange={(value) => changeAddress("dropoff", value)}
             onSelect={(suggestion) => selectAddress("dropoff", suggestion)}
@@ -480,26 +505,26 @@ export default function AdminDispatchPage() {
             <Field label="Payment method"><Select value={dispatchForm.paymentMethod} onChange={(event) => setDispatchForm((form) => ({ ...form, paymentMethod: event.target.value as DispatchForm["paymentMethod"] }))}><option value="CASH">Cash</option><option value="WALLET">Wallet</option></Select></Field>
             <Field label="External reference"><input className="ui-control" value={dispatchForm.externalReference} onChange={(event) => setDispatchForm((form) => ({ ...form, externalReference: event.target.value }))} /></Field>
           </div>
-          <Button type="submit">Create trip request</Button>
+          <Button type="submit">Create {tripWord} request</Button>
         </form>
       </Sheet>
 
-      <Sheet open={Boolean(assignmentTarget)} onOpenChange={(open) => { if (!open) setAssignmentTarget(null); }} title={assignmentTarget?.kind === "ride" ? "Reassign driver" : "Assign driver"} description={`Choose a driver for this ${assignmentTarget?.label ?? tripLabel.toLowerCase()}.`}>
+      <Sheet open={Boolean(assignmentTarget)} onOpenChange={(open) => { if (!open) setAssignmentTarget(null); }} title={assignmentTarget?.kind === "ride" ? `Reassign ${driverWord}` : `Assign ${driverWord}`} description={`Choose a ${driverWord} for this ${assignmentTarget?.label ?? tripWord}.`}>
         <form className="stack" onSubmit={(event) => void submitAssignment(event)}>
-          <Field label={`${driverLabel} ID`} hint="Use the driver account ID from the driver record."><input className="ui-control" type="number" min="1" step="1" value={assignment.driverId} onChange={(event) => setAssignment((current) => ({ ...current, driverId: event.target.value }))} required /></Field>
+          <Field label={`${driverLabel} ID`} hint={`Use the ${driverWord} account ID from the ${driverWord} record.`}><input className="ui-control" type="number" min="1" step="1" value={assignment.driverId} onChange={(event) => setAssignment((current) => ({ ...current, driverId: event.target.value }))} required /></Field>
           <Field label="Reason"><Textarea value={assignment.reason} onChange={(event) => setAssignment((current) => ({ ...current, reason: event.target.value }))} required rows={3} /></Field>
-          <Button type="submit" loading={Boolean(assignmentTarget && isActionPending(pendingActions, `${assignmentTarget.kind === "request" ? "assign" : "reassign"}:${assignmentTarget.id}`))}>{assignmentTarget?.kind === "ride" ? "Reassign driver" : "Assign driver"}</Button>
+          <Button type="submit" loading={Boolean(assignmentTarget && isActionPending(pendingActions, `${assignmentTarget.kind === "request" ? "assign" : "reassign"}:${assignmentTarget.id}`))}>{assignmentTarget?.kind === "ride" ? `Reassign ${driverWord}` : `Assign ${driverWord}`}</Button>
         </form>
       </Sheet>
 
-      <Sheet open={Boolean(cancelTarget)} onOpenChange={(open) => { if (!open) setCancelTarget(null); }} title="Cancel trip" description="Add a reason before confirming this cancellation.">
+      <Sheet open={Boolean(cancelTarget)} onOpenChange={(open) => { if (!open) setCancelTarget(null); }} title={`Cancel ${tripWord}`} description="Add a reason before confirming this cancellation.">
         <form className="stack" onSubmit={(event) => stageCancellation(event)}>
           <Field label="Cancellation reason"><Textarea value={cancelTarget?.reason ?? ""} onChange={(event) => setCancelTarget((current) => current ? { ...current, reason: event.target.value } : current)} required rows={3} /></Field>
           <Button type="submit" variant="danger">Continue to confirmation</Button>
         </form>
       </Sheet>
 
-      <ConfirmDialog open={Boolean(cancelConfirm)} onOpenChange={(open) => { if (!open) setCancelConfirm(null); }} title="Cancel this trip?" description={cancelConfirm ? `The ${cancelConfirm.label} will be cancelled. Reason: ${cancelConfirm.reason}` : "This cancellation cannot be undone."} confirmLabel="Cancel trip" onConfirm={confirmCancellation} />
+      <ConfirmDialog open={Boolean(cancelConfirm)} onOpenChange={(open) => { if (!open) setCancelConfirm(null); }} title={`Cancel this ${tripWord}?`} description={cancelConfirm ? `The ${cancelConfirm.label} will be cancelled. Reason: ${cancelConfirm.reason}` : "This cancellation cannot be undone."} confirmLabel={`Cancel ${tripWord}`} onConfirm={confirmCancellation} />
     </div>
   );
 }

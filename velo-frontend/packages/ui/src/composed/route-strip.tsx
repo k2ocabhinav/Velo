@@ -4,6 +4,7 @@ import { cn } from "../lib/cn";
 export const ROUTE_STAGES = ["requested", "assigned", "arriving", "on_trip", "completed"] as const;
 export type RouteStage = (typeof ROUTE_STAGES)[number] | "cancelled";
 export type RouteStripVariant = "live" | "static";
+export type RouteStageLabels = Partial<Record<RouteStage, string>>;
 
 const STAGE_COPY: Record<Exclude<RouteStage, "cancelled">, string> = {
   requested: "Trip requested",
@@ -39,10 +40,12 @@ export function RouteStrip({
   pickupLabel = "Pickup",
   showDriverMarker = true,
   stage,
+  stageLabels,
   variant = "live",
 }: {
   stage: RouteStage | string;
   variant?: RouteStripVariant;
+  stageLabels?: RouteStageLabels;
   pickupLabel?: string;
   dropoffLabel?: string;
   driverProgress?: number;
@@ -56,7 +59,7 @@ export function RouteStrip({
   const clampedDriverProgress = driverProgress === undefined
     ? progress
     : Math.min(1, Math.max(0, driverProgress));
-  const statusCopy = cancelled ? "Trip cancelled" : STAGE_COPY[normalizedStage];
+  const statusCopy = stageLabels?.[normalizedStage] ?? (cancelled ? "Trip cancelled" : STAGE_COPY[normalizedStage]);
   const accessibleCopy = `${statusCopy}, step ${stageIndex + 1} of ${ROUTE_STAGES.length}`;
 
   return (
