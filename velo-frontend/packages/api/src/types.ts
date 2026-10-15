@@ -277,7 +277,7 @@ export interface RideDto {
   otp?: string | null;
   paymentMethod: string;
   rideStatus: string;
-  fair?: DecimalValue | null;
+  fare?: DecimalValue | null;
   promoCode?: string | null;
   discountAmount?: DecimalValue | null;
 }

@@ -47,9 +47,8 @@ public class FareEstimationServiceImpl implements FareEstimationService {
         double distanceKm = distanceDuration[0];
         double durationMins = distanceDuration[1];
         
-        BigDecimal baseFare = rideStrategyManager.rideFareCalculationStrategy().calculateFare(dummyRideRequest);
-        BigDecimal originalFare = baseFare;
-        BigDecimal finalFare = baseFare;
+        BigDecimal originalFare = rideStrategyManager.rideFareCalculationStrategy().calculateFare(dummyRideRequest);
+        BigDecimal finalFare = originalFare;
         BigDecimal discountAmount = BigDecimal.ZERO;
         boolean promoApplied = false;
         String promoMessage = null;
@@ -58,7 +57,7 @@ public class FareEstimationServiceImpl implements FareEstimationService {
         String promoCode = fareEstimateRequestDto.getPromoCode();
         if (promoCode != null && !promoCode.isBlank()) {
             try {
-                PromoCodeResultDto promoResult = promoCodeService.previewPromo(promoCode, rider.getUser(), baseFare);
+                PromoCodeResultDto promoResult = promoCodeService.previewPromo(promoCode, rider.getUser(), originalFare);
                 if (promoResult.isValid()) {
                     discountAmount = promoResult.getDiscountAmount();
                     finalFare = promoResult.getDiscountedFare();
@@ -87,7 +86,7 @@ public class FareEstimationServiceImpl implements FareEstimationService {
         
         return FareEstimateDto.builder()
                 .estimatedFare(finalFare)
-                .baseFare(baseFare)
+                .baseFare(BigDecimal.valueOf(fareConfig.getBaseFare()))
                 .originalFare(originalFare)
                 .discountedFare(finalFare)
                 .savings(discountAmount)
@@ -96,7 +95,7 @@ public class FareEstimationServiceImpl implements FareEstimationService {
                 .surgeMultiplier(fareConfig.getSurgeMultiplier()) // Or dynamic if implemented
                 .discountAmount(discountAmount)
                 .distanceKm(distanceKm)
-                .durationMinutes(durationMins)
+                .durationMinutes(Math.toIntExact(Math.round(durationMins)))
                 .walletSufficient(walletSufficient)
                 .estimatedPickupTime(LocalDateTime.now().plusMinutes(10)) // Static stub for v1.1.0
                 .applicablePromos(promoCodeService.getActivePromoCodes())

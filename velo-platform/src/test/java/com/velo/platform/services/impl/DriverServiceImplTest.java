@@ -4,11 +4,15 @@ import com.velo.platform.dto.DriverDto;
 import com.velo.platform.dto.DriverLocationDto;
 import com.velo.platform.dto.DriverLocationUpdateRequestDto;
 import com.velo.platform.dto.RideDto;
+import com.velo.platform.dto.RideRequestDto;
 import com.velo.platform.dto.RiderDto;
+import com.velo.platform.dto.UserDto;
 import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.Ride;
 import com.velo.platform.entities.RideOffer;
 import com.velo.platform.entities.RideRequest;
+import com.velo.platform.entities.Rider;
+import com.velo.platform.entities.User;
 import com.velo.platform.entities.enums.RideOfferStatus;
 import com.velo.platform.entities.enums.PaymentMethod;
 import com.velo.platform.entities.enums.RideRequestStatus;
@@ -179,6 +183,32 @@ class DriverServiceImplTest {
     }
 
     @Test
+    @DisplayName("Accepted ride includes the rider name and fare in its DTO")
+    void acceptRide_WithRider_ShouldReturnNameAndFare() {
+        mockAuthenticatedDriver();
+        Rider rider = Rider.builder()
+                .id(12L)
+                .user(User.builder().firstName("Henry").lastName("Rider").build())
+                .build();
+        testRide.setRider(rider);
+        UserDto userDto = new UserDto();
+        RiderDto riderDto = new RiderDto();
+        riderDto.setUser(userDto);
+        RideDto rideDto = new RideDto();
+        rideDto.setFare(100.0);
+        rideDto.setRider(riderDto);
+
+        when(rideRequestService.findRideRequestById(1L)).thenReturn(testRideRequest);
+        when(rideService.createNewRide(testRideRequest, testDriver)).thenReturn(testRide);
+        when(modelMapper.map(testRide, RideDto.class)).thenReturn(rideDto);
+
+        RideDto result = driverService.acceptRide(1L);
+
+        assertThat(result.getFare()).isEqualTo(100.0);
+        assertThat(result.getRider().getUser().getName()).isEqualTo("Henry Rider");
+    }
+
+    @Test
     @DisplayName("Accept ride with offer lifecycle should mark accepted and revoke competing offers")
     void acceptRide_WithOfferLifecycle_ShouldResolveOfferStates() {
         mockAuthenticatedDriver();
@@ -213,6 +243,23 @@ class DriverServiceImplTest {
         assertThatThrownBy(() -> driverService.acceptRide(1L))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("already been assigned or cancelled");
+    }
+
+    @Test
+    @DisplayName("Ride request preview returns stale status without a conflict")
+    void getRideRequestForAcceptance_WithExpiredRequest_ShouldReturnStatus() {
+        mockAuthenticatedDriver();
+        testRideRequest.setRideRequestStatus(RideRequestStatus.EXPIRED);
+        RideRequestDto preview = new RideRequestDto();
+        preview.setRideRequestStatus(RideRequestStatus.EXPIRED);
+
+        when(rideRequestService.findRideRequestById(1L)).thenReturn(testRideRequest);
+        when(modelMapper.map(testRideRequest, RideRequestDto.class)).thenReturn(preview);
+
+        RideRequestDto result = driverService.getRideRequestForAcceptance(1L);
+
+        assertThat(result.getRideRequestStatus()).isEqualTo(RideRequestStatus.EXPIRED);
+        verify(rideOfferService, never()).hasAnyOffer(1L);
     }
 
     @Test

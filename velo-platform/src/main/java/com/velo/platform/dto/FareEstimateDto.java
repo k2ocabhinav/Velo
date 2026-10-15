@@ -15,7 +15,7 @@ import java.util.List;
 @Builder
 public class FareEstimateDto {
     private BigDecimal estimatedFare; // retained for backward compatibility
-    private BigDecimal baseFare; // retained for backward compatibility
+    private BigDecimal baseFare;
     private BigDecimal originalFare;
     private BigDecimal discountedFare;
     private BigDecimal savings;
@@ -24,7 +24,7 @@ public class FareEstimateDto {
     private Double surgeMultiplier;
     private BigDecimal discountAmount; // discount applied
     private Double distanceKm;
-    private Double durationMinutes; // keeping as Double if service returns double
+    private Integer durationMinutes;
     private Boolean walletSufficient;
     private LocalDateTime estimatedPickupTime;
     private List<PromoCodeDto> applicablePromos;

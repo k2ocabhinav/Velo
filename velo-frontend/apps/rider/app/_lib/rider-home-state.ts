@@ -8,7 +8,6 @@ export type RiderHomeRide = {
   startedAt?: string | null;
   endedAt?: string | null;
   fare?: DecimalValue | null;
-  fair?: DecimalValue | null;
 };
 
 export type RiderHomePendingRequest = Readonly<{
@@ -244,5 +243,5 @@ export function getRideFareValue(ride: RiderHomeRide | null | undefined): Decima
     return null;
   }
 
-  return ride.fare ?? ride.fair ?? null;
+  return ride.fare ?? null;
 }

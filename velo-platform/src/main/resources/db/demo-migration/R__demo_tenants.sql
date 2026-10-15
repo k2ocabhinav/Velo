@@ -128,12 +128,13 @@ SET vehicle_id = EXCLUDED.vehicle_id,
 INSERT INTO wallet (user_id, balance, version, tenant_id)
 SELECT app_user.id, seed.balance, 0, tenant.id
 FROM (VALUES
-    ('alice@example.com', 1250.00::NUMERIC, 'default'),
+    ('alice@example.com', 2500.00::NUMERIC, 'default'),
     ('bob.driver@example.com', 620.00::NUMERIC, 'default'),
     ('carol.driver@example.com', 485.00::NUMERIC, 'default'),
-    ('dave@example.com', 390.00::NUMERIC, 'default'),
-    ('guest@saffronroutes.demo', 2840.00::NUMERIC, 'saffron-routes'),
-    ('guest2@saffronroutes.demo', 1675.00::NUMERIC, 'saffron-routes'),
+    ('dave@example.com', 2500.00::NUMERIC, 'default'),
+    ('henry@example.com', 2500.00::NUMERIC, 'default'),
+    ('guest@saffronroutes.demo', 25000.00::NUMERIC, 'saffron-routes'),
+    ('guest2@saffronroutes.demo', 25000.00::NUMERIC, 'saffron-routes'),
     ('chauffeur1@saffronroutes.demo', 740.00::NUMERIC, 'saffron-routes'),
     ('chauffeur2@saffronroutes.demo', 610.00::NUMERIC, 'saffron-routes')
 ) AS seed(email, balance, tenant_slug)
@@ -183,13 +184,20 @@ SET customer_name = concat(app_user.first_name, ' ', app_user.last_name),
     customer_phone = app_user.phone_number,
     pickup_address = CASE WHEN request.id % 2 = 0 THEN 'Taj MG Road, Bengaluru' ELSE 'Indiranagar Metro, Bengaluru' END,
     drop_off_address = CASE WHEN request.id % 2 = 0 THEN 'Kempegowda International Airport' ELSE 'UB City, Bengaluru' END,
-    scheduled_time = NOW() + ((request.id % 3) + 1) * INTERVAL '1 day'
+    scheduled_time = NOW() + ((request.id % 3) + 1) * INTERVAL '1 day',
+    external_reference = CASE app_user.email
+        WHEN 'alice@example.com' THEN 'DEMO-VELO-SCHEDULED-01'
+        WHEN 'frank@example.com' THEN 'DEMO-VELO-SCHEDULED-02'
+        ELSE request.external_reference
+    END
 FROM rider
 JOIN app_user ON app_user.id = rider.user_id
 JOIN tenant ON tenant.id = rider.tenant_id
 WHERE request.rider_id = rider.id
   AND tenant.slug = 'default'
-  AND request.ride_request_status = 'SCHEDULED';
+  AND request.ride_request_status = 'SCHEDULED'
+  AND request.external_reference IS NULL
+  AND app_user.email IN ('alice@example.com', 'frank@example.com');
 
 INSERT INTO ride_request (
     pickup_location, drop_off_location, requested_time, scheduled_time, rider_id, payment_method,

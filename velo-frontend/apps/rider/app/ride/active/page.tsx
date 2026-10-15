@@ -65,7 +65,6 @@ type RiderRideItem = {
   id: number;
   rideStatus: string;
   fare?: DecimalValue | null;
-  fair?: DecimalValue | null;
   paymentMethod?: string | null;
   endedAt?: string | null;
 };
@@ -376,7 +375,7 @@ export default function RiderActiveRidePage() {
             ? "Trip cancelled"
             : "Your trip";
   const canCancel = Boolean(tracking?.rideId && tracking.canCancel && lifecycleStatus === "CONFIRMED");
-  const fareValue = ratingRide?.fare ?? ratingRide?.fair ?? null;
+  const fareValue = ratingRide?.fare ?? null;
 
   return (
     <main className="app-shell rider-page stack">

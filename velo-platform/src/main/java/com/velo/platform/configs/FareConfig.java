@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Configuration;
 @ConfigurationProperties(prefix = "app.fare")
 public class FareConfig {
     private double baseFare = 5.0;
-    private double perKmRate = 10.0;
+    private double perKmRate = 2.0;
     private double surgeStartHour = 18;
     private double surgeEndHour = 21;
     private double surgeMultiplier = 2.0;

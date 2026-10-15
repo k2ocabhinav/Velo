@@ -85,7 +85,7 @@ export function getDriverRideFareValue(ride: DriverRide | null | undefined): Dec
     return null;
   }
 
-  return ride.fare ?? ride.fair ?? null;
+  return ride.fare ?? null;
 }
 
 export function toMapPoint(point: PointDto | null | undefined): MapPoint | null {

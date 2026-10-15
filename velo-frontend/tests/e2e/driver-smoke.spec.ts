@@ -17,7 +17,7 @@ function buildRideResponse(status: "CONFIRMED" | "ONGOING" | "ENDED") {
     id: 911,
     rideStatus: status,
     paymentMethod: "WALLET",
-    fair: 180,
+    fare: 180,
     otp: "1234",
     createdTime: new Date(now.getTime() - 20 * 60 * 1000).toISOString(),
     startedAt: status === "CONFIRMED" ? null : new Date(now.getTime() - 12 * 60 * 1000).toISOString(),

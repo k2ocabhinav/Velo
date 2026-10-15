@@ -15,9 +15,9 @@ describe("driver ride state helpers", () => {
   it("normalizes page content and selects the latest active ride", () => {
     const rides = normalizeDriverRidePage({
       content: [
-        { id: 2, rideStatus: "ENDED", paymentMethod: "WALLET", fair: 140, createdTime: "2026-04-07T10:00:00Z" },
-        { id: 9, rideStatus: "CONFIRMED", paymentMethod: "CASH", fair: 200, createdTime: "2026-04-08T08:00:00Z" },
-        { id: 5, rideStatus: "ONGOING", paymentMethod: "WALLET", fair: 180, createdTime: "2026-04-08T07:00:00Z" },
+        { id: 2, rideStatus: "ENDED", paymentMethod: "WALLET", fare: 140, createdTime: "2026-04-07T10:00:00Z" },
+        { id: 9, rideStatus: "CONFIRMED", paymentMethod: "CASH", fare: 200, createdTime: "2026-04-08T08:00:00Z" },
+        { id: 5, rideStatus: "ONGOING", paymentMethod: "WALLET", fare: 180, createdTime: "2026-04-08T07:00:00Z" },
       ],
     });
 
@@ -45,7 +45,7 @@ describe("driver ride state helpers", () => {
     expect(getDriverRideStatusLabel("")).toBe("Unknown");
 
     expect(getDriverRideFareValue({ id: 1, rideStatus: "ENDED", paymentMethod: "WALLET", fare: 220 })).toBe(220);
-    expect(getDriverRideFareValue({ id: 1, rideStatus: "ENDED", paymentMethod: "WALLET", fair: 180 })).toBe(180);
+    expect(getDriverRideFareValue({ id: 1, rideStatus: "ENDED", paymentMethod: "WALLET", fare: 180 })).toBe(180);
 
     const timeline = toDriverRideTimeline("ENDED");
     expect(timeline.every((step) => step.done)).toBe(true);

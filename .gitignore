@@ -1,5 +1,6 @@
 # Local tooling state
 .demo-runtime/
+velo-frontend/.turbo-demo/
 .claude/
 .codex/
 .agents/

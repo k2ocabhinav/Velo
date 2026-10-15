@@ -88,7 +88,7 @@ class FareEstimationServiceImplTest {
     void estimateFare_WithoutPromo_ShouldReturnValidEstimate() {
         // Arrange
         when(distanceService.calculateDistanceAndDuration(any(Point.class), any(Point.class)))
-                .thenReturn(new double[]{10.5, 25.0});
+                .thenReturn(new double[]{10.5, 25.6});
         when(rideStrategyManager.rideFareCalculationStrategy()).thenReturn(fareCalculationStrategy);
         when(fareCalculationStrategy.calculateFare(any(RideRequest.class))).thenReturn(BigDecimal.valueOf(150.0));
         when(riderService.getCurrentRider()).thenReturn(testRider);
@@ -100,11 +100,11 @@ class FareEstimationServiceImplTest {
 
         // Assert
         assertThat(result).isNotNull();
-        assertThat(result.getBaseFare()).isEqualByComparingTo(BigDecimal.valueOf(150.0));
+        assertThat(result.getBaseFare()).isEqualByComparingTo(BigDecimal.valueOf(5.0));
         assertThat(result.getEstimatedFare()).isEqualByComparingTo(BigDecimal.valueOf(150.0));
         assertThat(result.getDiscountAmount()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(result.getDistanceKm()).isEqualTo(10.5);
-        assertThat(result.getDurationMinutes()).isEqualTo(25.0);
+        assertThat(result.getDurationMinutes()).isEqualTo(26);
         assertThat(result.getSurgeMultiplier()).isEqualTo(1.5);
         verify(promoCodeService, never()).previewPromo(anyString(), any(), any());
     }
@@ -136,7 +136,7 @@ class FareEstimationServiceImplTest {
 
         // Assert
         assertThat(result).isNotNull();
-        assertThat(result.getBaseFare()).isEqualByComparingTo(BigDecimal.valueOf(100.0));
+        assertThat(result.getBaseFare()).isEqualByComparingTo(BigDecimal.valueOf(5.0));
         assertThat(result.getDiscountAmount()).isEqualByComparingTo(BigDecimal.valueOf(50.0));
         assertThat(result.getEstimatedFare()).isEqualByComparingTo(BigDecimal.valueOf(50.0));
     }

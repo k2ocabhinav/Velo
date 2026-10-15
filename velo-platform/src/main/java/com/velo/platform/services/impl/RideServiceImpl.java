@@ -46,6 +46,7 @@ public class RideServiceImpl implements RideService {
         rideRequest.setRideRequestStatus(RideRequestStatus.CONFIRMED);
 
         Ride ride = modelMapper.map(rideRequest, Ride.class);
+        ride.setRider(rideRequest.getRider());
         ride.setTenantId(rideRequest.getTenantId());
         ride.setRideStatus(RideStatus.CONFIRMED);
         ride.setDriver(driver);
