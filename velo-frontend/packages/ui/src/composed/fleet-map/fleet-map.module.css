@@ -1,0 +1,243 @@
+.mapShell {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid hsl(var(--color-border));
+  border-radius: var(--radius-lg);
+  background: hsl(var(--color-surface-hover));
+  box-shadow: var(--shadow-sm);
+}
+
+.mapFrame {
+  position: relative;
+  height: 520px;
+  min-height: 520px;
+  isolation: isolate;
+}
+
+.map {
+  width: 100%;
+  height: 100%;
+  background: hsl(var(--color-background));
+  font-family: var(--font-body), system-ui, sans-serif;
+}
+
+.map :global(.leaflet-control-attribution) {
+  color: hsl(var(--color-muted));
+  background: hsl(var(--color-surface) / 0.88);
+  font-size: 10px;
+}
+
+.map :global(.leaflet-control-attribution a) {
+  color: hsl(var(--color-primary));
+}
+
+.map :global(.leaflet-popup-content-wrapper),
+.map :global(.leaflet-popup-tip) {
+  background: hsl(var(--color-elevated));
+  color: hsl(var(--color-foreground));
+}
+
+.map :global(.leaflet-popup-content-wrapper) {
+  border: 1px solid hsl(var(--color-border));
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+}
+
+.map :global(.leaflet-popup-content) {
+  margin: 13px 15px;
+  min-width: 170px;
+}
+
+.map :global(.leaflet-popup-close-button) {
+  color: hsl(var(--color-muted)) !important;
+}
+
+:global(html[data-theme="dark"]) .map :global(.leaflet-tile) {
+  filter: brightness(0.72) invert(1) contrast(0.86) hue-rotate(180deg) saturate(0.68);
+}
+
+.markerRoot {
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.driverMarker {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 2px solid hsl(var(--color-surface));
+  border-radius: 50%;
+  background: hsl(var(--color-success));
+  box-shadow: 0 2px 8px hsl(var(--gray-950) / 0.28), 0 0 0 1px hsl(var(--color-border) / 0.9);
+  color: hsl(var(--color-primary-fg));
+  transition: opacity 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+}
+
+.driverMarker[data-status="EN_ROUTE_TO_PICKUP"] {
+  background: hsl(var(--color-warning));
+  color: hsl(var(--gray-950));
+}
+
+.driverMarker[data-status="ON_TRIP"] {
+  background: hsl(var(--color-primary));
+  color: hsl(var(--color-primary-fg));
+}
+
+.toneAvailable {
+  background: hsl(var(--color-success));
+  color: hsl(var(--color-primary-fg));
+}
+
+.toneToPickup {
+  background: hsl(var(--color-warning));
+  color: hsl(var(--gray-950));
+}
+
+.toneOnTrip {
+  background: hsl(var(--color-primary));
+  color: hsl(var(--color-primary-fg));
+}
+
+.stale {
+  opacity: 0.55;
+}
+
+.driverMarker[data-stale="true"] {
+  opacity: 0.55;
+}
+
+.chevron {
+  display: block;
+  font-size: 16px;
+  line-height: 1;
+  transform-origin: center;
+  will-change: transform;
+}
+
+.requestMarker {
+  position: relative;
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 2px solid hsl(var(--color-surface));
+  border-radius: 50% 50% 50% 4px;
+  background: hsl(var(--color-danger));
+  box-shadow: 0 2px 8px hsl(var(--gray-950) / 0.24);
+  transform: rotate(-45deg);
+}
+
+.requestMarker::before {
+  position: absolute;
+  inset: -6px;
+  border: 1px solid hsl(var(--color-danger) / 0.55);
+  border-radius: 50%;
+  content: "";
+  animation: requestPulse 1.8s ease-out infinite;
+}
+
+.requestDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: hsl(var(--color-primary-fg));
+}
+
+.recenter {
+  position: absolute;
+  z-index: 500;
+  inset-block-start: var(--space-3);
+  inset-inline-end: var(--space-3);
+  min-height: 2.5rem;
+  padding: 0 var(--space-3);
+  border: 1px solid hsl(var(--color-border));
+  border-radius: var(--radius-md);
+  background: hsl(var(--color-elevated) / 0.96);
+  box-shadow: var(--shadow-md);
+  color: hsl(var(--color-foreground));
+  font: 600 var(--text-xs) / 1 var(--font-body), system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.recenter:hover {
+  border-color: hsl(var(--color-border-hover));
+  background: hsl(var(--color-surface-hover));
+}
+
+.recenter:focus-visible {
+  outline: 3px solid hsl(var(--color-ring));
+  outline-offset: 2px;
+}
+
+.emptyOverlay {
+  position: absolute;
+  z-index: 400;
+  inset: auto var(--space-4) var(--space-4);
+  display: flex;
+  min-height: 3rem;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid hsl(var(--color-border));
+  border-radius: var(--radius-md);
+  background: hsl(var(--color-elevated) / 0.94);
+  box-shadow: var(--shadow-md);
+  color: hsl(var(--color-foreground));
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-align: center;
+  pointer-events: none;
+}
+
+.popup {
+  display: grid;
+  gap: 3px;
+}
+
+.popupTitle {
+  display: block;
+  color: hsl(var(--color-foreground));
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.popupLine,
+.popupTrip {
+  margin: 0;
+  color: hsl(var(--color-muted));
+  font-size: var(--text-xs);
+  line-height: 1.45;
+}
+
+.popupTrip {
+  margin-top: 4px;
+  color: hsl(var(--color-foreground));
+  font-weight: 600;
+}
+
+@keyframes requestPulse {
+  from { opacity: 0.65; transform: scale(0.65); }
+  to { opacity: 0; transform: scale(1.4); }
+}
+
+@media (max-width: 1199px) {
+  .mapFrame {
+    height: 340px;
+    min-height: 340px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .requestMarker::before {
+    animation: none;
+    opacity: 0;
+  }
+
+  .driverMarker,
+  .chevron {
+    transition: none;
+    will-change: auto;
+  }
+}

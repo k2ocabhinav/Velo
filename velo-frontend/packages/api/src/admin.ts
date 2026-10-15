@@ -3,6 +3,7 @@ import { createVeloClient, requestData, requestPageData } from "./client";
 import type {
   AdminActiveRideDto,
   AdminDispatchAuditDto,
+  AdminLiveDispatchSnapshotDto,
   AdminOpsHealthDto,
   AdminPendingRideRequestDto,
   AdminStatsDto,
@@ -52,6 +53,7 @@ export interface AdminApi {
   getActiveRides(params?: PageRequestInput): Promise<PaginatedResponse<AdminActiveRideDto>>;
   getRideRequestOffers(rideRequestId: number): Promise<AdminRideOfferDto[]>;
   getDispatchAudit(params?: PageRequestInput): Promise<PaginatedResponse<AdminDispatchAuditDto>>;
+  getLiveDispatch(signal?: AbortSignal): Promise<AdminLiveDispatchSnapshotDto>;
   assignPendingRideRequest(rideRequestId: number, driverId: number, reason: string): Promise<RideDto>;
   reassignRide(rideId: number, driverId: number, reason: string): Promise<RideDto>;
   cancelPendingRideRequest(rideRequestId: number, reason: string): Promise<RideRequestDto>;
@@ -225,6 +227,12 @@ export function createAdminApi(client: AxiosInstance = createVeloClient()): Admi
         method: "GET",
         url: "/api/v1/admin/dispatch/audit",
         params,
+      }),
+    getLiveDispatch: (signal) =>
+      requestData<AdminLiveDispatchSnapshotDto>(client, {
+        method: "GET",
+        url: "/api/v1/admin/dispatch/live",
+        ...(signal ? { signal } : {}),
       }),
     assignPendingRideRequest: (rideRequestId, driverId, reason) =>
       requestData<RideDto>(client, {
