@@ -37,6 +37,12 @@ export function getTenantWordmark(brandName: string | null | undefined): string 
   return normalized;
 }
 
+export function getTenantPluralTripLabel(tripLabel: string | null | undefined): string {
+  const normalized = tripLabel?.trim();
+  if (!normalized) return "Trips";
+  return /s$/i.test(normalized) ? normalized : `${normalized}s`;
+}
+
 export interface TenantSlugOptions {
   hostname: string;
   defaultTenantSlug?: string;
@@ -132,9 +138,11 @@ export function attachTenantSlugHeader(
   if (response.headers.has("location")) return response;
 
   const requestHeaders = new Headers(request.headers);
+  const forwardedHost = request.headers.get("x-forwarded-host")?.split(",", 1)[0]?.trim();
+  const requestHost = forwardedHost || request.headers.get("host") || request.nextUrl.hostname;
   requestHeaders.set(
     TENANT_SLUG_HEADER,
-    resolveTenantSlug({ hostname: request.nextUrl.hostname, defaultTenantSlug, tenantBaseDomain }),
+    resolveTenantSlug({ hostname: requestHost, defaultTenantSlug, tenantBaseDomain }),
   );
   return NextResponse.next({ request: { headers: requestHeaders } });
 }

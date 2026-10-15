@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AppTopBar, BottomNav } from "@velo/ui";
 import { useTenantBranding } from "@velo/ui/theme";
-import { getTenantWordmark } from "@velo/app-core/tenant";
+import { getTenantPluralTripLabel, getTenantWordmark } from "@velo/app-core/tenant";
 import { FadeIn } from "@velo/ui/motion";
 import { NotificationsNavIndicator } from "../notifications/_components/nav-indicator";
 
@@ -17,8 +17,9 @@ function isPublicRoute(pathname: string): boolean {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname() ?? "/";
-  const { brandName } = useTenantBranding();
+  const { brandName, tripLabel } = useTenantBranding();
   const wordmark = getTenantWordmark(brandName);
+  const tripsLabel = getTenantPluralTripLabel(tripLabel);
 
   if (isPublicRoute(pathname)) {
     return <>{children}</>;
@@ -34,7 +35,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         currentPath={pathname === "/ride/active" || pathname === "/scheduled" ? "/rides" : pathname === "/promos" ? "/account" : pathname}
         items={[
           { href: "/", label: "Book", icon: "book" },
-          { href: "/rides", label: "Trips", icon: "trips" },
+          { href: "/rides", label: tripsLabel, icon: "trips" },
           { href: "/wallet", label: "Wallet", icon: "wallet" },
           { href: "/account", label: "Me", icon: "account" },
         ]}

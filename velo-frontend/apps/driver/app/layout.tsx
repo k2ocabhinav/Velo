@@ -23,10 +23,15 @@ const inter = Inter({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: "Velo Driver",
-  description: "Driver workspace shell for Velo",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const requestHeaders = await headers();
+  const tenantSlug = requestHeaders.get(TENANT_SLUG_HEADER) ?? getDefaultTenantSlug();
+  const branding = await fetchTenantBranding(tenantSlug) ?? DEFAULT_TENANT_BRANDING;
+  return {
+    title: `${branding.brandName} Driver`,
+    description: `Driver workspace for ${branding.brandName}`,
+  };
+}
 
 export default async function RootLayout({
   children,

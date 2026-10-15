@@ -36,10 +36,10 @@ process_matches_job() {
   command_line="$(ps -p "$pid" -o command= 2>/dev/null || true)"
   case "$name:$command_line" in
     backend:*mvnw*|backend:*spring-boot:run*) return 0 ;;
-    landing:*npm*run*dev*|landing:*next*dev*) return 0 ;;
-    admin:*npm*run*dev*|admin:*next*dev*) return 0 ;;
-    rider:*npm*run*dev*|rider:*next*dev*) return 0 ;;
-    driver:*npm*run*dev*|driver:*next*dev*) return 0 ;;
+    landing:*http.server*) return 0 ;;
+    admin:*start-standalone.mjs*|admin:*server.js*) return 0 ;;
+    rider:*start-standalone.mjs*|rider:*server.js*) return 0 ;;
+    driver:*start-standalone.mjs*|driver:*server.js*) return 0 ;;
     *) return 1 ;;
   esac
 }

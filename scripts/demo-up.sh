@@ -90,6 +90,9 @@ cleanup_on_failure() {
 }
 trap cleanup_on_failure EXIT
 
+printf 'Building production frontend apps...\n'
+(cd "$FRONTEND_DIR" && npm run build -- --cache-dir=.turbo-demo)
+
 if ! port_is_open 5432; then
   if ! command -v docker >/dev/null 2>&1; then
     printf 'PostgreSQL is not reachable on localhost:5432 and Docker is unavailable.\n' >&2
@@ -184,10 +187,10 @@ PY
 }
 
 start_job backend "$BACKEND_DIR" ./mvnw -B spring-boot:run
-start_job landing "$FRONTEND_DIR/apps/landing" npx next dev -p "$LANDING_PORT"
-start_job admin "$FRONTEND_DIR/apps/admin" npx next dev -p "$ADMIN_PORT"
-start_job rider "$FRONTEND_DIR/apps/rider" npx next dev -p "$RIDER_PORT"
-start_job driver "$FRONTEND_DIR/apps/driver" npx next dev -p "$DRIVER_PORT"
+start_job landing "$FRONTEND_DIR/apps/landing" python3 -m http.server "$LANDING_PORT" --directory out
+start_job admin "$FRONTEND_DIR/apps/admin" node ../../scripts/start-standalone.mjs admin "$ADMIN_PORT"
+start_job rider "$FRONTEND_DIR/apps/rider" node ../../scripts/start-standalone.mjs rider "$RIDER_PORT"
+start_job driver "$FRONTEND_DIR/apps/driver" node ../../scripts/start-standalone.mjs driver "$DRIVER_PORT"
 
 wait_for_http() {
   local name="$1"
