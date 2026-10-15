@@ -500,6 +500,21 @@ class DriverServiceImplTest {
     }
 
     @Test
+    @DisplayName("Get my profile should populate the driver's full name")
+    void getMyProfile_ShouldPopulateDriverName() {
+        mockAuthenticatedDriver();
+        testDriver.setUser(User.builder().firstName("Bob").lastName("Driver").build());
+        UserDto userDto = new UserDto();
+        DriverDto driverDto = new DriverDto();
+        driverDto.setUser(userDto);
+        when(modelMapper.map(testDriver, DriverDto.class)).thenReturn(driverDto);
+
+        DriverDto result = driverService.getMyProfile();
+
+        assertThat(result.getUser().getName()).isEqualTo("Bob Driver");
+    }
+
+    @Test
     @DisplayName("Get all my rides should return paginated rides")
     void getAllMyRides_ShouldReturnPaginatedRides() {
         mockAuthenticatedDriver();

@@ -12,6 +12,7 @@ import {
   EmptyState,
   ErrorState,
   Field,
+  MatchingIndicator,
   Menu,
   Money,
   PageHeader,
@@ -60,6 +61,15 @@ describe("shared UI foundation", () => {
     }));
     expect(markup).toContain("Reconnecting… Attempt 2.");
     expect(markup).toContain(">Retry</button>");
+  });
+
+  it("renders one countdown badge inside the matching indicator", () => {
+    const markup = html(h(MatchingIndicator, {
+      label: "Matching you with a nearby driver",
+      expiresAtMs: Date.now() + 42_000,
+    }));
+    expect(markup).toContain("Matching you with a nearby driver");
+    expect(markup.match(/countdown-badge/g) ?? []).toHaveLength(1);
   });
 
   it("wires field hint and error text to an invalid control", () => {

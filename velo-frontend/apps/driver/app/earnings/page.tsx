@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@velo/ui/primitives";
 import { DataTable, DateTime, EmptyState, ErrorState, Field, Money, PageHeader, Section, SegmentedControl, Sheet, StatusBadge } from "@velo/ui/composed";
 import { Skeleton } from "@velo/ui/feedback";
+import { getTenantTripLabelForCount } from "@velo/app-core/tenant";
+import { useTenantBranding } from "@velo/ui/theme";
 import {
   requestDriverProxy,
   type DecimalValue,
@@ -27,6 +29,7 @@ function parseDecimalValue(value: DecimalValue | null | undefined): number | nul
 }
 
 export default function DriverEarningsPage() {
+  const { tripLabel } = useTenantBranding();
   const [period, setPeriod] = useState<SummaryPeriod>("DAILY");
   const [summary, setSummary] = useState<DriverEarningsSummary | null>(null);
   const [balance, setBalance] = useState<DecimalValue | null>(null);
@@ -145,7 +148,7 @@ export default function DriverEarningsPage() {
           <div className="stack">
             <div>
               <p className="helper driver-earnings-title">Net earnings</p>
-              <p className="driver-earnings-trip-count">{summary.rideCount ?? 0} trips</p>
+              <p className="driver-earnings-trip-count">{summary.rideCount ?? 0} {getTenantTripLabelForCount(summary.rideCount ?? 0, tripLabel)}</p>
               <Money className="driver-key-figure" amount={summary.totalNet} emphasis />
             </div>
             <dl className="driver-money-breakdown">

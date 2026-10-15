@@ -1,8 +1,13 @@
+/** Locale used to format a currency's numbers (INR uses en-IN, otherwise en-US). */
+export function getCurrencyLocale(currency = "USD"): string {
+  return currency === "INR" ? "en-IN" : "en-US";
+}
+
 /** Format a decimal amount using the requested currency and locale. */
 export function formatMoney(
   amount: number | string | null | undefined,
   currency = "USD",
-  locale = currency === "INR" ? "en-IN" : "en-US"
+  locale = getCurrencyLocale(currency)
 ): string {
   if (amount === null || amount === undefined || amount === "") return "—";
   const numericAmount = typeof amount === "number" ? amount : Number(amount);
@@ -14,6 +19,21 @@ export function formatMoney(
     currencyDisplay: "symbol",
     maximumFractionDigits: 2,
   }).format(numericAmount);
+}
+
+/** Format a distance in kilometres to one decimal for the given locale. */
+export function formatDistance(
+  kilometres: number | string | null | undefined,
+  locale = "en-US"
+): string {
+  if (kilometres === null || kilometres === undefined || kilometres === "") return "—";
+  const numeric = typeof kilometres === "number" ? kilometres : Number(kilometres);
+  if (!Number.isFinite(numeric)) return "—";
+
+  return `${new Intl.NumberFormat(locale, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format(numeric)} km`;
 }
 
 /** Use a short relative minute label for values within 24 hours. */

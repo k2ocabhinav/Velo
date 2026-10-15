@@ -134,7 +134,8 @@ class DriverControllerIntegrationTest {
     void getMyProfile_ShouldReturnProfile() throws Exception {
         mockMvc.perform(withDriverAuth(get("/drivers/getMyProfile")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.user.email").value("driver@test.com"));
+                .andExpect(jsonPath("$.data.user.email").value("driver@test.com"))
+                .andExpect(jsonPath("$.data.user.name").value("Test Driver"));
     }
 
     @Test

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest, NextResponse } from "next/server";
-import { attachTenantSlugHeader, DEFAULT_TENANT_BRANDING, fetchTenantBranding, getTenantPluralTripLabel, getTenantWordmark, resolveTenantSlug, TENANT_SLUG_HEADER } from "../src/tenant";
+import { attachTenantSlugHeader, DEFAULT_TENANT_BRANDING, fetchTenantBranding, getTenantPluralTripLabel, getTenantTripLabelForCount, getTenantWordmark, resolveTenantSlug, TENANT_SLUG_HEADER } from "../src/tenant";
 
 afterEach(() => vi.unstubAllEnvs());
 
@@ -62,6 +62,14 @@ describe("tenant branding fetch", () => {
     expect(getTenantPluralTripLabel("Transfer")).toBe("Transfers");
     expect(getTenantPluralTripLabel("Transfers")).toBe("Transfers");
     expect(getTenantPluralTripLabel(null)).toBe("Trips");
+  });
+
+  it("selects the trip label that matches a count", () => {
+    expect(getTenantTripLabelForCount(1, "Trip")).toBe("Trip");
+    expect(getTenantTripLabelForCount(2, "Trip")).toBe("Trips");
+    expect(getTenantTripLabelForCount(0, "Transfer")).toBe("Transfers");
+    expect(getTenantTripLabelForCount(1, "Transfer")).toBe("Transfer");
+    expect(getTenantTripLabelForCount(3, null)).toBe("Trips");
   });
 
   it("loads the public envelope using the Next fetch revalidation cache", async () => {

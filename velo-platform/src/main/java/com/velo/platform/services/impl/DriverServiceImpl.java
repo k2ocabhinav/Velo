@@ -269,7 +269,9 @@ public class DriverServiceImpl implements DriverService {
     @Transactional(readOnly = true)
     public DriverDto getMyProfile() {
         Driver currentDriver = getCurrentDriver();
-        return modelMapper.map(currentDriver, DriverDto.class);
+        DriverDto driverDto = modelMapper.map(currentDriver, DriverDto.class);
+        populateDriverName(currentDriver, driverDto);
+        return driverDto;
     }
 
     @Override
@@ -304,7 +306,25 @@ public class DriverServiceImpl implements DriverService {
             riderDto.setUser(userDto);
         }
 
-        User user = rider.getUser();
+        populateUserName(rider.getUser(), userDto);
+    }
+
+    private void populateDriverName(Driver driver, DriverDto driverDto) {
+        User user = driver.getUser();
+        if (user == null) {
+            return;
+        }
+
+        UserDto userDto = driverDto.getUser();
+        if (userDto == null) {
+            userDto = modelMapper.map(user, UserDto.class);
+            driverDto.setUser(userDto);
+        }
+
+        populateUserName(user, userDto);
+    }
+
+    private void populateUserName(User user, UserDto userDto) {
         String fullName = ((user.getFirstName() == null ? "" : user.getFirstName().trim()) + " "
                 + (user.getLastName() == null ? "" : user.getLastName().trim())).trim();
         userDto.setName(fullName.isEmpty() ? null : fullName);
