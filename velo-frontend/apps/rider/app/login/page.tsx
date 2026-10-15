@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { AuthLayout } from "@velo/ui/composed";
 import { loginErrorMessage } from "@velo/app-core/auth-errors";
+import { getTenantLabelWords } from "@velo/app-core/tenant";
+import { getRequestTenantContext } from "@velo/app-core/tenant-server";
 import { LoginForm } from "./_components/login-form";
 import { sanitizeNextPath } from "./_lib/redirect";
 
@@ -22,18 +24,20 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
   const nextPath = sanitizeNextPath(readParam(params?.next));
   const initialError = loginErrorMessage(readParam(params?.error));
+  const { branding } = await getRequestTenantContext();
+  const words = getTenantLabelWords(branding);
 
   return (
     <AuthLayout
-      product="Rider"
-      statement="Request a trip and follow it from pickup to drop-off."
+      product={words.rider}
+      statement={`Request a ${words.tripWord} and follow it from pickup to drop-off.`}
       title="Sign in to ride"
-      description="Book trips, track them live and manage payments."
+      description={`Book ${words.tripsWord}, track them live and manage payments.`}
       footer={
         <>
           <span>New to Velo?</span>
           <Link className="secondary-button" href="/register">
-            Create a rider account
+            {`Create a ${words.riderWord} account`}
           </Link>
         </>
       }

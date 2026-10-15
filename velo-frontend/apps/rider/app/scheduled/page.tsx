@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { getTenantLabelWords } from "@velo/app-core/tenant";
 import {
   Button,
   DateTime,
@@ -16,6 +17,7 @@ import {
   StatusBadge,
   ConfirmDialog,
 } from "@velo/ui";
+import { useTenantBrandingOrDefault } from "@velo/ui/theme";
 import { validatePointInput, validateScheduleInput } from "../_lib/ride-forms";
 import { requestRiderProxy, type SpringPage } from "../_lib/rider-client";
 import { useActiveRideRedirect } from "../_lib/use-active-ride-redirect";
@@ -66,6 +68,7 @@ function unwrapTemplates(payload: unknown): RecurringTemplate[] {
 
 export default function RiderScheduledPage() {
   useActiveRideRedirect("/scheduled");
+  const words = getTenantLabelWords(useTenantBrandingOrDefault());
 
   const [rides, setRides] = useState<ScheduledRide[]>([]);
   const [loading, setLoading] = useState(true);
@@ -110,11 +113,11 @@ export default function RiderScheduledPage() {
       const payload = await requestRiderProxy<SpringPage<ScheduledRide>>("riders/scheduled-rides?page=0&size=20");
       setRides(unwrapPage(payload));
     } catch (loadError) {
-      setLoadError(loadError instanceof Error ? loadError.message : "Couldn't load scheduled trips.");
+      setLoadError(loadError instanceof Error ? loadError.message : `Couldn't load scheduled ${words.tripsWord}.`);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [words.tripsWord]);
 
   const loadTemplates = useCallback(async () => {
     setTemplatesLoading(true);
@@ -123,11 +126,11 @@ export default function RiderScheduledPage() {
       const payload = await requestRiderProxy<SpringPage<RecurringTemplate>>("api/v1/riders/recurring-trip-templates?page=0&size=50");
       setTemplates(unwrapTemplates(payload));
     } catch (loadError) {
-      setTemplateError(loadError instanceof Error ? loadError.message : "Couldn't load weekly trips.");
+      setTemplateError(loadError instanceof Error ? loadError.message : `Couldn't load weekly ${words.tripsWord}.`);
     } finally {
       setTemplatesLoading(false);
     }
-  }, []);
+  }, [words.tripsWord]);
 
   useEffect(() => {
     void loadRides();
@@ -153,11 +156,11 @@ export default function RiderScheduledPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pickupLocation: pickup.point, dropOffLocation: drop.point, paymentMethod, scheduledTime }),
       });
-      setMessage("Trip scheduled.");
+      setMessage(`${words.trip} scheduled.`);
       setScheduledTime("");
       await loadRides();
     } catch (scheduleError) {
-      setError(scheduleError instanceof Error ? scheduleError.message : "Couldn't schedule this trip.");
+      setError(scheduleError instanceof Error ? scheduleError.message : `Couldn't schedule this ${words.tripWord}.`);
     } finally {
       setPending(false);
     }
@@ -230,11 +233,11 @@ export default function RiderScheduledPage() {
           notes: repeatNotes,
         }),
       });
-      setTemplateMessage(editingTemplateId === null ? "Weekly trip created." : "Weekly trip updated.");
+      setTemplateMessage(editingTemplateId === null ? `Weekly ${words.tripWord} created.` : `Weekly ${words.tripWord} updated.`);
       setEditingTemplateId(null);
       await loadTemplates();
     } catch (createError) {
-      setTemplateError(createError instanceof Error ? createError.message : "Couldn't create this weekly trip.");
+      setTemplateError(createError instanceof Error ? createError.message : `Couldn't create this weekly ${words.tripWord}.`);
     } finally {
       setTemplatePending(false);
     }
@@ -246,7 +249,7 @@ export default function RiderScheduledPage() {
       await requestRiderProxy(`api/v1/riders/recurring-trip-templates/${template.id}/${template.active ? "pause" : "resume"}`, { method: "POST" });
       await loadTemplates();
     } catch (actionError) {
-      setTemplateError(actionError instanceof Error ? actionError.message : "Couldn't update this weekly trip.");
+      setTemplateError(actionError instanceof Error ? actionError.message : `Couldn't update this weekly ${words.tripWord}.`);
     }
   }
 
@@ -254,10 +257,10 @@ export default function RiderScheduledPage() {
     setTemplateError(null);
     try {
       await requestRiderProxy(`api/v1/riders/recurring-trip-templates/${id}`, { method: "DELETE" });
-      setTemplateMessage("Weekly trip deleted.");
+      setTemplateMessage(`Weekly ${words.tripWord} deleted.`);
       await loadTemplates();
     } catch (actionError) {
-      setTemplateError(actionError instanceof Error ? actionError.message : "Couldn't delete this weekly trip.");
+      setTemplateError(actionError instanceof Error ? actionError.message : `Couldn't delete this weekly ${words.tripWord}.`);
     }
   }
 
@@ -277,10 +280,10 @@ export default function RiderScheduledPage() {
     try {
       const encodedTime = encodeURIComponent(rescheduleTime);
       await requestRiderProxy(`/riders/scheduled-rides/${rideId}/reschedule?newTime=${encodedTime}`, { method: "PUT" });
-      setMessage("Trip rescheduled.");
+      setMessage(`${words.trip} rescheduled.`);
       await loadRides();
     } catch (rescheduleError) {
-      setRideActionError(rescheduleError instanceof Error ? rescheduleError.message : "Couldn't reschedule this trip.");
+      setRideActionError(rescheduleError instanceof Error ? rescheduleError.message : `Couldn't reschedule this ${words.tripWord}.`);
       setRetryRideAction({ type: "reschedule", rideId });
     } finally {
       setPending(false);
@@ -294,10 +297,10 @@ export default function RiderScheduledPage() {
     setPending(true);
     try {
       await requestRiderProxy(`/riders/scheduled-rides/${rideId}`, { method: "DELETE" });
-      setMessage("Scheduled trip cancelled.");
+      setMessage(`Scheduled ${words.tripWord} cancelled.`);
       await loadRides();
     } catch (cancelError) {
-      setRideActionError(cancelError instanceof Error ? cancelError.message : "Couldn't cancel this scheduled trip.");
+      setRideActionError(cancelError instanceof Error ? cancelError.message : `Couldn't cancel this scheduled ${words.tripWord}.`);
       setRetryRideAction({ type: "cancel", rideId });
     } finally {
       setPending(false);
@@ -307,10 +310,10 @@ export default function RiderScheduledPage() {
 
   return (
     <main className="app-shell rider-page stack">
-      <PageHeader title="Scheduled trips" description="Plan ahead and keep your upcoming rides in one place." />
+      <PageHeader title={`Scheduled ${words.tripsWord}`} description={`Plan ahead and keep your upcoming ${words.tripsWord} in one place.`} />
 
       <div id="schedule-form">
-        <Section title="Schedule a trip">
+        <Section title={`Schedule a ${words.tripWord}`}>
           <div className="schedule-form">
             <Field label="Scheduled time">
               <input type="datetime-local" value={scheduledTime} onChange={(event) => setScheduledTime(event.target.value)} />
@@ -331,15 +334,15 @@ export default function RiderScheduledPage() {
               </div>
             </details>
             {error ? <p className="error-text" role="alert">{error}</p> : null}
-            <Button loading={pending} onClick={() => void scheduleRide()}>Schedule trip</Button>
+            <Button loading={pending} onClick={() => void scheduleRide()}>{`Schedule ${words.tripWord}`}</Button>
           </div>
         </Section>
       </div>
 
       <Section title="Repeat every week">
         <div className="stack">
-          <p className="helper">Create recurring trips for your own account. Changes apply to future trips that have not entered dispatch.</p>
-          {templateError ? <ErrorState title="Couldn't update weekly trips" description={templateError} onRetry={() => void loadTemplates()} /> : null}
+          <p className="helper">{`Create recurring ${words.tripsWord} for your own account. Changes apply to future ${words.tripsWord} that have not entered dispatch.`}</p>
+          {templateError ? <ErrorState title={`Couldn't update weekly ${words.tripsWord}`} description={templateError} onRetry={() => void loadTemplates()} /> : null}
           {templateMessage ? <p className="booking-feedback" role="status">{templateMessage}</p> : null}
           <div id="weekly-trip-form" className="recurring-trip-form">
             <fieldset className="recurring-days">
@@ -368,14 +371,14 @@ export default function RiderScheduledPage() {
               </div>
             </details>
             <div className="cluster">
-              <Button loading={templatePending} onClick={() => void createRecurringTrip()}>{editingTemplateId === null ? "Create weekly trip" : "Save weekly trip changes"}</Button>
+              <Button loading={templatePending} onClick={() => void createRecurringTrip()}>{editingTemplateId === null ? `Create weekly ${words.tripWord}` : `Save weekly ${words.tripWord} changes`}</Button>
               {editingTemplateId !== null ? <Button variant="secondary" onClick={cancelRecurringEdit}>Cancel edit</Button> : null}
             </div>
           </div>
           <div className="stack">
-            <h3 className="section-subheading">Your weekly trips</h3>
-            {templatesLoading ? <div className="stack" role="status" aria-label="Loading weekly trips" aria-busy="true">{[0, 1].map((row) => <Skeleton className="schedule-skeleton-row" key={row} />)}</div> : null}
-            {!templatesLoading && !templateError && templates.length === 0 ? <EmptyState title="No weekly trips yet" description="Your recurring trips will appear here once you create one." /> : null}
+            <h3 className="section-subheading">{`Your weekly ${words.tripsWord}`}</h3>
+            {templatesLoading ? <div className="stack" role="status" aria-label={`Loading weekly ${words.tripsWord}`} aria-busy="true">{[0, 1].map((row) => <Skeleton className="schedule-skeleton-row" key={row} />)}</div> : null}
+            {!templatesLoading && !templateError && templates.length === 0 ? <EmptyState title={`No weekly ${words.tripsWord} yet`} description={`Your recurring ${words.tripsWord} will appear here once you create one.`} /> : null}
             {!templatesLoading && templates.length > 0 ? <div className="recurring-template-list">{templates.map((template) => <article className="recurring-template-row" key={template.id}>
               <div className="stack compact">
                 <strong>{template.daysOfWeek.map((day) => day.slice(0, 3)).join(", ")} · {template.localTime.slice(0, 5)}</strong>
@@ -393,7 +396,7 @@ export default function RiderScheduledPage() {
         </div>
       </Section>
 
-      <Section title="Upcoming trips" actions={<Button variant="secondary" loading={loading} onClick={() => void loadRides()}>Refresh</Button>}>
+      <Section title={`Upcoming ${words.tripsWord}`} actions={<Button variant="secondary" loading={loading} onClick={() => void loadRides()}>Refresh</Button>}>
         {message ? <p className="booking-feedback" role="status">{message}</p> : null}
         {loadError ? <ErrorState title={loadError} onRetry={() => void loadRides()} /> : null}
         {!loadError && rideActionError ? (
@@ -406,17 +409,17 @@ export default function RiderScheduledPage() {
             }}
           />
         ) : null}
-        {loading ? <div className="stack" aria-label="Loading scheduled trips">{[0, 1].map((row) => <Skeleton className="schedule-skeleton-row" key={row} />)}</div> : null}
+        {loading ? <div className="stack" aria-label={`Loading scheduled ${words.tripsWord}`}>{[0, 1].map((row) => <Skeleton className="schedule-skeleton-row" key={row} />)}</div> : null}
         {!loading && !loadError && rides.length === 0 ? (
           <EmptyState
-            title="No scheduled trips yet"
-            description="Choose a time and locations to plan a future ride."
-            action={<a className="ui-button" data-variant="primary" href="#schedule-form">Schedule a trip</a>}
+            title={`No scheduled ${words.tripsWord} yet`}
+            description={`Choose a time and locations to plan a future ${words.tripWord}.`}
+            action={<a className="ui-button" data-variant="primary" href="#schedule-form">{`Schedule a ${words.tripWord}`}</a>}
           />
         ) : null}
         {!loading && !loadError && rides.length > 0 ? (
           <>
-            <Field label="New scheduled time" hint="Used when you choose Reschedule on a trip.">
+            <Field label="New scheduled time" hint={`Used when you choose Reschedule on a ${words.tripWord}.`}>
               <input type="datetime-local" value={rescheduleTime} onChange={(event) => setRescheduleTime(event.target.value)} />
             </Field>
             <div className="scheduled-trip-list">
@@ -424,13 +427,13 @@ export default function RiderScheduledPage() {
                 <article className="scheduled-trip-row" key={ride.id}>
                   <div className="scheduled-trip-summary">
                     <DateTime value={ride.scheduledTime} />
-                    <StatusBadge domain="request" status={ride.status} />
+                    <StatusBadge domain="request" status={ride.status} labels={words} />
                     <span className="helper">{ride.paymentMethod === "WALLET" ? "Wallet" : ride.paymentMethod === "CASH" ? "Cash" : "Other payment method"}</span>
                   </div>
                   <Money amount={ride.fare} />
                   <div className="scheduled-trip-actions">
                     <Button variant="secondary" size="sm" disabled={pending} onClick={() => void rescheduleRide(ride.id)}>Reschedule</Button>
-                    <Button variant="ghost" size="sm" disabled={pending} onClick={() => setCancelRideId(ride.id)}>Cancel trip</Button>
+                    <Button variant="ghost" size="sm" disabled={pending} onClick={() => setCancelRideId(ride.id)}>{`Cancel ${words.tripWord}`}</Button>
                   </div>
                 </article>
               ))}
@@ -440,24 +443,24 @@ export default function RiderScheduledPage() {
       </Section>
 
       <div className="page-related-links">
-        <Link className="text-link" href="/rides">View past trips</Link>
+        <Link className="text-link" href="/rides">{`View past ${words.tripsWord}`}</Link>
         <Link className="text-link" href="/">Book now</Link>
       </div>
 
       <ConfirmDialog
         open={cancelRideId !== null}
         onOpenChange={(open) => { if (!open) setCancelRideId(null); }}
-        title="Cancel this scheduled trip?"
-        description="This scheduled trip will be cancelled."
-        confirmLabel="Cancel trip"
+        title={`Cancel this scheduled ${words.tripWord}?`}
+        description={`This scheduled ${words.tripWord} will be cancelled.`}
+        confirmLabel={`Cancel ${words.tripWord}`}
         onConfirm={async () => { if (cancelRideId !== null) await cancelRide(cancelRideId); }}
       />
       <ConfirmDialog
         open={deleteTemplateId !== null}
         onOpenChange={(open) => { if (!open) setDeleteTemplateId(null); }}
-        title="Delete this weekly trip?"
-        description="Trips already scheduled will stay booked. No new trips will be created from this template."
-        confirmLabel="Delete weekly trip"
+        title={`Delete this weekly ${words.tripWord}?`}
+        description={`${words.trips} already scheduled will stay booked. No new ${words.tripsWord} will be created from this template.`}
+        confirmLabel={`Delete weekly ${words.tripWord}`}
         onConfirm={async () => { if (deleteTemplateId !== null) await deleteRecurringTrip(deleteTemplateId); }}
       />
     </main>

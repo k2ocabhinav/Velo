@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useState } from "react";
 import { performClientLogout } from "@velo/app-core/logout";
+import { getTenantLabelWords } from "@velo/app-core/tenant";
 import { Button, PageHeader, Section } from "@velo/ui";
-import { DarkModeToggle } from "@velo/ui/theme";
+import { DarkModeToggle, useTenantBrandingOrDefault } from "@velo/ui/theme";
 
 export default function RiderAccountPage() {
+  const words = getTenantLabelWords(useTenantBrandingOrDefault());
   const [loggingOut, setLoggingOut] = useState(false);
 
   async function signOut(): Promise<void> {
@@ -20,16 +22,16 @@ export default function RiderAccountPage() {
 
   return (
     <main className="app-shell rider-page stack">
-      <PageHeader title="Account" description="Manage your preferences and saved trip options." />
+      <PageHeader title="Account" description={`Manage your preferences and saved ${words.tripWord} options.`} />
 
       <Section title="Your shortcuts">
         <div className="account-link-list">
           <Link className="account-link-row" href="/promos">
-            <span><strong>Offers</strong><small>Find a code for your next trip</small></span>
+            <span><strong>Offers</strong><small>{`Find a code for your next ${words.tripWord}`}</small></span>
             <span aria-hidden="true">›</span>
           </Link>
           <Link className="account-link-row" href="/scheduled">
-            <span><strong>Scheduled trips</strong><small>Plan or update a future trip</small></span>
+            <span><strong>{`Scheduled ${words.tripsWord}`}</strong><small>{`Plan or update a future ${words.tripWord}`}</small></span>
             <span aria-hidden="true">›</span>
           </Link>
         </div>

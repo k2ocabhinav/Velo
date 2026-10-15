@@ -61,6 +61,17 @@ export interface StatusBadgeProps {
   status: string | null | undefined;
   domain: StatusDomain;
   className?: string;
+  labels?: StatusBadgeLabels;
+}
+
+/**
+ * Tenant nouns that replace the default driver and trip words inside a status label, so a
+ * white-label tenant reads "Finding a chauffeur" and "Transfer in progress" without a
+ * second status map.
+ */
+export interface StatusBadgeLabels {
+  driver?: string;
+  trip?: string;
 }
 
 function humanizeStatus(status: string): string {
@@ -68,14 +79,24 @@ function humanizeStatus(status: string): string {
   return words.map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ") || "Unknown";
 }
 
+function withTenantNouns(label: string, labels?: StatusBadgeLabels): string {
+  const swap = (text: string, english: string, noun: string | undefined): string => {
+    if (!noun) return text;
+    return text.replace(new RegExp(`\\b${english}\\b`, "gi"), (matched) =>
+      matched.charAt(0) === matched.charAt(0).toUpperCase() ? noun : noun.toLowerCase(),
+    );
+  };
+  return swap(swap(label, "driver", labels?.driver), "trip", labels?.trip);
+}
+
 /** Show a domain-aware plain label and tone for a status value. */
-export function StatusBadge({ className, domain, status }: StatusBadgeProps) {
+export function StatusBadge({ className, domain, status, labels }: StatusBadgeProps) {
   const key = (status ?? "").trim().toUpperCase().replace(/[ -]+/g, "_");
   const entry = STATUS_MAP[domain][key] ?? { label: status ? humanizeStatus(status) : "Unknown", tone: "neutral" as const };
 
   return (
     <span className={cn("status-badge", className)} data-tone={entry.tone}>
-      {entry.label}
+      {withTenantNouns(entry.label, labels)}
     </span>
   );
 }

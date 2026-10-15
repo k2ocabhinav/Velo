@@ -1,6 +1,8 @@
 import { AuthLayout } from "@velo/ui/composed";
 import Link from "next/link";
 import { loginErrorMessage } from "@velo/app-core/auth-errors";
+import { getTenantLabelWords } from "@velo/app-core/tenant";
+import { getRequestTenantContext } from "@velo/app-core/tenant-server";
 import { LoginForm } from "./_components/login-form";
 import { sanitizeNextPath } from "./_lib/redirect";
 
@@ -22,13 +24,15 @@ export default async function DriverLoginPage({ searchParams }: LoginPageProps) 
   const params = await searchParams;
   const nextPath = sanitizeNextPath(readParam(params?.next));
   const initialError = loginErrorMessage(readParam(params?.error));
+  const { branding } = await getRequestTenantContext();
+  const words = getTenantLabelWords(branding);
 
   return (
     <AuthLayout
-      product="Driver"
-      statement="Go online, accept trips and track every payout."
+      product={words.driver}
+      statement={`Go online, accept ${words.tripsWord} and track every payout.`}
       title="Sign in to drive"
-      description="Manage your availability, trips and earnings."
+      description={`Manage your availability, ${words.tripsWord} and earnings.`}
       footer={
         <>
           <span>New to Velo?</span>

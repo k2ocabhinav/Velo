@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { isActionPending, setActionPending } from "@velo/app-core/async-actions";
+import { getTenantLabelWords } from "@velo/app-core/tenant";
 import {
   Button,
+  createRouteStageLabels,
   DateTime,
   EmptyState,
   ErrorState,
@@ -18,6 +20,7 @@ import {
   StatusBadge,
   ConfirmDialog,
 } from "@velo/ui";
+import { useTenantBrandingOrDefault } from "@velo/ui/theme";
 import { requestRiderProxy, type DecimalValue, type SpringPage } from "../_lib/rider-client";
 import { mapApiError, validateRatingInput } from "../_lib/ride-forms";
 import { useActiveRideRedirect } from "../_lib/use-active-ride-redirect";
@@ -55,6 +58,8 @@ function isCompleted(status: string): boolean {
 
 export default function RiderRidesPage() {
   useActiveRideRedirect("/rides");
+  const words = getTenantLabelWords(useTenantBrandingOrDefault());
+  const stageLabels = createRouteStageLabels(words.trip, words.driver);
 
   const [rides, setRides] = useState<RideItem[]>([]);
   const [page, setPage] = useState(0);
@@ -84,11 +89,11 @@ export default function RiderRidesPage() {
       setPage(parsed.number);
       setTotalPages(parsed.totalPages);
     } catch (loadError) {
-      setLoadError(loadError instanceof Error ? mapApiError({ error: loadError.message }, "Couldn't load your trips.") : "Couldn't load your trips.");
+      setLoadError(loadError instanceof Error ? mapApiError({ error: loadError.message }, `Couldn't load your ${words.tripsWord}.`) : `Couldn't load your ${words.tripsWord}.`);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [words.tripsWord]);
 
   useEffect(() => {
     void loadRides(0);
@@ -112,10 +117,10 @@ export default function RiderRidesPage() {
 
     try {
       await requestRiderProxy<RideItem>(`riders/cancelRide/${rideId}`, { method: "POST" });
-      setMessage("Trip cancelled.");
+      setMessage(`${words.trip} cancelled.`);
       await loadRides(page);
     } catch (cancelError) {
-      setActionError(cancelError instanceof Error ? mapApiError({ error: cancelError.message }, "Couldn't cancel this trip.") : "Couldn't cancel this trip.");
+      setActionError(cancelError instanceof Error ? mapApiError({ error: cancelError.message }, `Couldn't cancel this ${words.tripWord}.`) : `Couldn't cancel this ${words.tripWord}.`);
       setRetryAction({ type: "cancel", rideId });
     } finally {
       setPendingRideId(null);
@@ -165,14 +170,14 @@ export default function RiderRidesPage() {
   return (
     <main className="app-shell rider-page stack">
       <PageHeader
-        title="Your trips"
-        description="See upcoming rides and revisit past trips."
-        actions={<Link className="ui-button" data-variant="secondary" href="/scheduled">Scheduled trips</Link>}
+        title={`Your ${words.tripsWord}`}
+        description={`See upcoming ${words.tripsWord} and revisit past ones.`}
+        actions={<Link className="ui-button" data-variant="secondary" href="/scheduled">{`Scheduled ${words.tripsWord}`}</Link>}
       />
 
       <Section>
         <SegmentedControl
-          ariaLabel="Trip history filter"
+          ariaLabel={`${words.trip} history filter`}
           value={filter}
           onValueChange={(value) => setFilter(value as "upcoming" | "past")}
           options={[
@@ -195,16 +200,16 @@ export default function RiderRidesPage() {
         ) : null}
 
         {loading ? (
-          <div className="stack trip-list-skeleton" aria-label="Loading trips">
+          <div className="stack trip-list-skeleton" aria-label={`Loading ${words.tripsWord}`}>
             {[0, 1, 2].map((row) => <div className="trip-skeleton-row" key={row}><Skeleton className="skeleton-line skeleton-line-wide" /><Skeleton className="skeleton-line" /></div>)}
           </div>
         ) : null}
 
         {!loading && !loadError && !actionError && visibleRides.length === 0 ? (
           <EmptyState
-            title={filter === "past" ? "No past trips yet" : "No upcoming trips"}
-            description={filter === "past" ? "Your completed and cancelled trips will appear here." : "Plan a ride to see it here."}
-            action={<Link className="ui-button" data-variant="primary" href="/">Book a trip</Link>}
+            title={filter === "past" ? `No past ${words.tripsWord} yet` : `No upcoming ${words.tripsWord}`}
+            description={filter === "past" ? `Your completed and cancelled ${words.tripsWord} will appear here.` : `Plan a ${words.tripWord} to see it here.`}
+            action={<Link className="ui-button" data-variant="primary" href="/">{`Book a ${words.tripWord}`}</Link>}
           />
         ) : null}
 
@@ -213,16 +218,16 @@ export default function RiderRidesPage() {
             {visibleRides.map((ride) => (
               <article key={ride.id} className="trip-row" data-testid="trip-row">
                 <div className="trip-row-main">
-                  <RouteStrip stage={ride.rideStatus} variant="static" />
+                  <RouteStrip stage={ride.rideStatus} variant="static" stageLabels={stageLabels} />
                   <div className="trip-row-meta">
                     <DateTime value={ride.endedAt ?? ride.startedAt ?? ride.createdTime} />
-                    <StatusBadge status={ride.rideStatus} domain="ride" />
+                    <StatusBadge status={ride.rideStatus} domain="ride" labels={words} />
                   </div>
                 </div>
                 <div className="trip-row-actions">
                   <Money amount={ride.fare ?? null} />
                   {isCompleted(ride.rideStatus) ? (
-                    <div className="trip-rating" aria-label="Rate this trip">
+                    <div className="trip-rating" aria-label={`Rate this ${words.tripWord}`}>
                       <div className="rating-stars" role="group" aria-label="Choose a star rating">
                         {[1, 2, 3, 4, 5].map((star) => {
                           const selected = Number(ratingByRideId[ride.id] ?? DEFAULT_RATING) >= star;
@@ -244,13 +249,13 @@ export default function RiderRidesPage() {
                         disabled={isActionPending(pendingActions, `ride:${ride.id}:rate`)}
                         onClick={() => void rateDriver(ride.id)}
                       >
-                        {pendingRideId === ride.id && pendingAction === "RATE" ? "Saving rating…" : "Rate driver"}
+                        {pendingRideId === ride.id && pendingAction === "RATE" ? "Saving rating…" : `Rate ${words.driverWord}`}
                       </Button>
                     </div>
                   ) : null}
                   {canCancel(ride.rideStatus) ? (
                     <Button variant="ghost" size="sm" disabled={isActionPending(pendingActions, `ride:${ride.id}:cancel`)} onClick={() => setCancelRideId(ride.id)}>
-                      {pendingRideId === ride.id && pendingAction === "CANCEL" ? "Cancelling…" : "Cancel trip"}
+                      {pendingRideId === ride.id && pendingAction === "CANCEL" ? "Cancelling…" : `Cancel ${words.tripWord}`}
                     </Button>
                   ) : null}
                 </div>
@@ -265,9 +270,9 @@ export default function RiderRidesPage() {
       <ConfirmDialog
         open={cancelRideId !== null}
         onOpenChange={(open) => { if (!open) setCancelRideId(null); }}
-        title="Cancel this trip?"
-        description="This trip will be cancelled and the driver will be notified."
-        confirmLabel="Cancel trip"
+        title={`Cancel this ${words.tripWord}?`}
+        description={`This ${words.tripWord} will be cancelled and the ${words.driverWord} will be notified.`}
+        confirmLabel={`Cancel ${words.tripWord}`}
         onConfirm={async () => { if (cancelRideId !== null) await cancelRide(cancelRideId); setCancelRideId(null); }}
       />
     </main>

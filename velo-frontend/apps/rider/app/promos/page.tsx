@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { getTenantLabelWords } from "@velo/app-core/tenant";
 import {
   Button,
   DateTime,
@@ -13,6 +14,7 @@ import {
   Skeleton,
   StatusBadge,
 } from "@velo/ui";
+import { useTenantBrandingOrDefault } from "@velo/ui/theme";
 import { requestRiderProxy, type DecimalValue } from "../_lib/rider-client";
 
 type PromoCode = {
@@ -30,6 +32,7 @@ type PromoCode = {
 };
 
 export default function RiderPromosPage() {
+  const words = getTenantLabelWords(useTenantBrandingOrDefault());
   const [promos, setPromos] = useState<PromoCode[]>([]);
   const [loading, setLoading] = useState(true);
   const [copyingId, setCopyingId] = useState<number | null>(null);
@@ -70,7 +73,7 @@ export default function RiderPromosPage() {
 
   return (
     <main className="app-shell rider-page stack">
-      <PageHeader title="Offers" description="Save an offer and apply it when you book your next trip." />
+      <PageHeader title="Offers" description={`Save an offer and apply it when you book your next ${words.tripWord}.`} />
       <Section title="Available offers" actions={<Button variant="secondary" disabled={loading} onClick={() => void loadPromos()}>Refresh</Button>}>
         {message ? <p className="booking-feedback" role="status">{message}</p> : null}
         {actionError ? <p className="error-text" role="alert">{actionError}</p> : null}
@@ -79,8 +82,8 @@ export default function RiderPromosPage() {
         {!loading && !error && sortedPromos.length === 0 ? (
           <EmptyState
             title="No offers available right now"
-            description="Check again later or plan your next trip."
-            action={<Link className="ui-button" data-variant="primary" href="/">Book a trip</Link>}
+            description={`Check again later or plan your next ${words.tripWord}.`}
+            action={<Link className="ui-button" data-variant="primary" href="/">{`Book a ${words.tripWord}`}</Link>}
           />
         ) : null}
         {!loading && !error && sortedPromos.length > 0 ? (
@@ -95,7 +98,7 @@ export default function RiderPromosPage() {
                   <p className="promo-value">
                     {/PERCENT/i.test(promo.discountType) ? `${promo.discountValue}% off` : <><Money amount={promo.discountValue} /> off</>}
                   </p>
-                  <p className="helper">{promo.description || "Use this offer on an eligible trip."}</p>
+                  <p className="helper">{promo.description || `Use this offer on an eligible ${words.tripWord}.`}</p>
                   <div className="promo-details">
                     {promo.minRideFare ? <span>Minimum fare <Money amount={promo.minRideFare} /></span> : null}
                     <span>{promo.currentUses ?? 0}{promo.maxUses == null ? " used" : ` of ${promo.maxUses} used`}</span>

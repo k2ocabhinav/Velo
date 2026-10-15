@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { AuthLayout } from "@velo/ui/composed";
 import { registerErrorMessage } from "@velo/app-core/auth-errors";
+import { getTenantLabelWords } from "@velo/app-core/tenant";
+import { getRequestTenantContext } from "@velo/app-core/tenant-server";
 import { RegisterForm } from "./_components/register-form";
 import { sanitizeNextPath } from "../login/_lib/redirect";
 
@@ -22,11 +24,13 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
   const params = await searchParams;
   const nextPath = sanitizeNextPath(readParam(params?.next));
   const initialError = registerErrorMessage(readParam(params?.error));
+  const { branding } = await getRequestTenantContext();
+  const words = getTenantLabelWords(branding);
 
   return (
     <AuthLayout
-      product="Rider"
-      statement="Request a trip and follow it from pickup to drop-off."
+      product={words.rider}
+      statement={`Request a ${words.tripWord} and follow it from pickup to drop-off.`}
       title="Create your account"
       description="It takes a minute. You can add a payment method later."
       footer={

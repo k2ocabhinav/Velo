@@ -90,4 +90,16 @@ describe("driver form helpers", () => {
     expect(mapApiError({ message: "Invalid input" }, "fallback")).toBe("Invalid input");
     expect(mapApiError({}, "fallback")).toBe("fallback");
   });
+
+  it("words driver conflict messages with the tenant labels", () => {
+    expect(mapApiError({ error: "Driver not found for user id 7" }, "fallback")).toBe(
+      "No driver profile is linked to this session. Please sign out and sign back into the Driver portal.",
+    );
+    expect(mapApiError({ error: "Driver not found for user id 7" }, "fallback", { driver: "Chauffeur", driverWord: "chauffeur" })).toBe(
+      "No chauffeur profile is linked to this session. Please sign out and sign back into the Chauffeur portal.",
+    );
+    expect(mapApiError({ error: "Ride already been assigned" }, "fallback", { driverWord: "chauffeur" })).toBe(
+      "This ride has already been assigned to another chauffeur.",
+    );
+  });
 });

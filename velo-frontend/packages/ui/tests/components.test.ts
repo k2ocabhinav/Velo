@@ -6,6 +6,7 @@ import {
   AppTopBar,
   BottomNav,
   ConfirmDialog,
+  createRouteStageLabels,
   DataTable,
   DateTime,
   DefinitionList,
@@ -165,6 +166,20 @@ describe("shared UI foundation", () => {
     expect(markup).toContain("Trip in progress");
   });
 
+  it("words noun status labels with the tenant nouns while keeping the Velo default", () => {
+    expect(html(h(StatusBadge, { domain: "request", status: "PENDING" }))).toContain("Finding a driver");
+    expect(
+      html(h(StatusBadge, { domain: "request", status: "PENDING", labels: { driver: "Chauffeur", trip: "Transfer" } })),
+    ).toContain("Finding a chauffeur");
+    expect(
+      html(h(StatusBadge, { domain: "ride", status: "ONGOING", labels: { driver: "Chauffeur", trip: "Transfer" } })),
+    ).toContain("Transfer in progress");
+    expect(
+      html(h(StatusBadge, { domain: "ride", status: "CONFIRMED", labels: { driver: "Chauffeur" } })),
+    ).toContain("Chauffeur assigned");
+    expect(html(h(StatusBadge, { domain: "ride", status: "ENDED", labels: { driver: "Chauffeur", trip: "Transfer" } }))).toContain("Completed");
+  });
+
   it("renders definition label and value pairs", () => {
     const markup = html(h(DefinitionList, { items: [{ label: "Driver", value: "Ari Singh" }] }));
     expect(markup).toContain("<dt>Driver</dt>");
@@ -218,6 +233,26 @@ describe("shared UI foundation", () => {
     const markup = html(h(RouteStrip, { stage: "PENDING", stageLabels: { requested: "Transfer requested" } }));
     expect(markup).toContain('aria-label="Transfer requested, step 1 of 5"');
     expect(markup).toContain(">Transfer requested</p>");
+  });
+
+  it("builds route stage copy from the tenant nouns", () => {
+    const labels = createRouteStageLabels("Transfer", "Chauffeur");
+    expect(labels).toEqual({
+      requested: "Transfer requested",
+      assigned: "Chauffeur assigned",
+      arriving: "Chauffeur arriving",
+      on_trip: "Transfer in progress",
+      completed: "Transfer completed",
+      cancelled: "Transfer cancelled",
+    });
+
+    const markup = html(h(RouteStrip, { stage: "CONFIRMED", stageLabels: labels }));
+    expect(markup).toContain('aria-label="Chauffeur assigned, step 2 of 5"');
+  });
+
+  it("defaults route stage copy to the Velo nouns", () => {
+    expect(createRouteStageLabels().requested).toBe("Trip requested");
+    expect(createRouteStageLabels().assigned).toBe("Driver assigned");
   });
 
   it("renders a table with optional row action menu", () => {

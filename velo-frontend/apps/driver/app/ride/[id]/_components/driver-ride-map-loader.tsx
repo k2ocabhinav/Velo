@@ -23,6 +23,7 @@ type DriverRideMapLoaderProps = {
   dropOff: MapPoint | null;
   driver: MapPoint | null;
   routePoints: MapPoint[];
+  driverLabel: string;
 };
 
 export function DriverRideMapLoader(props: DriverRideMapLoaderProps) {

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@velo/ui/primitives";
 import { DataTable, DateTime, EmptyState, ErrorState, Field, Money, PageHeader, Section, SegmentedControl, Sheet, StatusBadge } from "@velo/ui/composed";
 import { Skeleton } from "@velo/ui/feedback";
-import { getTenantTripLabelForCount } from "@velo/app-core/tenant";
+import { getTenantLabelWords, getTenantTripLabelForCount } from "@velo/app-core/tenant";
 import { useTenantBranding } from "@velo/ui/theme";
 import {
   requestDriverProxy,
@@ -29,7 +29,7 @@ function parseDecimalValue(value: DecimalValue | null | undefined): number | nul
 }
 
 export default function DriverEarningsPage() {
-  const { tripLabel } = useTenantBranding();
+  const words = getTenantLabelWords(useTenantBranding());
   const [period, setPeriod] = useState<SummaryPeriod>("DAILY");
   const [summary, setSummary] = useState<DriverEarningsSummary | null>(null);
   const [balance, setBalance] = useState<DecimalValue | null>(null);
@@ -148,7 +148,7 @@ export default function DriverEarningsPage() {
           <div className="stack">
             <div>
               <p className="helper driver-earnings-title">Net earnings</p>
-              <p className="driver-earnings-trip-count">{summary.rideCount ?? 0} {getTenantTripLabelForCount(summary.rideCount ?? 0, tripLabel, { midSentence: true })}</p>
+              <p className="driver-earnings-trip-count">{summary.rideCount ?? 0} {getTenantTripLabelForCount(summary.rideCount ?? 0, words.trip, { midSentence: true })}</p>
               <Money className="driver-key-figure" amount={summary.totalNet} emphasis />
             </div>
             <dl className="driver-money-breakdown">
@@ -167,7 +167,7 @@ export default function DriverEarningsPage() {
         {!loading && !loadError && !summary ? (
           <EmptyState
             title="No earnings for this period"
-            description="Try another period or go online to take your next trip."
+            description={`Try another period or go online to take your next ${words.tripWord}.`}
             action={<a href="/" className="ui-button" data-variant="secondary">Go online</a>}
           />
         ) : null}
@@ -217,7 +217,7 @@ export default function DriverEarningsPage() {
         ) : null}
       </Section>
 
-      <Section title="Recent trips">
+      <Section title={`Recent ${words.tripsWord}`}>
         {loading ? (
           <div role="status" aria-label="Loading earning entries" aria-busy="true" className="stack compact">
             {[0, 1, 2].map((item) => <Skeleton key={item} className="h-12 w-full" />)}
@@ -226,7 +226,7 @@ export default function DriverEarningsPage() {
         {!loading && !loadError && earnings.length === 0 ? (
           <EmptyState
             title="No earnings yet"
-            description="Your trip earnings will appear here after you complete a trip."
+            description={`Your ${words.tripWord} earnings will appear here after you complete a ${words.tripWord}.`}
             action={<a href="/" className="ui-button" data-variant="secondary">Go online</a>}
           />
         ) : null}
@@ -234,11 +234,11 @@ export default function DriverEarningsPage() {
           <>
             <div className="driver-desktop-ledger">
               <DataTable
-                ariaLabel="Recent trip earnings"
+                ariaLabel={`Recent ${words.tripWord} earnings`}
                 data={earnings}
                 getRowKey={(entry) => entry.id}
                 columns={[
-                  { header: "Trip", cell: (entry) => entry.rideId ? <code className="driver-reference">Trip {entry.rideId}</code> : "—" },
+                  { header: words.trip, cell: (entry) => entry.rideId ? <code className="driver-reference">{words.trip} {entry.rideId}</code> : "—" },
                   { header: "Date", cell: (entry) => <DateTime value={entry.createdTime} /> },
                   { header: "Gross", align: "right", cell: (entry) => <Money amount={entry.grossFare} /> },
                   { header: "Commission", align: "right", cell: (entry) => <Money amount={entry.platformCommission} /> },
@@ -246,14 +246,14 @@ export default function DriverEarningsPage() {
                 ]}
               />
             </div>
-            <div className="driver-mobile-ledger" role="list" aria-label="Recent trip earnings">
+            <div className="driver-mobile-ledger" role="list" aria-label={`Recent ${words.tripWord} earnings`}>
               {earnings.map((entry) => (
                 <article className="driver-ledger-row" key={entry.id} role="listitem">
                   <div className="driver-ledger-row-meta">
                     <DateTime value={entry.createdTime} />
                     <StatusBadge domain="ride" status="ENDED" />
                   </div>
-                  {entry.rideId ? <code className="driver-reference">Trip {entry.rideId}</code> : null}
+                  {entry.rideId ? <code className="driver-reference">{words.trip} {entry.rideId}</code> : null}
                   <Money className="driver-key-figure" amount={entry.netEarning} emphasis />
                   <div className="driver-ledger-breakdown">
                     <span>Gross <Money amount={entry.grossFare} /></span>

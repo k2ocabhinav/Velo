@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { getTenantLabelWords } from "@velo/app-core/tenant";
 import { Button } from "@velo/ui/primitives";
-import { DateTime, EmptyState, ErrorState, Money, PageHeader, Pagination, RouteStrip, Section, SegmentedControl, StatusBadge } from "@velo/ui/composed";
+import { createRouteStageLabels, DateTime, EmptyState, ErrorState, Money, PageHeader, Pagination, RouteStrip, Section, SegmentedControl, StatusBadge } from "@velo/ui/composed";
 import { Skeleton } from "@velo/ui/feedback";
+import { useTenantBrandingOrDefault } from "@velo/ui/theme";
 import { requestDriverProxy, type DriverRide, type SpringPage } from "../_lib/driver-client";
 import {
   getDriverRideFareValue,
@@ -18,6 +20,8 @@ const PAGE_SIZE = 10;
 type RideFilter = "active" | "past";
 
 export default function DriverRidesPage() {
+  const words = getTenantLabelWords(useTenantBrandingOrDefault());
+  const stageLabels = createRouteStageLabels(words.trip, words.driver);
   const [items, setItems] = useState<DriverRide[]>([]);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -37,11 +41,11 @@ export default function DriverRidesPage() {
       setPage(Number.isFinite(response.number) ? Number(response.number) : requestedPage);
       setTotalPages(Math.max(Number.isFinite(response.totalPages) ? Number(response.totalPages) : 1, 1));
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Unable to load trips.");
+      setError(loadError instanceof Error ? loadError.message : `Unable to load ${words.tripsWord}.`);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [words.tripsWord]);
 
   useEffect(() => {
     void loadRides(0);
@@ -60,46 +64,46 @@ export default function DriverRidesPage() {
 
   return (
     <main className="stack">
-      <PageHeader title="Your trip history" description="Follow active trips and review completed ones." />
+      <PageHeader title={`Your ${words.tripWord} history`} description={`Follow active ${words.tripsWord} and review completed ones.`} />
 
       {currentTrip ? (
-        <Section title="Continue your active trip">
+        <Section title={`Continue your active ${words.tripWord}`}>
           <div className="driver-trip-summary">
             <div className="driver-row-meta">
-              <code className="driver-reference">Trip {currentTrip.id}</code>
-              <StatusBadge domain="ride" status={currentTrip.rideStatus} />
+              <code className="driver-reference">{words.trip} {currentTrip.id}</code>
+              <StatusBadge domain="ride" status={currentTrip.rideStatus} labels={words} />
             </div>
-            <RouteStrip stage={currentTrip.rideStatus} />
+            <RouteStrip stage={currentTrip.rideStatus} stageLabels={stageLabels} />
             <div className="driver-row-meta">
               <DateTime value={currentTrip.startedAt ?? currentTrip.createdTime} />
               <Money amount={getDriverRideFareValue(currentTrip)} emphasis />
-              <Link href={`/ride/${currentTrip.id}`} className="ui-button" data-variant="primary">Continue trip</Link>
+              <Link href={`/ride/${currentTrip.id}`} className="ui-button" data-variant="primary">{`Continue ${words.tripWord}`}</Link>
             </div>
           </div>
         </Section>
       ) : null}
 
       <Section
-        title="Trip history"
+        title={`${words.trip} history`}
         actions={<Button variant="secondary" disabled={loading} onClick={() => void loadRides(page)}>Refresh</Button>}
       >
         <SegmentedControl
-          ariaLabel="Filter trips"
+          ariaLabel={`Filter ${words.tripsWord}`}
           value={filter}
           onValueChange={(value) => setFilter(value as RideFilter)}
           options={options}
         />
 
-        {error ? <ErrorState title="Couldn't load trips" description={error} onRetry={() => void loadRides(page)} /> : null}
+        {error ? <ErrorState title={`Couldn't load ${words.tripsWord}`} description={error} onRetry={() => void loadRides(page)} /> : null}
         {loading ? (
-          <div className="driver-trip-list" role="status" aria-label="Loading trips" aria-busy="true">
+          <div className="driver-trip-list" role="status" aria-label={`Loading ${words.tripsWord}`} aria-busy="true">
             {[0, 1, 2].map((item) => <Skeleton key={item} className="h-28 w-full" />)}
           </div>
         ) : null}
         {!loading && !error && visibleTrips.length === 0 ? (
           <EmptyState
-            title={filter === "active" ? "No active trips" : "No past trips yet"}
-            description={filter === "active" ? "Accepted trips will appear here while they're in progress." : "Completed and cancelled trips will appear here."}
+            title={filter === "active" ? `No active ${words.tripsWord}` : `No past ${words.tripsWord} yet`}
+            description={filter === "active" ? `Accepted ${words.tripsWord} will appear here while they're in progress.` : `Completed and cancelled ${words.tripsWord} will appear here.`}
             action={<Link href="/" className="ui-button" data-variant="secondary">Back to home</Link>}
           />
         ) : null}
@@ -112,21 +116,22 @@ export default function DriverRidesPage() {
                 <article className="driver-trip-row" key={ride.id}>
                   <div className="driver-trip-summary">
                     <div className="driver-row-meta">
-                      <code className="driver-reference">Trip {ride.id}</code>
-                      <StatusBadge domain="ride" status={ride.rideStatus} />
+                      <code className="driver-reference">{words.trip} {ride.id}</code>
+                      <StatusBadge domain="ride" status={ride.rideStatus} labels={words} />
                       <DateTime value={ride.startedAt ?? ride.createdTime ?? ride.endedAt} />
                     </div>
                     <RouteStrip
                       stage={ride.rideStatus}
                       variant="static"
                       showDriverMarker={false}
+                      stageLabels={stageLabels}
                       pickupLabel={pickup ? "Pickup" : "Pickup unavailable"}
                       dropoffLabel={dropOff ? "Drop-off" : "Drop-off unavailable"}
                     />
                   </div>
                   <div className="driver-row-meta">
                     <Money amount={getDriverRideFareValue(ride)} />
-                    <Link href={`/ride/${ride.id}`} className="ui-button" data-variant="secondary">View trip</Link>
+                    <Link href={`/ride/${ride.id}`} className="ui-button" data-variant="secondary">{`View ${words.tripWord}`}</Link>
                   </div>
                 </article>
               );

@@ -12,6 +12,7 @@ type ActiveRideMapProps = {
   dropOff: MapPoint | null;
   driver: MapPoint | null;
   routePoints: MapPoint[];
+  driverLabel: string;
 };
 
 function toLatLng(point: MapPoint): LatLngExpression {
@@ -56,7 +57,7 @@ function FollowDriver({ follow, driver }: { follow: boolean; driver: MapPoint | 
   return null;
 }
 
-export function ActiveRideMap({ pickup, dropOff, driver, routePoints }: ActiveRideMapProps) {
+export function ActiveRideMap({ pickup, dropOff, driver, routePoints, driverLabel }: ActiveRideMapProps) {
   const tileProvider = getTileProviderConfig();
   const [followDriver, setFollowDriver] = useState(false);
 
@@ -81,7 +82,7 @@ export function ActiveRideMap({ pickup, dropOff, driver, routePoints }: ActiveRi
         disabled={!driver}
         onClick={() => setFollowDriver((following) => !following)}
       >
-        {followDriver ? "Stop following" : "Follow driver"}
+        {followDriver ? "Stop following" : `Follow ${driverLabel.toLowerCase()}`}
       </button>
       <MapContainer center={toLatLng(center)} zoom={13} scrollWheelZoom className="active-ride-map-inner">
         <TileLayer
@@ -108,7 +109,7 @@ export function ActiveRideMap({ pickup, dropOff, driver, routePoints }: ActiveRi
 
         {driver ? (
           <CircleMarker center={toLatLng(driver)} pathOptions={{ color: "hsl(var(--color-warning))", fillColor: "hsl(var(--color-warning))" }} radius={7}>
-            <Popup>Driver</Popup>
+            <Popup>{driverLabel}</Popup>
           </CircleMarker>
         ) : null}
 
