@@ -76,6 +76,33 @@ ADMIN_PORT=$((WEB_PORT_BASE + 1))
 RIDER_PORT=$((WEB_PORT_BASE + 2))
 DRIVER_PORT=$((WEB_PORT_BASE + 3))
 
+DEMO_SIM_ENABLED=1
+if [[ "${VELO_DEMO_SIM:-1}" == "0" ]]; then
+  DEMO_SIM_ENABLED=0
+fi
+
+if (( DEMO_SIM_ENABLED )); then
+  SIM_PORT="${VELO_DEMO_SIM_PORT:-8790}"
+  if port_is_open "$SIM_PORT"; then
+    if [[ -n "${VELO_DEMO_SIM_PORT:-}" ]]; then
+      printf 'Configured simulator port %s is already in use.\n' "$SIM_PORT" >&2
+      exit 1
+    fi
+    SIM_PORT=""
+    for candidate in $(seq 8791 8799); do
+      if ! port_is_open "$candidate"; then
+        SIM_PORT="$candidate"
+        break
+      fi
+    done
+    if [[ -z "$SIM_PORT" ]]; then
+      printf 'Simulator port 8790 and fallback ports 8791–8799 are all in use. Set VELO_DEMO_SIM_PORT to a free port.\n' >&2
+      exit 1
+    fi
+    printf 'Port 8790 is occupied; using simulator port %s.\n' "$SIM_PORT"
+  fi
+fi
+
 if [[ ! -x "$FRONTEND_DIR/node_modules/.bin/next" ]]; then
   printf 'Installing frontend dependencies for the first local demo run...\n'
   (cd "$FRONTEND_DIR" && npm ci)
@@ -221,11 +248,40 @@ wait_for_http() {
   fi
 }
 
+wait_for_control_server() {
+  for _ in $(seq 1 "$HEALTH_TIMEOUT_SECONDS"); do
+    if curl --silent --fail "http://127.0.0.1:$SIM_PORT/status" >/dev/null 2>&1; then
+      return 0
+    fi
+    if ! kill -0 "$(cat "$RUNTIME_DIR/sim.pid")" >/dev/null 2>&1; then
+      return 1
+    fi
+    sleep 1
+  done
+  return 1
+}
+
 wait_for_http backend "$API_BASE_URL/actuator/health"
+
+if (( DEMO_SIM_ENABLED )); then
+  printf '%s\n' "$SIM_PORT" > "$RUNTIME_DIR/sim.port"
+  start_job sim "$FRONTEND_DIR/packages/demo-sim" env VELO_SIM_ALLOW=1 node src/main.ts --api "$API_BASE_URL" --control-port "$SIM_PORT"
+fi
+
 wait_for_http landing "http://localhost:$LANDING_PORT/"
 wait_for_http admin "http://localhost:$ADMIN_PORT/"
 wait_for_http rider "http://localhost:$RIDER_PORT/"
 wait_for_http driver "http://localhost:$DRIVER_PORT/"
+
+SIM_READY=0
+if (( DEMO_SIM_ENABLED )); then
+  if wait_for_control_server; then
+    SIM_READY=1
+  else
+    printf 'The simulator did not become ready; the demo continues without the live fleet. Check %s.\n' \
+      "$RUNTIME_DIR/sim.log" >&2
+  fi
+fi
 
 trap - EXIT
 
@@ -254,6 +310,20 @@ cat <<'EOF'
 All demo accounts use password: password123
 Velo Business: admin@velo-platform.com | henry@example.com | bob.driver@example.com
 Saffron Routes: owner@saffronroutes.demo | guest@saffronroutes.demo | chauffeur1@saffronroutes.demo
+EOF
+
+if (( DEMO_SIM_ENABLED && SIM_READY )); then
+  cat <<'EOF'
+
+Simulated background fleet on the admin live map:
+EOF
+  printf '  Control: http://127.0.0.1:%s/status\n' "$SIM_PORT"
+  printf '  ./scripts/demo-sim.sh status|pause|resume|speed <n>\n'
+elif (( DEMO_SIM_ENABLED == 0 )); then
+  printf '\nSimulator: disabled (VELO_DEMO_SIM=0).\n'
+fi
+
+cat <<'EOF'
 
 Tenant branding follows the hostname. Use default.localhost or saffron-routes.localhost;
 the unqualified localhost host uses the default tenant. Logs are in .demo-runtime/.

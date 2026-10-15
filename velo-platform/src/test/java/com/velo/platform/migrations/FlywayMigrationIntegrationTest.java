@@ -106,9 +106,11 @@ class FlywayMigrationIntegrationTest {
 
         assertThat(count(schemaName, "tenant")).isEqualTo(2);
         assertThat(countByTenantSlug("app_user", "default")).isGreaterThanOrEqualTo(5);
-        assertThat(countByTenantSlug("app_user", "saffron-routes")).isEqualTo(5);
+        assertThat(countByTenantSlug("app_user", "saffron-routes")).isEqualTo(15);
         assertThat(countByTenantSlug("driver", "default")).isGreaterThanOrEqualTo(2);
-        assertThat(countByTenantSlug("driver", "saffron-routes")).isEqualTo(2);
+        assertThat(countByTenantSlug("driver", "saffron-routes")).isEqualTo(8);
+        assertThat(countSimulatedAccounts("default")).isEqualTo(10);
+        assertThat(countSimulatedAccounts("saffron-routes")).isEqualTo(10);
         assertThat(countByTenantSlug("ride", "default")).isGreaterThanOrEqualTo(5);
         assertThat(countByTenantSlug("ride", "saffron-routes")).isGreaterThanOrEqualTo(3);
         assertThat(countRideByOtpStatus("1357", "ENDED")).isEqualTo(1);
@@ -186,6 +188,20 @@ class FlywayMigrationIntegrationTest {
         try (Connection connection = DriverManager.getConnection(JDBC_URL, JDBC_USERNAME, JDBC_PASSWORD);
              PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, slug);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                resultSet.next();
+                return resultSet.getLong(1);
+            }
+        }
+    }
+
+    private long countSimulatedAccounts(String tenantSlug) throws Exception {
+        String sql = "SELECT COUNT(*) FROM " + schemaName + ".app_user user_account "
+                + "JOIN " + schemaName + ".tenant tenant ON tenant.id = user_account.tenant_id "
+                + "WHERE tenant.slug = ? AND user_account.simulated = TRUE";
+        try (Connection connection = DriverManager.getConnection(JDBC_URL, JDBC_USERNAME, JDBC_PASSWORD);
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, tenantSlug);
             try (ResultSet resultSet = statement.executeQuery()) {
                 resultSet.next();
                 return resultSet.getLong(1);

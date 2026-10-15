@@ -35,6 +35,7 @@ process_matches_job() {
   local command_line
   command_line="$(ps -p "$pid" -o command= 2>/dev/null || true)"
   case "$name:$command_line" in
+    sim:*src/main.ts*) return 0 ;;
     backend:*mvnw*|backend:*spring-boot:run*) return 0 ;;
     landing:*http.server*) return 0 ;;
     admin:*start-standalone.mjs\ admin\ *) return 0 ;;
@@ -44,7 +45,7 @@ process_matches_job() {
   esac
 }
 
-for name in driver rider admin landing backend; do
+for name in sim driver rider admin landing backend; do
   pid_file="$RUNTIME_DIR/$name.pid"
   if [[ -f "$pid_file" ]]; then
     pid="$(cat "$pid_file")"

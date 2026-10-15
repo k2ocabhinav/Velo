@@ -48,6 +48,38 @@ public class DemoFixtureTimestampRefresher implements ApplicationRunner {
             'DEMO-VELO-ENDED-02', 'DEMO-VELO-ENDED-03',
             'DEMO-SAFFRON-ENDED-01', 'DEMO-SAFFRON-ENDED-02', 'DEMO-SAFFRON-ONGOING-01'
             """;
+    private static final String SIMULATED_USER_IDS = """
+            SELECT app_user.id
+            FROM app_user
+            WHERE app_user.tenant_id IN (%s)
+              AND app_user.simulated = TRUE
+            """.formatted(DEMO_TENANT_IDS);
+    private static final String SIMULATED_RIDER_IDS = """
+            SELECT rider.id
+            FROM rider
+            JOIN app_user ON app_user.id = rider.user_id AND app_user.tenant_id = rider.tenant_id
+            WHERE rider.tenant_id IN (%s)
+              AND app_user.simulated = TRUE
+            """.formatted(DEMO_TENANT_IDS);
+    private static final String SIMULATED_DRIVER_IDS = """
+            SELECT driver.id
+            FROM driver
+            JOIN app_user ON app_user.id = driver.user_id AND app_user.tenant_id = driver.tenant_id
+            WHERE driver.tenant_id IN (%s)
+              AND app_user.simulated = TRUE
+            """.formatted(DEMO_TENANT_IDS);
+    private static final String SIMULATED_REQUEST_IDS = """
+            SELECT request.id
+            FROM ride_request request
+            WHERE request.tenant_id IN (%s)
+              AND request.rider_id IN (%s)
+            """.formatted(DEMO_TENANT_IDS, SIMULATED_RIDER_IDS);
+    private static final String SIMULATED_RIDE_IDS = """
+            SELECT ride.id
+            FROM ride
+            WHERE ride.tenant_id IN (%s)
+              AND (ride.rider_id IN (%s) OR ride.driver_id IN (%s))
+            """.formatted(DEMO_TENANT_IDS, SIMULATED_RIDER_IDS, SIMULATED_DRIVER_IDS);
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -55,11 +87,13 @@ public class DemoFixtureTimestampRefresher implements ApplicationRunner {
     @Transactional
     public void run(ApplicationArguments args) {
         removePreviousDemoSessionData();
+        removeSimulatedFleetData();
         restoreFixtureRequests();
         restoreFixtureRides();
         restoreFixtureOffers();
         restoreFixturePayments();
         restoreDemoWalletsAndDrivers();
+        resetSimulatedFleetState();
         resetDemoNotifications();
     }
 
@@ -89,6 +123,74 @@ public class DemoFixtureTimestampRefresher implements ApplicationRunner {
         jdbcTemplate.update("DELETE FROM driver_earning WHERE ride_id IN (%s)".formatted(SESSION_RIDE_IDS));
         jdbcTemplate.update("DELETE FROM ride WHERE id IN (%s)".formatted(SESSION_RIDE_IDS));
         jdbcTemplate.update("DELETE FROM ride_request WHERE id IN (%s)".formatted(SESSION_REQUEST_IDS));
+    }
+
+    private void removeSimulatedFleetData() {
+        jdbcTemplate.update("""
+                DELETE FROM admin_dispatch_audit
+                WHERE ride_id IN (%s)
+                   OR ride_request_id IN (%s)
+                """.formatted(SIMULATED_RIDE_IDS, SIMULATED_REQUEST_IDS));
+
+        jdbcTemplate.update("""
+                DELETE FROM ride_offer
+                WHERE ride_request_id IN (%s)
+                   OR driver_id IN (%s)
+                """.formatted(SIMULATED_REQUEST_IDS, SIMULATED_DRIVER_IDS));
+
+        jdbcTemplate.update("DELETE FROM promo_code_usage WHERE ride_id IN (%s)".formatted(SIMULATED_RIDE_IDS));
+        jdbcTemplate.update("DELETE FROM wallet_transaction WHERE ride_id IN (%s)".formatted(SIMULATED_RIDE_IDS));
+        jdbcTemplate.update("""
+                DELETE FROM rating
+                WHERE ride_id IN (%s)
+                   OR rider_id IN (%s)
+                   OR driver_id IN (%s)
+                """.formatted(SIMULATED_RIDE_IDS, SIMULATED_RIDER_IDS, SIMULATED_DRIVER_IDS));
+        jdbcTemplate.update("""
+                DELETE FROM payment
+                WHERE ride_id IN (%s)
+                   OR user_id IN (%s)
+                """.formatted(SIMULATED_RIDE_IDS, SIMULATED_USER_IDS));
+        jdbcTemplate.update("""
+                DELETE FROM driver_earning
+                WHERE ride_id IN (%s)
+                   OR driver_id IN (%s)
+                """.formatted(SIMULATED_RIDE_IDS, SIMULATED_DRIVER_IDS));
+        jdbcTemplate.update("DELETE FROM ride WHERE id IN (%s)".formatted(SIMULATED_RIDE_IDS));
+        jdbcTemplate.update("DELETE FROM ride_request WHERE id IN (%s)".formatted(SIMULATED_REQUEST_IDS));
+        jdbcTemplate.update("DELETE FROM notification WHERE user_id IN (%s)".formatted(SIMULATED_USER_IDS));
+    }
+
+    private void resetSimulatedFleetState() {
+        jdbcTemplate.update("""
+                UPDATE wallet
+                SET balance = CASE
+                        WHEN rider.id IS NULL THEN 0
+                        WHEN tenant.slug = 'default' THEN 5000.00
+                        ELSE 500000.00
+                    END
+                FROM app_user
+                JOIN tenant ON tenant.id = app_user.tenant_id
+                LEFT JOIN rider ON rider.user_id = app_user.id AND rider.tenant_id = tenant.id
+                WHERE wallet.user_id = app_user.id
+                  AND tenant.slug IN ('default', 'saffron-routes')
+                  AND app_user.simulated = TRUE
+                """);
+
+        jdbcTemplate.update("""
+                UPDATE driver
+                SET available = FALSE,
+                    current_location = NULL,
+                    location_updated_at = NULL,
+                    location_heading = NULL,
+                    location_speed_kph = NULL
+                FROM app_user
+                JOIN tenant ON tenant.id = app_user.tenant_id
+                WHERE driver.user_id = app_user.id
+                  AND driver.tenant_id = tenant.id
+                  AND tenant.slug IN ('default', 'saffron-routes')
+                  AND app_user.simulated = TRUE
+                """);
     }
 
     private void restoreFixtureRequests() {
