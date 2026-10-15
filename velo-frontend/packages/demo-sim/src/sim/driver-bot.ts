@@ -192,6 +192,7 @@ export class DriverBot {
   async resetToPoi(poi: Poi): Promise<void> {
     if (this.rideIdValue !== null) throw new ApiError(409, "Cancel the driver's active ride before resetting its location.");
     this.activeRouteController?.abort(new Error("Driver fleet reset"));
+    this.delayedUntilValue = null;
     this.currentPoi = poi;
     this.setState(this.desiredOnline ? "idle" : "offline");
     await this.publishLocation(poi, 0, 0);
@@ -281,13 +282,14 @@ export class DriverBot {
       this.options.logger.event(this.tenant, this.options.account.key, "trip completed", acceptedRide.id);
       this.setState("idle");
       const rating = integerBetween(this.options.random, 4, 5);
-      const ratings = await Promise.allSettled([
-        this.options.api.rateRider(acceptedRide.id, rating),
-        plan.rateDriver(acceptedRide.id, rating),
-      ]);
-      for (const result of ratings) {
-        if (result.status === "rejected") {
-          this.options.logger.error(this.tenant, this.options.account.key, "ride rating", result.reason);
+      for (const rate of [
+        () => this.options.api.rateRider(acceptedRide.id, rating),
+        () => plan.rateDriver(acceptedRide.id, rating),
+      ]) {
+        try {
+          await rate();
+        } catch (error) {
+          this.options.logger.error(this.tenant, this.options.account.key, "ride rating", error);
         }
       }
     } catch (error) {
@@ -304,9 +306,7 @@ export class DriverBot {
       }
     } finally {
       if (this.rideController === lifecycle) this.rideController = null;
-      if (acceptedRideId !== null && this.options.registry.owns(requestId) && lifecycle.signal.aborted) {
-        this.options.registry.complete(requestId);
-      }
+      // Shutdown aborts movement before the rider API cancels the persisted ride.
       if (!this.isState("stopping")) {
         this.rideIdValue = null;
         this.requestIdValue = null;
@@ -361,6 +361,8 @@ export class DriverBot {
           return;
         }
       }
+    } catch (error) {
+      if (!routeController.signal.aborted) throw error;
     } finally {
       if (this.activeRouteController === routeController) this.activeRouteController = null;
     }

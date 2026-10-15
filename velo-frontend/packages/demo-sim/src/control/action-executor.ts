@@ -24,6 +24,7 @@ export interface ActionExecutorOptions {
   catalogue: RouteCatalogue;
   clock: Clock;
   shutdownSignal?: AbortSignal;
+  paused?(): boolean;
   tenant(slug: string): ActionTenantRuntime | undefined;
   config(slug: string): TenantSimConfig;
   publish(tenant: string, type: string, message: string, data?: Record<string, unknown>): void;
@@ -36,9 +37,17 @@ export interface ActionAccepted {
 
 export class ActionExecutor {
   private readonly options: ActionExecutorOptions;
+  private readonly bursts = new Map<string, Set<AbortController>>();
 
   constructor(options: ActionExecutorOptions) {
     this.options = options;
+  }
+
+  cancelBursts(tenant?: string): void {
+    for (const [slug, tasks] of this.bursts) {
+      if (tenant !== undefined && slug !== tenant) continue;
+      for (const task of tasks) task.abort(new Error("Simulator burst cancelled"));
+    }
   }
 
   async execute(name: string, body: unknown): Promise<ActionAccepted> {
@@ -77,6 +86,7 @@ export class ActionExecutor {
         return { summary, refs: { rideRequestId: requestId } };
       }
       case "burst": {
+        if (this.options.paused?.()) throw new ControlRequestError(409, "Resume the simulator before starting a burst.");
         const idleRiders = this.idleRiders(runtime);
         if (idleRiders.length < 2) throw new ControlRequestError(409, "A burst needs at least two idle simulated riders.");
         const count = Math.min(action.count, idleRiders.length);
@@ -84,7 +94,20 @@ export class ActionExecutor {
         const first = idleRiders[0]!;
         const firstRequestId = await this.requestTrip(first, action.tenant, near);
         if (firstRequestId === null) throw new ControlRequestError(409, "No rider could create a burst request.");
-        void this.finishBurst(idleRiders.slice(1, count), action.tenant, near);
+        const controller = new AbortController();
+        const tasks = this.bursts.get(action.tenant) ?? new Set<AbortController>();
+        tasks.add(controller);
+        this.bursts.set(action.tenant, tasks);
+        void this.finishBurst(idleRiders.slice(1, count), action.tenant, near, controller)
+          .catch((error: unknown) => {
+            this.options.publish(action.tenant, "action.failed", "Burst stopped after an unexpected error", {
+              error: error instanceof Error ? error.message : "unknown error",
+            });
+          })
+          .finally(() => {
+            tasks.delete(controller);
+            if (tasks.size === 0) this.bursts.delete(action.tenant);
+          });
         const suffix = count < action.count ? `; ${action.count - count} skipped because only ${idleRiders.length} riders were idle` : "";
         return {
           summary: `Started a burst of ${count} requests spread over about 20 seconds${suffix}.`,
@@ -114,14 +137,19 @@ export class ActionExecutor {
         const rider = runtime.riders.find((candidate) => candidate.account.key === plan.rider.key);
         if (!rider) throw new ControlRequestError(409, `No simulated rider owns request ${requestId}.`);
         const driver = runtime.drivers.find((candidate) => candidate.currentRequestId === requestId);
-        let rideId: number;
+        let rideId: number | null;
         try {
-          rideId = await rider.cancelAssignedRide(requestId);
+          rideId = await rider.cancelRideRequest(requestId);
         } catch (error) {
           throw apiControlError(error, "Rider cancellation");
         }
-        driver?.cancelLocally(requestId, rideId);
-        return { summary: `${rider.name} cancelled ride ${rideId}.`, refs: { rideRequestId: requestId, rideId } };
+        if (rideId !== null) driver?.cancelLocally(requestId, rideId);
+        return {
+          summary: rideId === null
+            ? `${rider.name} cancelled pending request ${requestId}.`
+            : `${rider.name} cancelled ride ${rideId}.`,
+          refs: { rideRequestId: requestId, ...(rideId === null ? {} : { rideId }) },
+        };
       }
       case "driver-cancel": {
         const driver = action.rideId === undefined
@@ -136,6 +164,7 @@ export class ActionExecutor {
         }
       }
       case "reset-fleet":
+        this.cancelBursts(action.tenant);
         return this.resetFleet(runtime);
     }
   }
@@ -148,9 +177,16 @@ export class ActionExecutor {
       if (requestId === null) continue;
       const driver = runtime.drivers.find((candidate) => candidate.currentRequestId === requestId);
       try {
-        const rideId = await rider.cancelAssignedRide(requestId);
-        driver?.cancelLocally(requestId, rideId);
-        cancelled.push(rideId);
+        let rideId: number | null;
+        try {
+          rideId = await rider.cancelRideRequest(requestId);
+        } catch (error) {
+          if (!isRetryableCancellationError(error)) throw error;
+          await this.options.clock.sleep(250, this.options.shutdownSignal);
+          rideId = await rider.cancelRideRequest(requestId);
+        }
+        if (rideId !== null) driver?.cancelLocally(requestId, rideId);
+        cancelled.push(requestId);
       } catch (error) {
         failures.push(error instanceof Error ? error.message : "ride cancellation failed");
       }
@@ -172,24 +208,31 @@ export class ActionExecutor {
       }
     }
     for (let index = 0; index < runtime.riders.length; index += 1) {
-      runtime.riders[index]!.resetToPoi(weightedChoice(parking, runtime.random));
+      const rider = runtime.riders[index]!;
+      if (rider.activeRequestId !== null) continue;
+      rider.resetToPoi(weightedChoice(parking, runtime.random));
     }
     if (failures.length > 0) {
+      this.options.publish(runtime.tenant.slug, "action.failed", "Fleet reset could not cancel or park every bot", { failures });
       throw new ControlRequestError(409, `Fleet reset parked available bots, but could not cancel every ride: ${failures.join("; ")}`);
     }
     return {
-      summary: `Fleet reset; cancelled ${cancelled.length} assigned ride${cancelled.length === 1 ? "" : "s"} and parked bots at hotspots.`,
-      refs: { rideIds: cancelled },
+      summary: `Fleet reset; cancelled ${cancelled.length} bot request${cancelled.length === 1 ? "" : "s"} and parked bots at hotspots.`,
+      refs: { rideRequestIds: cancelled },
     };
   }
 
-  private async finishBurst(riders: RiderBot[], tenant: string, near?: Poi): Promise<void> {
+  private async finishBurst(riders: RiderBot[], tenant: string, near: Poi | undefined, controller: AbortController): Promise<void> {
+    const signal = this.options.shutdownSignal
+      ? AbortSignal.any([controller.signal, this.options.shutdownSignal])
+      : controller.signal;
     for (let index = 0; index < riders.length; index += 1) {
       try {
-        await this.options.clock.sleep(20_000 / (riders.length + 1), this.options.shutdownSignal);
+        await this.options.clock.sleep(20_000 / (riders.length + 1), signal);
       } catch {
         return;
       }
+      if (signal.aborted || this.options.paused?.() || !this.options.tenant(tenant)) return;
       const rider = riders[index]!;
       if (rider.state !== "idle") continue;
       await this.requestTrip(rider, tenant, near);
@@ -253,4 +296,8 @@ function apiControlError(error: unknown, operation: string): ControlRequestError
   }
   if (error instanceof ApiError) return new ControlRequestError(error.status, `${operation} failed: ${error.message}.`);
   return new ControlRequestError(409, error instanceof Error ? `${operation} failed: ${error.message}` : `${operation} failed.`);
+}
+
+function isRetryableCancellationError(error: unknown): boolean {
+  return !(error instanceof ApiError) || error.status >= 500;
 }

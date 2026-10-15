@@ -27,6 +27,8 @@ public interface RideOfferRepository extends JpaRepository<RideOffer, Long> {
             Long driverId
     );
 
+    List<RideOffer> findByRideRequestIdAndStatus(Long rideRequestId, RideOfferStatus status);
+
     List<RideOffer> findByRideRequestIdOrderByOfferedAtDesc(Long rideRequestId);
 
     @EntityGraph(attributePaths = {"driver.user"})

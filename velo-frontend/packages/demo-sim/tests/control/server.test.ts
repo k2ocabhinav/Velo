@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { request as httpRequest } from "node:http";
 import { ControlServer } from "../../src/control/server.ts";
 import { EventHub } from "../../src/control/event-hub.ts";
 import type { SimConfig } from "../../src/control/runtime-config.ts";
@@ -6,6 +7,7 @@ import type { ControlStatus, Poi } from "../../src/types.ts";
 import { ControlRequestError } from "../../src/control/errors.ts";
 
 const servers: ControlServer[] = [];
+const JSON_HEADERS = { "content-type": "application/json", "x-velo-sim": "1" };
 
 afterEach(async () => {
   await Promise.all(servers.splice(0).map((server) => server.close()));
@@ -20,6 +22,7 @@ function setup() {
     tenants: { default: { onlineDrivers: 1, requestIntervalSec: 75, airportShare: 0.4, declineProbability: 0.15, pickupWaitSec: [15, 30], idleRepositionProbability: 0.3, hotspots: ["kia-t1"] } },
   };
   const status: ControlStatus = {
+    ready: true,
     paused: false,
     speedFactor: 4,
     uptimeSec: 12,
@@ -64,33 +67,55 @@ describe("control HTTP routes", () => {
     const panel = await fetch(`${base}/`);
     expect(panel.status).toBe(200);
     expect(panel.headers.get("content-type")).toContain("text/html");
-    expect(await panel.text()).toContain("Velo simulator control");
+      expect(await panel.text()).toContain("Fleet simulator");
     expect(await (await fetch(`${base}/status`)).json()).toEqual(status);
     expect(await (await fetch(`${base}/pois`)).json()).toEqual(pois.map(({ id, name, kind, lat, lng }) => ({ id, name, kind, lat, lng })));
     expect(await (await fetch(`${base}/config`)).json()).toEqual({ config });
 
-    const patched = await fetch(`${base}/config`, { method: "PATCH", body: JSON.stringify({ paused: true }) });
+    const patched = await fetch(`${base}/config`, { method: "PATCH", headers: JSON_HEADERS, body: JSON.stringify({ paused: true }) });
     expect(patched.status).toBe(200);
     expect(await patched.json()).toMatchObject({ config, changed: ["paused"] });
-    const preset = await fetch(`${base}/preset`, { method: "POST", body: JSON.stringify({ name: "quiet", tenant: "default" }) });
+    const preset = await fetch(`${base}/preset`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ name: "quiet", tenant: "default" }) });
     expect(preset.status).toBe(200);
     const action = await fetch(`${base}/actions/request-trip`, {
       method: "POST",
+      headers: JSON_HEADERS,
       body: JSON.stringify({ tenant: "default" }),
     });
     expect(action.status).toBe(202);
     expect(await action.json()).toMatchObject({ accepted: true, refs: { rideRequestId: 52 } });
 
-    const invalidConfig = await fetch(`${base}/config`, { method: "PATCH", body: JSON.stringify([]) });
+    const invalidConfig = await fetch(`${base}/config`, { method: "PATCH", headers: JSON_HEADERS, body: JSON.stringify([]) });
     expect(invalidConfig.status).toBe(400);
     expect(await invalidConfig.json()).toEqual({ error: "Request body must be a JSON object." });
-    const invalidJson = await fetch(`${base}/preset`, { method: "POST", body: "{" });
+    const invalidJson = await fetch(`${base}/preset`, { method: "POST", headers: JSON_HEADERS, body: "{" });
     expect(invalidJson.status).toBe(400);
     expect(await invalidJson.json()).toMatchObject({ error: "Request body must be valid JSON." });
-    const invalidAction = await fetch(`${base}/actions/bad`, { method: "POST", body: JSON.stringify({ tenant: "default" }) });
+    const invalidAction = await fetch(`${base}/actions/bad`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ tenant: "default" }) });
     expect(invalidAction.status).toBe(400);
     expect(await invalidAction.json()).toEqual({ error: 'unknown action "bad"' });
     expect((await fetch(`${base}/not-found`)).status).toBe(404);
+  });
+
+  it("rejects rebinding hosts, foreign origins, and non-JSON or headerless writes", async () => {
+    const { server } = setup();
+    await server.listen();
+    const base = `http://127.0.0.1:${server.listeningPort}`;
+    const port = server.listeningPort;
+
+    expect(await requestWithHost(base, `attacker.example:${port}`)).toBe(403);
+    expect((await fetch(`${base}/status`, { headers: { origin: `http://attacker.example:${port}` } })).status).toBe(403);
+    expect((await fetch(`${base}/config`, {
+      method: "PATCH", headers: { "content-type": "text/plain", "x-velo-sim": "1" }, body: "{}",
+    })).status).toBe(403);
+    expect((await fetch(`${base}/config`, {
+      method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ paused: true }),
+    })).status).toBe(403);
+    expect((await fetch(`${base}/config`, {
+      method: "PATCH",
+      headers: { ...JSON_HEADERS, origin: base },
+      body: JSON.stringify({ paused: true }),
+    })).status).toBe(200);
   });
 
   it("streams named SSE events through the HTTP route", async () => {
@@ -113,3 +138,20 @@ describe("control HTTP routes", () => {
     await reader.cancel().catch(() => undefined);
   });
 });
+
+function requestWithHost(url: string, host: string): Promise<number> {
+  const target = new URL(url);
+  return new Promise((resolve, reject) => {
+    const request = httpRequest({
+      hostname: "127.0.0.1",
+      port: Number(target.port),
+      path: target.pathname,
+      headers: { host },
+    }, (response) => {
+      response.resume();
+      response.on("end", () => resolve(response.statusCode ?? 0));
+    });
+    request.once("error", reject);
+    request.end();
+  });
+}

@@ -171,6 +171,7 @@ export interface ControlRecentError {
 }
 
 export interface ControlStatus {
+  ready: boolean;
   paused: boolean;
   speedFactor: number;
   uptimeSec: number;

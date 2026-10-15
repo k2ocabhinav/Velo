@@ -25,6 +25,7 @@ export interface SimApi {
   endRide(rideId: number): Promise<RideDto>;
   cancelRide(rideId: number): Promise<void>;
   cancelRiderRide(rideId: number): Promise<void>;
+  cancelRiderRequest(rideRequestId: number): Promise<void>;
   rateRider(rideId: number, rating: number): Promise<void>;
   rateDriver(rideId: number, rating: number): Promise<void>;
   getWebSocketTicket(signal?: AbortSignal): Promise<WebSocketTicketDto>;
@@ -121,6 +122,10 @@ export class VeloHttpClient implements SimApi {
 
   async cancelRiderRide(rideId: number): Promise<void> {
     await this.request(`/riders/cancelRide/${rideId}`, { method: "POST" });
+  }
+
+  async cancelRiderRequest(rideRequestId: number): Promise<void> {
+    await this.request(`/riders/cancel-request/${rideRequestId}`, { method: "POST" });
   }
 
   async rateRider(rideId: number, rating: number): Promise<void> {
@@ -228,7 +233,7 @@ export class VeloHttpClient implements SimApi {
 }
 
 function unwrapApiResponse<T>(payload: unknown): T {
-  if (isRecord(payload) && "data" in payload && "error" in payload && "statusCode" in payload) {
+  if (isRecord(payload) && "data" in payload && "error" in payload && ("timeStamp" in payload || "statusCode" in payload)) {
     return payload.data as T;
   }
   return payload as T;

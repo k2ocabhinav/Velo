@@ -21,6 +21,7 @@ import com.velo.platform.services.PaymentService;
 import com.velo.platform.services.PromoCodeService;
 import com.velo.platform.services.RatingService;
 import com.velo.platform.services.RideOfferService;
+import com.velo.platform.services.RideRealtimeService;
 import com.velo.platform.services.RideService;
 import com.velo.platform.services.WalletService;
 import com.velo.platform.strategies.RideFareCalculationStrategy;
@@ -87,6 +88,9 @@ class RiderServiceImplTest {
     private RideOfferService rideOfferService;
 
     @Mock
+    private RideRealtimeService rideRealtimeService;
+
+    @Mock
     private NotificationService notificationService;
 
     @Mock
@@ -144,6 +148,7 @@ class RiderServiceImplTest {
                 paymentService,
                 driverEarningsService,
                 walletService,
+                rideRealtimeService,
                 eventPublisher);
         lenient().when(tenantConfigurationRepository.findByTenant_Id(anyLong())).thenReturn(Optional.empty());
 
@@ -405,6 +410,7 @@ class RiderServiceImplTest {
                 .id(44L)
                 .rider(testRider)
                 .driver(driver)
+                .rideRequest(RideRequest.builder().id(91L).build())
                 .rideStatus(RideStatus.CONFIRMED)
                 .pickupLocation(GeometryUtil.createPoint(new PointDto(new double[]{77.585, 12.97})))
                 .dropOffLocation(GeometryUtil.createPoint(new PointDto(new double[]{77.62, 12.94})))
@@ -420,6 +426,7 @@ class RiderServiceImplTest {
 
         assertThat(trackingDto).isNotNull();
         assertThat(trackingDto.getRideId()).isEqualTo(44L);
+        assertThat(trackingDto.getRideRequestId()).isEqualTo(91L);
         assertThat(trackingDto.getStatus()).isEqualTo("CONFIRMED");
         assertThat(trackingDto.getDriver()).isNotNull();
         assertThat(trackingDto.getDriver().getVehicleId()).isEqualTo("KA01AB1234");

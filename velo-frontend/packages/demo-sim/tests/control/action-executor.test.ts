@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fileURLToPath } from "node:url";
+import { ApiError } from "../../src/api/http-client.ts";
 import { ActionExecutor, type ActionTenantRuntime } from "../../src/control/action-executor.ts";
 import type { ConfigContext, TenantSimConfig } from "../../src/control/runtime-config.ts";
 import { loadRouteCatalogue } from "../../src/geo/route-catalogue.ts";
@@ -33,6 +34,33 @@ describe("control actions execute against simulator bots and APIs", () => {
     await harness.close();
   });
 
+  it("cancels pending burst work when paused, reset, or shutdown is requested", async () => {
+    const pausedHarness = await makeHarness(false, new HeldBurstClock());
+    await pausedHarness.executor.execute("burst", { tenant: "default", count: 3 });
+    await (pausedHarness.clock as HeldBurstClock).waitForBurstSleep();
+    pausedHarness.setPaused(true);
+    pausedHarness.executor.cancelBursts("default");
+    await flushMicrotasks();
+    expect(pausedHarness.riderApis.reduce((sum, api) => sum + api.requests.length, 0)).toBe(1);
+    await pausedHarness.close();
+
+    const resetHarness = await makeHarness(false, new HeldBurstClock());
+    await resetHarness.executor.execute("burst", { tenant: "default", count: 3 });
+    await (resetHarness.clock as HeldBurstClock).waitForBurstSleep();
+    await resetHarness.executor.execute("reset-fleet", { tenant: "default" });
+    await flushMicrotasks();
+    expect(resetHarness.riderApis.reduce((sum, api) => sum + api.requests.length, 0)).toBe(1);
+    await resetHarness.close();
+
+    const shutdownHarness = await makeHarness(false, new HeldBurstClock());
+    await shutdownHarness.executor.execute("burst", { tenant: "default", count: 3 });
+    await (shutdownHarness.clock as HeldBurstClock).waitForBurstSleep();
+    shutdownHarness.shutdown.abort(new Error("shutdown"));
+    await flushMicrotasks();
+    expect(shutdownHarness.riderApis.reduce((sum, api) => sum + api.requests.length, 0)).toBe(1);
+    await shutdownHarness.close();
+  });
+
   it("applies online changes, forced declines, and traffic delay through drivers", async () => {
     const harness = await makeHarness();
     const driver = harness.driver;
@@ -58,19 +86,24 @@ describe("control actions execute against simulator bots and APIs", () => {
     await harness.close();
   });
 
-  it("cancels assigned rides through the rider and driver APIs and rejects pending rider cancellation", async () => {
+  it("cancels pending requests and assigned rides through the rider API, and assigned rides through the driver API", async () => {
     const harness = await makeHarness(true);
     const rider = harness.riders[0]!;
     const requestId = await rider.requestRide({ from: harness.catalogue.pois[0], to: harness.catalogue.pois[1] });
     expect(requestId).toBe(101);
     harness.riderApis[0]!.activeRideOverride = null;
-    await expect(harness.executor.execute("rider-cancel", { tenant: "default", rideRequestId: requestId }))
-      .rejects.toMatchObject({ status: 409, message: expect.stringContaining("cannot cancel a pending request") });
+    const pendingCancel = await harness.executor.execute("rider-cancel", { tenant: "default", rideRequestId: requestId });
+    expect(pendingCancel.refs).toEqual({ rideRequestId: requestId });
+    expect(pendingCancel.summary).toContain("cancelled pending request 101");
+    expect(harness.riderApis[0]!.calls).toContain("rider cancel request 101");
     expect(harness.riderApis[0]!.calls).not.toContain("rider cancel 91");
 
-    harness.riderApis[0]!.activeRideOverride = { rideId: 511, rideRequestId: requestId, status: "CONFIRMED" };
-    const riderCancel = await harness.executor.execute("rider-cancel", { tenant: "default", rideRequestId: requestId });
-    expect(riderCancel.refs).toEqual({ rideRequestId: requestId, rideId: 511 });
+    harness.riderApis[0]!.requestId = 102;
+    const nextRequestId = await rider.requestRide({ from: harness.catalogue.pois[0], to: harness.catalogue.pois[1] });
+    expect(nextRequestId).toBe(102);
+    harness.riderApis[0]!.activeRideOverride = { rideId: 511, rideRequestId: nextRequestId, status: "CONFIRMED" };
+    const riderCancel = await harness.executor.execute("rider-cancel", { tenant: "default", rideRequestId: nextRequestId });
+    expect(riderCancel.refs).toEqual({ rideRequestId: nextRequestId, rideId: 511 });
     expect(harness.riderApis[0]!.calls).toContain("rider cancel 511");
 
     const plan = makePlan(harness.catalogue, 700, SIM_TENANTS.default.riders[1]!);
@@ -93,13 +126,66 @@ describe("control actions execute against simulator bots and APIs", () => {
     await harness.close();
   });
 
+  it("preserves the rider plan when driver movement stops so shutdown can cancel the active ride", async () => {
+    const harness = await makeHarness(true);
+    const rider = harness.riders[0]!;
+    const riderApi = harness.riderApis[0]!;
+    const requestId = 700;
+    rider.activeRequestId = requestId;
+    const plan = makePlan(harness.catalogue, requestId, rider.account);
+    plan.pickup = harness.catalogue.pois.find((poi) => poi.name === harness.driver.poi)!;
+    plan.dropOff = harness.catalogue.pois.find((poi) => poi.id !== plan.pickup.id)!;
+    plan.onCompleted = () => rider.completeRequest(requestId);
+    harness.registry.register(plan);
+    riderApi.activeRideOverride = { rideId: 91, rideRequestId: requestId, status: "CONFIRMED" };
+
+    const rideInProgress = harness.driver.receiveNotification(JSON.stringify({ type: "RIDE_REQUESTED", referenceId: requestId }));
+    await harness.driverApi.startEntered;
+    harness.driver.stopMovement();
+    harness.driverApi.finishStart();
+    await rideInProgress;
+
+    expect(harness.registry.owns(requestId)).toBe(true);
+    expect(rider.activeRequestId).toBe(requestId);
+    expect(await rider.cancelRideRequest(requestId)).toBe(91);
+    expect(rider.activeRequestId).toBeNull();
+    harness.driver.cancelLocally(requestId, 91);
+    expect(riderApi.calls).toContain("rider cancel 91");
+    await harness.close();
+  });
+
   it("resets idle fleet bots to seeded hotspots", async () => {
     const harness = await makeHarness();
+    await harness.executor.execute("traffic-delay", { tenant: "default", driver: "driver1", seconds: 60 });
+    expect(harness.driver.delayedUntil).not.toBeNull();
     const before = harness.driverApi.locations.length;
     const result = await harness.executor.execute("reset-fleet", { tenant: "default" });
     expect(result.summary).toContain("parked bots at hotspots");
     expect(harness.driverApi.locations.length).toBe(before + 1);
     expect(harness.driver.state).toBe("idle");
+    expect(harness.driver.delayedUntil).toBeNull();
+    await harness.close();
+  });
+
+  it("keeps rider ownership when reset cancellation fails", async () => {
+    const harness = await makeHarness();
+    const rider = harness.riders[0]!;
+    const api = harness.riderApis[0]!;
+    api.activeRideOverride = null;
+    const requestId = await rider.requestRide({ from: harness.catalogue.pois[0], to: harness.catalogue.pois[1] });
+    expect(requestId).toBe(101);
+    api.cancelRiderRequest = async (id) => {
+      api.calls.push(`rider cancel request ${id}`);
+      throw new ApiError(503, "backend unavailable");
+    };
+
+    await expect(harness.executor.execute("reset-fleet", { tenant: "default" }))
+      .rejects.toMatchObject({ status: 409 });
+    expect(rider.activeRequestId).toBe(requestId);
+    expect(harness.registry.owns(requestId!)).toBe(true);
+    expect(api.calls.filter((call) => call === "rider cancel request 101")).toHaveLength(2);
+    expect(harness.events.some((event) => event.type === "action.failed")).toBe(true);
+    expect(() => rider.resetToPoi(harness.catalogue.pois[0]!)).toThrow(ApiError);
     await harness.close();
   });
 });
@@ -114,12 +200,15 @@ interface Harness {
   registry: TestRegistry;
   executor: ActionExecutor;
   events: Array<{ type: string; message: string }>;
+  shutdown: AbortController;
+  setPaused(paused: boolean): void;
   close(): Promise<void>;
 }
 
-async function makeHarness(gatedStart = false): Promise<Harness> {
+async function makeHarness(gatedStart = false, clock: FakeClock = new FakeClock()): Promise<Harness> {
   const catalogue = await loadRouteCatalogue(fileURLToPath(fixtureDirectory));
-  const clock = new FakeClock();
+  const shutdown = new AbortController();
+  let paused = false;
   const logger = new SimLogger(clock, () => undefined);
   const events: Array<{ type: string; message: string }> = [];
   logger.setEventPublisher((event) => events.push({ type: event.type, message: event.message }));
@@ -200,6 +289,8 @@ async function makeHarness(gatedStart = false): Promise<Harness> {
     context,
     catalogue,
     clock,
+    shutdownSignal: shutdown.signal,
+    paused: () => paused,
     tenant: (slug) => slug === "default" ? runtime : undefined,
     config: () => config,
     publish: (_tenant, type, message) => events.push({ type, message }),
@@ -207,6 +298,8 @@ async function makeHarness(gatedStart = false): Promise<Harness> {
 
   return {
     clock, catalogue, driver, driverApi, riderApis, riders, registry, executor, events,
+    shutdown,
+    setPaused(value) { paused = value; },
     async close() {
       for (const rider of riders) {
         rider.stop();
@@ -217,6 +310,27 @@ async function makeHarness(gatedStart = false): Promise<Harness> {
       driverApi.finishStart();
     },
   };
+}
+
+class HeldBurstClock extends FakeClock {
+  private startedResolve!: () => void;
+  private readonly started = new Promise<void>((resolve) => { this.startedResolve = resolve; });
+
+  override sleep(milliseconds: number, signal?: AbortSignal): Promise<void> {
+    if (milliseconds < 5_000 || milliseconds > 10_000) return super.sleep(milliseconds, signal);
+    this.startedResolve();
+    return new Promise<void>((_resolve, reject) => {
+      if (signal?.aborted) {
+        reject(signal.reason ?? new Error("Operation aborted"));
+        return;
+      }
+      signal?.addEventListener("abort", () => reject(signal.reason ?? new Error("Operation aborted")), { once: true });
+    });
+  }
+
+  waitForBurstSleep(): Promise<void> {
+    return this.started;
+  }
 }
 
 async function flushMicrotasks(): Promise<void> {

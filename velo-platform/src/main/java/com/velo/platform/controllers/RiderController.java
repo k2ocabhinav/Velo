@@ -53,6 +53,12 @@ public class RiderController {
         return ResponseEntity.ok(riderService.cancelRide(rideId));
     }
 
+    @PostMapping("/cancel-request/{rideRequestId}")
+    @Operation(summary = "Cancel a pending ride request")
+    public ResponseEntity<RideRequestDto> cancelRideRequest(@PathVariable Long rideRequestId) {
+        return ResponseEntity.ok(riderService.cancelRideRequest(rideRequestId));
+    }
+
     @PostMapping("/endRide/{rideId}")
     @Operation(summary = "Manually end an in-progress ride")
     public ResponseEntity<RideDto> endRide(@PathVariable Long rideId) {

@@ -31,7 +31,11 @@ The seeded active and completed trips, upcoming transfers, driver records, and p
 `./scripts/demo-up.sh` starts the fleet simulator from `packages/demo-sim`. It drives dedicated simulated drivers and riders through the public API, so the map, the lists, and the rider and driver apps all agree with each other.
 
 - Simulated riders are only matched with simulated drivers, and real riders with real drivers, so the background fleet can never take the presenter's trip.
-- Control it with `./scripts/demo-sim.sh status|pause|resume|speed <n>`. `pause` stops new simulated requests while trips already underway finish, `resume` restarts them, and `speed` scales the simulation (1–20).
+- Open the control panel with `./scripts/demo-sim.sh open`; it shows each tenant's bot states, counts, live events, presets, and runtime controls. The loopback-only panel does not require authentication.
+- `./scripts/demo-sim.sh status` shows the live fleet. `pause` stops new simulated requests while trips already underway finish, `resume` restarts them, and `speed <n>` scales simulation time (1–20).
+- Apply `preset <quiet|steady|busy|airport-rush> [tenant]` or update one value with `set <tenant> <key> <value>`. For example, `set default onlineDrivers 2` takes excess drivers offline after their current rides, and `set default requestIntervalSec 0` stops automatic requests.
+- Direct a scene with `do <action> [tenant] [key=value ...]`. Examples: `do request-trip default from=itc-gardenia to=kia-t1`, `do decline-next default count=1`, `do traffic-delay default seconds=60`, and `do reset-fleet saffron-routes`. Available actions are `request-trip`, `burst`, `driver-offline`, `driver-online`, `decline-next`, `traffic-delay`, `rider-cancel`, `driver-cancel`, and `reset-fleet`.
+- Runtime config is saved at `.demo-runtime/sim-state.json` and restored after `demo-down` and the next `demo-up`. The launcher resets simulated rides and driver availability in the local database on startup.
 - Start without it by running `VELO_DEMO_SIM=0 ./scripts/demo-up.sh`.
 - The map's side panel reports how many simulated drivers are online. Mention it when the fleet is on screen — it is a simulator, not a second fleet of staff.
 - The simulated accounts (`driver1@sim.velobusiness.demo`, `chauffeur1@sim.saffronroutes.demo`, …) use `password123` too, if you want to sign in as one and show the driver side of the background fleet.

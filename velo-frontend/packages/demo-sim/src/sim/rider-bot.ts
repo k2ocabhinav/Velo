@@ -13,6 +13,8 @@ export class RiderBot {
   activeRideId: number | null = null;
   private rideStarted = false;
   private requestInFlight = false;
+  private requestSettlement: Promise<void> = Promise.resolve();
+  private resolveRequestSettlement: (() => void) | null = null;
   private stopped = false;
   private readonly lifecycleController = new AbortController();
   private unsubscribe: (() => void) | null = null;
@@ -68,11 +70,30 @@ export class RiderBot {
     this.logger.event(this.account.tenant, this.account.key, "connected");
   }
 
+  async reconcileBackendState(): Promise<void> {
+    const tracking = await this.api.getActiveRide();
+    if (!tracking) return;
+    if (tracking.rideId !== undefined && tracking.rideId !== null) {
+      await this.api.cancelRiderRide(tracking.rideId);
+      this.logger.event(this.account.tenant, this.account.key, "reconciled active ride", `ride ${tracking.rideId}`);
+      return;
+    }
+    if (tracking.rideRequestId !== undefined && tracking.rideRequestId !== null) {
+      await this.api.cancelRiderRequest(tracking.rideRequestId);
+      this.logger.event(this.account.tenant, this.account.key, "reconciled pending request", `request ${tracking.rideRequestId}`);
+      return;
+    }
+    throw new Error(`Rider ${this.account.key} has an active backend record without a ride or request id`);
+  }
+
   async requestRide(options: PoiPairOptions = {}): Promise<number | null> {
     if (this.stopped || this.requestInFlight || this.activeRequestId !== null) {
       return null;
     }
     this.requestInFlight = true;
+    this.requestSettlement = new Promise<void>((resolve) => {
+      this.resolveRequestSettlement = resolve;
+    });
     this.registry.beginRequest();
     const selection = this.parkedAtPoi && this.currentPoi && !options.from && !options.near
       ? { ...options, from: this.currentPoi }
@@ -119,8 +140,14 @@ export class RiderBot {
       return null;
     } finally {
       this.requestInFlight = false;
+      this.resolveRequestSettlement?.();
+      this.resolveRequestSettlement = null;
       this.registry.endRequest();
     }
+  }
+
+  async waitForRequestSettlement(): Promise<void> {
+    await this.requestSettlement;
   }
 
   completeRequest(requestId: number): void {
@@ -132,22 +159,36 @@ export class RiderBot {
     this.rideStarted = false;
   }
 
-  async cancelAssignedRide(requestId: number): Promise<number> {
+  async cancelRideRequest(requestId: number): Promise<number | null> {
     if (this.activeRequestId !== requestId) {
       throw new ApiError(409, `Rider ${this.account.key} does not own request ${requestId}`);
     }
     const tracking = await this.api.getActiveRide();
-    if (!tracking?.rideId || tracking.rideRequestId !== requestId) {
-      throw new ApiError(409, "The rider API cannot cancel a pending request; it only cancels an assigned ride.");
+    if (tracking?.rideId && tracking.rideRequestId === requestId) {
+      await this.cancelActiveRide(requestId, tracking.rideId);
+      return tracking.rideId;
     }
-    await this.api.cancelRiderRide(tracking.rideId);
+
+    try {
+      await this.api.cancelRiderRequest(requestId);
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status !== 409) throw error;
+      const updatedTracking = await this.api.getActiveRide();
+      if (updatedTracking?.rideId && updatedTracking.rideRequestId === requestId) {
+        await this.cancelActiveRide(requestId, updatedTracking.rideId);
+        return updatedTracking.rideId;
+      }
+      throw error;
+    }
     this.registry.complete(requestId);
-    this.logger.event(this.account.tenant, this.account.key, "trip cancelled", `request ${requestId}`);
-    return tracking.rideId;
+    this.logger.event(this.account.tenant, this.account.key, "request cancelled", `request ${requestId}`);
+    return null;
   }
 
   resetToPoi(poi: RouteCatalogue["pois"][number]): void {
-    if (this.activeRequestId !== null) this.registry.complete(this.activeRequestId);
+    if (this.activeRequestId !== null) {
+      throw new ApiError(409, `Rider ${this.account.key} still owns request ${this.activeRequestId}`);
+    }
     this.currentPoi = poi;
     this.parkedAtPoi = true;
   }
@@ -181,21 +222,26 @@ export class RiderBot {
     if (!isRideUpdate(event)) {
       return;
     }
-    if (event.rideId) {
-      this.activeRideId = event.rideId;
-    }
-    if (event.rideRequestId === this.activeRequestId && event.status === "ONGOING") {
+    const requestMatches = this.activeRequestId !== null && event.rideRequestId === this.activeRequestId;
+    const rideMatches = this.activeRideId !== null && event.rideId === this.activeRideId;
+    if (!requestMatches && !rideMatches) return;
+    if (event.rideId) this.activeRideId = event.rideId;
+    if (event.status === "ONGOING") {
       this.rideStarted = true;
-    }
-    if (this.activeRequestId === null) {
-      return;
     }
     if (event.eventType === "RIDE_COMPLETED" || event.eventType === "RIDE_CANCELLED"
       || event.status === "ENDED" || event.status === "CANCELLED") {
       const requestId = this.activeRequestId;
+      if (requestId === null) return;
       this.registry.complete(requestId);
       this.logger.event(this.account.tenant, this.account.key, "ride closed", `request ${requestId}`);
     }
+  }
+
+  private async cancelActiveRide(requestId: number, rideId: number): Promise<void> {
+    await this.api.cancelRiderRide(rideId);
+    this.registry.complete(requestId);
+    this.logger.event(this.account.tenant, this.account.key, "trip cancelled", `ride ${rideId}`);
   }
 
   private async expireIfUnassigned(requestId: number, expiresAt: string | null | undefined): Promise<void> {

@@ -36,11 +36,32 @@ describe("rider and driver simulator bots", () => {
     expect(api.requests[0]).toMatchObject({ paymentMethod: "WALLET", pickupLocation: { type: "Point" } });
     expect(api.requests[0]?.pickupLocation.coordinates).toHaveLength(2);
 
-    stomp.publish("/user/queue/ride-updates", JSON.stringify({ eventType: "RIDE_COMPLETED", rideId: 91, status: "ENDED" }));
+    stomp.publish("/user/queue/ride-updates", JSON.stringify({ eventType: "RIDE_CANCELLED", rideId: 999, rideRequestId: 53, status: "CANCELLED" }));
+    expect(rider.activeRequestId).toBe(52);
+    expect(registry.owns(52)).toBe(true);
+
+    stomp.publish("/user/queue/ride-updates", JSON.stringify({ eventType: "RIDE_COMPLETED", rideId: 91, rideRequestId: 52, status: "ENDED" }));
     expect(rider.activeRequestId).toBeNull();
     expect(registry.owns(52)).toBe(false);
     rider.stop();
     await rider.closeSocket();
+  });
+
+  it("reconciles stale pending requests and active rides from backend tracking", async () => {
+    const catalogue = await loadRouteCatalogue(fixtureDirectory);
+    const clock = new FakeClock();
+    const api = new FakeApi();
+    api.activeRideOverride = { rideRequestId: 701, status: "PENDING" };
+    const rider = new RiderBot(
+      SIM_TENANTS.default.riders[0]!, api, new FakeStompSession().session, catalogue, clock, fixedRandom,
+      new SimLogger(clock, () => undefined), createRegistry(),
+    );
+
+    await rider.reconcileBackendState();
+    expect(api.calls).toContain("rider cancel request 701");
+    api.activeRideOverride = { rideId: 808, rideRequestId: 702, status: "ONGOING" };
+    await rider.reconcileBackendState();
+    expect(api.calls).toContain("rider cancel 808");
   });
 
   it("ignores foreign request notifications and runs an owned offer through OTP, route, completion, and rating", async () => {
@@ -49,6 +70,17 @@ describe("rider and driver simulator bots", () => {
     const driverApi = new FakeApi();
     const ignoredApi = new FakeApi();
     const riderApi = new FakeApi();
+    let ratingInFlight = false;
+    let concurrentRatings = false;
+    const recordRating = async (calls: string[], entry: string) => {
+      if (ratingInFlight) concurrentRatings = true;
+      ratingInFlight = true;
+      await Promise.resolve();
+      calls.push(entry);
+      ratingInFlight = false;
+    };
+    driverApi.rateRider = async (rideId, rating) => recordRating(driverApi.calls, `rate rider ${rideId}:${rating}`);
+    riderApi.rateDriver = async (rideId, rating) => recordRating(riderApi.calls, `rate driver ${rideId}:${rating}`);
     const driverStomp = new FakeStompSession();
     const ignoredStomp = new FakeStompSession();
     const registry = createRegistry();
@@ -117,6 +149,7 @@ describe("rider and driver simulator bots", () => {
     expect(driverApi.calls).toContain("end 91");
     expect(driverApi.calls.some((call) => call.startsWith("rate rider 91:"))).toBe(true);
     expect(riderApi.calls.some((call) => call.startsWith("rate driver 91:"))).toBe(true);
+    expect(concurrentRatings).toBe(false);
     expect(driver.state).toBe("idle");
     expect(driver.completedRides).toBe(1);
     expect(completed).toBe(1);
@@ -159,6 +192,46 @@ describe("rider and driver simulator bots", () => {
     driver.stopMovement();
     await driver.closeSocket();
   });
+
+  it("treats a fleet reset as a normal route interruption", async () => {
+    const catalogue = await loadRouteCatalogue(fixtureDirectory);
+    const clock = new RouteGateClock();
+    const loggerLines: string[] = [];
+    const driver = new DriverBot({
+      account: SIM_TENANTS.default.drivers[0]!,
+      api: new FakeApi(),
+      stomp: new FakeStompSession().session,
+      catalogue,
+      clock,
+      simulationClock: new SimulationClock(clock, () => 20),
+      random: sequenceRandom([0.5, 0, 0, 0]),
+      speedFactor: () => 20,
+      logger: new SimLogger(clock, (line) => loggerLines.push(line)),
+      registry: createRegistry(),
+      config: () => ({
+        onlineDrivers: 1,
+        requestIntervalSec: 0,
+        airportShare: 0,
+        declineProbability: 0,
+        pickupWaitSec: [5, 5],
+        idleRepositionProbability: 1,
+        hotspots: ["kia-t1"],
+      }),
+    });
+    await driver.start();
+    driver.startIdleRepositioning();
+    await clock.routeStarted;
+    expect(driver.state).toBe("repositioning");
+
+    await driver.resetToPoi(catalogue.pois.find((poi) => poi.id === "kia-t1")!);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+
+    expect(driver.state).toBe("idle");
+    expect(driver.poi).toBe(catalogue.pois.find((poi) => poi.id === "kia-t1")!.name);
+    expect(loggerLines.some((line) => line.includes("error reposition"))).toBe(false);
+    driver.stopMovement();
+    await driver.closeSocket();
+  }, 10_000);
 });
 
 function createRegistry(): RideRegistry {
@@ -216,4 +289,21 @@ function sequenceRandom(values: number[]): RandomSource {
       return value;
     },
   };
+}
+
+class RouteGateClock extends FakeClock {
+  private signalRouteStarted!: () => void;
+  readonly routeStarted = new Promise<void>((resolve) => { this.signalRouteStarted = resolve; });
+
+  override sleep(milliseconds: number, signal?: AbortSignal): Promise<void> {
+    if (milliseconds === 3_000) {
+      this.signalRouteStarted();
+      return new Promise<void>((_resolve, reject) => {
+        const abort = () => reject(signal?.reason ?? new Error("Operation aborted"));
+        if (signal?.aborted) abort();
+        else signal?.addEventListener("abort", abort, { once: true });
+      });
+    }
+    return super.sleep(milliseconds, signal);
+  }
 }

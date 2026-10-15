@@ -45,6 +45,24 @@ export class ControlServer {
       sendJson(response, 403, { error: "Control server is loopback only" });
       return;
     }
+    const host = request.headers.host?.toLowerCase();
+    const allowedHosts = new Set([`127.0.0.1:${this.listeningPort}`, `localhost:${this.listeningPort}`]);
+    if (!host || !allowedHosts.has(host)) {
+      sendJson(response, 403, { error: "Control server Host is invalid" });
+      return;
+    }
+    const origin = request.headers.origin;
+    if (origin !== undefined && origin !== `http://${host}`) {
+      sendJson(response, 403, { error: "Control server Origin is invalid" });
+      return;
+    }
+    if (request.method !== "GET") {
+      const contentType = request.headers["content-type"]?.split(";", 1)[0]?.trim().toLowerCase();
+      if (contentType !== "application/json" || request.headers["x-velo-sim"] !== "1") {
+        sendJson(response, 403, { error: "Control writes require JSON and X-Velo-Sim: 1" });
+        return;
+      }
+    }
     await dispatchControlRequest(request, response, this.actions);
   }
 }

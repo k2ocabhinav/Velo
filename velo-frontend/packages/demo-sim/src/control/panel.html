@@ -409,7 +409,7 @@
               </div>
               <div class="field-row">
                 <div><label class="field-heading" for="decline-range">Decline probability</label><span class="field-help">Chance a driver ignores an offer.</span></div>
-                <div class="control-stack"><div class="range-line"><input id="decline-range" data-config-field="declineProbability" type="range" min="0" max="0.9" step="0.01"><input id="decline-number" data-config-field="declineProbability" type="number" min="0" max="0.9" step="0.01" aria-label="Decline probability from 0 to 0.9"></div><span id="decline-unit" class="unit-hint">15% chance an offer is ignored</span></div>
+                <div class="control-stack"><div class="range-line"><input id="decline-range" data-config-field="declineProbability" type="range" min="0" max="1" step="0.01"><input id="decline-number" data-config-field="declineProbability" type="number" min="0" max="1" step="0.01" aria-label="Decline probability from 0 to 1"></div><span id="decline-unit" class="unit-hint">15% chance an offer is ignored</span></div>
               </div>
               <div class="field-row">
                 <div><span class="field-heading">Pickup wait</span><span class="field-help">Time after arrival before the trip starts.</span></div>
@@ -589,7 +589,7 @@
       const response = await fetch(path, {
         ...options,
         signal: options.signal ?? AbortSignal.timeout(8000),
-        headers: { "Content-Type": "application/json", ...options.headers }
+        headers: { "Content-Type": "application/json", "X-Velo-Sim": "1", ...options.headers }
       });
       let body;
       try { body = await response.json(); } catch { body = null; }
