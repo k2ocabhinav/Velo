@@ -26,7 +26,7 @@ interface DriverBotOptions {
 const DEFAULT_CONFIG: TenantSimConfig = {
   onlineDrivers: 0,
   requestIntervalSec: 75,
-  airportShare: 0.4,
+  airportShare: 0.1,
   declineProbability: 0.15,
   pickupWaitSec: [15, 30],
   idleRepositionProbability: 0.3,

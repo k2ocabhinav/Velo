@@ -32,7 +32,7 @@ describe("applyPreset", () => {
     for (const tenant of Object.values(result.config.tenants)) {
       expect(tenant.onlineDrivers).toBe(2);
       expect(tenant.requestIntervalSec).toBe(0);
-      expect(tenant.airportShare).toBe(0.4);
+      expect(tenant.airportShare).toBe(0.1);
       expect(tenant.pickupWaitSec).toEqual([15, 30]);
     }
   });
@@ -53,7 +53,7 @@ describe("applyPreset", () => {
     expect(result.config.tenants["default"]).toEqual({
       onlineDrivers: 6,
       requestIntervalSec: 75,
-      airportShare: 0.4,
+      airportShare: 0.1,
       declineProbability: 0.15,
       pickupWaitSec: [15, 30],
       idleRepositionProbability: 0.3,

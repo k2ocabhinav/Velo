@@ -10,12 +10,12 @@ The control panel binds to `127.0.0.1` and has no authentication because it is l
 
 ## Start and stop
 
-From the repository root, run `./scripts/demo-up.sh`. It starts the backend, portals, and simulator; the launcher waits until all 20 accounts have logged in and the fleet is ready. The default simulator speed is 4×. Set `VELO_DEMO_SIM=0` to run the portals without bots.
+From the repository root, run `./scripts/demo-up.sh`. It starts the backend, portals, and simulator; the launcher waits until all 32 simulator accounts have logged in and the fleet is ready. Each demo tenant has six simulated drivers and ten simulated riders. The default speed is 8×. Set `VELO_DEMO_SIM=0` to run the portals without bots.
 
 The simulator can also be started directly from this package:
 
 ```sh
-VELO_SIM_ALLOW=1 node src/main.ts --api http://localhost:8080 --control-port 8790 --speed 4
+VELO_SIM_ALLOW=1 node src/main.ts --api http://localhost:8080 --control-port 8790 --speed 8
 ```
 
 Options are `--api`, `--control-port`, `--seed`, `--speed` (1–20), `--paused`, `--state-file`, and `--tenants` (`default,saffron-routes`). Use `node src/main.ts --help` for the defaults. `./scripts/demo-down.sh` stops the simulator first and keeps its persisted configuration for the next launch.
@@ -28,7 +28,7 @@ Open the panel with `./scripts/demo-sim.sh open` or visit the printed loopback U
 ./scripts/demo-sim.sh status
 ./scripts/demo-sim.sh pause
 ./scripts/demo-sim.sh resume
-./scripts/demo-sim.sh speed 4
+./scripts/demo-sim.sh speed 8
 ./scripts/demo-sim.sh preset airport-rush saffron-routes
 ./scripts/demo-sim.sh set default onlineDrivers 2
 ./scripts/demo-sim.sh set default requestIntervalSec 0
@@ -41,9 +41,9 @@ Open the panel with `./scripts/demo-sim.sh open` or visit the printed loopback U
 
 `set` accepts global keys `paused`, `speedFactor`, and `seed`, plus tenant keys `onlineDrivers` (0–6), `requestIntervalSec` (0 or 10–900), `airportShare` (0–1), `declineProbability` (0–1), `pickupWaitSec` ([min,max], 5–300 seconds), `idleRepositionProbability` (0–1), and `hotspots` (JSON array of POI ids). Config changes apply immediately and persist atomically to `.demo-runtime/sim-state.json` across `demo-down` and `demo-up`.
 
-Presets can target one tenant or both: `quiet` keeps two drivers online and disables automatic requests; `steady` restores the baseline; `busy` uses the full fleet with a 25-second mean request interval; `airport-rush` weights airport trips and hotspots.
+Presets can target one tenant or both: `quiet` keeps two drivers online and disables automatic requests; `steady` restores the baseline; `busy` uses the full fleet with a 25-second mean request interval; `airport-rush` weights airport trips and hotspots. Steady and busy bias automatic trips toward city routes under 15 km with catalogue estimates under 12 minutes, starting near an idle city driver when possible. Airport-rush keeps an 80% airport share.
 
-Actions are `request-trip` (`from`, `to`, `rider`), `burst` (`count` 2–8, `near`), `driver-offline` / `driver-online` (`driver`), `decline-next` (`count` 1–5), `traffic-delay` (`driver`, `seconds` 10–600), `rider-cancel` (`rideRequestId`), `driver-cancel` (`rideId`), and `reset-fleet`. Omit the optional tenant to use `default`; omit optional action fields for a random eligible bot or POI. `rider-cancel` cancels either a still-pending request or an assigned ride through the rider API. `driver-cancel` returns a clear conflict when no assigned ride can be cancelled.
+Actions are `request-trip` (`from`, `to`, `rider`), `burst` (`count` 2–8, `near`), `driver-offline` / `driver-online` (`driver`), `decline-next` (`count` 1–5), `traffic-delay` (`driver`, `seconds` 10–600), `rider-cancel` (`rideRequestId`), `driver-cancel` (`rideId`), and `reset-fleet`. Omit the optional tenant to use `default`; omit optional action fields for a random eligible bot or POI. `request-trip` and `burst` use any idle guest. If none is available, the panel and CLI show `All simulated guests are on transfers — try again in a moment`. `rider-cancel` cancels a pending request or assigned/in-progress ride through the rider API. `reset-fleet` cancels open bot rides, including in-progress trips, then parks the fleet; its conflict names any ride it could not close.
 
 ## Troubleshooting
 

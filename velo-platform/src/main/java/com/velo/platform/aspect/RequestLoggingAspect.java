@@ -1,5 +1,6 @@
 package com.velo.platform.aspect;
 
+import com.velo.platform.exceptions.RuntimeConflictException;
 import com.velo.platform.security.CorrelationIdFilter;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -37,8 +38,13 @@ public class RequestLoggingAspect {
             return result;
         } catch (Exception e) {
             long duration = System.currentTimeMillis() - startTime;
-            log.error("Failed {}.{} in {}ms | correlationId={} | error={}", 
-                    className, methodName, duration, correlationId, e.getMessage());
+            if (isExpectedAcceptRace(e)) {
+                log.info("Rejected concurrent ride accept in {}.{} in {}ms | correlationId={} | error={}",
+                        className, methodName, duration, correlationId, e.getMessage());
+            } else {
+                log.error("Failed {}.{} in {}ms | correlationId={} | error={}",
+                        className, methodName, duration, correlationId, e.getMessage());
+            }
             throw e;
         }
     }
@@ -61,9 +67,19 @@ public class RequestLoggingAspect {
             return result;
         } catch (Exception e) {
             long duration = System.currentTimeMillis() - startTime;
-            log.error("Service failed: {}.{} in {}ms | error={}", 
-                    className, methodName, duration, e.getMessage());
+            if (isExpectedAcceptRace(e)) {
+                log.info("Concurrent ride accept lost in {}.{} in {}ms | error={}",
+                        className, methodName, duration, e.getMessage());
+            } else {
+                log.error("Service failed: {}.{} in {}ms | error={}",
+                        className, methodName, duration, e.getMessage());
+            }
             throw e;
         }
+    }
+
+    private boolean isExpectedAcceptRace(Exception exception) {
+        return exception instanceof RuntimeConflictException
+                && "This ride has already been assigned.".equals(exception.getMessage());
     }
 }

@@ -106,11 +106,11 @@ class FlywayMigrationIntegrationTest {
 
         assertThat(count(schemaName, "tenant")).isEqualTo(2);
         assertThat(countByTenantSlug("app_user", "default")).isGreaterThanOrEqualTo(5);
-        assertThat(countByTenantSlug("app_user", "saffron-routes")).isEqualTo(15);
+        assertThat(countByTenantSlug("app_user", "saffron-routes")).isEqualTo(21);
         assertThat(countByTenantSlug("driver", "default")).isGreaterThanOrEqualTo(2);
         assertThat(countByTenantSlug("driver", "saffron-routes")).isEqualTo(8);
-        assertThat(countSimulatedAccounts("default")).isEqualTo(10);
-        assertThat(countSimulatedAccounts("saffron-routes")).isEqualTo(10);
+        assertThat(countSimulatedAccounts("default")).isEqualTo(16);
+        assertThat(countSimulatedAccounts("saffron-routes")).isEqualTo(16);
         assertThat(countByTenantSlug("ride", "default")).isGreaterThanOrEqualTo(5);
         assertThat(countByTenantSlug("ride", "saffron-routes")).isGreaterThanOrEqualTo(3);
         assertThat(countRideByOtpStatus("1357", "ENDED")).isEqualTo(1);
@@ -120,7 +120,7 @@ class FlywayMigrationIntegrationTest {
         assertThat(countByTenantSlug("payout_request", "saffron-routes")).isEqualTo(2);
         assertThat(countBranding("saffron-routes", "Saffron Routes", "#8A3D2B", "Guest", "Chauffeur", "Transfer", "INR")).isEqualTo(1);
         assertThat(countBranding("default", "Velo Business", "#1A56FF", "Rider", "Driver", "Trip", "USD")).isEqualTo(1);
-        assertThat(countAuditReason("Assigned nearest available driver")).isEqualTo(1);
+        assertThat(countAuditReason("Assigned nearest available driver")).isZero();
         assertThat(countAuditReason("Initial seeded assignment history entry.")).isZero();
 
         assertThat(countRideFixture("DEMO-VELO-ONGOING-01", "alice@example.com", "carol.driver@example.com", "ONGOING"))
@@ -142,7 +142,7 @@ class FlywayMigrationIntegrationTest {
         assertThat(count(schemaName, "ride")).isEqualTo(ridesAfterFirst);
         assertThat(count(schemaName, "ride_request")).isEqualTo(requestsAfterFirst);
         assertThat(count(schemaName, "payout_request")).isEqualTo(payoutsAfterFirst);
-        assertThat(countAuditReason("Assigned nearest available driver")).isEqualTo(1);
+        assertThat(countAuditReason("Assigned nearest available driver")).isZero();
         assertThat(countAuditReason("Initial seeded assignment history entry.")).isZero();
         assertThat(countRideFixture("DEMO-VELO-ONGOING-01", "alice@example.com", "carol.driver@example.com", "ONGOING"))
                 .isEqualTo(1);

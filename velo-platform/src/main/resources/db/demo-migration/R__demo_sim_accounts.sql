@@ -27,6 +27,12 @@ FROM (VALUES
     ('Daniel', 'Brooks', 'rider2@sim.velobusiness.demo', '+91-9100000012', 'default'),
     ('Aisha', 'Khan', 'rider3@sim.velobusiness.demo', '+91-9100000013', 'default'),
     ('Tom', 'Becker', 'rider4@sim.velobusiness.demo', '+91-9100000014', 'default'),
+    ('Leah', 'Parker', 'rider5@sim.velobusiness.demo', '+91-9100000015', 'default'),
+    ('Omar', 'Patel', 'rider6@sim.velobusiness.demo', '+91-9100000016', 'default'),
+    ('Maya', 'Chen', 'rider7@sim.velobusiness.demo', '+91-9100000017', 'default'),
+    ('Ethan', 'Wright', 'rider8@sim.velobusiness.demo', '+91-9100000018', 'default'),
+    ('Sofia', 'Ahmed', 'rider9@sim.velobusiness.demo', '+91-9100000019', 'default'),
+    ('Lucas', 'Meyer', 'rider10@sim.velobusiness.demo', '+91-9100000020', 'default'),
     ('Imran', 'Sheikh', 'chauffeur1@sim.saffronroutes.demo', '+91-9200000001', 'saffron-routes'),
     ('Lakshmi', 'Prasad', 'chauffeur2@sim.saffronroutes.demo', '+91-9200000002', 'saffron-routes'),
     ('Vivek', 'Hegde', 'chauffeur3@sim.saffronroutes.demo', '+91-9200000003', 'saffron-routes'),
@@ -36,7 +42,13 @@ FROM (VALUES
     ('Kavya', 'Reddy', 'guest1@sim.saffronroutes.demo', '+91-9200000011', 'saffron-routes'),
     ('Marco', 'Rossi', 'guest2@sim.saffronroutes.demo', '+91-9200000012', 'saffron-routes'),
     ('Neha', 'Gupta', 'guest3@sim.saffronroutes.demo', '+91-9200000013', 'saffron-routes'),
-    ('James', 'Wilson', 'guest4@sim.saffronroutes.demo', '+91-9200000014', 'saffron-routes')
+    ('James', 'Wilson', 'guest4@sim.saffronroutes.demo', '+91-9200000014', 'saffron-routes'),
+    ('Aanya', 'Rao', 'guest5@sim.saffronroutes.demo', '+91-9200000015', 'saffron-routes'),
+    ('David', 'Kim', 'guest6@sim.saffronroutes.demo', '+91-9200000016', 'saffron-routes'),
+    ('Zara', 'Khan', 'guest7@sim.saffronroutes.demo', '+91-9200000017', 'saffron-routes'),
+    ('Oscar', 'Martin', 'guest8@sim.saffronroutes.demo', '+91-9200000018', 'saffron-routes'),
+    ('Pooja', 'Nair', 'guest9@sim.saffronroutes.demo', '+91-9200000019', 'saffron-routes'),
+    ('Liam', 'Foster', 'guest10@sim.saffronroutes.demo', '+91-9200000020', 'saffron-routes')
 ) AS seed(first_name, last_name, email, phone_number, tenant_slug)
 JOIN tenant ON tenant.slug = seed.tenant_slug
 ON CONFLICT (email) DO UPDATE
@@ -61,6 +73,12 @@ FROM (VALUES
     ('rider2@sim.velobusiness.demo', 'RIDER'),
     ('rider3@sim.velobusiness.demo', 'RIDER'),
     ('rider4@sim.velobusiness.demo', 'RIDER'),
+    ('rider5@sim.velobusiness.demo', 'RIDER'),
+    ('rider6@sim.velobusiness.demo', 'RIDER'),
+    ('rider7@sim.velobusiness.demo', 'RIDER'),
+    ('rider8@sim.velobusiness.demo', 'RIDER'),
+    ('rider9@sim.velobusiness.demo', 'RIDER'),
+    ('rider10@sim.velobusiness.demo', 'RIDER'),
     ('chauffeur1@sim.saffronroutes.demo', 'DRIVER'),
     ('chauffeur2@sim.saffronroutes.demo', 'DRIVER'),
     ('chauffeur3@sim.saffronroutes.demo', 'DRIVER'),
@@ -70,7 +88,13 @@ FROM (VALUES
     ('guest1@sim.saffronroutes.demo', 'RIDER'),
     ('guest2@sim.saffronroutes.demo', 'RIDER'),
     ('guest3@sim.saffronroutes.demo', 'RIDER'),
-    ('guest4@sim.saffronroutes.demo', 'RIDER')
+    ('guest4@sim.saffronroutes.demo', 'RIDER'),
+    ('guest5@sim.saffronroutes.demo', 'RIDER'),
+    ('guest6@sim.saffronroutes.demo', 'RIDER'),
+    ('guest7@sim.saffronroutes.demo', 'RIDER'),
+    ('guest8@sim.saffronroutes.demo', 'RIDER'),
+    ('guest9@sim.saffronroutes.demo', 'RIDER'),
+    ('guest10@sim.saffronroutes.demo', 'RIDER')
 ) AS assigned(email, role)
 JOIN app_user ON app_user.email = assigned.email
 ON CONFLICT (user_id, roles) DO NOTHING;
@@ -82,10 +106,22 @@ FROM (VALUES
     ('rider2@sim.velobusiness.demo', 4.8::DOUBLE PRECISION, 'default'),
     ('rider3@sim.velobusiness.demo', 4.7::DOUBLE PRECISION, 'default'),
     ('rider4@sim.velobusiness.demo', 4.6::DOUBLE PRECISION, 'default'),
+    ('rider5@sim.velobusiness.demo', 4.9::DOUBLE PRECISION, 'default'),
+    ('rider6@sim.velobusiness.demo', 4.8::DOUBLE PRECISION, 'default'),
+    ('rider7@sim.velobusiness.demo', 4.7::DOUBLE PRECISION, 'default'),
+    ('rider8@sim.velobusiness.demo', 4.6::DOUBLE PRECISION, 'default'),
+    ('rider9@sim.velobusiness.demo', 4.9::DOUBLE PRECISION, 'default'),
+    ('rider10@sim.velobusiness.demo', 4.8::DOUBLE PRECISION, 'default'),
     ('guest1@sim.saffronroutes.demo', 4.9::DOUBLE PRECISION, 'saffron-routes'),
     ('guest2@sim.saffronroutes.demo', 4.8::DOUBLE PRECISION, 'saffron-routes'),
     ('guest3@sim.saffronroutes.demo', 4.7::DOUBLE PRECISION, 'saffron-routes'),
-    ('guest4@sim.saffronroutes.demo', 4.6::DOUBLE PRECISION, 'saffron-routes')
+    ('guest4@sim.saffronroutes.demo', 4.6::DOUBLE PRECISION, 'saffron-routes'),
+    ('guest5@sim.saffronroutes.demo', 4.9::DOUBLE PRECISION, 'saffron-routes'),
+    ('guest6@sim.saffronroutes.demo', 4.8::DOUBLE PRECISION, 'saffron-routes'),
+    ('guest7@sim.saffronroutes.demo', 4.7::DOUBLE PRECISION, 'saffron-routes'),
+    ('guest8@sim.saffronroutes.demo', 4.6::DOUBLE PRECISION, 'saffron-routes'),
+    ('guest9@sim.saffronroutes.demo', 4.9::DOUBLE PRECISION, 'saffron-routes'),
+    ('guest10@sim.saffronroutes.demo', 4.8::DOUBLE PRECISION, 'saffron-routes')
 ) AS seed(email, rating, tenant_slug)
 JOIN app_user ON app_user.email = seed.email
 JOIN tenant ON tenant.slug = seed.tenant_slug
@@ -137,6 +173,12 @@ FROM (VALUES
     ('rider2@sim.velobusiness.demo', 5000.00::NUMERIC, 'default'),
     ('rider3@sim.velobusiness.demo', 5000.00::NUMERIC, 'default'),
     ('rider4@sim.velobusiness.demo', 5000.00::NUMERIC, 'default'),
+    ('rider5@sim.velobusiness.demo', 5000.00::NUMERIC, 'default'),
+    ('rider6@sim.velobusiness.demo', 5000.00::NUMERIC, 'default'),
+    ('rider7@sim.velobusiness.demo', 5000.00::NUMERIC, 'default'),
+    ('rider8@sim.velobusiness.demo', 5000.00::NUMERIC, 'default'),
+    ('rider9@sim.velobusiness.demo', 5000.00::NUMERIC, 'default'),
+    ('rider10@sim.velobusiness.demo', 5000.00::NUMERIC, 'default'),
     ('chauffeur1@sim.saffronroutes.demo', 0.00::NUMERIC, 'saffron-routes'),
     ('chauffeur2@sim.saffronroutes.demo', 0.00::NUMERIC, 'saffron-routes'),
     ('chauffeur3@sim.saffronroutes.demo', 0.00::NUMERIC, 'saffron-routes'),
@@ -146,7 +188,13 @@ FROM (VALUES
     ('guest1@sim.saffronroutes.demo', 500000.00::NUMERIC, 'saffron-routes'),
     ('guest2@sim.saffronroutes.demo', 500000.00::NUMERIC, 'saffron-routes'),
     ('guest3@sim.saffronroutes.demo', 500000.00::NUMERIC, 'saffron-routes'),
-    ('guest4@sim.saffronroutes.demo', 500000.00::NUMERIC, 'saffron-routes')
+    ('guest4@sim.saffronroutes.demo', 500000.00::NUMERIC, 'saffron-routes'),
+    ('guest5@sim.saffronroutes.demo', 500000.00::NUMERIC, 'saffron-routes'),
+    ('guest6@sim.saffronroutes.demo', 500000.00::NUMERIC, 'saffron-routes'),
+    ('guest7@sim.saffronroutes.demo', 500000.00::NUMERIC, 'saffron-routes'),
+    ('guest8@sim.saffronroutes.demo', 500000.00::NUMERIC, 'saffron-routes'),
+    ('guest9@sim.saffronroutes.demo', 500000.00::NUMERIC, 'saffron-routes'),
+    ('guest10@sim.saffronroutes.demo', 500000.00::NUMERIC, 'saffron-routes')
 ) AS seed(email, balance, tenant_slug)
 JOIN app_user ON app_user.email = seed.email
 JOIN tenant ON tenant.slug = seed.tenant_slug

@@ -40,7 +40,7 @@ const MIN_PICKUP_WAIT_SEC = 5;
 const MAX_PICKUP_WAIT_SEC = 300;
 
 const STEADY_REQUEST_INTERVAL_SEC = 75;
-const STEADY_AIRPORT_SHARE = 0.4;
+const STEADY_AIRPORT_SHARE = 0.1;
 const STEADY_DECLINE_PROBABILITY = 0.15;
 const STEADY_PICKUP_WAIT_SEC: [number, number] = [15, 30];
 const STEADY_IDLE_REPOSITION_PROBABILITY = 0.3;
@@ -71,7 +71,7 @@ export function defaultConfig(ctx: ConfigContext, seed: number): SimConfig {
   for (const [slug, fleetSize] of Object.entries(ctx.fleetSizes)) {
     tenants[slug] = steadyTenantConfig(ctx, fleetSize);
   }
-  return { paused: false, speedFactor: 1, seed, tenants };
+  return { paused: false, speedFactor: 8, seed, tenants };
 }
 
 /** Deep-partial patch: unknown keys are rejected, numbers are clamped to their range, the input is never mutated. */
