@@ -118,6 +118,8 @@ class FlywayMigrationIntegrationTest {
         assertThat(countByTenantSlug("payout_request", "saffron-routes")).isEqualTo(2);
         assertThat(countBranding("saffron-routes", "Saffron Routes", "#8A3D2B", "Guest", "Chauffeur", "Transfer", "INR")).isEqualTo(1);
         assertThat(countBranding("default", "Velo Business", "#1A56FF", "Rider", "Driver", "Trip", "USD")).isEqualTo(1);
+        assertThat(countAuditReason("Assigned nearest available driver")).isEqualTo(1);
+        assertThat(countAuditReason("Initial seeded assignment history entry.")).isZero();
 
         long usersAfterFirst = count(schemaName, "app_user");
         long ridesAfterFirst = count(schemaName, "ride");
@@ -131,6 +133,8 @@ class FlywayMigrationIntegrationTest {
         assertThat(count(schemaName, "ride")).isEqualTo(ridesAfterFirst);
         assertThat(count(schemaName, "ride_request")).isEqualTo(requestsAfterFirst);
         assertThat(count(schemaName, "payout_request")).isEqualTo(payoutsAfterFirst);
+        assertThat(countAuditReason("Assigned nearest available driver")).isEqualTo(1);
+        assertThat(countAuditReason("Initial seeded assignment history entry.")).isZero();
     }
 
     @Test
@@ -194,6 +198,18 @@ class FlywayMigrationIntegrationTest {
              PreparedStatement statement = connection.prepareStatement(
                      "SELECT COUNT(*) FROM " + schemaName + ".tenant WHERE slug = ?")) {
             statement.setString(1, slug);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                resultSet.next();
+                return resultSet.getLong(1);
+            }
+        }
+    }
+
+    private long countAuditReason(String reason) throws Exception {
+        try (Connection connection = DriverManager.getConnection(JDBC_URL, JDBC_USERNAME, JDBC_PASSWORD);
+             PreparedStatement statement = connection.prepareStatement(
+                     "SELECT COUNT(*) FROM " + schemaName + ".admin_dispatch_audit WHERE reason = ?")) {
+            statement.setString(1, reason);
             try (ResultSet resultSet = statement.executeQuery()) {
                 resultSet.next();
                 return resultSet.getLong(1);

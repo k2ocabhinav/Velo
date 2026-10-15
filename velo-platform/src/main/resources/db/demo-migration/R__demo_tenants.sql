@@ -485,3 +485,8 @@ WHERE tenant.slug = 'saffron-routes'
       WHERE existing.tenant_id = tenant.id AND existing.user_id = app_user.id
         AND existing.reference_id = request.id AND existing.title = 'Transfer request received'
   );
+
+-- Replace the internal fixture wording on the seeded assignment history with operator-facing copy.
+UPDATE admin_dispatch_audit
+SET reason = 'Assigned nearest available driver'
+WHERE reason = 'Initial seeded assignment history entry.';

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { DataTable, EmptyState, ErrorState, Field, Money, Section, Select, StatCard } from "@velo/ui";
 import { formatMoney } from "@velo/app-core/formatters";
+import { getTenantTripLabelForCount } from "@velo/app-core/tenant";
 import { useTenantBranding } from "@velo/ui/theme";
 import { PageFrame } from "../_components/page-frame";
 import { adminClient, type RevenueRow, type TopDriverRevenue } from "../_lib/admin-client";
@@ -84,6 +85,7 @@ function RevenueChart({ rows }: { rows: RevenueRow[] }) {
 }
 
 export default function RevenuePage() {
+  const { tripLabel } = useTenantBranding();
   const [today, setToday] = useState<PeriodStats | null>(null);
   const [week, setWeek] = useState<PeriodStats | null>(null);
   const [month, setMonth] = useState<PeriodStats | null>(null);
@@ -159,9 +161,9 @@ export default function RevenuePage() {
       {!loading && today && week && month ? (
         <>
           <div className="dashboard-kpis">
-            <StatCard title="Today" value={<Money amount={today.revenue} />} helperText={`${today.rides} completed rides`} />
-            <StatCard title="This week" value={<Money amount={week.revenue} />} helperText={`${week.rides} completed rides`} />
-            <StatCard title="Last 30 days" value={<Money amount={month.revenue} />} helperText={`${month.rides} completed rides`} />
+            <StatCard title="Today" value={<Money amount={today.revenue} />} helperText={`${today.rides} completed ${getTenantTripLabelForCount(today.rides, tripLabel)}`} />
+            <StatCard title="This week" value={<Money amount={week.revenue} />} helperText={`${week.rides} completed ${getTenantTripLabelForCount(week.rides, tripLabel)}`} />
+            <StatCard title="Last 30 days" value={<Money amount={month.revenue} />} helperText={`${month.rides} completed ${getTenantTripLabelForCount(month.rides, tripLabel)}`} />
           </div>
           <Section title="Daily revenue · last 30 days">
             {hasRevenue ? <RevenueChart rows={dailyRows} /> : <EmptyState title="No revenue recorded yet" description="Daily revenue will appear here after completed rides." action={<Link className="secondary-button" href="/dispatch">Open dispatch</Link>} />}

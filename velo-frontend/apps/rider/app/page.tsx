@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { CountdownBadge, MatchingIndicator, ReconnectingIndicator } from "@velo/ui/feedback";
-import { formatDateTime } from "@velo/app-core/formatters";
+import { MatchingIndicator, ReconnectingIndicator } from "@velo/ui/feedback";
+import { formatDateTime, formatDistance, getCurrencyLocale } from "@velo/app-core/formatters";
 import {
   requestRiderProxy,
   type DecimalValue,
@@ -93,6 +93,7 @@ type TenantBranding = {
   riderLabel?: string;
   driverLabel?: string;
   tripLabel?: string;
+  currency?: string;
   primaryColor?: string;
   dispatchMode?: "RIDE_HAILING" | "DELIVERY_MERCHANT" | "FLEET_MANAGED";
   riderPortalEnabled?: boolean;
@@ -848,7 +849,6 @@ export default function RiderHomePage() {
               ) : (
                 <div className="trip-matching-row">
                   <MatchingIndicator label={`Matching you with a nearby ${driverLabel.toLowerCase()}`} expiresAtMs={pendingRequestExpiresAtMs} />
-                  <CountdownBadge expiresAtMs={pendingRequestExpiresAtMs} prefix="Request expires in" />
                 </div>
               )}
             </div>
@@ -999,7 +999,7 @@ export default function RiderHomePage() {
                 <Money amount={estimate.discountedFare ?? estimate.estimatedFare} emphasis />
               </div>
               <DefinitionList items={[
-                { label: "Distance", value: `${estimate.distanceKm} km` },
+                { label: "Distance", value: formatDistance(estimate.distanceKm, getCurrencyLocale(branding?.currency)) },
                 { label: "Estimated time", value: `${Math.round(estimate.durationMinutes)} min` },
                 { label: "Base fare", value: <Money amount={estimate.baseFare} /> },
                 ...(estimate.discountAmount ? [{ label: "Discount", value: <Money amount={estimate.discountAmount} /> }] : []),

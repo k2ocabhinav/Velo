@@ -45,6 +45,12 @@ export function getTenantPluralTripLabel(tripLabel: string | null | undefined): 
   return /s$/i.test(normalized) ? normalized : `${normalized}s`;
 }
 
+/** The tenant's trip label, pluralised to match the count ("1 Trip", "4 Trips"). */
+export function getTenantTripLabelForCount(count: number, tripLabel: string | null | undefined): string {
+  const singular = tripLabel?.trim() || DEFAULT_TENANT_BRANDING.tripLabel;
+  return count === 1 ? singular : getTenantPluralTripLabel(singular);
+}
+
 export interface TenantSlugOptions {
   hostname: string;
   defaultTenantSlug?: string;

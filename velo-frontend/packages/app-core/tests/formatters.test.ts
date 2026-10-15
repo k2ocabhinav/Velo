@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDateTime, formatMoney } from "../src/formatters";
+import { formatDateTime, formatDistance, formatMoney, getCurrencyLocale } from "../src/formatters";
 
 describe("formatMoney", () => {
   it("formats the default currency and supports a tenant currency and locale", () => {
@@ -12,6 +12,27 @@ describe("formatMoney", () => {
     expect(formatMoney(undefined)).toBe("—");
     expect(formatMoney(null)).toBe("—");
     expect(formatMoney("not an amount")).toBe("—");
+  });
+});
+
+describe("formatDistance", () => {
+  it("formats kilometres to one decimal using the given locale", () => {
+    expect(formatDistance(34.6398)).toBe("34.6 km");
+    expect(formatDistance(0)).toBe("0.0 km");
+    expect(formatDistance(1234.56, "en-IN")).toBe("1,234.6 km");
+    expect(formatDistance(1234.56, "de-DE")).toBe("1.234,6 km");
+  });
+
+  it("returns a placeholder for missing or invalid distances", () => {
+    expect(formatDistance(undefined)).toBe("—");
+    expect(formatDistance(null)).toBe("—");
+    expect(formatDistance("not a distance")).toBe("—");
+  });
+
+  it("maps currencies to their formatting locale", () => {
+    expect(getCurrencyLocale("INR")).toBe("en-IN");
+    expect(getCurrencyLocale("USD")).toBe("en-US");
+    expect(getCurrencyLocale()).toBe("en-US");
   });
 });
 

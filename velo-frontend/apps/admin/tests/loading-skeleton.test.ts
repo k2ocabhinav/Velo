@@ -1,6 +1,8 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { DEFAULT_TENANT_BRANDING } from "@velo/app-core/tenant";
+import { TenantBrandingProvider } from "@velo/ui/theme";
 import PayoutsPage from "../app/(protected)/payouts/page";
 import UsersPage from "../app/(protected)/users/page";
 import DashboardPage from "../app/(protected)/page";
@@ -23,7 +25,9 @@ describe("admin data page loading states", () => {
     ["scheduled rides", ScheduledRidesPage, "Loading scheduled rides"],
     ["branding", BrandingPage, "Loading branding settings"],
   ] as const)("renders an accessible skeleton while %s loads", (_page, Component, label) => {
-    const markup = renderToStaticMarkup(createElement(Component));
+    const markup = renderToStaticMarkup(
+      createElement(TenantBrandingProvider, { branding: DEFAULT_TENANT_BRANDING, children: createElement(Component) }),
+    );
 
     expect(markup).toContain(`aria-label="${label}"`);
     expect(markup).toContain('aria-busy="true"');
