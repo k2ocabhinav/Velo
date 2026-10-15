@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 function toTwoDigits(value: number): string {
   return value.toString().padStart(2, "0");
@@ -21,14 +21,19 @@ type CountdownBadgeProps = {
   expiresAtMs: number | null | undefined;
   prefix?: string;
   warnAtSeconds?: number;
+  expiredLabel?: string;
+  onExpire?: () => void;
 };
 
 export function CountdownBadge({
   expiresAtMs,
   prefix = "Expires in",
   warnAtSeconds = 15,
+  expiredLabel = "Request expired",
+  onExpire,
 }: CountdownBadgeProps) {
   const [now, setNow] = useState(() => Date.now());
+  const firedForRef = useRef<number | null>(null);
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -47,6 +52,19 @@ export function CountdownBadge({
     return getRemainingSeconds(Number(expiresAtMs), now);
   }, [expiresAtMs, now]);
 
+  useEffect(() => {
+    if (remainingSeconds === null || remainingSeconds > 0) {
+      return;
+    }
+
+    const key = Number(expiresAtMs);
+    if (firedForRef.current === key) {
+      return;
+    }
+    firedForRef.current = key;
+    onExpire?.();
+  }, [expiresAtMs, onExpire, remainingSeconds]);
+
   if (remainingSeconds === null) {
     return null;
   }
@@ -60,7 +78,7 @@ export function CountdownBadge({
       className="status-badge countdown-badge"
       data-tone={isExpired ? "danger" : isWarning ? "attention" : "info"}
     >
-      {isExpired ? "Request expired" : `${prefix} ${formatClock(remainingSeconds)}`}
+      {isExpired ? expiredLabel : `${prefix} ${formatClock(remainingSeconds)}`}
     </span>
   );
 }

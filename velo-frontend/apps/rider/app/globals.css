@@ -339,9 +339,26 @@
 }
 
 .booking-feedback {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   margin: 0;
-  color: hsl(var(--color-success));
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid hsl(var(--color-border));
+  border-radius: var(--radius-lg);
+  background: hsl(var(--color-surface));
+  box-shadow: var(--shadow-md);
+  color: hsl(var(--color-foreground));
   font-size: 0.875rem;
+}
+
+.booking-feedback::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: var(--radius-full);
+  background: hsl(var(--color-success));
 }
 
 .booking-sheet-launcher {

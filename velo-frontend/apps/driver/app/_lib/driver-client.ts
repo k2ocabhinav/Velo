@@ -68,9 +68,14 @@ export interface DriverRideRequestPreview {
   paymentMethod?: string | null;
   pickupLocation?: PointDto | null;
   dropOffLocation?: PointDto | null;
+  pickupAddress?: string | null;
+  dropOffAddress?: string | null;
+  rider?: DriverRidePerson | null;
   fare?: DecimalValue | null;
   promoCode?: string | null;
   discountAmount?: DecimalValue | null;
+  requestedTime?: string | null;
+  expiresAt?: string | null;
 }
 
 export interface DriverNotification {

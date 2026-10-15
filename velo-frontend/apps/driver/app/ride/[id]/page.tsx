@@ -282,7 +282,12 @@ export default function DriverRidePage() {
               retrying={loading}
             />
             {locationPublisher.mode === "degraded" ? (
-              <p className="driver-error-text" role="alert">{locationPublisher.message}</p>
+              <div className="driver-location-hint" role="status">
+                <p>{locationPublisher.message}</p>
+                <Button size="sm" variant="secondary" onClick={locationPublisher.retry}>
+                  {locationPublisher.permissionDenied ? "Enable location" : "Try again"}
+                </Button>
+              </div>
             ) : <p className="helper">{locationPublisher.message}</p>}
             <DriverRideMapLoader pickup={pickupPoint} dropOff={dropOffPoint} driver={driverPoint} routePoints={routePath?.points ?? []} />
           </Section>

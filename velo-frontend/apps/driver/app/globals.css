@@ -185,6 +185,50 @@
   color: hsl(var(--color-muted));
 }
 
+.driver-offer-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+}
+
+.driver-offer-facts > div {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.driver-offer-facts dt {
+  color: hsl(var(--color-muted));
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.driver-offer-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+
+.driver-location-hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+  border: 1px solid hsl(var(--color-border));
+  border-radius: var(--radius-md);
+  background: hsl(var(--color-surface-hover));
+  color: hsl(var(--color-muted));
+  font-size: var(--text-sm);
+}
+
+.driver-location-hint p {
+  margin: 0;
+}
+
 .driver-realtime-notice {
   margin: 0;
   padding: var(--space-3) var(--space-4);
