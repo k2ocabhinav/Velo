@@ -2,7 +2,9 @@
 
 ## Before recording
 
-Run `./scripts/demo-up.sh` and use the printed ports. The launcher builds the production frontends before starting the portals, so allow the build to finish before opening the tabs. Keep one Velo Business Admin tab at `http://default.localhost:<admin-port>/dispatch`, one Saffron Routes Admin tab at `http://saffron-routes.localhost:<admin-port>/dispatch`, and the rider and driver portals ready on the printed ports. The default ports are 4100–4103. All accounts use `password123`.
+Run `./scripts/demo-up.sh` and use the printed ports. The launcher builds the production frontends before starting the portals, so allow the build to finish before opening the tabs. It also starts the fleet simulator and prints its control URL once the fleet is up. Keep one Velo Business Admin tab at `http://default.localhost:<admin-port>/dispatch`, one Saffron Routes Admin tab at `http://saffron-routes.localhost:<admin-port>/dispatch`, and the rider and driver portals ready on the printed ports. The default ports are 4100–4103. All accounts use `password123`.
+
+Sign the presenter's driver in and take them online **before** the rider requests the trip, so the request is offered to that driver instead of a simulated one.
 
 | Tenant | Admin | Rider | Driver |
 |---|---|---|---|
@@ -15,13 +17,24 @@ Use `default.localhost` for Velo Business and `saffron-routes.localhost` for the
 
 | Time | Click and say |
 |---|---|
-| 0:00–0:20 | Open the two Admin Dispatch tabs. Point out the Velo Business and Saffron Routes names, different primary colors, and different labels: Rider/Driver/Trip versus Guest/Chauffeur/Transfer. The records in each desk belong to that fleet. |
-| 0:20–0:45 | In the Velo Business rider portal, sign in as `henry@example.com`. Choose pickup and destination on the map or enter the airport transfer route, review the estimate, and request the trip. |
-| 0:45–1:10 | In the Velo Business driver portal, sign in as `bob.driver@example.com`, go online if prompted, and accept Henry's waiting trip. Show the assigned trip and the pickup OTP. |
-| 1:10–1:35 | Return to the rider's active trip to show the driver and live route. Enter the rider's OTP in the driver trip screen, start the trip, and show the in-progress state. |
-| 1:35–2:00 | Return to Admin Dispatch. Show Henry's active transfer and the seeded assignment history in the audit table. Explain that dispatch actions are recorded there, then reopen Saffron Routes Dispatch to reinforce that the second fleet keeps its own brand and operations. |
+| 0:00–0:20 | Open the two Admin Dispatch tabs. Point out the Velo Business and Saffron Routes names, different primary colors, and different labels: Rider/Driver/Trip versus Guest/Chauffeur/Transfer. The records in each desk belong to that fleet. The live fleet map is already moving: say plainly that the background fleet is simulated demo traffic. |
+| 0:20–0:40 | In the Velo Business driver portal, sign in as `bob.driver@example.com` and go online. |
+| 0:40–1:00 | In the Velo Business rider portal, sign in as `henry@example.com`. Choose pickup and destination on the map or enter the airport transfer route, review the estimate, and request the trip. |
+| 1:00–1:20 | Back in the driver portal, accept Henry's waiting trip. Show the assigned trip and the pickup OTP. |
+| 1:20–1:40 | Return to the rider's active trip to show the driver and live route. Enter the rider's OTP in the driver trip screen, start the trip, and show the in-progress state. |
+| 1:40–2:00 | Return to Admin Dispatch. Show Henry's trip on the live fleet map with the counts beside it, then the seeded assignment history in the audit table. Explain that dispatch actions are recorded there, then reopen Saffron Routes Dispatch to reinforce that the second fleet keeps its own brand and operations. |
 
 The seeded active and completed trips, upcoming transfers, driver records, and payouts let the presenter move directly to those views if a live action takes longer than the recording slot.
+
+## Simulated background fleet
+
+`./scripts/demo-up.sh` starts the fleet simulator from `packages/demo-sim`. It drives dedicated simulated drivers and riders through the public API, so the map, the lists, and the rider and driver apps all agree with each other.
+
+- Simulated riders are only matched with simulated drivers, and real riders with real drivers, so the background fleet can never take the presenter's trip.
+- Control it with `./scripts/demo-sim.sh status|pause|resume|speed <n>`. `pause` stops new simulated requests while trips already underway finish, `resume` restarts them, and `speed` scales the simulation (1–20).
+- Start without it by running `VELO_DEMO_SIM=0 ./scripts/demo-up.sh`.
+- The map's side panel reports how many simulated drivers are online. Mention it when the fleet is on screen — it is a simulator, not a second fleet of staff.
+- The simulated accounts (`driver1@sim.velobusiness.demo`, `chauffeur1@sim.saffronroutes.demo`, …) use `password123` too, if you want to sign in as one and show the driver side of the background fleet.
 
 ## Optional Cloudflare Quick Tunnel
 
