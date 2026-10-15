@@ -1,12 +1,6 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import type { ControlStatus } from "../types.ts";
-
-export interface ControlActions {
-  status(): ControlStatus;
-  pause(): void;
-  resume(): void;
-  setSpeed(factor: number): void;
-}
+import type { AddressInfo } from "node:net";
+import { dispatchControlRequest, type ControlActions } from "./http-handlers.ts";
 
 export class ControlServer {
   private server: Server | null = null;
@@ -18,10 +12,13 @@ export class ControlServer {
     this.actions = actions;
   }
 
+  get listeningPort(): number {
+    const address = this.server?.address();
+    return typeof address === "object" && address !== null ? (address as AddressInfo).port : this.port;
+  }
+
   async listen(): Promise<void> {
-    if (this.server) {
-      return;
-    }
+    if (this.server) return;
     const server = createServer((request, response) => {
       void this.handle(request, response);
     });
@@ -38,9 +35,8 @@ export class ControlServer {
   async close(): Promise<void> {
     const server = this.server;
     this.server = null;
-    if (!server?.listening) {
-      return;
-    }
+    if (!server?.listening) return;
+    server.closeAllConnections();
     await new Promise<void>((resolve) => server.close(() => resolve()));
   }
 
@@ -49,65 +45,8 @@ export class ControlServer {
       sendJson(response, 403, { error: "Control server is loopback only" });
       return;
     }
-    const path = new URL(request.url ?? "/", "http://127.0.0.1").pathname;
-    if (request.method === "GET" && path === "/status") {
-      sendJson(response, 200, this.actions.status());
-      return;
-    }
-    if (request.method !== "POST") {
-      sendJson(response, 405, { error: "Method not allowed" });
-      return;
-    }
-    if (path === "/pause") {
-      this.actions.pause();
-      sendJson(response, 200, { paused: true });
-      return;
-    }
-    if (path === "/resume") {
-      this.actions.resume();
-      sendJson(response, 200, { paused: false });
-      return;
-    }
-    if (path === "/speed") {
-      try {
-        const payload = await readJson(request);
-        const factor = payload.factor;
-        if (typeof factor !== "number" || !Number.isInteger(factor) || factor < 1 || factor > 20) {
-          sendJson(response, 400, { error: "factor must be an integer from 1 to 20" });
-          return;
-        }
-        this.actions.setSpeed(factor);
-        sendJson(response, 200, { speed: factor });
-      } catch (error) {
-        sendJson(response, 400, { error: error instanceof Error ? error.message : "Invalid JSON body" });
-      }
-      return;
-    }
-    sendJson(response, 404, { error: "Not found" });
+    await dispatchControlRequest(request, response, this.actions);
   }
-}
-
-async function readJson(request: IncomingMessage): Promise<Record<string, unknown>> {
-  const chunks: Buffer[] = [];
-  let size = 0;
-  for await (const chunk of request) {
-    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-    size += buffer.length;
-    if (size > 1024) {
-      throw new Error("Request body is too large");
-    }
-    chunks.push(buffer);
-  }
-  let value: unknown;
-  try {
-    value = JSON.parse(Buffer.concat(chunks).toString("utf8")) as unknown;
-  } catch {
-    throw new Error("Request body must be valid JSON");
-  }
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error("Request body must be a JSON object");
-  }
-  return value as Record<string, unknown>;
 }
 
 function isLoopbackAddress(address: string | undefined): boolean {

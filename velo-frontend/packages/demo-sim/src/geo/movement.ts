@@ -53,7 +53,7 @@ export function advanceMovement(
   speedFactor: number,
   random: RandomSource,
 ): MovementPosition {
-  if (!Number.isFinite(elapsedRealSeconds) || elapsedRealSeconds < 0 || !Number.isFinite(speedFactor) || speedFactor < 1) {
+  if (!Number.isFinite(elapsedRealSeconds) || elapsedRealSeconds < 0 || !Number.isFinite(speedFactor) || speedFactor <= 0) {
     throw new RangeError("Movement time and speed factor must be valid positive numbers");
   }
   if (!Number.isFinite(movement.distanceM) || movement.distanceM <= 0 || movement.durationS <= 0) {

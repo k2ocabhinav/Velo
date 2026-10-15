@@ -7,6 +7,8 @@ export interface RidePlan {
   dropOff: Poi;
   readOtp(rideId: number): Promise<string | null>;
   rateDriver(rideId: number, rating: number): Promise<void>;
+  onAssigned(rideId: number): void;
+  onStarted(rideId: number): void;
   onCompleted(): void;
 }
 
@@ -18,5 +20,6 @@ export interface RideRegistry {
   owns(requestId: number): boolean;
   get(requestId: number): RidePlan | undefined;
   claimFirstOffer(requestId: number): boolean;
+  consumeForcedDecline(): boolean;
   complete(requestId: number): void;
 }

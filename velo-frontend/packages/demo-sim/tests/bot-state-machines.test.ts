@@ -79,7 +79,7 @@ describe("rider and driver simulator bots", () => {
       catalogue,
       clock,
       simulationClock: new SimulationClock(clock, () => 20),
-      random: sequenceRandom([0.5, 0.1]),
+      random: sequenceRandom([0.1]),
       speedFactor: () => 20,
       logger,
       registry,
@@ -102,12 +102,14 @@ describe("rider and driver simulator bots", () => {
         return tracking?.rideId === rideId ? tracking.otp ?? null : null;
       },
       rateDriver: (rideId, rating) => riderApi.rateDriver(rideId, rating),
+      onAssigned: () => undefined,
+      onStarted: () => undefined,
       onCompleted: () => { completed += 1; },
     });
     registry.endRequest();
     await earlyOffer;
     expect(ignoredApi.calls.some((call) => call.startsWith("accept "))).toBe(false);
-    expect(loggerLines.some((line) => line.includes("exception ignored offer"))).toBe(true);
+    expect(loggerLines.some((line) => line.includes("offer declined"))).toBe(true);
 
     await driver.receiveNotification(JSON.stringify({ title: "Ride Request Received", type: "RIDE_REQUESTED", referenceId: 41 }));
     expect(driverApi.calls).toContain("accept 41");
@@ -163,6 +165,7 @@ function createRegistry(): RideRegistry {
   const plans = new Map<number, RidePlan>();
   const firstOffers = new Set<number>();
   let creating = 0;
+  let forcedDeclines = 0;
   return {
     beginRequest() { creating += 1; },
     endRequest() { creating = Math.max(0, creating - 1); },
@@ -175,6 +178,11 @@ function createRegistry(): RideRegistry {
         return false;
       }
       firstOffers.add(requestId);
+      return true;
+    },
+    consumeForcedDecline() {
+      if (forcedDeclines <= 0) return false;
+      forcedDeclines -= 1;
       return true;
     },
     complete(requestId) {
@@ -193,6 +201,8 @@ function makePlan(catalogue: { pois: Poi[] }, requestId: number): RidePlan {
     dropOff: catalogue.pois[0]!,
     readOtp: async () => "4821",
     rateDriver: async () => undefined,
+    onAssigned: () => undefined,
+    onStarted: () => undefined,
     onCompleted: () => undefined,
   };
 }

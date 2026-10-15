@@ -24,6 +24,7 @@ export interface SimApi {
   startRide(rideId: number, otp: string): Promise<RideDto>;
   endRide(rideId: number): Promise<RideDto>;
   cancelRide(rideId: number): Promise<void>;
+  cancelRiderRide(rideId: number): Promise<void>;
   rateRider(rideId: number, rating: number): Promise<void>;
   rateDriver(rideId: number, rating: number): Promise<void>;
   getWebSocketTicket(signal?: AbortSignal): Promise<WebSocketTicketDto>;
@@ -116,6 +117,10 @@ export class VeloHttpClient implements SimApi {
 
   async cancelRide(rideId: number): Promise<void> {
     await this.request(`/drivers/cancelRide/${rideId}`, { method: "POST" });
+  }
+
+  async cancelRiderRide(rideId: number): Promise<void> {
+    await this.request(`/riders/cancelRide/${rideId}`, { method: "POST" });
   }
 
   async rateRider(rideId: number, rating: number): Promise<void> {

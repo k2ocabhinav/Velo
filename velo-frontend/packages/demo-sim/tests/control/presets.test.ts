@@ -6,6 +6,8 @@ const ctx: ConfigContext = {
   fleetSizes: { default: 6, "saffron-routes": 6 },
   poiIds: ["kia-t1", "kia-t2", "oberoi", "taj", "mg-road"],
   airportPoiIds: ["kia-t1", "kia-t2"],
+  poiKinds: { "kia-t1": "airport", "kia-t2": "airport", oberoi: "hotel", taj: "hotel", "mg-road": "business" },
+  poiWeights: { "kia-t1": 1, "kia-t2": 1, oberoi: 10, taj: 20, "mg-road": 1 },
 };
 
 function baseConfig(): SimConfig {
@@ -55,7 +57,7 @@ describe("applyPreset", () => {
       declineProbability: 0.15,
       pickupWaitSec: [15, 30],
       idleRepositionProbability: 0.3,
-      hotspots: ["kia-t1", "kia-t2"],
+      hotspots: ["kia-t1", "kia-t2", "taj", "oberoi"],
     });
   });
 

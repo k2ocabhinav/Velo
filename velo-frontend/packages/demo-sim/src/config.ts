@@ -28,6 +28,8 @@ function accounts(
 export const SIM_TENANTS: Record<TenantSlug, SimTenant> = {
   default: {
     slug: "default",
+    name: "Velo Business",
+    currency: "INR",
     simDomain: "sim.velobusiness.demo",
     drivers: accounts("default", "DRIVER", "driver", "sim.velobusiness.demo", [
       "Arjun Rao", "Meera Iyer", "Kabir Shah", "Nikhil Menon", "Sana Qureshi", "Rohit Kulkarni",
@@ -38,6 +40,8 @@ export const SIM_TENANTS: Record<TenantSlug, SimTenant> = {
   },
   "saffron-routes": {
     slug: "saffron-routes",
+    name: "Saffron Routes",
+    currency: "INR",
     simDomain: "sim.saffronroutes.demo",
     drivers: accounts("saffron-routes", "DRIVER", "chauffeur", "sim.saffronroutes.demo", [
       "Imran Sheikh", "Lakshmi Prasad", "Vivek Hegde", "Farhan Ali", "Deepa Rao", "Suresh Gowda",
@@ -54,6 +58,7 @@ export interface CliOptions {
   seed: number;
   speed: number;
   paused: boolean;
+  stateFile?: string;
   tenants: TenantSlug[];
   help: boolean;
 }
@@ -68,6 +73,7 @@ Options:
   --control-port <port>       Loopback control server port (default: 8790)
   --seed <integer>            Deterministic random seed (default: 42)
   --speed <factor>            Simulation speed, 1–20 (default: 4)
+  --state-file <path>         Runtime state file (default: repo/.demo-runtime/sim-state.json)
   --paused                    Start without new rider requests
   --tenants <slugs>           Comma-separated: default,saffron-routes
   --help                      Show this help
@@ -103,7 +109,7 @@ export function parseCliArgs(args: string[]): CliOptions {
       throw new Error(`Unexpected argument: ${argument}`);
     }
     const name = argument.slice(2);
-    if (!["api", "control-port", "seed", "speed", "tenants"].includes(name)) {
+    if (!["api", "control-port", "seed", "speed", "state-file", "tenants"].includes(name)) {
       throw new Error(`Unknown option: ${argument}`);
     }
     const value = args[index + 1];
@@ -144,5 +150,14 @@ export function parseCliArgs(args: string[]): CliOptions {
     throw new Error("Select at least one tenant with --tenants");
   }
 
-  return { apiBaseUrl, controlPort, seed, speed, paused, tenants, help };
+  return {
+    apiBaseUrl,
+    controlPort,
+    seed,
+    speed,
+    paused,
+    ...(values.has("state-file") ? { stateFile: values.get("state-file")! } : {}),
+    tenants,
+    help,
+  };
 }

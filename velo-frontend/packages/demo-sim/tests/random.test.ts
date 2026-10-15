@@ -21,9 +21,9 @@ describe("seeded simulation random", () => {
     const two = new SeededRandom(24);
     const normalDelay = poissonDelayMs(one, 1);
     const fastDelay = poissonDelayMs(two, 4);
-    expect(normalDelay).toBeGreaterThanOrEqual(15_000);
+    expect(normalDelay).toBeGreaterThanOrEqual(0);
     expect(fastDelay).toBe(normalDelay / 4);
-    expect(poissonDelayMs({ next: () => 0 }, 1)).toBe(15_000);
+    expect(poissonDelayMs({ next: () => 0 }, 1)).toBe(0);
   });
 
   it("chooses distinct POIs and includes airport legs", () => {

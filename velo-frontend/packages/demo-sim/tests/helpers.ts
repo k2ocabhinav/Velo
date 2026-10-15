@@ -13,6 +13,7 @@ import type {
   WebSocketTicketDto,
 } from "../src/types.ts";
 import type { Clock } from "../src/sim/clock.ts";
+import { SIM_TENANTS } from "../src/config.ts";
 
 export class FakeClock implements Clock {
   private currentTime = 1_800_000_000_000;
@@ -53,14 +54,26 @@ export class FakeApi implements SimApi {
   driverEmail = "driver1@sim.velobusiness.demo";
   driverVehicleId = "KA01SV1001";
   riderEmail = "rider1@sim.velobusiness.demo";
+  activeRideOverride: RideTrackingDto | null | undefined;
+  brandingTenantId = 1;
 
   async login(email: string): Promise<AuthIdentity> {
     this.calls.push("login");
-    return { token: "access", refreshToken: "refresh", expiresInSeconds: 900, userId: 1, email, role: "RIDER", tenantId: 1 };
+    const account = Object.values(SIM_TENANTS).flatMap((tenant) => [...tenant.riders, ...tenant.drivers])
+      .find((candidate) => candidate.email.toLowerCase() === email.toLowerCase());
+    const role = account?.role ?? (email.startsWith("driver") || email.startsWith("chauffeur") ? "DRIVER" : "RIDER");
+    if (role === "DRIVER") {
+      this.driverEmail = email;
+      this.driverVehicleId = account?.vehicleId ?? this.driverVehicleId;
+    } else {
+      this.riderEmail = email;
+    }
+    const tenantId = account?.tenant === "saffron-routes" ? 2 : 1;
+    return { token: "access", refreshToken: "refresh", expiresInSeconds: 900, userId: 1, email, role, tenantId };
   }
 
-  async getTenantBranding(): Promise<TenantBrandingDto> {
-    return { tenantId: 1, brandName: "Velo" };
+  async getTenantBranding(slug?: string): Promise<TenantBrandingDto> {
+    return { tenantId: slug === "saffron-routes" ? 2 : this.brandingTenantId, brandName: slug === "saffron-routes" ? "Saffron Routes" : "Velo" };
   }
 
   async getDriverProfile(): Promise<DriverProfileDto> {
@@ -90,6 +103,7 @@ export class FakeApi implements SimApi {
 
   async getActiveRide(): Promise<RideTrackingDto | null> {
     this.calls.push("active ride");
+    if (this.activeRideOverride !== undefined) return this.activeRideOverride;
     return { rideId: this.rideId, rideRequestId: this.requestId, otp: this.riderOtp, status: "CONFIRMED" };
   }
 
@@ -113,6 +127,10 @@ export class FakeApi implements SimApi {
 
   async cancelRide(rideId: number): Promise<void> {
     this.calls.push(`cancel ${rideId}`);
+  }
+
+  async cancelRiderRide(rideId: number): Promise<void> {
+    this.calls.push(`rider cancel ${rideId}`);
   }
 
   async rateRider(rideId: number, rating: number): Promise<void> {

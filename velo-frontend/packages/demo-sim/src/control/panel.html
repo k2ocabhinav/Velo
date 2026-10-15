@@ -646,6 +646,10 @@
       return state.tenantMeta.get(slug)?.name ?? slug;
     }
 
+    function countLabel(count, noun) {
+      return count + " " + noun + (count === 1 ? "" : "s");
+    }
+
     function renderTenants() {
       const slugs = Object.keys(state.config?.tenants ?? {});
       const statusBySlug = new Map((state.status?.tenants ?? []).map((tenant) => [tenant.slug, tenant]));
@@ -692,7 +696,7 @@
       if (state.tenant) $("#tenant-panel").setAttribute("aria-labelledby", "tenant-tab-" + state.tenant);
       const meta = state.tenantMeta.get(state.tenant);
       $("#tenant-context").textContent = meta
-        ? (meta.currency ? meta.currency + " · " : "") + (meta.drivers?.length ?? fleetSize()) + " drivers"
+        ? (meta.currency ? meta.currency + " · " : "") + countLabel(meta.drivers?.length ?? fleetSize(), "driver")
         : "Waiting for simulator data";
     }
 
@@ -756,7 +760,7 @@
       $("#pause-button").disabled = state.presetInFlight;
       $$(".preset-button").forEach((button) => { button.disabled = state.presetInFlight; });
       syncField("onlineDrivers", config.onlineDrivers, force);
-      $("#online-unit").textContent = config.onlineDrivers + " of " + size + " drivers";
+      $("#online-unit").textContent = config.onlineDrivers + " of " + countLabel(size, "driver");
       syncField("requestIntervalSec", config.requestIntervalSec, force);
       $("#interval-unit").textContent = config.requestIntervalSec === 0 ? "Automatic requests are off" : config.requestIntervalSec + " sec mean interval at 1× speed";
       $("#airport-unit").textContent = Math.round(config.airportShare * 100) + "% of requests";
@@ -935,7 +939,7 @@
       if (hadFocus) wrap.focus({ preventScroll: true });
       const caption = document.createElement("div");
       caption.className = "table-caption";
-      caption.textContent = drivers.length + " drivers · " + riders.length + " riders";
+      caption.textContent = countLabel(drivers.length, "driver") + " · " + countLabel(riders.length, "rider");
       root.append(caption);
     }
 
@@ -1001,6 +1005,7 @@
       const source = new EventSource("/events");
       state.events = source;
       const eventNames = [
+        "simulator.ready", "simulator.retry", "simulator.event", "bot.connected", "bot.reconnecting",
         "config.changed", "driver.online", "driver.offline", "driver.state",
         "trip.requested", "trip.assigned", "trip.accepted", "trip.started",
         "trip.completed", "trip.cancelled", "offer.declined", "action.accepted",
@@ -1100,7 +1105,7 @@
           if (document.activeElement !== $("#pickup-max")) $("#pickup-max").value = String(value[1]);
         } else {
           syncField(field, value);
-          if (field === "onlineDrivers") $("#online-unit").textContent = value + " of " + fleetSize() + " drivers";
+          if (field === "onlineDrivers") $("#online-unit").textContent = value + " of " + countLabel(fleetSize(), "driver");
           if (field === "requestIntervalSec") $("#interval-unit").textContent = Number(value) === 0 ? "Automatic requests are off" : value + " sec mean interval at 1× speed";
           if (field === "airportShare") $("#airport-unit").textContent = Math.round(value * 100) + "% of requests";
           if (field === "declineProbability") $("#decline-unit").textContent = Math.round(value * 100) + "% chance an offer is ignored";

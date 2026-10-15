@@ -1,6 +1,8 @@
 export type TenantSlug = "default" | "saffron-routes";
 export type SimRole = "DRIVER" | "RIDER";
-export type DriverState = "idle" | "thinking" | "to-pickup" | "waiting-rider" | "on-trip" | "repositioning" | "stopping";
+export type DriverState = "offline" | "idle" | "thinking" | "to-pickup" | "waiting-rider" | "on-trip" | "repositioning" | "stopping";
+export type ControlDriverState = "offline" | "idle" | "repositioning" | "to-pickup" | "waiting" | "on-trip" | "delayed";
+export type RiderState = "idle" | "requested" | "assigned" | "on-trip";
 
 export interface SimAccount {
   key: string;
@@ -14,6 +16,8 @@ export interface SimAccount {
 
 export interface SimTenant {
   slug: TenantSlug;
+  name: string;
+  currency: string;
   simDomain: string;
   drivers: SimAccount[];
   riders: SimAccount[];
@@ -135,21 +139,41 @@ export interface RouteCatalogue {
 }
 
 export interface ControlDriver {
+  email: string;
   name: string;
-  state: DriverState;
+  state: ControlDriverState;
+  poi: string | null;
   rideId: number | null;
+  delayedUntil: number | null;
+}
+
+export interface ControlRider {
+  email: string;
+  name: string;
+  state: RiderState;
+  rideRequestId: number | null;
 }
 
 export interface ControlTenantStatus {
+  slug: TenantSlug;
+  name: string;
+  currency: string;
   drivers: ControlDriver[];
+  riders: ControlRider[];
+  pendingRequests: number;
   activeTrips: number;
-  completedCount: number;
-  recentErrors: string[];
+  completedTrips: number;
+}
+
+export interface ControlRecentError {
+  at: string;
+  message: string;
 }
 
 export interface ControlStatus {
   paused: boolean;
-  speed: number;
-  uptimeSeconds: number;
-  tenants: Partial<Record<TenantSlug, ControlTenantStatus>>;
+  speedFactor: number;
+  uptimeSec: number;
+  tenants: ControlTenantStatus[];
+  recentErrors: ControlRecentError[];
 }

@@ -28,6 +28,20 @@ describe("polyline and route catalogue", () => {
     expect(getRoute(catalogue, "kia-t1", "station").distanceM).toBe(100);
     expect(() => getRoute(catalogue, "station", "unknown")).toThrow(/missing/);
   });
+
+  it("loads the production Bengaluru catalogue and resolves every ordered POI pair", async () => {
+    const realDirectory = fileURLToPath(new URL("../data/bengaluru/", import.meta.url));
+    const catalogue = await loadRouteCatalogue(realDirectory);
+
+    expect(catalogue.pois.length).toBeGreaterThan(2);
+    for (const from of catalogue.pois) {
+      for (const to of catalogue.pois) {
+        if (from.id !== to.id) {
+          expect(getRoute(catalogue, from.id, to.id)).toBeDefined();
+        }
+      }
+    }
+  });
 });
 
 describe("route movement", () => {

@@ -1,16 +1,17 @@
-import type { SimApi } from "../api/http-client.ts";
+import { ApiError, type SimApi } from "../api/http-client.ts";
 import { toPointDto } from "../api/http-client.ts";
 import type { StompSession } from "../api/stomp-session.ts";
-import type { RideUpdateEventDto, RouteCatalogue, SimAccount } from "../types.ts";
+import type { RideUpdateEventDto, RouteCatalogue, RiderState, SimAccount } from "../types.ts";
 import type { SimLogger } from "../log.ts";
 import type { Clock } from "./clock.ts";
 import type { RideRegistry } from "./contracts.ts";
-import { pickPoiPair } from "./poi-selection.ts";
+import { pickPoiPair, type PoiPairOptions } from "./poi-selection.ts";
 import type { RandomSource } from "./random.ts";
 
 export class RiderBot {
   activeRequestId: number | null = null;
   activeRideId: number | null = null;
+  private rideStarted = false;
   private requestInFlight = false;
   private stopped = false;
   private readonly lifecycleController = new AbortController();
@@ -23,6 +24,8 @@ export class RiderBot {
   private readonly random: RandomSource;
   private readonly logger: SimLogger;
   private readonly registry: RideRegistry;
+  private currentPoi: RouteCatalogue["pois"][number] | null = null;
+  private parkedAtPoi = false;
 
   constructor(
     account: SimAccount,
@@ -44,6 +47,17 @@ export class RiderBot {
     this.registry = registry;
   }
 
+  get state(): RiderState {
+    if (this.activeRequestId === null) return "idle";
+    if (this.rideStarted) return "on-trip";
+    if (this.activeRideId !== null) return "assigned";
+    return "requested";
+  }
+
+  get name(): string {
+    return this.account.displayName;
+  }
+
   async start(): Promise<void> {
     const profile = await this.api.getRiderProfile();
     if (profile.user.email !== this.account.email || !profile.user.roles.includes("RIDER")) {
@@ -54,13 +68,16 @@ export class RiderBot {
     this.logger.event(this.account.tenant, this.account.key, "connected");
   }
 
-  async requestRide(): Promise<number | null> {
+  async requestRide(options: PoiPairOptions = {}): Promise<number | null> {
     if (this.stopped || this.requestInFlight || this.activeRequestId !== null) {
       return null;
     }
     this.requestInFlight = true;
     this.registry.beginRequest();
-    const [pickup, dropOff] = pickPoiPair(this.catalogue.pois, this.random);
+    const selection = this.parkedAtPoi && this.currentPoi && !options.from && !options.near
+      ? { ...options, from: this.currentPoi }
+      : options;
+    const [pickup, dropOff] = pickPoiPair(this.catalogue.pois, this.random, selection);
     try {
       const request = await this.api.requestRide({
         pickupLocation: toPointDto(pickup),
@@ -81,6 +98,8 @@ export class RiderBot {
         return null;
       }
       this.activeRequestId = requestId!;
+      this.currentPoi = dropOff;
+      this.parkedAtPoi = false;
       this.registry.register({
         requestId: requestId!,
         rider: this.account,
@@ -88,6 +107,8 @@ export class RiderBot {
         dropOff,
         readOtp: (rideId) => this.readOtp(rideId),
         rateDriver: (rideId, rating) => this.api.rateDriver(rideId, rating),
+        onAssigned: (rideId) => { this.activeRideId = rideId; },
+        onStarted: (rideId) => { this.activeRideId = rideId; this.rideStarted = true; },
         onCompleted: () => this.completeRequest(requestId!),
       });
       this.logger.event(this.account.tenant, this.account.key, "requested", `request ${requestId}`);
@@ -108,6 +129,27 @@ export class RiderBot {
     }
     this.activeRequestId = null;
     this.activeRideId = null;
+    this.rideStarted = false;
+  }
+
+  async cancelAssignedRide(requestId: number): Promise<number> {
+    if (this.activeRequestId !== requestId) {
+      throw new ApiError(409, `Rider ${this.account.key} does not own request ${requestId}`);
+    }
+    const tracking = await this.api.getActiveRide();
+    if (!tracking?.rideId || tracking.rideRequestId !== requestId) {
+      throw new ApiError(409, "The rider API cannot cancel a pending request; it only cancels an assigned ride.");
+    }
+    await this.api.cancelRiderRide(tracking.rideId);
+    this.registry.complete(requestId);
+    this.logger.event(this.account.tenant, this.account.key, "trip cancelled", `request ${requestId}`);
+    return tracking.rideId;
+  }
+
+  resetToPoi(poi: RouteCatalogue["pois"][number]): void {
+    if (this.activeRequestId !== null) this.registry.complete(this.activeRequestId);
+    this.currentPoi = poi;
+    this.parkedAtPoi = true;
   }
 
   async readOtp(rideId: number): Promise<string | null> {
@@ -141,6 +183,9 @@ export class RiderBot {
     }
     if (event.rideId) {
       this.activeRideId = event.rideId;
+    }
+    if (event.rideRequestId === this.activeRequestId && event.status === "ONGOING") {
+      this.rideStarted = true;
     }
     if (this.activeRequestId === null) {
       return;
@@ -179,5 +224,6 @@ function isRideUpdate(value: unknown): value is RideUpdateEventDto {
   const event = value as Record<string, unknown>;
   return (event.eventType === undefined || typeof event.eventType === "string")
     && (event.rideId === undefined || event.rideId === null || Number.isSafeInteger(event.rideId))
+    && (event.rideRequestId === undefined || event.rideRequestId === null || Number.isSafeInteger(event.rideRequestId))
     && (event.status === undefined || event.status === null || typeof event.status === "string");
 }

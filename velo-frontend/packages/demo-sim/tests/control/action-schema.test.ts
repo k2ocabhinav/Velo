@@ -6,6 +6,8 @@ const ctx: ConfigContext = {
   fleetSizes: { default: 6, "saffron-routes": 6 },
   poiIds: ["kia-t1", "kia-t2", "oberoi", "taj"],
   airportPoiIds: ["kia-t1", "kia-t2"],
+  poiKinds: { "kia-t1": "airport", "kia-t2": "airport", oberoi: "hotel", taj: "hotel" },
+  poiWeights: { "kia-t1": 1, "kia-t2": 1, oberoi: 10, taj: 20 },
 };
 
 function ok(name: string, body: unknown): SimAction {

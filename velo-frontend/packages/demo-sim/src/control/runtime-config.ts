@@ -21,6 +21,8 @@ export interface ConfigContext {
   fleetSizes: Record<string, number>;
   poiIds: readonly PoiId[];
   airportPoiIds: readonly PoiId[];
+  poiKinds: Readonly<Record<PoiId, string>>;
+  poiWeights: Readonly<Record<PoiId, number>>;
 }
 
 export type PatchResult =
@@ -52,10 +54,15 @@ export function steadyTenantConfig(ctx: ConfigContext, fleetSize: number): Tenan
     declineProbability: STEADY_DECLINE_PROBABILITY,
     pickupWaitSec: [STEADY_PICKUP_WAIT_SEC[0], STEADY_PICKUP_WAIT_SEC[1]],
     idleRepositionProbability: STEADY_IDLE_REPOSITION_PROBABILITY,
-    // The frozen ConfigContext exposes airports but no POI weights, so
-    // "airports + top-weighted hotels" resolves to the airport ids.
-    hotspots: [...ctx.airportPoiIds],
+    hotspots: [...ctx.airportPoiIds, ...topWeightedHotelIds(ctx)],
   };
+}
+
+function topWeightedHotelIds(ctx: ConfigContext): PoiId[] {
+  return ctx.poiIds
+    .filter((id) => ctx.poiKinds[id] === "hotel" && Number.isFinite(ctx.poiWeights[id]))
+    .sort((a, b) => (ctx.poiWeights[b] ?? 0) - (ctx.poiWeights[a] ?? 0) || a.localeCompare(b))
+    .slice(0, 3);
 }
 
 /** Every tenant starts from the "steady" scenario. */

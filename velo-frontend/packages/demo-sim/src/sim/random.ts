@@ -3,9 +3,13 @@ export interface RandomSource {
 }
 
 export class SeededRandom implements RandomSource {
-  private state: number;
+  private state = 0;
 
   constructor(seed: number) {
+    this.reset(seed);
+  }
+
+  reset(seed: number): void {
     this.state = seed >>> 0 || 0x6d2b79f5;
   }
 
@@ -38,10 +42,13 @@ export function weightedChoice<T extends { weight: number }>(items: T[], random:
   return items[items.length - 1]!;
 }
 
-export function poissonDelayMs(random: RandomSource, speedFactor: number): number {
+export function poissonDelayMs(random: RandomSource, speedFactor: number, meanIntervalSec = 75): number {
   if (!Number.isFinite(speedFactor) || speedFactor < 1 || speedFactor > 20) {
     throw new RangeError("Speed factor must be from 1 to 20");
   }
+  if (!Number.isFinite(meanIntervalSec) || meanIntervalSec < 0) {
+    throw new RangeError("Mean interval must be a non-negative number of seconds");
+  }
   const sample = Math.min(1 - Number.EPSILON, Math.max(0, random.next()));
-  return Math.max(15_000, -Math.log(1 - sample) * 75_000) / speedFactor;
+  return Math.max(0, -Math.log(1 - sample) * meanIntervalSec * 1_000 / speedFactor);
 }

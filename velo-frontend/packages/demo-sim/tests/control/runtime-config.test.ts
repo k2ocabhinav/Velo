@@ -11,6 +11,8 @@ const ctx: ConfigContext = {
   fleetSizes: { default: 6, "saffron-routes": 6 },
   poiIds: ["kia-t1", "kia-t2", "oberoi", "taj", "mg-road"],
   airportPoiIds: ["kia-t1", "kia-t2"],
+  poiKinds: { "kia-t1": "airport", "kia-t2": "airport", oberoi: "hotel", taj: "hotel", "mg-road": "business" },
+  poiWeights: { "kia-t1": 1, "kia-t2": 1, oberoi: 10, taj: 20, "mg-road": 1 },
 };
 
 function baseConfig(): SimConfig {
@@ -33,7 +35,7 @@ describe("defaultConfig", () => {
           declineProbability: 0.15,
           pickupWaitSec: [15, 30],
           idleRepositionProbability: 0.3,
-          hotspots: ["kia-t1", "kia-t2"],
+          hotspots: ["kia-t1", "kia-t2", "taj", "oberoi"],
         },
         "saffron-routes": {
           onlineDrivers: 6,
@@ -42,18 +44,18 @@ describe("defaultConfig", () => {
           declineProbability: 0.15,
           pickupWaitSec: [15, 30],
           idleRepositionProbability: 0.3,
-          hotspots: ["kia-t1", "kia-t2"],
+          hotspots: ["kia-t1", "kia-t2", "taj", "oberoi"],
         },
       },
     });
   });
 
-  it("uses the airport ids as steady hotspots", () => {
-    expect(steadyTenantConfig(ctx, 6).hotspots).toEqual(["kia-t1", "kia-t2"]);
+  it("uses airports and the three highest-weight hotels as steady hotspots", () => {
+    expect(steadyTenantConfig(ctx, 6).hotspots).toEqual(["kia-t1", "kia-t2", "taj", "oberoi"]);
   });
 
   it("handles an empty context", () => {
-    const empty: ConfigContext = { fleetSizes: {}, poiIds: [], airportPoiIds: [] };
+    const empty: ConfigContext = { fleetSizes: {}, poiIds: [], airportPoiIds: [], poiKinds: {}, poiWeights: {} };
     expect(defaultConfig(empty, 1).tenants).toEqual({});
   });
 
