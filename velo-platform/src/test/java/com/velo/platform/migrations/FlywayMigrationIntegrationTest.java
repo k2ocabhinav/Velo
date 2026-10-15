@@ -123,6 +123,13 @@ class FlywayMigrationIntegrationTest {
         assertThat(countAuditReason("Assigned nearest available driver")).isEqualTo(1);
         assertThat(countAuditReason("Initial seeded assignment history entry.")).isZero();
 
+        assertThat(countRideFixture("DEMO-VELO-ONGOING-01", "alice@example.com", "carol.driver@example.com", "ONGOING"))
+                .isEqualTo(1);
+        assertThat(countRidesByStatus("default", "ONGOING")).isEqualTo(1);
+        assertThat(countRequestFixture("DEMO-VELO-SCHEDULED-01", "alice@example.com", "SCHEDULED")).isEqualTo(1);
+        assertThat(countRequestFixture("DEMO-VELO-SCHEDULED-02", "frank@example.com", "SCHEDULED")).isEqualTo(1);
+        assertThat(countRequestFixture("DEMO-VELO-SCHEDULED-02", "henry@example.com", "SCHEDULED")).isZero();
+
         long usersAfterFirst = count(schemaName, "app_user");
         long ridesAfterFirst = count(schemaName, "ride");
         long requestsAfterFirst = count(schemaName, "ride_request");
@@ -137,6 +144,9 @@ class FlywayMigrationIntegrationTest {
         assertThat(count(schemaName, "payout_request")).isEqualTo(payoutsAfterFirst);
         assertThat(countAuditReason("Assigned nearest available driver")).isEqualTo(1);
         assertThat(countAuditReason("Initial seeded assignment history entry.")).isZero();
+        assertThat(countRideFixture("DEMO-VELO-ONGOING-01", "alice@example.com", "carol.driver@example.com", "ONGOING"))
+                .isEqualTo(1);
+        assertThat(countRequestFixture("DEMO-VELO-SCHEDULED-02", "frank@example.com", "SCHEDULED")).isEqualTo(1);
     }
 
     @Test
@@ -257,6 +267,63 @@ class FlywayMigrationIntegrationTest {
              PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, otp);
             statement.setString(2, paymentStatus);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                resultSet.next();
+                return resultSet.getLong(1);
+            }
+        }
+    }
+
+    private long countRideFixture(String externalReference, String riderEmail, String driverEmail, String status)
+            throws Exception {
+        String sql = "SELECT COUNT(*) FROM " + schemaName + ".ride ride "
+                + "JOIN " + schemaName + ".tenant tenant ON tenant.id = ride.tenant_id "
+                + "JOIN " + schemaName + ".rider rider ON rider.id = ride.rider_id AND rider.tenant_id = tenant.id "
+                + "JOIN " + schemaName + ".app_user rider_user ON rider_user.id = rider.user_id "
+                + "JOIN " + schemaName + ".driver driver ON driver.id = ride.driver_id AND driver.tenant_id = tenant.id "
+                + "JOIN " + schemaName + ".app_user driver_user ON driver_user.id = driver.user_id "
+                + "WHERE tenant.slug = 'default' AND ride.external_reference = ? AND ride.ride_status = ? "
+                + "AND rider_user.email = ? AND driver_user.email = ?";
+        try (Connection connection = DriverManager.getConnection(JDBC_URL, JDBC_USERNAME, JDBC_PASSWORD);
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, externalReference);
+            statement.setString(2, status);
+            statement.setString(3, riderEmail);
+            statement.setString(4, driverEmail);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                resultSet.next();
+                return resultSet.getLong(1);
+            }
+        }
+    }
+
+    private long countRidesByStatus(String tenantSlug, String status) throws Exception {
+        String sql = "SELECT COUNT(*) FROM " + schemaName + ".ride ride "
+                + "JOIN " + schemaName + ".tenant tenant ON tenant.id = ride.tenant_id "
+                + "WHERE tenant.slug = ? AND ride.ride_status = ?";
+        try (Connection connection = DriverManager.getConnection(JDBC_URL, JDBC_USERNAME, JDBC_PASSWORD);
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, tenantSlug);
+            statement.setString(2, status);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                resultSet.next();
+                return resultSet.getLong(1);
+            }
+        }
+    }
+
+    private long countRequestFixture(String externalReference, String riderEmail, String status) throws Exception {
+        String sql = "SELECT COUNT(*) FROM " + schemaName + ".ride_request request "
+                + "JOIN " + schemaName + ".tenant tenant ON tenant.id = request.tenant_id "
+                + "JOIN " + schemaName + ".rider rider ON rider.id = request.rider_id AND rider.tenant_id = tenant.id "
+                + "JOIN " + schemaName + ".app_user rider_user ON rider_user.id = rider.user_id "
+                + "WHERE tenant.slug = 'default' AND request.external_reference = ? "
+                + "AND request.ride_request_status = ? AND rider_user.email = ?";
+        try (Connection connection = DriverManager.getConnection(JDBC_URL, JDBC_USERNAME, JDBC_PASSWORD);
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, externalReference);
+            statement.setString(2, status);
+            statement.setString(3, riderEmail);
             try (ResultSet resultSet = statement.executeQuery()) {
                 resultSet.next();
                 return resultSet.getLong(1);

@@ -180,6 +180,26 @@ WHERE tenant.slug = 'default'
   AND app_user.email = 'dave@example.com'
   AND NOT EXISTS (SELECT 1 FROM ride_request WHERE external_reference = 'DEMO-VELO-PENDING-01');
 
+-- V2 seeds the third request for Henry, a presenter account the refresher clears on every startup.
+-- Re-point it to Frank so the scheduled fixture belongs to a durable rider before its reference is assigned.
+UPDATE ride_request request
+SET rider_id = (
+        SELECT rider.id
+        FROM rider
+        JOIN app_user ON app_user.id = rider.user_id
+        JOIN tenant ON tenant.id = rider.tenant_id
+        WHERE tenant.slug = 'default' AND app_user.email = 'frank@example.com'
+    )
+FROM rider
+JOIN app_user ON app_user.id = rider.user_id
+JOIN tenant ON tenant.id = rider.tenant_id
+WHERE request.rider_id = rider.id
+  AND request.id = 3
+  AND tenant.slug = 'default'
+  AND request.ride_request_status = 'SCHEDULED'
+  AND request.external_reference IS NULL
+  AND app_user.email = 'henry@example.com';
+
 UPDATE ride_request request
 SET customer_name = concat(app_user.first_name, ' ', app_user.last_name),
     customer_phone = app_user.phone_number,
@@ -200,6 +220,24 @@ WHERE request.rider_id = rider.id
   AND request.ride_request_status = 'SCHEDULED'
   AND request.external_reference IS NULL
   AND app_user.email IN ('alice@example.com', 'frank@example.com');
+
+-- Databases that ran older seed versions may have already lost the Henry request the refresher clears.
+-- Recreate the Frank scheduled transfer so the fixture exists everywhere it is expected.
+INSERT INTO ride_request (
+    pickup_location, drop_off_location, requested_time, scheduled_time, rider_id, payment_method,
+    ride_request_status, fare, version, tenant_id, customer_name, customer_phone,
+    pickup_address, drop_off_address, external_reference
+)
+SELECT ST_SetSRID(ST_MakePoint(77.5850, 12.9550), 4326),
+       ST_SetSRID(ST_MakePoint(77.5750, 12.9450), 4326), NOW(),
+       NOW() + INTERVAL '3 days', rider.id, 'WALLET', 'SCHEDULED',
+       205.00, 0, tenant.id, concat(app_user.first_name, ' ', app_user.last_name), app_user.phone_number,
+       'Indiranagar Metro, Bengaluru', 'UB City, Bengaluru', 'DEMO-VELO-SCHEDULED-02'
+FROM tenant
+JOIN app_user ON app_user.email = 'frank@example.com'
+JOIN rider ON rider.user_id = app_user.id AND rider.tenant_id = tenant.id
+WHERE tenant.slug = 'default'
+  AND NOT EXISTS (SELECT 1 FROM ride_request existing WHERE existing.external_reference = 'DEMO-VELO-SCHEDULED-02');
 
 INSERT INTO ride_request (
     pickup_location, drop_off_location, requested_time, scheduled_time, rider_id, payment_method,
@@ -290,7 +328,7 @@ WHERE ride.tenant_id = tenant.id
           AND ride.ride_status = 'ENDED' AND ride.fare = 150.00)
       OR (ride.id = 2 AND rider_user.email = 'dave@example.com' AND driver_user.email = 'carol.driver@example.com'
           AND ride.ride_status = 'CANCELLED' AND ride.fare = 90.00)
-      OR (ride.id = 3 AND rider_user.email = 'bob.driver@example.com' AND driver_user.email = 'bob.driver@example.com'
+      OR (ride.id = 3 AND rider_user.email = 'bob.driver@example.com' AND driver_user.email = 'carol.driver@example.com'
           AND ride.ride_status = 'ONGOING' AND ride.fare = 120.00)
       OR (ride.id = 4 AND rider_user.email = 'dave@example.com' AND driver_user.email = 'bob.driver@example.com'
           AND ride.ride_status = 'CONFIRMED' AND ride.fare = 200.00)

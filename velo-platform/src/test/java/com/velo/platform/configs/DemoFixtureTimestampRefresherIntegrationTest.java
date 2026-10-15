@@ -69,8 +69,9 @@ class DemoFixtureTimestampRefresherIntegrationTest {
         long henryRiderId = riderId("henry@example.com");
 
         jdbcTemplate.update("UPDATE ride_request SET ride_request_status = 'CONFIRMED' WHERE id = ?", fixtureRequestId);
-        long fixtureRideId = insertRide(riderId("alice@example.com"), driverId("carol.driver@example.com"), veloId,
-                "ENDED", "2468", null, "DEMO-VELO-ONGOING-01", new BigDecimal("150.00"));
+        long fixtureRideId = rideIdByReference("DEMO-VELO-ONGOING-01");
+        jdbcTemplate.update("UPDATE ride SET ride_status = 'ENDED', fare = 150.00, driver_id = ? WHERE id = ?",
+                driverId("bob.driver@example.com"), fixtureRideId);
 
         long sessionRequestId = insertRequest(henryRiderId, veloId, "PENDING", null, null);
         long sessionRideId = insertRide(henryRiderId, driverId("bob.driver@example.com"), veloId,
@@ -89,6 +90,11 @@ class DemoFixtureTimestampRefresherIntegrationTest {
         assertThat(count("ride", "id", sessionRideId)).isZero();
         assertThat(count("ride_request", "id", sessionRequestId)).isZero();
         assertThat(rideStatusOf(fixtureRideId)).isEqualTo("ONGOING");
+        assertThat(riderEmailOfRide(fixtureRideId)).isEqualTo("alice@example.com");
+        assertThat(driverEmailOfRide(fixtureRideId)).isEqualTo("carol.driver@example.com");
+        long frankScheduledId = requestIdByReference("DEMO-VELO-SCHEDULED-02");
+        assertThat(requestStatusOf(frankScheduledId)).isEqualTo("SCHEDULED");
+        assertThat(requestRiderEmailOf(frankScheduledId)).isEqualTo("frank@example.com");
         assertThat(requestStatusOf(unrelatedRequestId)).isEqualTo("SCHEDULED");
         assertThat(scheduledTimeOf(unrelatedRequestId)).isEqualTo(unrelatedScheduledAt);
         assertThat(rideStatusOf(unrelatedRideId)).isEqualTo("CANCELLED");
@@ -203,6 +209,38 @@ class DemoFixtureTimestampRefresherIntegrationTest {
     private long requestIdByReference(String externalReference) {
         return jdbcTemplate.queryForObject(
                 "SELECT id FROM ride_request WHERE external_reference = ?", Long.class, externalReference);
+    }
+
+    private long rideIdByReference(String externalReference) {
+        return jdbcTemplate.queryForObject(
+                "SELECT id FROM ride WHERE external_reference = ?", Long.class, externalReference);
+    }
+
+    private String requestRiderEmailOf(long requestId) {
+        return jdbcTemplate.queryForObject("""
+                SELECT app_user.email FROM ride_request request
+                JOIN rider ON rider.id = request.rider_id
+                JOIN app_user ON app_user.id = rider.user_id
+                WHERE request.id = ?
+                """, String.class, requestId);
+    }
+
+    private String riderEmailOfRide(long rideId) {
+        return jdbcTemplate.queryForObject("""
+                SELECT app_user.email FROM ride
+                JOIN rider ON rider.id = ride.rider_id
+                JOIN app_user ON app_user.id = rider.user_id
+                WHERE ride.id = ?
+                """, String.class, rideId);
+    }
+
+    private String driverEmailOfRide(long rideId) {
+        return jdbcTemplate.queryForObject("""
+                SELECT app_user.email FROM ride
+                JOIN driver ON driver.id = ride.driver_id
+                JOIN app_user ON app_user.id = driver.user_id
+                WHERE ride.id = ?
+                """, String.class, rideId);
     }
 
     private long insertUser(String email, boolean simulated, long tenantId) {
