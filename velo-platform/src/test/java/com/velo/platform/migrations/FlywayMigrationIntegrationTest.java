@@ -19,6 +19,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.data.Offset.offset;
@@ -209,12 +210,12 @@ class FlywayMigrationIntegrationTest {
         long saffronRiderId;
         long defaultRiderId;
         long recurringTemplateId;
-        LocalDateTime createdBeforeV15 = LocalDateTime.now().minusDays(1);
-        LocalDateTime manualWallTime = LocalDateTime.now(ZoneOffset.UTC).plusDays(4)
+        LocalDateTime createdBeforeV15 = now().minusDays(1);
+        LocalDateTime manualWallTime = now().plusDays(4)
                 .withHour(9).withMinute(0).withSecond(0).withNano(0);
         LocalDateTime recurringWallTime = manualWallTime.plusDays(1);
-        LocalDateTime pastWallTime = LocalDateTime.now(ZoneOffset.UTC).minusDays(1);
-        LocalDateTime pastInTenantWallTime = LocalDateTime.now(ZoneOffset.UTC).plusHours(2);
+        LocalDateTime pastWallTime = now().minusDays(1);
+        LocalDateTime pastInTenantWallTime = now().plusHours(2);
         LocalDateTime utcWallTime = manualWallTime.plusDays(2);
 
         try (Connection connection = connection(); Statement schema = connection.createStatement()) {
@@ -234,8 +235,8 @@ class FlywayMigrationIntegrationTest {
 
         newFlyway("classpath:db/migration", schemaName, "15").migrate();
 
-        LocalDateTime createdAfterV15 = LocalDateTime.now().plusDays(1);
-        LocalDateTime newWallTime = LocalDateTime.now(ZoneOffset.UTC).plusDays(5)
+        LocalDateTime createdAfterV15 = now().plusDays(1);
+        LocalDateTime newWallTime = now().plusDays(5)
                 .withHour(9).withMinute(0).withSecond(0).withNano(0);
         try (Connection connection = connection(); Statement schema = connection.createStatement()) {
             schema.execute("SET search_path TO " + schemaName + ", public");
@@ -359,6 +360,15 @@ class FlywayMigrationIntegrationTest {
             statement.setString(7, reference);
             statement.executeUpdate();
         }
+    }
+
+    /**
+     * PostgreSQL timestamps have microsecond precision while a Linux JVM clock reports nanoseconds, so the
+     * server rounds (or drops) the extra digits. Truncating first keeps a written instant identical to the
+     * one read back, which lets the assertions below compare exactly.
+     */
+    private static LocalDateTime now() {
+        return LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MICROS);
     }
 
     private LocalDateTime inUtc(LocalDateTime localTime, String zone) {
