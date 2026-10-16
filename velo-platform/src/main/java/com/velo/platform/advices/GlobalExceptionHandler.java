@@ -2,6 +2,7 @@ package com.velo.platform.advices;
 
 import com.velo.platform.exceptions.ResourceNotFoundException;
 import com.velo.platform.exceptions.RuntimeConflictException;
+import com.velo.platform.exceptions.BadRequestException;
 import com.velo.platform.exceptions.GeocodingUnavailableException;
 import com.velo.platform.exceptions.InvalidRefreshTokenException;
 import com.velo.platform.exceptions.RateLimitExceededException;
@@ -12,10 +13,16 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
@@ -38,6 +45,15 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<?>> handleRuntimeConflictException(RuntimeConflictException exception) {
         ApiError apiError = ApiError.builder()
                 .status(HttpStatus.CONFLICT)
+                .message(exception.getMessage())
+                .build();
+        return buildErrorResponseEntity(apiError);
+    }
+
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<ApiResponse<?>> handleBadRequestException(BadRequestException exception) {
+        ApiError apiError = ApiError.builder()
+                .status(HttpStatus.BAD_REQUEST)
                 .message(exception.getMessage())
                 .build();
         return buildErrorResponseEntity(apiError);
@@ -144,6 +160,60 @@ public class GlobalExceptionHandler {
         ApiError apiError = ApiError.builder()
                 .status(HttpStatus.BAD_REQUEST)
                 .message("Input validation failed")
+                .build();
+        return buildErrorResponseEntity(apiError);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<?>> handleUnreadableBody(HttpMessageNotReadableException exception) {
+        ApiError apiError = ApiError.builder()
+                .status(HttpStatus.BAD_REQUEST)
+                .message("Required request body is missing or malformed")
+                .build();
+        return buildErrorResponseEntity(apiError);
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiResponse<?>> handleMissingRequestParameter(MissingServletRequestParameterException exception) {
+        ApiError apiError = ApiError.builder()
+                .status(HttpStatus.BAD_REQUEST)
+                .message("Missing required parameter '" + exception.getParameterName() + "'")
+                .build();
+        return buildErrorResponseEntity(apiError);
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResponse<?>> handleArgumentTypeMismatch(MethodArgumentTypeMismatchException exception) {
+        ApiError apiError = ApiError.builder()
+                .status(HttpStatus.BAD_REQUEST)
+                .message("Invalid value for parameter '" + exception.getName() + "'")
+                .build();
+        return buildErrorResponseEntity(apiError);
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiResponse<?>> handleMethodNotSupported(HttpRequestMethodNotSupportedException exception) {
+        ApiError apiError = ApiError.builder()
+                .status(HttpStatus.METHOD_NOT_ALLOWED)
+                .message("Request method '" + exception.getMethod() + "' is not supported for this endpoint")
+                .build();
+        return buildErrorResponseEntity(apiError);
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ApiResponse<?>> handleMediaTypeNotSupported(HttpMediaTypeNotSupportedException exception) {
+        ApiError apiError = ApiError.builder()
+                .status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+                .message("Unsupported content type: " + exception.getContentType())
+                .build();
+        return buildErrorResponseEntity(apiError);
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiResponse<?>> handleNoResourceFound(NoResourceFoundException exception) {
+        ApiError apiError = ApiError.builder()
+                .status(HttpStatus.NOT_FOUND)
+                .message("The requested resource was not found")
                 .build();
         return buildErrorResponseEntity(apiError);
     }

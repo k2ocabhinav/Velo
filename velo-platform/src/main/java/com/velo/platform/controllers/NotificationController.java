@@ -8,12 +8,15 @@ import com.velo.platform.services.NotificationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -21,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping(path = "/notifications")
 @Tag(name = "Notifications", description = "User notification management")
 @SecurityRequirement(name = "bearerAuth")
+@Validated
 public class NotificationController {
 
     private final NotificationService notificationService;
@@ -29,8 +33,8 @@ public class NotificationController {
     @GetMapping
     @Operation(summary = "Get current user's notifications (paginated)")
     public ResponseEntity<Page<NotificationDto>> getNotifications(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "10") @Min(1) @Max(200) int size) {
         User user = getCurrentUser();
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdTime", "id"));
         return ResponseEntity.ok(notificationService.getUserNotifications(user, pageRequest));

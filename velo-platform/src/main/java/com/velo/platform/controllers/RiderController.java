@@ -88,8 +88,8 @@ public class RiderController {
 
     @GetMapping("/getMyRides")
     @Operation(summary = "Get paginated ride history")
-    public ResponseEntity<Page<RideDto>> getAllMyRides(@RequestParam(defaultValue = "0") Integer pageOffset,
-                                                       @RequestParam(defaultValue = "10", required = false) Integer pageSize) {
+    public ResponseEntity<Page<RideDto>> getAllMyRides(@RequestParam(defaultValue = "0") @Min(0) Integer pageOffset,
+                                                       @RequestParam(defaultValue = "10", required = false) @Min(1) @Max(200) Integer pageSize) {
         PageRequest pageRequest = PageRequest.of(pageOffset, pageSize,
                 Sort.by(Sort.Direction.DESC, "createdTime", "id"));
         return ResponseEntity.ok(riderService.getAllMyRides(pageRequest));
@@ -123,8 +123,8 @@ public class RiderController {
     @GetMapping("/scheduled-rides")
     @Operation(summary = "Get upcoming scheduled rides")
     public ResponseEntity<Page<ScheduledRideDto>> getMyScheduledRides(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "10") @Min(1) @Max(200) int size) {
         PageRequest pageRequest = PageRequest.of(page, size);
         return ResponseEntity.ok(scheduledRideService.getMyScheduledRides(pageRequest));
     }
