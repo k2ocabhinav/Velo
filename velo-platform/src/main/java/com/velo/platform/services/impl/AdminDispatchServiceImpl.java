@@ -88,6 +88,7 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
     private final ModelMapper modelMapper;
     private final TenantScopeService tenantScopeService;
     private final RideStrategyManager rideStrategyManager;
+    private final RideRequestAddressResolver rideRequestAddressResolver;
     private final EntityManager entityManager;
 
     @Override
@@ -107,6 +108,7 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
                 .dropOffAddress(normalizeString(requestDto.getDropOffAddress()))
                 .externalReference(normalizeString(requestDto.getExternalReference()))
                 .build();
+        rideRequestAddressResolver.fillMissingLabels(rideRequest);
         rideRequest.setFare(rideStrategyManager.rideFareCalculationStrategy().calculateFare(rideRequest));
 
         RideRequest savedRequest = rideRequestRepository.save(rideRequest);

@@ -16,6 +16,7 @@ import com.velo.platform.events.ScheduledRideRescheduledEvent;
 import com.velo.platform.exceptions.ResourceNotFoundException;
 import com.velo.platform.exceptions.RuntimeConflictException;
 import com.velo.platform.repositories.RideRequestRepository;
+import com.velo.platform.services.GeocodingService;
 import com.velo.platform.services.NotificationService;
 import com.velo.platform.services.RideOfferService;
 import com.velo.platform.services.RiderService;
@@ -66,6 +67,7 @@ class ScheduledRideServiceImplTest {
     @Mock private NotificationService notificationService;
     @Mock private ApplicationEventPublisher eventPublisher;
     @Mock private TenantScopeService tenantScopeService;
+    @Mock private GeocodingService geocodingService;
     @Mock private PlatformTransactionManager transactionManager;
 
     private ScheduledRideConfig scheduledRideConfig;
@@ -100,7 +102,7 @@ class ScheduledRideServiceImplTest {
         scheduledRideService = new ScheduledRideServiceImpl(
                 rideRequestRepository, riderService, rideStrategyManager,
                 scheduledRideConfig, modelMapper, rideOfferService, notificationService, eventPublisher,
-                tenantScopeService, transactionManager);
+                tenantScopeService, new RideRequestAddressResolver(geocodingService), transactionManager);
 
         testUser = User.builder().id(1L).email("rider@test.com").build();
         testRider = Rider.builder().id(1L).user(testUser).rating(4.5).build();

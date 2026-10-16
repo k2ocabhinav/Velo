@@ -23,7 +23,7 @@ import {
   normalizeDriverRidePage,
   selectCurrentDriverRide,
 } from "./_lib/driver-ride-state";
-import { formatOfferLocation, getIncomingOfferTitle, getNextTripActionLabel, getRiderFirstName, resolveOfferExpiresAtMs } from "./_lib/driver-offer";
+import { formatOfferLocation, getIncomingOfferTitle, getNextTripActionLabel, getRiderFirstName, PENDING_DROP_OFF_LABEL, PENDING_PICKUP_LABEL, resolveOfferExpiresAtMs } from "./_lib/driver-offer";
 import { useDriverLocationPublisher } from "./_lib/driver-location-publisher";
 import {
   useDriverNotificationSubscription,
@@ -410,8 +410,8 @@ export default function DriverHomePage() {
               const preview = requestId !== null ? rideRequestPreviews[requestId] : null;
               const offerTitle = getIncomingOfferTitle(notification.type, words.tripWord);
               const riderName = getRiderFirstName(preview?.rider);
-              const pickupLabel = formatOfferLocation(preview?.pickupAddress, preview?.pickupLocation);
-              const dropOffLabel = formatOfferLocation(preview?.dropOffAddress, preview?.dropOffLocation);
+              const pickupLabel = formatOfferLocation(preview?.pickupAddress, preview?.pickupLocation, PENDING_PICKUP_LABEL);
+              const dropOffLabel = formatOfferLocation(preview?.dropOffAddress, preview?.dropOffLocation, PENDING_DROP_OFF_LABEL);
               const offerExpiresAtMs = resolveOfferExpiresAtMs(preview?.expiresAt, notification.createdTime);
               return (
                 <article className="driver-offer" key={notification.id}>

@@ -54,6 +54,7 @@ public class ScheduledRideServiceImpl implements ScheduledRideService {
     private final NotificationService notificationService;
     private final ApplicationEventPublisher eventPublisher;
     private final TenantScopeService tenantScopeService;
+    private final RideRequestAddressResolver rideRequestAddressResolver;
     private final PlatformTransactionManager transactionManager;
 
     @Override
@@ -65,6 +66,7 @@ public class ScheduledRideServiceImpl implements ScheduledRideService {
         Rider rider = riderService.getCurrentRider();
 
         RideRequest rideRequest = modelMapper.map(rideRequestDto, RideRequest.class);
+        rideRequestAddressResolver.fillMissingLabels(rideRequest);
         rideRequest.setRider(rider);
         rideRequest.setTenantId(rider.getTenantId());
         rideRequest.setRideRequestStatus(RideRequestStatus.SCHEDULED);

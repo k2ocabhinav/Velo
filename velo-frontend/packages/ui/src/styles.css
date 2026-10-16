@@ -1271,6 +1271,21 @@ textarea.ui-control {
   padding: 0;
 }
 
+/* A non-modal sheet floats over live content (a map) without dimming or blocking it. */
+.sheet-overlay[data-modal="false"] {
+  background: transparent;
+  pointer-events: none;
+}
+
+.sheet-overlay[data-modal="false"] .sheet-panel {
+  pointer-events: auto;
+}
+
+/* Keep the page behind a non-modal bottom sheet usable instead of filling the viewport. */
+.sheet-overlay[data-modal="false"] .sheet-panel[data-side="bottom"] {
+  max-height: min(60dvh, 34rem);
+}
+
 .sheet-panel {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);

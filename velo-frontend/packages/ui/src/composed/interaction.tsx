@@ -255,10 +255,11 @@ export function BottomNav({
   );
 }
 
-/** Responsive bottom sheet / side panel that traps focus and locks background scrolling. */
+/** Responsive bottom sheet / side panel that takes focus. Modal sheets also trap Tab, lock background scrolling and dim the page. */
 export function Sheet({
   children,
   description,
+  modal = true,
   onOpenChange,
   open,
   side = "right",
@@ -270,19 +271,22 @@ export function Sheet({
   description?: string;
   children: ReactNode;
   side?: "right" | "bottom";
+  /** Non-modal sheets leave the page behind them interactive; use them when the sheet floats over a map. */
+  modal?: boolean;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const descriptionId = useId();
   const close = useCallback(() => onOpenChange(false), [onOpenChange]);
-  useFocusTrap(panelRef, open, close);
+  useFocusTrap(panelRef, open, close, { modal });
 
   if (!open) return null;
   return (
     <div
       className="sheet-overlay"
+      data-modal={modal}
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onOpenChange(false);
+        if (modal && event.target === event.currentTarget) onOpenChange(false);
       }}
     >
       <section
@@ -290,7 +294,7 @@ export function Sheet({
         className="sheet-panel"
         data-side={side}
         role="dialog"
-        aria-modal="true"
+        aria-modal={modal ? "true" : undefined}
         aria-labelledby={titleId}
         aria-describedby={description ? descriptionId : undefined}
         tabIndex={-1}

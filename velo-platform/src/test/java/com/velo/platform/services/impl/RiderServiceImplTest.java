@@ -1,6 +1,7 @@
 package com.velo.platform.services.impl;
 
 import com.velo.platform.dto.DriverDto;
+import com.velo.platform.dto.GeocodingResultDto;
 import com.velo.platform.dto.PointDto;
 import com.velo.platform.dto.RideDto;
 import com.velo.platform.dto.RideRequestDto;
@@ -9,6 +10,7 @@ import com.velo.platform.dto.RiderDto;
 import com.velo.platform.entities.*;
 import com.velo.platform.entities.enums.RideRequestStatus;
 import com.velo.platform.entities.enums.RideStatus;
+import com.velo.platform.exceptions.GeocodingUnavailableException;
 import com.velo.platform.repositories.RideRequestRepository;
 import com.velo.platform.repositories.RideRepository;
 import com.velo.platform.repositories.RiderRepository;
@@ -16,6 +18,7 @@ import com.velo.platform.repositories.TenantConfigurationRepository;
 import com.velo.platform.security.UserPrincipal;
 import com.velo.platform.services.DriverService;
 import com.velo.platform.services.DriverEarningsService;
+import com.velo.platform.services.GeocodingService;
 import com.velo.platform.services.NotificationService;
 import com.velo.platform.services.PaymentService;
 import com.velo.platform.services.PromoCodeService;
@@ -33,6 +36,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.PrecisionModel;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.modelmapper.ModelMapper;
@@ -52,6 +58,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -123,6 +130,9 @@ class RiderServiceImplTest {
     @Mock
     private UserPrincipal userPrincipal;
 
+    @Mock
+    private GeocodingService geocodingService;
+
     private RiderServiceImpl riderService;
 
     private Rider testRider;
@@ -149,6 +159,7 @@ class RiderServiceImplTest {
                 driverEarningsService,
                 walletService,
                 rideRealtimeService,
+                new RideRequestAddressResolver(geocodingService),
                 eventPublisher);
         lenient().when(tenantConfigurationRepository.findByTenant_Id(anyLong())).thenReturn(Optional.empty());
 
@@ -225,6 +236,61 @@ class RiderServiceImplTest {
         assertThat(testRideRequest.getFare()).isEqualByComparingTo(BigDecimal.valueOf(150.0));
         verify(rideOfferService).createOffers(testRideRequest, List.of(matchedDriver));
         verify(eventPublisher).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("Request ride fills address labels that the rider did not supply")
+    void requestRide_WhenLabelsAreMissing_ShouldFillThemFromReverseGeocoding() {
+        mockAuthenticatedRider();
+        RideRequest request = rideRequestWithoutLabels();
+        stubRequestRide(request);
+        when(geocodingService.reverse(12.9716, 77.5946)).thenReturn(new GeocodingResultDto(
+                "MG Road, Bengaluru", "MG Road, Bengaluru, Karnataka, India", 12.9716, 77.5946, "road"));
+        when(geocodingService.reverse(12.9352, 77.6245)).thenReturn(new GeocodingResultDto(
+                "Koramangala, Bengaluru", "Koramangala, Bengaluru, Karnataka, India", 12.9352, 77.6245, "suburb"));
+
+        riderService.requestRide(testRideRequestDto);
+
+        assertThat(request.getPickupAddress()).isEqualTo("MG Road, Bengaluru");
+        assertThat(request.getDropOffAddress()).isEqualTo("Koramangala, Bengaluru");
+    }
+
+    @Test
+    @DisplayName("Request ride keeps an empty label when reverse geocoding is unavailable")
+    void requestRide_WhenGeocodingFails_ShouldKeepTheLabelEmptyAndStillCreateTheRequest() {
+        mockAuthenticatedRider();
+        RideRequest request = rideRequestWithoutLabels();
+        stubRequestRide(request);
+        when(geocodingService.reverse(anyDouble(), anyDouble())).thenThrow(new GeocodingUnavailableException());
+
+        RideRequestDto result = riderService.requestRide(testRideRequestDto);
+
+        assertThat(result).isNotNull();
+        assertThat(request.getPickupAddress()).isNull();
+        assertThat(request.getDropOffAddress()).isNull();
+        verify(rideRequestRepository).save(request);
+    }
+
+    private RideRequest rideRequestWithoutLabels() {
+        GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
+        return RideRequest.builder()
+                .id(2L)
+                .rideRequestStatus(RideRequestStatus.PENDING)
+                .pickupLocation(geometryFactory.createPoint(new Coordinate(77.5946, 12.9716)))
+                .dropOffLocation(geometryFactory.createPoint(new Coordinate(77.6245, 12.9352)))
+                .build();
+    }
+
+    private void stubRequestRide(RideRequest request) {
+        when(modelMapper.map(testRideRequestDto, RideRequest.class)).thenReturn(request);
+        when(rideStrategyManager.rideFareCalculationStrategy()).thenReturn(fareCalculationStrategy);
+        when(fareCalculationStrategy.calculateFare(request)).thenReturn(BigDecimal.valueOf(150.0));
+        when(rideRequestRepository.save(request)).thenReturn(request);
+        when(rideStrategyManager.driverMatchingStrategy(testRider.getRating())).thenReturn(driverMatchingStrategy);
+        Driver matchedDriver = Driver.builder().id(10L).build();
+        when(driverMatchingStrategy.findMatchingDrivers(request)).thenReturn(List.of(matchedDriver));
+        when(rideOfferService.createOffers(request, List.of(matchedDriver))).thenReturn(List.of());
+        when(modelMapper.map(request, RideRequestDto.class)).thenReturn(testRideRequestDto);
     }
 
     @Test
