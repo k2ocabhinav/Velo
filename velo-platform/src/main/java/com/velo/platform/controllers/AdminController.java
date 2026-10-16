@@ -169,6 +169,16 @@ public class AdminController {
         return ResponseEntity.ok(payoutService.getPendingPayouts(pageRequest));
     }
 
+    @GetMapping("/payouts")
+    @Operation(summary = "Get driver payouts, optionally filtered by status")
+    public ResponseEntity<Page<com.velo.platform.dto.PayoutRequestDto>> getPayouts(
+            @RequestParam(required = false) com.velo.platform.entities.enums.PayoutStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "requestedAt"));
+        return ResponseEntity.ok(payoutService.getPayouts(status, pageRequest));
+    }
+
     @PostMapping("/payouts/{id}/approve")
     @Operation(summary = "Approve a payout request")
     public ResponseEntity<com.velo.platform.dto.PayoutRequestDto> approvePayout(

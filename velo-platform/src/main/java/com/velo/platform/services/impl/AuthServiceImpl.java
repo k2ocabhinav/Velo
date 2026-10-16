@@ -125,7 +125,7 @@ public class AuthServiceImpl implements AuthService {
         mappedUser.setPassword(passwordEncoder.encode(signupDto.getPassword()));
         mappedUser.setActive(true);
         mappedUser.setRoles(new HashSet<>(Set.of(Role.RIDER)));
-        mappedUser.setTenantId(DEFAULT_TENANT_ID);
+        mappedUser.setTenantId(resolveSignupTenantId());
 
         String referralCode = generateReferralCode(signupDto.getName());
         mappedUser.setReferralCode(referralCode);
@@ -148,6 +148,19 @@ public class AuthServiceImpl implements AuthService {
         Random random = new Random();
         int code = 100000 + random.nextInt(900000);
         return prefix + code;
+    }
+
+    /**
+     * An admin creating a rider should land it in the admin's own tenant; anonymous
+     * self-registration keeps falling back to the default tenant.
+     */
+    private Long resolveSignupTenantId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof UserPrincipal principal
+                && principal.getTenantId() != null) {
+            return principal.getTenantId();
+        }
+        return DEFAULT_TENANT_ID;
     }
 
     @Override

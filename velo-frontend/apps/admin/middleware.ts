@@ -4,7 +4,7 @@ import { attachTenantSlugHeader } from "@velo/app-core/tenant";
 
 const cookieAuthMiddleware = createCookieAuthMiddleware({
   publicPaths: ["/login"],
-  protectedPaths: ["/", "/dispatch", "/drivers", "/users", "/payouts", "/promo-codes", "/branding", "/revenue", "/scheduled-rides"],
+  protectedPaths: ["/", "/dispatch", "/trip-sheet", "/recurring-trips", "/scheduled-rides", "/drivers", "/users", "/payouts", "/revenue", "/promo-codes", "/branding"],
   requiredRoleHint: "ADMIN",
   tokenCookieName: "velo_admin_token",
   roleCookieName: "velo_admin_role_hint"

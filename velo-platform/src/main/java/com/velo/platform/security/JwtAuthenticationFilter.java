@@ -60,8 +60,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
+        // /auth/signup is public, but an authenticated admin creates riders in their own
+        // tenant, so the filter still runs there to expose the caller's tenant context.
         return path.equals("/auth/login")
-                || path.equals("/auth/signup")
                 || path.equals("/auth/forgot-password")
                 || path.equals("/auth/reset-password")
                 || path.equals("/auth/refresh")

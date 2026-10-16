@@ -25,6 +25,10 @@ import type {
   TopDriverRevenueDto,
 } from "./types";
 
+export interface PayoutListParams extends PageRequestInput {
+  status?: "PENDING" | "APPROVED" | "REJECTED" | "PROCESSED";
+}
+
 export interface AdminApi {
   getDashboardStats(): Promise<DashboardDto>;
   getDailyStats(date: string): Promise<AdminStatsDto>;
@@ -37,6 +41,7 @@ export interface AdminApi {
   activateUser(userId: number): Promise<void>;
   deactivateUser(userId: number): Promise<void>;
   getPendingPayouts(params?: PageRequestInput): Promise<PaginatedResponse<PayoutRequestDto>>;
+  getPayouts(params?: PayoutListParams): Promise<PaginatedResponse<PayoutRequestDto>>;
   approvePayout(payoutId: number, adminNote?: string): Promise<PayoutRequestDto>;
   rejectPayout(payoutId: number, adminNote: string): Promise<PayoutRequestDto>;
   processPayout(payoutId: number): Promise<PayoutRequestDto>;
@@ -128,6 +133,12 @@ export function createAdminApi(client: AxiosInstance = createVeloClient()): Admi
       requestPageData<PayoutRequestDto>(client, {
         method: "GET",
         url: "/api/v1/admin/payouts/pending",
+        params,
+      }),
+    getPayouts: (params) =>
+      requestPageData<PayoutRequestDto>(client, {
+        method: "GET",
+        url: "/api/v1/admin/payouts",
         params,
       }),
     approvePayout: (payoutId, adminNote) => {

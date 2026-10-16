@@ -18,6 +18,8 @@ import java.util.Optional;
 public interface PayoutRequestRepository extends JpaRepository<PayoutRequest, Long> {
     Page<PayoutRequest> findByDriverOrderByRequestedAtDesc(Driver driver, Pageable pageable);
 
+    Page<PayoutRequest> findByTenantIdOrderByRequestedAtDesc(Long tenantId, Pageable pageable);
+
     Page<PayoutRequest> findByTenantIdAndStatusOrderByRequestedAtAsc(Long tenantId, PayoutStatus status, Pageable pageable);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
