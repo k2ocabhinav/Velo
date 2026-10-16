@@ -106,7 +106,7 @@ test("contact form appears only when a demo request destination is configured", 
     await form.getByLabel("City").fill("Dublin");
     await form.getByLabel("Preferred time and time zone").fill("09:00–12:00 UTC");
     await form.getByRole("button", { name: "Send demo request" }).click();
-    await expect(page.getByRole("status")).toContainText("Your request was sent");
+    await expect(form.getByRole("status")).toContainText("Your request was sent");
   } else {
     // The email is shown both in the contact section and the footer.
     await expect(page.locator(`a[href="mailto:${contactEmail}"]`).first()).toBeVisible();

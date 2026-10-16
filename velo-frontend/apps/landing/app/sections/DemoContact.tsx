@@ -6,6 +6,11 @@ import styles from "./sections.module.css";
 
 type FormStatus = { type: "success" | "error"; message: string } | null;
 
+// The browser always posts to this same-origin path. Netlify rewrites it to the
+// configured form provider (see scripts/generate-netlify-headers.mjs), which keeps
+// the site's Content-Security-Policy connect-src locked to 'self'.
+const CONTACT_ENDPOINT = "/_velo/contact";
+
 export function DemoContact() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState<FormStatus>(null);
@@ -38,7 +43,7 @@ export function DemoContact() {
     fields.forEach((value, key) => { if (typeof value === "string") encodedFields.append(key, value); });
     encodedFields.set("form-name", "demo-request");
     try {
-      const response = await fetch(siteConfig.contactFormAction, { method: "POST", body: encodedFields, headers: { Accept: "application/json" } });
+      const response = await fetch(CONTACT_ENDPOINT, { method: "POST", body: encodedFields, headers: { Accept: "application/json" } });
       if (!response.ok) throw new Error("Contact form submission failed.");
       form.reset();
       setStatus({ type: "success", message: copy.sent });

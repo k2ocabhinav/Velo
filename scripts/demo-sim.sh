@@ -10,6 +10,7 @@ Usage:
   ./scripts/demo-sim.sh status|pause|resume|speed <1-20>
   ./scripts/demo-sim.sh preset <quiet|steady|busy|airport-rush> [tenant]
   ./scripts/demo-sim.sh set <tenant> <key> <value>
+  ./scripts/demo-sim.sh set <paused|speedFactor|seed> <value>
   ./scripts/demo-sim.sh do <action> [tenant] [key=value ...]
   ./scripts/demo-sim.sh open
 EOF
@@ -71,6 +72,22 @@ except json.JSONDecodeError:
     value = raw
 patch = {key: value} if key in {"paused", "speedFactor", "seed"} else {"tenants": {tenant: {key: value}}}
 print(json.dumps(patch, separators=(",", ":")))
+PY
+}
+
+global_patch_body() {
+  python3 - "$@" <<'PY'
+import json
+import sys
+
+key, raw = sys.argv[1:]
+if key not in {"paused", "speedFactor", "seed"}:
+    raise SystemExit(f"{key} is a tenant key; use: set <tenant> <key> <value>")
+try:
+    value = json.loads(raw)
+except json.JSONDecodeError:
+    value = raw
+print(json.dumps({key: value}, separators=(",", ":")))
 PY
 }
 
@@ -138,8 +155,13 @@ PY
     control_request POST /preset "$body"
     ;;
   set)
-    (( $# == 4 )) || usage
-    body="$(patch_body "$2" "$3" "$4")"
+    if (( $# == 3 )); then
+      body="$(global_patch_body "$2" "$3")"
+    elif (( $# == 4 )); then
+      body="$(patch_body "$2" "$3" "$4")"
+    else
+      usage
+    fi
     control_request PATCH /config "$body"
     ;;
   do)
