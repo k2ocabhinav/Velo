@@ -7,6 +7,7 @@ import com.velo.platform.entities.Ride;
 import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.Rider;
 import com.velo.platform.entities.User;
+import com.velo.platform.entities.enums.DriverOnboardingStatus;
 import com.velo.platform.entities.enums.PaymentMethod;
 import com.velo.platform.entities.enums.Role;
 import com.velo.platform.repositories.DriverRepository;
@@ -77,6 +78,7 @@ class DriverControllerIntegrationTest {
         testDriver.setAvailable(true);
         testDriver.setRating(5.0);
         testDriver.setVehicleId("KA01AB1234");
+        testDriver.setOnboardingStatus(DriverOnboardingStatus.APPROVED);
         testDriver = driverRepository.save(testDriver);
 
         User riderUser = new User();
@@ -232,6 +234,33 @@ class DriverControllerIntegrationTest {
                                 """)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error.message").value("Cannot go offline with active rides. Please complete or cancel active rides first."));
+    }
+
+    @Test
+    @DisplayName("PUT /drivers/availability should reject going online for a pending driver")
+    void toggleAvailability_WhenDriverPending_ShouldReturnConflict() throws Exception {
+        testDriver.setOnboardingStatus(DriverOnboardingStatus.PENDING);
+        testDriver.setAvailable(false);
+        driverRepository.save(testDriver);
+
+        mockMvc.perform(withDriverAuth(put("/drivers/availability")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "available": true
+                                }
+                                """)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.message").value(org.hamcrest.Matchers.containsString("not approved")));
+    }
+
+    @Test
+    @DisplayName("PUT /drivers/availability should reject a non-numeric request body cleanly")
+    void toggleAvailability_WithMalformedBody_ShouldReturnBadRequest() throws Exception {
+        mockMvc.perform(withDriverAuth(put("/drivers/availability")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{ not json")))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

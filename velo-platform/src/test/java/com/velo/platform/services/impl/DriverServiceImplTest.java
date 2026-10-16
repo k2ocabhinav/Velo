@@ -13,6 +13,7 @@ import com.velo.platform.entities.RideOffer;
 import com.velo.platform.entities.RideRequest;
 import com.velo.platform.entities.Rider;
 import com.velo.platform.entities.User;
+import com.velo.platform.entities.enums.DriverOnboardingStatus;
 import com.velo.platform.entities.enums.RideOfferStatus;
 import com.velo.platform.entities.enums.PaymentMethod;
 import com.velo.platform.entities.enums.RideRequestStatus;
@@ -131,6 +132,7 @@ class DriverServiceImplTest {
                 .vehicleId("VEH123")
                 .rating(4.5)
                 .available(true)
+                .onboardingStatus(DriverOnboardingStatus.APPROVED)
                 .build();
 
         testRideRequest = RideRequest.builder()
@@ -575,6 +577,49 @@ class DriverServiceImplTest {
                 .hasMessageContaining("Cannot go offline with active rides");
 
         verify(driverRepository, never()).updateAvailabilityById(anyLong(), anyBoolean());
+        verify(driverRepository, never()).save(any(Driver.class));
+    }
+
+    @Test
+    @DisplayName("Accept ride should be rejected for a driver that is not approved")
+    void acceptRide_WhenDriverNotApproved_ShouldThrowException() {
+        mockAuthenticatedDriver();
+        testDriver.setOnboardingStatus(DriverOnboardingStatus.PENDING);
+
+        assertThatThrownBy(() -> driverService.acceptRide(1L))
+                .isInstanceOf(RuntimeConflictException.class)
+                .hasMessageContaining("not approved");
+
+        verify(rideRequestRepository, never()).compareAndSetStatus(anyLong(), anyLong(), any(), any());
+    }
+
+    @Test
+    @DisplayName("Going online should be rejected for a driver that is not approved")
+    void updateDriverAvailability_WhenDriverNotApproved_ShouldThrowException() {
+        mockAuthenticatedDriver();
+        testDriver.setAvailable(false);
+        testDriver.setOnboardingStatus(DriverOnboardingStatus.PENDING);
+
+        assertThatThrownBy(() -> driverService.updateDriverAvailability(true))
+                .isInstanceOf(RuntimeConflictException.class)
+                .hasMessageContaining("not approved");
+
+        verify(driverRepository, never()).updateAvailabilityById(anyLong(), anyBoolean());
+    }
+
+    @Test
+    @DisplayName("Publishing location should be rejected for a driver that is not approved")
+    void updateDriverLocation_WhenDriverNotApproved_ShouldThrowException() {
+        mockAuthenticatedDriver();
+        testDriver.setOnboardingStatus(DriverOnboardingStatus.SUSPENDED);
+        DriverLocationUpdateRequestDto request = new DriverLocationUpdateRequestDto();
+        request.setLat(12.9716);
+        request.setLng(77.5946);
+
+        assertThatThrownBy(() -> driverService.updateDriverLocation(request))
+                .isInstanceOf(RuntimeConflictException.class)
+                .hasMessageContaining("not approved");
+
         verify(driverRepository, never()).save(any(Driver.class));
     }
 
