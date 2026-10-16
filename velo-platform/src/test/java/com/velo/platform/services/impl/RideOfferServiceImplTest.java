@@ -12,6 +12,7 @@ import com.velo.platform.repositories.RideOfferRepository;
 import com.velo.platform.repositories.RideRequestRepository;
 import com.velo.platform.services.NotificationService;
 import com.velo.platform.services.RideRealtimeService;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -42,6 +43,9 @@ class RideOfferServiceImplTest {
     @Mock
     private RideRealtimeService rideRealtimeService;
 
+    @Mock
+    private EntityManager entityManager;
+
     private DispatchProperties dispatchProperties;
     private RideOfferServiceImpl rideOfferService;
 
@@ -53,7 +57,8 @@ class RideOfferServiceImplTest {
                 rideRequestRepository,
                 notificationService,
                 rideRealtimeService,
-                dispatchProperties
+                dispatchProperties,
+                entityManager
         );
     }
 
@@ -130,9 +135,16 @@ class RideOfferServiceImplTest {
 
         when(rideOfferRepository.findByStatusAndExpiresAtLessThanEqual(eq(RideOfferStatus.OFFERED), any(LocalDateTime.class)))
                 .thenReturn(List.of(stale));
-        when(rideOfferRepository.existsByRideRequestIdAndStatus(301L, RideOfferStatus.OFFERED)).thenReturn(false);
-        when(rideOfferRepository.existsByRideRequestIdAndStatus(301L, RideOfferStatus.ACCEPTED)).thenReturn(false);
-        when(rideRequestRepository.save(rideRequest)).thenReturn(rideRequest);
+        when(rideOfferRepository.expireIfStillOffered(
+                eq(501L), eq(RideOfferStatus.OFFERED), eq(RideOfferStatus.EXPIRED),
+                any(LocalDateTime.class), eq("Offer timed out."))).thenReturn(1);
+        when(rideRequestRepository.expirePendingIfNoOpenOffers(
+                301L, RideRequestStatus.PENDING, RideRequestStatus.EXPIRED,
+                RideOfferStatus.OFFERED, RideOfferStatus.ACCEPTED)).thenReturn(1);
+        doAnswer(invocation -> {
+            rideRequest.setRideRequestStatus(RideRequestStatus.EXPIRED);
+            return null;
+        }).when(entityManager).refresh(rideRequest);
 
         int expired = rideOfferService.expireStaleOffers();
 
@@ -140,5 +152,27 @@ class RideOfferServiceImplTest {
         assertThat(rideRequest.getRideRequestStatus()).isEqualTo(RideRequestStatus.EXPIRED);
         verify(rideRealtimeService).publishRideRequestPending(rideRequest);
         verify(notificationService, atLeast(1)).createNotification(any(), anyString(), anyString(), any(), any());
+    }
+
+    @Test
+    @DisplayName("expireStaleOffers skips offers accepted while the sweep is running")
+    void expireStaleOffers_SkipsConcurrentlyAcceptedOffer() {
+        RideOffer stale = RideOffer.builder()
+                .id(502L)
+                .status(RideOfferStatus.OFFERED)
+                .expiresAt(LocalDateTime.now().minusSeconds(1))
+                .build();
+        when(rideOfferRepository.findByStatusAndExpiresAtLessThanEqual(eq(RideOfferStatus.OFFERED), any(LocalDateTime.class)))
+                .thenReturn(List.of(stale));
+        when(rideOfferRepository.expireIfStillOffered(
+                eq(502L), eq(RideOfferStatus.OFFERED), eq(RideOfferStatus.EXPIRED),
+                any(LocalDateTime.class), eq("Offer timed out."))).thenReturn(0);
+
+        int expired = rideOfferService.expireStaleOffers();
+
+        assertThat(expired).isZero();
+        verify(rideRequestRepository, never()).expirePendingIfNoOpenOffers(
+                any(), any(), any(), any(), any());
+        verifyNoInteractions(notificationService, rideRealtimeService, entityManager);
     }
 }

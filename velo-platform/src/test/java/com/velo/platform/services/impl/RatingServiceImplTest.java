@@ -94,6 +94,7 @@ class RatingServiceImplTest {
 
         when(ratingRepository.findByRide(testRide)).thenReturn(Optional.of(ratingWithDriverRating));
         when(ratingRepository.findByDriver(testDriver)).thenReturn(List.of(
+                Rating.builder().driverRating(null).build(),
                 Rating.builder().driverRating(4).build(),
                 Rating.builder().driverRating(5).build()
         ));
@@ -155,6 +156,7 @@ class RatingServiceImplTest {
 
         when(ratingRepository.findByRide(testRide)).thenReturn(Optional.of(ratingWithRiderRating));
         when(ratingRepository.findByRider(testRider)).thenReturn(List.of(
+                Rating.builder().riderRating(null).build(),
                 Rating.builder().riderRating(4).build(),
                 Rating.builder().riderRating(5).build()
         ));

@@ -223,6 +223,32 @@ class RiderControllerIntegrationTest {
     }
 
     @Test
+    @DisplayName("Rating a driver ignores unrated rides when calculating the average")
+    void rateDriver_WithRatedAndUnratedRides_ShouldReturnOk() throws Exception {
+        Ride priorRide = rideRepository.save(Ride.builder()
+                .rider(testRider)
+                .driver(testDriver)
+                .rideStatus(com.velo.platform.entities.enums.RideStatus.ENDED)
+                .paymentMethod(PaymentMethod.CASH)
+                .fare(BigDecimal.valueOf(100.0))
+                .otp("6789")
+                .startedAt(LocalDateTime.now().minusHours(2))
+                .endedAt(LocalDateTime.now().minusHours(1))
+                .build());
+        ratingRepository.save(Rating.builder()
+                .ride(priorRide)
+                .driver(testDriver)
+                .rider(testRider)
+                .driverRating(4)
+                .build());
+
+        mockMvc.perform(withRiderAuth(post("/riders/rateDriver/" + endedRide.getId() + "/5")))
+                .andExpect(status().isOk());
+
+        assertThat(driverRepository.findById(testDriver.getId()).orElseThrow().getRating()).isEqualTo(4.5);
+    }
+
+    @Test
     @DisplayName("POST /riders/rateDriver rejects ratings above five")
     void rateDriver_ShouldRejectOutOfRangeRating() throws Exception {
         mockMvc.perform(withRiderAuth(post("/riders/rateDriver")

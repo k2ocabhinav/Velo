@@ -4,6 +4,7 @@ import com.velo.platform.entities.RideOffer;
 import com.velo.platform.entities.enums.RideOfferStatus;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -34,7 +35,27 @@ public interface RideOfferRepository extends JpaRepository<RideOffer, Long> {
     @EntityGraph(attributePaths = {"driver.user"})
     List<RideOffer> findByRideRequestIdAndTenantIdOrderByOfferedAtDesc(Long rideRequestId, Long tenantId);
 
+    @EntityGraph(attributePaths = {"driver.user", "rideRequest.rider.user"})
     List<RideOffer> findByStatusAndExpiresAtLessThanEqual(RideOfferStatus status, LocalDateTime cutoff);
+
+    @Modifying(flushAutomatically = true)
+    @Query("""
+            update RideOffer offer
+            set offer.status = :expiredStatus,
+                offer.resolvedAt = :resolvedAt,
+                offer.resolutionReason = :reason,
+                offer.version = offer.version + 1
+            where offer.id = :offerId
+              and offer.status = :offeredStatus
+              and offer.expiresAt <= :resolvedAt
+            """)
+    int expireIfStillOffered(
+            @Param("offerId") Long offerId,
+            @Param("offeredStatus") RideOfferStatus offeredStatus,
+            @Param("expiredStatus") RideOfferStatus expiredStatus,
+            @Param("resolvedAt") LocalDateTime resolvedAt,
+            @Param("reason") String reason
+    );
 
     boolean existsByRideRequestId(Long rideRequestId);
 

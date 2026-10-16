@@ -26,9 +26,11 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
@@ -37,6 +39,8 @@ import java.util.function.Supplier;
 public class NominatimGeocodingService implements GeocodingService {
     private static final int SEARCH_LIMIT = 6;
     private static final int MAX_MEMORY_CACHE_ENTRIES = 10_000;
+    private static final double LOCAL_RADIUS_KM = 60.0;
+    private static final double KM_PER_DEGREE_LATITUDE = 111.32;
     private static final TypeReference<List<GeocodingResultDto>> RESULTS_TYPE = new TypeReference<>() { };
 
     private final GeocodingProperties properties;
@@ -63,17 +67,29 @@ public class NominatimGeocodingService implements GeocodingService {
     }
 
     private List<GeocodingResultDto> fetchSearch(String query, String near) {
-        String searchQuery = isCoordinateNear(near) || near == null || near.isBlank()
+        GeoPoint anchor = resolveAnchor(near).orElse(null);
+        String searchQuery = anchor != null || near == null || near.isBlank()
                 ? query
                 : query + ", " + near.trim();
+        if (anchor != null) {
+            List<GeocodingResultDto> localResults = fetchSearch(searchQuery, anchor, true);
+            if (!localResults.isEmpty()) {
+                return rankByDistance(localResults, anchor, isGenericAirportSearch(query));
+            }
+            return rankByDistance(fetchSearch(searchQuery, anchor, false), anchor, false);
+        }
+        return fetchSearch(searchQuery, null, false);
+    }
+
+    private List<GeocodingResultDto> fetchSearch(String query, GeoPoint anchor, boolean bounded) {
         UriComponentsBuilder uri = UriComponentsBuilder.fromUriString(properties.getBaseUrl())
                 .path("/search")
                 .queryParam("format", "jsonv2")
-                .queryParam("q", searchQuery)
+                .queryParam("q", query)
                 .queryParam("limit", SEARCH_LIMIT)
                 .queryParam("addressdetails", 1);
         addCountryBias(uri);
-        addNearBias(uri, near);
+        addViewbox(uri, anchor, bounded);
         addProviderEmail(uri);
 
         JsonNode response = get(uri.build().encode().toUri());
@@ -88,6 +104,126 @@ public class NominatimGeocodingService implements GeocodingService {
             }
         }
         return results;
+    }
+
+    private Optional<GeoPoint> resolveAnchor(String near) {
+        Optional<GeoPoint> parsed = parseCoordinates(near);
+        if (parsed.isPresent()) {
+            return parsed;
+        }
+        if (near != null && !near.isBlank()) {
+            String normalized = near.trim().replaceAll("\\s+", " ");
+            List<GeocodingResultDto> matches = cached(
+                    cacheKey("near", properties.getBaseUrl(), properties.getCountryBias(), normalized.toLowerCase()),
+                    RESULTS_TYPE,
+                    () -> fetchNear(normalized));
+            if (!matches.isEmpty()) {
+                GeocodingResultDto result = matches.getFirst();
+                return Optional.of(new GeoPoint(result.lat(), result.lon()));
+            }
+        }
+        return serviceAreaPoint();
+    }
+
+    private List<GeocodingResultDto> fetchNear(String query) {
+        UriComponentsBuilder uri = UriComponentsBuilder.fromUriString(properties.getBaseUrl())
+                .path("/search")
+                .queryParam("format", "jsonv2")
+                .queryParam("q", query)
+                .queryParam("limit", 1)
+                .queryParam("addressdetails", 0);
+        addCountryBias(uri);
+        addProviderEmail(uri);
+
+        JsonNode response = get(uri.build().encode().toUri());
+        if (response == null || !response.isArray()) {
+            throw new GeocodingUnavailableException();
+        }
+        List<GeocodingResultDto> results = new ArrayList<>(1);
+        for (JsonNode result : response) {
+            GeocodingResultDto mapped = mapResult(result);
+            if (mapped != null) {
+                results.add(mapped);
+            }
+        }
+        return results;
+    }
+
+    private Optional<GeoPoint> parseCoordinates(String near) {
+        if (near == null || near.isBlank()) {
+            return Optional.empty();
+        }
+        String[] coordinates = near.split(",");
+        if (coordinates.length != 2) {
+            return Optional.empty();
+        }
+        try {
+            double latitude = Double.parseDouble(coordinates[0].trim());
+            double longitude = Double.parseDouble(coordinates[1].trim());
+            if (latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180) {
+                return Optional.of(new GeoPoint(latitude, longitude));
+            }
+        } catch (NumberFormatException ignored) {
+            // A named near value is resolved as a place below.
+        }
+        return Optional.empty();
+    }
+
+    private Optional<GeoPoint> serviceAreaPoint() {
+        Double latitude = properties.getServiceAreaLatitude();
+        Double longitude = properties.getServiceAreaLongitude();
+        if (latitude == null || longitude == null
+                || !Double.isFinite(latitude) || !Double.isFinite(longitude)
+                || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+            return Optional.empty();
+        }
+        return Optional.of(new GeoPoint(latitude, longitude));
+    }
+
+    private void addViewbox(UriComponentsBuilder uri, GeoPoint anchor, boolean bounded) {
+        if (anchor == null) {
+            return;
+        }
+        double latitudeRadius = LOCAL_RADIUS_KM / KM_PER_DEGREE_LATITUDE;
+        double longitudeRadius = Math.min(180.0, LOCAL_RADIUS_KM
+                / (KM_PER_DEGREE_LATITUDE * Math.max(0.01, Math.cos(Math.toRadians(anchor.latitude())))));
+        uri.queryParam("viewbox", String.format(java.util.Locale.ROOT, "%.5f,%.5f,%.5f,%.5f",
+                anchor.longitude() - longitudeRadius,
+                anchor.latitude() + latitudeRadius,
+                anchor.longitude() + longitudeRadius,
+                anchor.latitude() - latitudeRadius));
+        uri.queryParam("bounded", bounded ? 1 : 0);
+    }
+
+    private List<GeocodingResultDto> rankByDistance(
+            List<GeocodingResultDto> results,
+            GeoPoint anchor,
+            boolean preferInternationalAirport) {
+        return results.stream()
+                .sorted(Comparator
+                        .comparingInt((GeocodingResultDto result) -> preferInternationalAirport
+                                && isInternationalAirport(result) ? 0 : 1)
+                        .thenComparingDouble(result -> distanceKm(anchor, result.lat(), result.lon())))
+                .toList();
+    }
+
+    private boolean isGenericAirportSearch(String query) {
+        return "airport".equalsIgnoreCase(query.trim());
+    }
+
+    private boolean isInternationalAirport(GeocodingResultDto result) {
+        return result.label() != null
+                && result.label().toLowerCase(java.util.Locale.ROOT).contains("international airport");
+    }
+
+    private double distanceKm(GeoPoint anchor, double latitude, double longitude) {
+        double lat1 = Math.toRadians(anchor.latitude());
+        double lat2 = Math.toRadians(latitude);
+        double deltaLat = lat2 - lat1;
+        double deltaLon = Math.toRadians(longitude - anchor.longitude());
+        double haversine = Math.pow(Math.sin(deltaLat / 2), 2)
+                + Math.cos(lat1) * Math.cos(lat2) * Math.pow(Math.sin(deltaLon / 2), 2);
+        return 2 * 6371.0088 * Math.asin(Math.sqrt(Math.min(1, haversine)));
     }
 
     private GeocodingResultDto fetchReverse(double latitude, double longitude) {
@@ -131,44 +267,6 @@ public class NominatimGeocodingService implements GeocodingService {
     private void addCountryBias(UriComponentsBuilder uri) {
         if (properties.getCountryBias() != null && !properties.getCountryBias().isBlank()) {
             uri.queryParam("countrycodes", properties.getCountryBias().trim().toLowerCase());
-        }
-    }
-
-    private void addNearBias(UriComponentsBuilder uri, String near) {
-        if (near == null || near.isBlank()) {
-            return;
-        }
-        String[] coordinates = near.split(",");
-        if (coordinates.length == 2) {
-            try {
-                double latitude = Double.parseDouble(coordinates[0].trim());
-                double longitude = Double.parseDouble(coordinates[1].trim());
-                if (latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180) {
-                    double radius = 0.15;
-                    uri.queryParam("viewbox", String.format(java.util.Locale.ROOT, "%.5f,%.5f,%.5f,%.5f",
-                            longitude - radius, latitude + radius, longitude + radius, latitude - radius));
-                    return;
-                }
-            } catch (NumberFormatException ignored) {
-                // A place name is still useful as textual search context below.
-            }
-        }
-    }
-
-    private boolean isCoordinateNear(String near) {
-        if (near == null) {
-            return false;
-        }
-        String[] coordinates = near.split(",");
-        if (coordinates.length != 2) {
-            return false;
-        }
-        try {
-            double latitude = Double.parseDouble(coordinates[0].trim());
-            double longitude = Double.parseDouble(coordinates[1].trim());
-            return latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180;
-        } catch (NumberFormatException ignored) {
-            return false;
         }
     }
 
@@ -254,11 +352,12 @@ public class NominatimGeocodingService implements GeocodingService {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             String input = String.join("|", parts);
-            return "velo:geo:v5:" + HexFormat.of().formatHex(digest.digest(input.getBytes(StandardCharsets.UTF_8)));
+            return "velo:geo:v6:" + HexFormat.of().formatHex(digest.digest(input.getBytes(StandardCharsets.UTF_8)));
         } catch (NoSuchAlgorithmException exception) {
             throw new IllegalStateException("SHA-256 is not available", exception);
         }
     }
 
     private record CachedValue(String json, Instant expiresAt) { }
+    private record GeoPoint(double latitude, double longitude) { }
 }

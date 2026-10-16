@@ -33,6 +33,7 @@ import java.util.Set;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -154,6 +155,32 @@ class DriverControllerIntegrationTest {
         mockMvc.perform(withDriverAuth(post("/drivers/rateRider/" + endedRide.getId() + "/5")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.user.email").value("rider@test.com"));
+    }
+
+    @Test
+    @DisplayName("Rating a rider ignores unrated rides when calculating the average")
+    void rateRider_WithRatedAndUnratedRides_ShouldReturnOk() throws Exception {
+        Ride priorRide = rideRepository.save(Ride.builder()
+                .rider(testRider)
+                .driver(testDriver)
+                .rideStatus(com.velo.platform.entities.enums.RideStatus.ENDED)
+                .paymentMethod(PaymentMethod.CASH)
+                .fare(BigDecimal.valueOf(100.0))
+                .otp("6789")
+                .startedAt(LocalDateTime.now().minusHours(2))
+                .endedAt(LocalDateTime.now().minusHours(1))
+                .build());
+        ratingRepository.save(Rating.builder()
+                .ride(priorRide)
+                .driver(testDriver)
+                .rider(testRider)
+                .riderRating(4)
+                .build());
+
+        mockMvc.perform(withDriverAuth(post("/drivers/rateRider/" + endedRide.getId() + "/5")))
+                .andExpect(status().isOk());
+
+        assertThat(riderRepository.findById(testRider.getId()).orElseThrow().getRating()).isEqualTo(4.5);
     }
 
     @Test

@@ -219,12 +219,16 @@ describe("control actions execute against simulator bots and APIs", () => {
     await harness.executor.execute("driver-offline", { tenant: "default", driver: "driver1" });
     expect(harness.driver.state).toBe("waiting");
     expect(harness.driverApi.calls).not.toContain("unavailable");
+    const onlineResult = await harness.executor.execute("driver-online", { tenant: "default", driver: "driver1" });
+    expect(onlineResult.summary).toBe("Cancelled Arjun Rao's pending offline request; they will stay online after the active ride.");
+    expect(harness.driver.wantsOnline).toBe(true);
+    expect(harness.driver.state).toBe("waiting");
     const driverCancel = await harness.executor.execute("driver-cancel", { tenant: "default", rideId: 91 });
     expect(driverCancel.refs).toEqual({ rideId: 91 });
     expect(harness.driverApi.calls).toContain("cancel 91");
     harness.driverApi.finishStart();
     await rideInProgress;
-    expect(harness.driverApi.calls).toContain("unavailable");
+    expect(harness.driverApi.calls).not.toContain("unavailable");
     await harness.close();
   });
 
