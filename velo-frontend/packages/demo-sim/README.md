@@ -18,7 +18,7 @@ The simulator can also be started directly from this package:
 VELO_SIM_ALLOW=1 node src/main.ts --api http://localhost:8080 --control-port 8790 --speed 8
 ```
 
-Options are `--api`, `--control-port`, `--seed`, `--speed` (1–20), `--paused`, `--state-file`, and `--tenants` (`default,saffron-routes`). Use `node src/main.ts --help` for the defaults. `./scripts/demo-down.sh` stops the simulator first and keeps its persisted configuration for the next launch.
+Options are `--api`, `--control-port`, `--seed`, `--speed` (1–20), `--paused`, `--state-file`, and `--tenants` (`default,saffron-routes`). Use `node src/main.ts --help` for the defaults. Because the persisted configuration is restored on the next launch, `--speed`, `--paused`, and `--seed` apply only when no state file exists (a first run, or after deleting `.demo-runtime/sim-state.json`). `./scripts/demo-down.sh` stops the simulator first and keeps its persisted configuration for the next launch.
 
 ## Control panel and CLI
 
@@ -34,12 +34,13 @@ Open the panel with `./scripts/demo-sim.sh open` or visit the printed loopback U
 ./scripts/demo-sim.sh set default requestIntervalSec 0
 ./scripts/demo-sim.sh set default pickupWaitSec '[15,30]'
 ./scripts/demo-sim.sh set default hotspots '["kia-t1","itc-gardenia"]'
+./scripts/demo-sim.sh set speedFactor 12
 ./scripts/demo-sim.sh do request-trip default from=itc-gardenia to=kia-t1
 ./scripts/demo-sim.sh do burst saffron-routes count=3 near=oberoi
 ./scripts/demo-sim.sh do decline-next default count=1
 ```
 
-`set` accepts global keys `paused`, `speedFactor`, and `seed`, plus tenant keys `onlineDrivers` (0–6), `requestIntervalSec` (0 or 10–900), `airportShare` (0–1), `declineProbability` (0–1), `pickupWaitSec` ([min,max], 5–300 seconds), `idleRepositionProbability` (0–1), and `hotspots` (JSON array of POI ids). Config changes apply immediately and persist atomically to `.demo-runtime/sim-state.json` across `demo-down` and `demo-up`.
+`set` takes a tenant for tenant keys (`set <tenant> <key> <value>`) and no tenant for the global keys `paused`, `speedFactor`, and `seed` (`set <key> <value>`). Tenant keys are `onlineDrivers` (0–6), `requestIntervalSec` (0 or 10–900), `airportShare` (0–1), `declineProbability` (0–1), `pickupWaitSec` ([min,max], 5–300 seconds), `idleRepositionProbability` (0–1), and `hotspots` (JSON array of POI ids). Config changes apply immediately and persist atomically to `.demo-runtime/sim-state.json` across `demo-down` and `demo-up`.
 
 Presets can target one tenant or both: `quiet` keeps two drivers online and disables automatic requests; `steady` restores the baseline; `busy` uses the full fleet with a 25-second mean request interval; `airport-rush` weights airport trips and hotspots. Steady and busy bias automatic trips toward city routes under 15 km with catalogue estimates under 12 minutes, starting near an idle city driver when possible. Airport-rush keeps an 80% airport share.
 

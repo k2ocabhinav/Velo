@@ -14,7 +14,7 @@ afterEach(async () => {
 });
 
 describe("demo simulator error feedback", () => {
-  it("prints control API errors to stderr and exits non-zero", async () => {
+  async function scratchRuntime(fakeCurlBody: string) {
     const directory = await mkdtemp(join(tmpdir(), "demo-sim-cli-"));
     temporaryDirectories.push(directory);
     const scriptsDirectory = join(directory, "scripts");
@@ -29,19 +29,53 @@ describe("demo simulator error feedback", () => {
     await symlink(demoSimScript, scriptLink);
     await writeFile(join(runtimeDirectory, "sim.port"), "8795\n");
     const fakeCurl = join(binaryDirectory, "curl");
-    await writeFile(fakeCurl, "#!/bin/sh\nprintf '%s\\n%s' '{\"error\":\"No idle simulated rider is available.\"}' '409'\n");
+    await writeFile(fakeCurl, fakeCurlBody);
     await chmod(fakeCurl, 0o755);
+    const capturePath = join(directory, "curl-args.txt");
+    return { directory, scriptLink, binaryDirectory, capturePath };
+  }
 
-    const result = spawnSync("bash", [scriptLink, "do", "request-trip"], {
-      cwd: directory,
-      env: { ...process.env, PATH: `${binaryDirectory}:${process.env.PATH ?? ""}` },
+  function runScript(setup: Awaited<ReturnType<typeof scratchRuntime>>, args: string[]) {
+    return spawnSync("bash", [setup.scriptLink, ...args], {
+      cwd: setup.directory,
+      env: { ...process.env, PATH: `${setup.binaryDirectory}:${process.env.PATH ?? ""}`, CAPTURE: setup.capturePath },
       encoding: "utf8",
     });
+  }
+
+  it("prints control API errors to stderr and exits non-zero", async () => {
+    const setup = await scratchRuntime(
+      "#!/bin/sh\nprintf '%s\\n%s' '{\"error\":\"No idle simulated rider is available.\"}' '409'\n",
+    );
+
+    const result = runScript(setup, ["do", "request-trip"]);
 
     expect(result.status).not.toBe(0);
     expect(result.stdout).toBe("");
     expect(result.stderr).toContain("HTTP 409");
     expect(result.stderr).toContain("No idle simulated rider is available.");
+  });
+
+  it("sets a global key without a tenant argument", async () => {
+    const setup = await scratchRuntime(
+      "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$CAPTURE\"\nprintf '%s\\n%s' '{\"config\":{},\"changed\":[\"speedFactor\"]}' '200'\n",
+    );
+
+    const result = runScript(setup, ["set", "speedFactor", "12"]);
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    const captured = await readFile(setup.capturePath, "utf8");
+    expect(captured).toContain('{"speedFactor":12}');
+  });
+
+  it("rejects a tenant key without a tenant argument", async () => {
+    const setup = await scratchRuntime("#!/bin/sh\nexit 0\n");
+
+    const result = runScript(setup, ["set", "onlineDrivers", "2"]);
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("tenant key");
   });
 
   it("surfaces the API error message in an accessible error toast", async () => {
