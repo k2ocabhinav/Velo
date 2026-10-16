@@ -13,6 +13,7 @@ import com.velo.platform.entities.enums.PaymentMethod;
 import com.velo.platform.services.DistanceService;
 import com.velo.platform.services.PromoCodeService;
 import com.velo.platform.services.RiderService;
+import com.velo.platform.services.TenantTariffService;
 import com.velo.platform.services.WalletService;
 import com.velo.platform.strategies.RideFareCalculationStrategy;
 import com.velo.platform.strategies.RideStrategyManager;
@@ -55,6 +56,9 @@ class FareEstimationServiceImplTest {
     @Mock
     private WalletService walletService;
 
+    @Mock
+    private TenantTariffService tenantTariffService;
+
     private FareConfig fareConfig;
     private ModelMapper modelMapper;
     private FareEstimationServiceImpl fareEstimationService;
@@ -72,7 +76,7 @@ class FareEstimationServiceImplTest {
         modelMapper = new com.velo.platform.configs.MapperConfig().modelMapper();
         fareEstimationService = new FareEstimationServiceImpl(
                 distanceService, rideStrategyManager, promoCodeService, 
-                riderService, walletService, fareConfig, modelMapper);
+                riderService, walletService, fareConfig, tenantTariffService, modelMapper);
         
         requestDto = new FareEstimateRequestDto();
         requestDto.setPickupLocation(new PointDto(new double[]{77.123, 28.123}));
@@ -81,6 +85,8 @@ class FareEstimationServiceImplTest {
         
         testUser = User.builder().id(1L).build();
         testRider = Rider.builder().id(1L).user(testUser).build();
+        when(tenantTariffService.findForTenant(1L)).thenReturn(new TenantTariffService.Tariff(
+                BigDecimal.valueOf(5.0), BigDecimal.valueOf(2.0), BigDecimal.ZERO.setScale(2)));
     }
 
     @Test

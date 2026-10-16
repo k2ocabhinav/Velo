@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -30,6 +31,27 @@ public class Tenant {
     @Column(nullable = false)
     @Builder.Default
     private Boolean active = true;
+
+    @Builder.Default
+    @Column(name = "base_fare", nullable = false, precision = 12, scale = 2)
+    private BigDecimal baseFare = new BigDecimal("5.00");
+
+    @Builder.Default
+    @Column(name = "per_km_rate", nullable = false, precision = 12, scale = 2)
+    private BigDecimal perKmRate = new BigDecimal("2.00");
+
+    @Builder.Default
+    @Column(name = "minimum_fare", nullable = false, precision = 12, scale = 2)
+    private BigDecimal minimumFare = BigDecimal.ZERO;
+
+    @Column(name = "service_area_latitude")
+    private Double serviceAreaLatitude;
+
+    @Column(name = "service_area_longitude")
+    private Double serviceAreaLongitude;
+
+    @Column(name = "service_area_radius_km")
+    private Double serviceAreaRadiusKm;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)

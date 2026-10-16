@@ -52,6 +52,7 @@ Small, reversible choices do not need a record.
 | [0023](0023-recurring-trip-templates.md) | Recurring trip templates materialised ahead | Accepted | 2026-10-15 |
 | [0024](0024-demo-fleet-simulator-and-live-dispatch-map.md) | Demo fleet simulator and live dispatch map | Accepted | 2026-10-15 |
 | [0025](0025-stomp-user-destination-email.md) | STOMP user destinations are keyed by email | Accepted | 2026-10-15 |
+| [0026](0026-tenant-tariffs-and-service-areas.md) | Tenant tariffs and service areas | Accepted | 2026-10-16 |
 
 `0000-template.md` is the template and is intentionally not indexed.
 

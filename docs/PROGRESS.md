@@ -49,6 +49,9 @@
 - [x] Rider live trip updates delivered over WebSocket (principal fix, decision 0025)
 - [x] Demo polish: single request countdown, driver name on profile, operator-style audit seed text, rounded distance, plurals; demo seed fixtures repaired
 
+### Tenant commercial settings (V14)
+- [x] Per-tenant fare tariffs and geocoder service areas; Saffron demo money fixtures follow INR rates (decision 0026)
+
 ### After program acceptance (parked; depth features)
 - Corporate accounts + contract tariffs + monthly statements; driver/vehicle document readiness + incidents; DPDP features (consent, export/deletion, retention); PWA + web push; OSRM road-based ETA dispatch; Hindi localization
 - [ ] Apply Terraform — deferred: no AWS account or budget; demos run locally (see research for $0 options)
