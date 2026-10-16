@@ -862,9 +862,13 @@ export default function RiderHomePage() {
             </div>
           </section>
         ) : shouldPromptRating(tripLane) ? (
-          <section className="trip-banner" aria-label={`Rate your last ${words.tripWord}`}>
+          <section
+            className="rate-trip-prompt"
+            data-testid="rate-last-trip"
+            aria-label={`Rate your last ${words.tripWord}`}
+          >
             <div className="trip-banner-copy">
-              <strong>{`Rate your last ${words.tripWord}`}</strong>
+              <h2 className="rate-trip-prompt-title">{`Rate your last ${words.tripWord}`}</h2>
               <p>{`Tell us how your ${words.tripWord} with the ${words.driverWord} went.`}</p>
             </div>
             <div className="trip-banner-actions">
