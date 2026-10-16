@@ -90,14 +90,16 @@ public class TenantConfigurationServiceImpl implements TenantConfigurationServic
     }
 
     private TenantBrandingDto toDto(TenantConfiguration config) {
+        Tenant tenant = config.getTenant();
         return TenantBrandingDto.builder()
-                .tenantId(config.getTenant().getId())
+                .tenantId(tenant.getId())
                 .brandName(config.getBrandName())
                 .primaryColor(config.getPrimaryColor())
                 .logoUrl(config.getLogoUrl())
                 .riderLabel(config.getRiderLabel())
                 .driverLabel(config.getDriverLabel())
                 .tripLabel(config.getTripLabel())
+                .timeZone(tenant.getTimeZone())
                 .currency(config.getCurrency())
                 .dispatchMode(config.getDispatchMode())
                 .riderPortalEnabled(config.getDispatchMode() != DispatchMode.DELIVERY_MERCHANT)

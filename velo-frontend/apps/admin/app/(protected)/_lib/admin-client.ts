@@ -1,6 +1,7 @@
 "use client";
 
 import { requestAdminProxy } from "./http";
+import type { ISODateTime } from "@velo/api";
 
 export type ApiPage<T> = {
   content: T[];
@@ -73,6 +74,7 @@ export type BrandingSettings = {
   riderLabel: string;
   driverLabel: string;
   tripLabel: string;
+  timeZone: string;
   currency: string;
   dispatchMode: "RIDE_HAILING" | "DELIVERY_MERCHANT" | "FLEET_MANAGED";
   riderPortalEnabled: boolean;
@@ -82,7 +84,7 @@ export type ScheduledRide = {
   id: number;
   paymentMethod: string;
   fare: number | string;
-  scheduledTime: string;
+  scheduledTime: ISODateTime;
   status: string;
 };
 
@@ -110,7 +112,7 @@ export type TripSheetRiderOption = { riderId: number; name: string; email: strin
 
 export type TripSheetRow = {
   rideRequestId: number;
-  scheduledTime: string;
+  scheduledTime: ISODateTime;
   bookingReference?: string | null;
   riderName?: string | null;
   pickupAddress?: string | null;
@@ -183,7 +185,7 @@ export type AdminPendingRideRequest = {
   externalReference?: string | null;
   status?: string | null;
   fare?: number | string | null;
-  requestedTime?: string | null;
+  requestedTime?: ISODateTime | null;
   offeredDriverCount?: number | null;
 };
 
@@ -195,8 +197,8 @@ export type AdminActiveRide = {
   driverName?: string | null;
   status?: string | null;
   fare?: number | string | null;
-  createdTime?: string | null;
-  startedAt?: string | null;
+  createdTime?: ISODateTime | null;
+  startedAt?: ISODateTime | null;
 };
 
 export type AdminRideOffer = {
@@ -204,9 +206,9 @@ export type AdminRideOffer = {
   driverId?: number | null;
   driverName?: string | null;
   status?: string | null;
-  offeredAt?: string | null;
-  expiresAt?: string | null;
-  resolvedAt?: string | null;
+  offeredAt?: ISODateTime | null;
+  expiresAt?: ISODateTime | null;
+  resolvedAt?: ISODateTime | null;
   resolutionReason?: string | null;
 };
 
@@ -219,7 +221,7 @@ export type AdminDispatchAudit = {
   previousDriverId?: number | null;
   nextDriverId?: number | null;
   reason?: string | null;
-  createdAt?: string | null;
+  createdAt?: ISODateTime | null;
 };
 
 export type AdminOpsHealth = {
@@ -716,7 +718,7 @@ export const adminClient = {
     return requestAdminProxy<BrandingSettings>("api/v1/admin/branding");
   },
 
-  async updateBranding(payload: Omit<BrandingSettings, "tenantId" | "riderPortalEnabled">): Promise<BrandingSettings> {
+  async updateBranding(payload: Omit<BrandingSettings, "tenantId" | "riderPortalEnabled" | "timeZone">): Promise<BrandingSettings> {
     return requestAdminProxy<BrandingSettings>("api/v1/admin/branding", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },

@@ -3,7 +3,7 @@ package com.velo.platform.dto.admin;
 import lombok.Builder;
 import lombok.Data;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Data
 @Builder
@@ -16,5 +16,5 @@ public class AdminDispatchAuditDto {
     private Long previousDriverId;
     private Long nextDriverId;
     private String reason;
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 }

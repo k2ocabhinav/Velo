@@ -8,7 +8,6 @@ import com.velo.platform.entities.User;
 import com.velo.platform.entities.enums.DiscountType;
 import com.velo.platform.exceptions.ResourceNotFoundException;
 import com.velo.platform.exceptions.RuntimeConflictException;
-import com.velo.platform.exceptions.BadRequestException;
 import com.velo.platform.repositories.PromoCodeRepository;
 import com.velo.platform.repositories.PromoCodeUsageRepository;
 import com.velo.platform.services.PromoCodeService;
@@ -41,19 +40,7 @@ public class PromoCodeServiceImpl implements PromoCodeService {
     @Transactional
     public PromoCodeDto createPromoCode(PromoCodeDto promoCodeDto) {
         Long tenantId = currentTenantId();
-        if (promoCodeDto.getCode() == null || promoCodeDto.getCode().isBlank()) {
-            throw new BadRequestException("Promo code is required");
-        }
-        if (promoCodeDto.getDiscountType() == null) {
-            throw new BadRequestException("Discount type is required");
-        }
-        if (promoCodeDto.getDiscountValue() == null || promoCodeDto.getDiscountValue().signum() <= 0) {
-            throw new BadRequestException("Discount value must be greater than zero");
-        }
-        if (promoCodeDto.getStartDate() != null && promoCodeDto.getEndDate() != null
-                && promoCodeDto.getEndDate().isBefore(promoCodeDto.getStartDate())) {
-            throw new BadRequestException("End date must not be before start date");
-        }
+        PromoCodeValidator.validate(promoCodeDto);
         // The schema keeps promo codes globally unique, so check that same key before insert.
         if (promoCodeRepository.existsByCode(promoCodeDto.getCode())) {
             throw new RuntimeConflictException("Promo code already exists: " + promoCodeDto.getCode());
@@ -71,6 +58,7 @@ public class PromoCodeServiceImpl implements PromoCodeService {
     @Override
     @Transactional
     public PromoCodeDto updatePromoCode(Long id, PromoCodeDto promoCodeDto) {
+        PromoCodeValidator.validate(promoCodeDto);
         PromoCode existing = getPromoCodeEntity(id);
 
         // Update fields that are allowed to change

@@ -268,7 +268,8 @@ class RiderServiceImplTest {
 
         RideRequestDto result = riderService.requestRide(testRideRequestDto);
 
-        assertThat(result.getExpiresAt()).isEqualTo(LocalDateTime.of(2026, 10, 16, 10, 1, 30));
+        assertThat(result.getExpiresAt()).isEqualTo(LocalDateTime.of(2026, 10, 16, 10, 1, 30).atOffset(java.time.ZoneOffset.UTC));
+        assertThat(result.getRequestedTime()).isEqualTo(LocalDateTime.of(2026, 10, 16, 10, 0).atOffset(java.time.ZoneOffset.UTC));
     }
 
     @Test

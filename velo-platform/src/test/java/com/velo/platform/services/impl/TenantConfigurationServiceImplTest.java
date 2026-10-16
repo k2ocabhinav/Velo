@@ -32,7 +32,7 @@ class TenantConfigurationServiceImplTest {
 
     @Test
     void adminBrandingSaveEvictsTheTenantPublicCache() {
-        Tenant tenant = Tenant.builder().id(9L).slug("northstar").name("Northstar").build();
+        Tenant tenant = Tenant.builder().id(9L).slug("northstar").name("Northstar").timeZone("Asia/Kolkata").build();
         TenantConfiguration config = TenantConfiguration.builder()
                 .id(12L)
                 .tenant(tenant)
@@ -58,6 +58,7 @@ class TenantConfigurationServiceImplTest {
                 .build());
 
         assertEquals("Northstar Mobility", updated.getBrandName());
+        assertEquals("Asia/Kolkata", updated.getTimeZone());
         verify(tenantBrandingCacheService).evict("northstar");
     }
 }

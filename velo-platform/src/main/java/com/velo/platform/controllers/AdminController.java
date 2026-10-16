@@ -174,8 +174,8 @@ public class AdminController {
     @Operation(summary = "Get driver payouts, optionally filtered by status")
     public ResponseEntity<Page<com.velo.platform.dto.PayoutRequestDto>> getPayouts(
             @RequestParam(required = false) com.velo.platform.entities.enums.PayoutStatus status,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "10") @Min(1) @Max(200) int size) {
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "requestedAt"));
         return ResponseEntity.ok(payoutService.getPayouts(status, pageRequest));
     }

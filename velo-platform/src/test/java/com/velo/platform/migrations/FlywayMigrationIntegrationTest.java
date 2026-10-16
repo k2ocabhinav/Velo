@@ -1,6 +1,7 @@
 package com.velo.platform.migrations;
 
 import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.MigrationVersion;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -14,6 +15,10 @@ import java.sql.Statement;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.data.Offset.offset;
@@ -193,11 +198,74 @@ class FlywayMigrationIntegrationTest {
         assertTenantTariff("default", "5.00", "2.00", "0.00");
     }
 
+    @Test
+    @DisplayName("V16 converts only pre-V15 scheduled requests that are still waiting for dispatch")
+    void v16_shouldConvertPreV15ScheduledInstantsOnly() throws Exception {
+        Flyway throughV14 = newFlyway("classpath:db/migration", schemaName, "14");
+        throughV14.clean();
+        throughV14.migrate();
+
+        long saffronTenantId;
+        long saffronRiderId;
+        long defaultRiderId;
+        long recurringTemplateId;
+        LocalDateTime createdBeforeV15 = LocalDateTime.now().minusDays(1);
+        LocalDateTime manualWallTime = LocalDateTime.now(ZoneOffset.UTC).plusDays(4)
+                .withHour(9).withMinute(0).withSecond(0).withNano(0);
+        LocalDateTime recurringWallTime = manualWallTime.plusDays(1);
+        LocalDateTime pastWallTime = LocalDateTime.now(ZoneOffset.UTC).minusDays(1);
+        LocalDateTime pastInTenantWallTime = LocalDateTime.now(ZoneOffset.UTC).plusHours(2);
+        LocalDateTime utcWallTime = manualWallTime.plusDays(2);
+
+        try (Connection connection = connection(); Statement schema = connection.createStatement()) {
+            schema.execute("SET search_path TO " + schemaName + ", public");
+            saffronTenantId = insertTenant(connection, "saffron-routes");
+            saffronRiderId = insertRider(connection, saffronTenantId, "legacy-saffron@example.test");
+            defaultRiderId = insertRider(connection, 1L, "legacy-default@example.test");
+            recurringTemplateId = insertRecurringTemplate(connection, saffronTenantId, saffronRiderId, createdBeforeV15);
+            insertScheduledRequest(connection, saffronTenantId, saffronRiderId, "legacy-manual", manualWallTime, createdBeforeV15, null, null);
+            insertScheduledRequest(connection, saffronTenantId, saffronRiderId, "legacy-recurring", recurringWallTime, createdBeforeV15,
+                    recurringTemplateId, recurringWallTime.toLocalDate());
+            insertScheduledRequest(connection, saffronTenantId, saffronRiderId, "legacy-past", pastWallTime, createdBeforeV15, null, null);
+            insertScheduledRequest(connection, saffronTenantId, saffronRiderId, "legacy-local-past", pastInTenantWallTime,
+                    createdBeforeV15, null, null);
+            insertScheduledRequest(connection, 1L, defaultRiderId, "legacy-utc", utcWallTime, createdBeforeV15, null, null);
+        }
+
+        newFlyway("classpath:db/migration", schemaName, "15").migrate();
+
+        LocalDateTime createdAfterV15 = LocalDateTime.now().plusDays(1);
+        LocalDateTime newWallTime = LocalDateTime.now(ZoneOffset.UTC).plusDays(5)
+                .withHour(9).withMinute(0).withSecond(0).withNano(0);
+        try (Connection connection = connection(); Statement schema = connection.createStatement()) {
+            schema.execute("SET search_path TO " + schemaName + ", public");
+            insertScheduledRequest(connection, saffronTenantId, saffronRiderId, "new-saffron", newWallTime, createdAfterV15, null, null);
+        }
+
+        Flyway latest = newFlyway("classpath:db/migration", schemaName);
+        latest.migrate();
+
+        assertScheduledTime("legacy-manual", inUtc(manualWallTime, "Asia/Kolkata"));
+        assertScheduledTime("legacy-recurring", inUtc(recurringWallTime, "Asia/Kolkata"));
+        assertScheduledTime("legacy-past", pastWallTime);
+        assertScheduledTime("legacy-local-past", pastInTenantWallTime);
+        assertScheduledTime("legacy-utc", utcWallTime);
+        assertScheduledTime("new-saffron", newWallTime);
+
+        latest.migrate();
+        assertScheduledTime("legacy-manual", inUtc(manualWallTime, "Asia/Kolkata"));
+        assertScheduledTime("legacy-recurring", inUtc(recurringWallTime, "Asia/Kolkata"));
+    }
+
     private Flyway newFlyway(String schema) {
         return newFlyway("classpath:db/migration,classpath:db/demo-migration", schema);
     }
 
     private Flyway newFlyway(String locations, String schema) {
+        return newFlyway(locations, schema, null);
+    }
+
+    private Flyway newFlyway(String locations, String schema, String targetVersion) {
         var configuration = Flyway.configure()
                 .dataSource(JDBC_URL, JDBC_USERNAME, JDBC_PASSWORD)
                 .defaultSchema(schema)
@@ -205,7 +273,107 @@ class FlywayMigrationIntegrationTest {
                 .locations(locations.split(","))
                 .baselineOnMigrate(true)
                 .cleanDisabled(false);
+        if (targetVersion != null) {
+            configuration.target(MigrationVersion.fromVersion(targetVersion));
+        }
         return configuration.load();
+    }
+
+    private Connection connection() throws Exception {
+        return DriverManager.getConnection(JDBC_URL, JDBC_USERNAME, JDBC_PASSWORD);
+    }
+
+    private long insertTenant(Connection connection, String slug) throws Exception {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "INSERT INTO tenant (slug, name, active, created_at) VALUES (?, ?, TRUE, CURRENT_TIMESTAMP) RETURNING id")) {
+            statement.setString(1, slug);
+            statement.setString(2, "Legacy tenant");
+            try (ResultSet result = statement.executeQuery()) {
+                result.next();
+                return result.getLong(1);
+            }
+        }
+    }
+
+    private long insertRider(Connection connection, long tenantId, String email) throws Exception {
+        long userId;
+        try (PreparedStatement statement = connection.prepareStatement(
+                "INSERT INTO app_user (email, password, active, created_time, tenant_id) VALUES (?, 'unused', TRUE, CURRENT_TIMESTAMP, ?) RETURNING id")) {
+            statement.setString(1, email);
+            statement.setLong(2, tenantId);
+            try (ResultSet result = statement.executeQuery()) {
+                result.next();
+                userId = result.getLong(1);
+            }
+        }
+        try (PreparedStatement statement = connection.prepareStatement(
+                "INSERT INTO rider (user_id, rating, version, tenant_id) VALUES (?, 0, 0, ?) RETURNING id")) {
+            statement.setLong(1, userId);
+            statement.setLong(2, tenantId);
+            try (ResultSet result = statement.executeQuery()) {
+                result.next();
+                return result.getLong(1);
+            }
+        }
+    }
+
+    private long insertRecurringTemplate(Connection connection, long tenantId, long riderId,
+                                         LocalDateTime createdAt) throws Exception {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                INSERT INTO recurring_trip_template (
+                    tenant_id, rider_id, days_of_week, local_time, start_date, end_date,
+                    pickup_location, drop_off_location, payment_method, created_at, updated_at, version
+                ) VALUES (?, ?, 'MONDAY', TIME '09:00', CURRENT_DATE, CURRENT_DATE + 30,
+                    ST_SetSRID(ST_MakePoint(77.5::double precision, 12.9::double precision), 4326),
+                    ST_SetSRID(ST_MakePoint(77.6::double precision, 13.0::double precision), 4326),
+                    'WALLET', ?, ?, 0) RETURNING id
+                """)) {
+            statement.setLong(1, tenantId);
+            statement.setLong(2, riderId);
+            statement.setObject(3, createdAt);
+            statement.setObject(4, createdAt);
+            try (ResultSet result = statement.executeQuery()) {
+                result.next();
+                return result.getLong(1);
+            }
+        }
+    }
+
+    private void insertScheduledRequest(Connection connection, long tenantId, long riderId, String reference,
+                                         LocalDateTime scheduledTime, LocalDateTime requestedTime,
+                                         Long recurringTemplateId, LocalDate occurrenceDate) throws Exception {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                INSERT INTO ride_request (
+                    tenant_id, rider_id, requested_time, scheduled_time, payment_method,
+                    ride_request_status, fare, version, recurring_template_id, occurrence_date, external_reference
+                ) VALUES (?, ?, ?, ?, 'WALLET', 'SCHEDULED', 1.00, 0, ?, ?, ?)
+                """)) {
+            statement.setLong(1, tenantId);
+            statement.setLong(2, riderId);
+            statement.setObject(3, requestedTime);
+            statement.setObject(4, scheduledTime);
+            if (recurringTemplateId == null) statement.setNull(5, java.sql.Types.BIGINT);
+            else statement.setLong(5, recurringTemplateId);
+            if (occurrenceDate == null) statement.setNull(6, java.sql.Types.DATE);
+            else statement.setObject(6, occurrenceDate);
+            statement.setString(7, reference);
+            statement.executeUpdate();
+        }
+    }
+
+    private LocalDateTime inUtc(LocalDateTime localTime, String zone) {
+        return localTime.atZone(ZoneId.of(zone)).withZoneSameInstant(ZoneOffset.UTC).toLocalDateTime();
+    }
+
+    private void assertScheduledTime(String reference, LocalDateTime expected) throws Exception {
+        try (Connection connection = connection(); PreparedStatement statement = connection.prepareStatement(
+                "SELECT scheduled_time FROM " + schemaName + ".ride_request WHERE external_reference = ?")) {
+            statement.setString(1, reference);
+            try (ResultSet result = statement.executeQuery()) {
+                assertThat(result.next()).isTrue();
+                assertThat(result.getObject(1, LocalDateTime.class)).isEqualTo(expected);
+            }
+        }
     }
 
     private void ensurePostgisExtension() throws Exception {

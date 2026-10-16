@@ -1,6 +1,6 @@
 package com.velo.platform.dto.admin;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public record AdminLiveDispatchDriverDto(
         Long driverId,
@@ -12,7 +12,7 @@ public record AdminLiveDispatchDriverDto(
         Double lng,
         Double heading,
         Double speedKph,
-        LocalDateTime locationUpdatedAt,
+        OffsetDateTime locationUpdatedAt,
         boolean stale,
         boolean simulated,
         Long rideId

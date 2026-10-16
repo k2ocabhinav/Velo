@@ -149,6 +149,40 @@ class PromoCodeServiceImplTest {
     }
 
     @Test
+    void updatePromoCode_WhenEndDateBeforeStartDate_ShouldThrowBadRequest() {
+        promoCodeDto.setStartDate(LocalDate.of(2026, 12, 1));
+        promoCodeDto.setEndDate(LocalDate.of(2026, 11, 1));
+
+        assertThatThrownBy(() -> promoCodeService.updatePromoCode(1L, promoCodeDto))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("End date");
+
+        verify(promoCodeRepository, never()).save(any());
+    }
+
+    @Test
+    void updatePromoCode_WhenMaxUsesIsNegative_ShouldThrowBadRequest() {
+        promoCodeDto.setMaxUses(-1);
+
+        assertThatThrownBy(() -> promoCodeService.updatePromoCode(1L, promoCodeDto))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Maximum uses");
+
+        verify(promoCodeRepository, never()).save(any());
+    }
+
+    @Test
+    void updatePromoCode_WhenDiscountIsNonPositive_ShouldThrowBadRequest() {
+        promoCodeDto.setDiscountValue(BigDecimal.ZERO);
+
+        assertThatThrownBy(() -> promoCodeService.updatePromoCode(1L, promoCodeDto))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("greater than zero");
+
+        verify(promoCodeRepository, never()).save(any());
+    }
+
+    @Test
     void validateAndApplyPromo_WithFlatDiscount_ShouldReturnDiscount() {
         promoCode.setDiscountType(DiscountType.FLAT);
         promoCode.setDiscountValue(BigDecimal.valueOf(20));

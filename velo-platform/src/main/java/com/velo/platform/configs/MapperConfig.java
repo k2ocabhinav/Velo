@@ -48,6 +48,7 @@ public class MapperConfig {
         mapper.emptyTypeMap(RideRequestDto.class, RideRequest.class)
                 .addMappings(mapping -> {
                     mapping.skip(RideRequest::setRide);
+                    mapping.skip(RideRequest::setRequestedTime);
                     mapping.skip(RideRequest::setScheduledTime);
                 })
                 .implicitMappings();

@@ -101,7 +101,7 @@ export class FakeApi implements SimApi {
   async requestRide(payload: RideRequestPayload): Promise<RideRequestDto> {
     this.calls.push("request ride");
     this.requests.push(payload);
-    return { id: this.requestId, rideRequestStatus: "PENDING", expiresAt: "2100-01-01T00:00:00" };
+    return { id: this.requestId, rideRequestStatus: "PENDING", expiresAt: "2100-01-01T00:00:00Z" };
   }
 
   async getActiveRide(): Promise<RideTrackingDto | null> {

@@ -97,14 +97,14 @@ async function registerDriver(body: RegisterBody, tenantSlug: string): Promise<N
     return NextResponse.json({ error: "Unable to contact authentication service." }, { status: 502 });
   }
 
-  if (!signupResponse.ok) {
+  const recoveringExistingAccount = !signupResponse.ok && signupResponse.status === 409;
+  if (!signupResponse.ok && !recoveringExistingAccount) {
     const errorMessage = await readApiErrorPayload(signupResponse, "Unable to create account.");
     return NextResponse.json({ error: errorMessage }, { status: signupResponse.status });
   }
 
-  // Step 2: Sign in to obtain an access token. Driver onboarding is a self-service
-  // request that the backend authorizes with a bearer token, so the account must be
-  // authenticated before it can be promoted to a driver.
+  // A retry may find the RIDER account created by an earlier partial registration.
+  // Require the password before resuming its self-service driver onboarding.
   let loginResponse: Response;
   try {
     loginResponse = await fetch(`${baseUrl}/auth/login`, {
@@ -121,6 +121,12 @@ async function registerDriver(body: RegisterBody, tenantSlug: string): Promise<N
   }
 
   if (!loginResponse.ok) {
+    if (recoveringExistingAccount) {
+      return NextResponse.json(
+        { error: "Unable to authenticate this account for driver setup." },
+        { status: loginResponse.status },
+      );
+    }
     return NextResponse.json(
       { error: "Account created but unable to finalize driver setup." },
       { status: 502 },

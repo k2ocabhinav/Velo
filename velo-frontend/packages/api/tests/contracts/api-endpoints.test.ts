@@ -141,7 +141,7 @@ describe("admin endpoints", () => {
     });
   });
 
-  it("sends plain text bodies for moderation endpoints", async () => {
+  it("sends JSON reason bodies for driver rejection", async () => {
     const { client, requests } = createRecordingClient({
       id: 42,
       amount: 18,
@@ -155,8 +155,7 @@ describe("admin endpoints", () => {
     expect(requests[0]).toMatchObject({
       method: "POST",
       url: "/api/v1/admin/drivers/9/reject",
-      data: "duplicate account",
-      headers: { "Content-Type": "text/plain" },
+      data: { reason: "duplicate account" },
     });
     expect("wallet" in (api as Record<string, unknown>)).toBe(false);
   });
@@ -505,11 +504,12 @@ describe("rider and supporting domains", () => {
     });
     const requestRide = createRecordingClient({
       id: 77,
+      requestedTime: "2026-10-15T12:00:00Z",
       pickupLocation: { coordinates: [1, 2], type: "Point" },
       dropOffLocation: { coordinates: [3, 4], type: "Point" },
       pickupAddress: "The Leela Palace, Old Airport Road",
       dropOffAddress: "Kempegowda International Airport, Terminal 1",
-      expiresAt: "2026-10-15T12:00:45",
+      expiresAt: "2026-10-15T12:00:45Z",
       paymentMethod: "CARD",
       rideRequestStatus: "REQUESTED",
     });
@@ -570,7 +570,7 @@ describe("rider and supporting domains", () => {
       dropOffLocation: { coordinates: [3, 4], type: "Point" },
       paymentMethod: "CARD",
       fare: 19.5,
-      scheduledTime: "2026-04-07T12:00:00",
+      scheduledTime: "2026-04-07T12:00:00Z",
       status: "SCHEDULED",
     });
 

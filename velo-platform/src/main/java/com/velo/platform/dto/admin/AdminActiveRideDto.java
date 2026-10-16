@@ -4,7 +4,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Data
 @Builder
@@ -16,6 +16,6 @@ public class AdminActiveRideDto {
     private String driverName;
     private String status;
     private BigDecimal fare;
-    private LocalDateTime createdTime;
-    private LocalDateTime startedAt;
+    private OffsetDateTime createdTime;
+    private OffsetDateTime startedAt;
 }

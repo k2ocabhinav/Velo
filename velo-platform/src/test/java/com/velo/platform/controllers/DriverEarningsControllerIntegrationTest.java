@@ -229,6 +229,17 @@ class DriverEarningsControllerIntegrationTest {
     }
 
     @Test
+    @DisplayName("GET /api/v1/admin/payouts rejects page and size outside the paging bounds")
+    void getPayouts_WithInvalidPaging_ShouldReturn400() throws Exception {
+        mockMvc.perform(withAdminAuth(get("/api/v1/admin/payouts").param("page", "-1")))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(withAdminAuth(get("/api/v1/admin/payouts").param("size", "0")))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(withAdminAuth(get("/api/v1/admin/payouts").param("size", "201")))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     @DisplayName("POST /api/v1/admin/payouts/{id}/approve marks a payout as approved")
     void approvePayout_ShouldUpdateStatusAndAdminNote() throws Exception {
         PayoutRequest pendingRequest = createPayout(

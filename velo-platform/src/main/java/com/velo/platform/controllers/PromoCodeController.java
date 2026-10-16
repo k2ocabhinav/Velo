@@ -42,7 +42,7 @@ public class PromoCodeController {
     @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Update a promo code (Admin)")
-    public ResponseEntity<PromoCodeDto> updatePromoCode(@PathVariable Long id, @RequestBody PromoCodeDto promoCodeDto) {
+    public ResponseEntity<PromoCodeDto> updatePromoCode(@PathVariable Long id, @Valid @RequestBody PromoCodeDto promoCodeDto) {
         return ResponseEntity.ok(promoCodeService.updatePromoCode(id, promoCodeDto));
     }
 

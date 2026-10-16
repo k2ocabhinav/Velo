@@ -39,6 +39,7 @@ import com.velo.platform.services.DriverEarningsService;
 import com.velo.platform.services.RideRealtimeService;
 import com.velo.platform.services.WalletService;
 import com.velo.platform.strategies.RideStrategyManager;
+import com.velo.platform.utils.UtcTimes;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
@@ -137,7 +138,7 @@ public class RiderServiceImpl implements RiderService {
                     NotificationType.RIDE_EXPIRED,
                     expiredRequest.getId()
             );
-            return modelMapper.map(expiredRequest, RideRequestDto.class);
+            return toRideRequestDto(expiredRequest);
         }
 
         eventPublisher.publishEvent(new RideRequestedEvent(this, savedRideRequest, matchedDrivers, false));
@@ -197,7 +198,7 @@ public class RiderServiceImpl implements RiderService {
                 rideRequestId
         );
         rideRealtimeService.publishRideRequestPending(cancelled);
-        return modelMapper.map(cancelled, RideRequestDto.class);
+        return toRideRequestDto(cancelled);
     }
 
     @Override
@@ -366,10 +367,12 @@ public class RiderServiceImpl implements RiderService {
 
     private RideRequestDto toRideRequestDto(RideRequest rideRequest) {
         RideRequestDto dto = modelMapper.map(rideRequest, RideRequestDto.class);
+        dto.setRequestedTime(UtcTimes.toOffsetDateTime(rideRequest.getRequestedTime()));
         dto.setScheduledTime(rideRequest.getScheduledTime() == null ? null : rideRequest.getScheduledTime().atOffset(ZoneOffset.UTC));
         LocalDateTime requestedTime = rideRequest.getRequestedTime();
         if (requestedTime != null && RideRequestStatus.PENDING.equals(rideRequest.getRideRequestStatus())) {
-            dto.setExpiresAt(requestedTime.plusSeconds(Math.max(1, dispatchProperties.getOfferTtlSeconds())));
+            dto.setExpiresAt(UtcTimes.toOffsetDateTime(
+                    requestedTime.plusSeconds(Math.max(1, dispatchProperties.getOfferTtlSeconds()))));
         }
         return dto;
     }

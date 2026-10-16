@@ -46,6 +46,7 @@ import com.velo.platform.services.RideService;
 import com.velo.platform.services.TenantScopeService;
 import com.velo.platform.strategies.RideStrategyManager;
 import com.velo.platform.utils.GeometryUtil;
+import com.velo.platform.utils.UtcTimes;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -60,6 +61,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -146,7 +148,7 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
         );
 
         cacheService.evictDashboardCache();
-        return modelMapper.map(savedRequest, RideRequestDto.class);
+        return toRideRequestDto(savedRequest);
     }
 
     @Override
@@ -176,7 +178,7 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
                         .externalReference(rideRequest.getExternalReference())
                         .status(rideRequest.getRideRequestStatus() == null ? null : rideRequest.getRideRequestStatus().name())
                         .fare(rideRequest.getFare())
-                        .requestedTime(rideRequest.getRequestedTime())
+                        .requestedTime(UtcTimes.toOffsetDateTime(rideRequest.getRequestedTime()))
                         .offeredDriverCount(offeredCounts.getOrDefault(rideRequest.getId(), 0L))
                         .build());
     }
@@ -195,8 +197,8 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
                         .driverName(resolveUserName(ride.getDriver() == null ? null : ride.getDriver().getUser()))
                         .status(ride.getRideStatus() == null ? null : ride.getRideStatus().name())
                         .fare(ride.getFare())
-                        .createdTime(ride.getCreatedTime())
-                        .startedAt(ride.getStartedAt())
+                        .createdTime(UtcTimes.toOffsetDateTime(ride.getCreatedTime()))
+                        .startedAt(UtcTimes.toOffsetDateTime(ride.getStartedAt()))
                         .build());
     }
 
@@ -204,7 +206,7 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
     @Transactional(readOnly = true)
     public AdminLiveDispatchDto getLiveDispatch() {
         Long tenantId = tenantScopeService.requireCurrentTenantId();
-        LocalDateTime generatedAt = LocalDateTime.now();
+        LocalDateTime generatedAt = LocalDateTime.now(ZoneOffset.UTC);
         List<?> driverRows = entityManager.createNativeQuery(LIVE_DRIVERS_QUERY)
                 .setParameter("tenantId", tenantId)
                 .setParameter("freshSince", generatedAt.minusMinutes(15))
@@ -222,7 +224,7 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
                 .map(this::toLiveRide)
                 .toList();
 
-        return new AdminLiveDispatchDto(generatedAt, drivers, rides);
+        return new AdminLiveDispatchDto(UtcTimes.toOffsetDateTime(generatedAt), drivers, rides);
     }
 
     private static final String LIVE_DRIVERS_QUERY = """
@@ -320,11 +322,18 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
                 toDouble(row[6]),
                 toDouble(row[7]),
                 toDouble(row[8]),
-                locationUpdatedAt,
+                UtcTimes.toOffsetDateTime(locationUpdatedAt),
                 locationUpdatedAt.isBefore(generatedAt.minusSeconds(LIVE_LOCATION_STALE_AFTER_SECONDS)),
                 Boolean.TRUE.equals(row[10]),
                 toLong(row[11])
         );
+    }
+
+    private RideRequestDto toRideRequestDto(RideRequest rideRequest) {
+        RideRequestDto dto = modelMapper.map(rideRequest, RideRequestDto.class);
+        dto.setRequestedTime(UtcTimes.toOffsetDateTime(rideRequest.getRequestedTime()));
+        dto.setScheduledTime(UtcTimes.toOffsetDateTime(rideRequest.getScheduledTime()));
+        return dto;
     }
 
     private AdminLiveDispatchRideDto toLiveRide(Object[] row) {
@@ -336,8 +345,8 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
                 toLong(row[4]),
                 new AdminLiveDispatchLocationDto(toDouble(row[5]), toDouble(row[6]), (String) row[7]),
                 new AdminLiveDispatchLocationDto(toDouble(row[8]), toDouble(row[9]), (String) row[10]),
-                toLocalDateTime(row[11]),
-                toLocalDateTime(row[12]),
+                UtcTimes.toOffsetDateTime(toLocalDateTime(row[11])),
+                UtcTimes.toOffsetDateTime(toLocalDateTime(row[12])),
                 (java.math.BigDecimal) row[13],
                 Boolean.TRUE.equals(row[14])
         );
@@ -404,9 +413,9 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
                         .driverId(offer.getDriver() == null ? null : offer.getDriver().getId())
                         .driverName(resolveUserName(offer.getDriver() == null ? null : offer.getDriver().getUser()))
                         .status(offer.getStatus() == null ? null : offer.getStatus().name())
-                        .offeredAt(offer.getOfferedAt())
-                        .expiresAt(offer.getExpiresAt())
-                        .resolvedAt(offer.getResolvedAt())
+                        .offeredAt(UtcTimes.toOffsetDateTime(offer.getOfferedAt()))
+                        .expiresAt(UtcTimes.toOffsetDateTime(offer.getExpiresAt()))
+                        .resolvedAt(UtcTimes.toOffsetDateTime(offer.getResolvedAt()))
                         .resolutionReason(offer.getResolutionReason())
                         .build())
                 .toList();
@@ -426,7 +435,7 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
                         .previousDriverId(audit.getPreviousDriver() == null ? null : audit.getPreviousDriver().getId())
                         .nextDriverId(audit.getNextDriver() == null ? null : audit.getNextDriver().getId())
                         .reason(audit.getReason())
-                        .createdAt(audit.getCreatedAt())
+                        .createdAt(UtcTimes.toOffsetDateTime(audit.getCreatedAt()))
                         .build());
     }
 
@@ -539,7 +548,7 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
 
         writeAudit(AdminDispatchActionType.FORCE_CANCEL_REQUEST, reason, savedRequest, null, null, null);
         cacheService.evictDashboardCache();
-        return modelMapper.map(savedRequest, RideRequestDto.class);
+        return toRideRequestDto(savedRequest);
     }
 
     @Override

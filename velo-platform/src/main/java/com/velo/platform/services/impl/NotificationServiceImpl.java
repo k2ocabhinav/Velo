@@ -9,9 +9,9 @@ import com.velo.platform.repositories.NotificationRepository;
 import com.velo.platform.security.UserPrincipal;
 import com.velo.platform.services.NotificationService;
 import com.velo.platform.utils.UserDestinations;
+import com.velo.platform.utils.UtcTimes;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -29,7 +29,6 @@ public class NotificationServiceImpl implements NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final SimpMessagingTemplate messagingTemplate;
-    private final ModelMapper modelMapper;
 
     @Override
     @Transactional
@@ -46,7 +45,7 @@ public class NotificationServiceImpl implements NotificationService {
                 .build();
 
         Notification saved = notificationRepository.save(notification);
-        NotificationDto dto = modelMapper.map(saved, NotificationDto.class);
+        NotificationDto dto = toDto(saved);
         
         try {
             messagingTemplate.convertAndSendToUser(
@@ -67,7 +66,7 @@ public class NotificationServiceImpl implements NotificationService {
     public List<NotificationDto> getUserNotifications(User user) {
         return notificationRepository.findByUserOrderByCreatedTimeDesc(user)
                 .stream()
-                .map(n -> modelMapper.map(n, NotificationDto.class))
+                .map(this::toDto)
                 .toList();
     }
 
@@ -75,7 +74,7 @@ public class NotificationServiceImpl implements NotificationService {
     @Transactional(readOnly = true)
     public Page<NotificationDto> getUserNotifications(User user, Pageable pageable) {
         return notificationRepository.findByUser(user, pageable)
-                .map(n -> modelMapper.map(n, NotificationDto.class));
+                .map(this::toDto);
     }
 
     @Override
@@ -95,7 +94,19 @@ public class NotificationServiceImpl implements NotificationService {
 
         notification.setRead(true);
         Notification saved = notificationRepository.save(notification);
-        return modelMapper.map(saved, NotificationDto.class);
+        return toDto(saved);
+    }
+
+    private NotificationDto toDto(Notification notification) {
+        return NotificationDto.builder()
+                .id(notification.getId())
+                .title(notification.getTitle())
+                .message(notification.getMessage())
+                .type(notification.getType())
+                .referenceId(notification.getReferenceId())
+                .read(notification.getRead())
+                .createdTime(UtcTimes.toOffsetDateTime(notification.getCreatedTime()))
+                .build();
     }
 
     @Override

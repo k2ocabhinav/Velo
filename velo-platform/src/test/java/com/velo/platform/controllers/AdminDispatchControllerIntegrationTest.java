@@ -48,6 +48,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -194,7 +195,8 @@ class AdminDispatchControllerIntegrationTest {
                         .param("size", "10")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content[0].rideRequestId").value(pendingRequest.getId()))
-                .andExpect(jsonPath("$.data.content[0].offeredDriverCount").value(2));
+                .andExpect(jsonPath("$.data.content[0].offeredDriverCount").value(2))
+                .andExpect(jsonPath("$.data.content[0].requestedTime").value(org.hamcrest.Matchers.matchesPattern(".+Z")));
 
         mockMvc.perform(withAdminAuth(get("/api/v1/admin/dispatch/active-rides")
                         .param("page", "0")
@@ -210,12 +212,28 @@ class AdminDispatchControllerIntegrationTest {
 
         mockMvc.perform(withAdminAuth(get("/api/v1/admin/dispatch/requests/" + pendingRequest.getId() + "/offers")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data[*].driverId").value(org.hamcrest.Matchers.hasItem(primaryDriver.getId().intValue())));
+                .andExpect(jsonPath("$.data[*].driverId").value(org.hamcrest.Matchers.hasItem(primaryDriver.getId().intValue())))
+                .andExpect(jsonPath("$.data[0].expiresAt").value(org.hamcrest.Matchers.matchesPattern(".+Z")));
 
         mockMvc.perform(withAdminAuth(get("/api/v1/admin/ops-health")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.totalDrivers").isNumber())
                 .andExpect(jsonPath("$.data.pendingRideRequests").isNumber());
+    }
+
+    @Test
+    @DisplayName("Live dispatch timestamps are explicit UTC instants")
+    void liveDispatch_shouldSerializeInstantsWithUtcOffset() throws Exception {
+        primaryDriver.setCurrentLocation(new GeometryFactory(new PrecisionModel(), 4326)
+                .createPoint(new Coordinate(77.5946, 12.9716)));
+        primaryDriver.setLocationUpdatedAt(LocalDateTime.now(ZoneOffset.UTC).minusSeconds(5));
+        driverRepository.saveAndFlush(primaryDriver);
+
+        mockMvc.perform(withAdminAuth(get("/api/v1/admin/dispatch/live")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.generatedAt").value(org.hamcrest.Matchers.matchesPattern(".+Z")))
+                .andExpect(jsonPath("$.data.drivers[0].locationUpdatedAt").value(org.hamcrest.Matchers.matchesPattern(".+Z")))
+                .andExpect(jsonPath("$.data.rides[0].requestedAt").value(org.hamcrest.Matchers.matchesPattern(".+Z")));
     }
 
     @Test

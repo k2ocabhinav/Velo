@@ -138,6 +138,54 @@ class PromoCodeControllerIntegrationTest {
 
     @Test
     @WithMockUser(roles = "ADMIN")
+    void updatePromoCode_WithInvalidDateRange_ShouldReturn400() throws Exception {
+        PromoCodeDto invalid = PromoCodeDto.builder()
+                .code("BAD-DATES")
+                .discountType(DiscountType.FLAT)
+                .discountValue(BigDecimal.TEN)
+                .startDate(java.time.LocalDate.of(2026, 12, 2))
+                .endDate(java.time.LocalDate.of(2026, 12, 1))
+                .build();
+
+        mockMvc.perform(put("/api/v1/admin/promo-codes/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalid)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void updatePromoCode_WithNegativeMaxUses_ShouldReturn400() throws Exception {
+        PromoCodeDto invalid = PromoCodeDto.builder()
+                .code("BAD-USES")
+                .discountType(DiscountType.FLAT)
+                .discountValue(BigDecimal.TEN)
+                .maxUses(-1)
+                .build();
+
+        mockMvc.perform(put("/api/v1/admin/promo-codes/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalid)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void updatePromoCode_WithNonPositiveDiscount_ShouldReturn400() throws Exception {
+        PromoCodeDto invalid = PromoCodeDto.builder()
+                .code("BAD-DISCOUNT")
+                .discountType(DiscountType.FLAT)
+                .discountValue(BigDecimal.ZERO)
+                .build();
+
+        mockMvc.perform(put("/api/v1/admin/promo-codes/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalid)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
     void deactivatePromoCode_ByAdmin_ShouldReturn200() throws Exception {
         when(promoCodeService.deactivatePromoCode(anyLong())).thenReturn(promoCodeDto);
 

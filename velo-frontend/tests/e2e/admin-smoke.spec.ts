@@ -294,7 +294,8 @@ test("admin rejects a driver application with a recorded reason", async ({ baseU
   }
   await page.route("**/api/proxy/api/v1/admin/drivers/78/reject", async (route) => {
     rejected = true;
-    rejectionReason = route.request().postData() ?? "";
+    const payload = route.request().postDataJSON() as { reason?: string } | null;
+    rejectionReason = payload?.reason ?? "";
     await route.fulfill({ status: 200, body: "" });
   });
 

@@ -3,7 +3,7 @@ package com.velo.platform.dto;
 import com.velo.platform.entities.enums.NotificationType;
 import lombok.*;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Getter
 @Setter
@@ -17,5 +17,5 @@ public class NotificationDto {
     private NotificationType type;
     private Long referenceId;
     private Boolean read;
-    private LocalDateTime createdTime;
+    private OffsetDateTime createdTime;
 }

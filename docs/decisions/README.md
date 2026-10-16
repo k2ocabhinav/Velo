@@ -55,6 +55,7 @@ Small, reversible choices do not need a record.
 | [0026](0026-tenant-tariffs-and-service-areas.md) | Tenant tariffs and service areas | Accepted | 2026-10-16 |
 | [0027](0027-integration-handshake-demo-fixtures.md) | Integration handshake drives the local demo fixture profile | Accepted | 2026-10-16 |
 | [0028](0028-tenant-time-zones.md) | Tenant time zones for scheduled and recurring trips | Accepted | 2026-10-16 |
+| [0029](0029-open-signup-tenant-selection.md) | Open signup tenant selection | Accepted | 2026-10-17 |
 
 `0000-template.md` is the template and is intentionally not indexed.
 

@@ -7,16 +7,10 @@ import { toActionErrorMessage } from "../_lib/ui-state";
 import { getTenantLabelForCount, getTenantPluralTripLabel } from "@velo/app-core/tenant";
 import { useTenantBrandingOrDefault } from "@velo/ui/theme";
 import { TenantStatus } from "../_components/tenant-status";
+import { addCalendarDays, dateKeyInTimeZone, groupTripSheetRowsByHour } from "../_lib/trip-sheet-time";
 
 type AssignmentFilter = "ALL" | "UNASSIGNED" | "ASSIGNED";
 type ReasonAction = { kind: "cancel" | "no-show"; row: TripSheetRow };
-
-function localDateString(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
 
 function readableReason(value?: string | null): string {
   if (!value) return "—";
@@ -24,15 +18,13 @@ function readableReason(value?: string | null): string {
 }
 
 export default function TripSheetPage() {
-  const { riderLabel, driverLabel, tripLabel } = useTenantBrandingOrDefault();
+  const { riderLabel, driverLabel, timeZone, tripLabel } = useTenantBrandingOrDefault();
   const driverWord = getTenantLabelForCount(1, driverLabel, { midSentence: true, fallback: "Driver" });
   const tripWord = getTenantLabelForCount(1, tripLabel, { midSentence: true, fallback: "Trip" });
   const tripsLabel = getTenantPluralTripLabel(tripLabel);
   const usesDefaultTripLabel = tripLabel.trim().toLowerCase() === "trip";
   const [date, setDate] = useState(() => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return localDateString(tomorrow);
+    return addCalendarDays(dateKeyInTimeZone(new Date(), timeZone), 1);
   });
   const [assignment, setAssignment] = useState<AssignmentFilter>("ALL");
   const [rows, setRows] = useState<TripSheetRow[]>([]);
@@ -95,19 +87,10 @@ export default function TripSheetPage() {
     }
   }
 
-  const groups = useMemo(() => {
-    const byHour = new Map<string, TripSheetRow[]>();
-    for (const row of rows) {
-      const time = new Date(row.scheduledTime);
-      const hour = Number.isFinite(time.getTime()) ? String(time.getHours()).padStart(2, "0") : "—";
-      const key = hour === "—" ? hour : `${hour}:00`;
-      byHour.set(key, [...(byHour.get(key) ?? []), row]);
-    }
-    return [...byHour.entries()].sort(([left], [right]) => left.localeCompare(right));
-  }, [rows]);
+  const groups = useMemo(() => groupTripSheetRowsByHour(rows, timeZone), [rows, timeZone]);
 
   const columns: DataTableColumn<TripSheetRow>[] = [
-    { header: "Time", cell: (row) => <DateTime value={row.scheduledTime} /> },
+    { header: "Time", cell: (row) => <DateTime value={row.scheduledTime} timeZone={timeZone} /> },
     { header: "Booking reference", cell: (row) => row.bookingReference || "—" },
     { header: riderLabel, cell: (row) => row.riderName || "—" },
     { header: "Pickup", cell: (row) => row.pickupAddress || "Address unavailable" },
@@ -168,7 +151,7 @@ export default function TripSheetPage() {
                   <header>
                     <div className="stack compact">
                       <span className="trip-sheet-mobile-label">Time</span>
-                      <strong><DateTime value={row.scheduledTime} /></strong>
+                      <strong><DateTime value={row.scheduledTime} timeZone={timeZone} /></strong>
                     </div>
                     {actionsForRow(row).length > 0 ? <Menu
                       items={actionsForRow(row)}

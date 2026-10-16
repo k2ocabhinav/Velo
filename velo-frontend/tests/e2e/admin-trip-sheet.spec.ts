@@ -36,8 +36,8 @@ async function mockAdminApi(page: Page, options?: { templates?: Array<Record<str
     if (path.endsWith("/trip-sheet")) {
       const date = requestUrl.searchParams.get("date") ?? tomorrowDate();
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: [
-        { rideRequestId: 31, scheduledTime: `${date}T09:15:00`, bookingReference: "HOTEL-31", riderName: "Asha Patel", pickupAddress: "Central Hotel", dropOffAddress: "Airport", assigned: false, needsAttention: true, status: "SCHEDULED" },
-        { rideRequestId: 32, scheduledTime: `${date}T10:20:00`, bookingReference: "BIZ-32", riderName: "Ravi Rao", pickupAddress: "Business Park", dropOffAddress: "Station", assigned: true, driverName: "Kiran Das", needsAttention: false, status: "CONFIRMED" },
+        { rideRequestId: 31, scheduledTime: `${date}T09:15:00Z`, bookingReference: "HOTEL-31", riderName: "Asha Patel", pickupAddress: "Central Hotel", dropOffAddress: "Airport", assigned: false, needsAttention: true, status: "SCHEDULED" },
+        { rideRequestId: 32, scheduledTime: `${date}T10:20:00Z`, bookingReference: "BIZ-32", riderName: "Ravi Rao", pickupAddress: "Business Park", dropOffAddress: "Station", assigned: true, driverName: "Kiran Das", needsAttention: false, status: "CONFIRMED" },
       ] }) });
       return;
     }
@@ -81,10 +81,11 @@ test("admin trip sheet filters scheduled rides and downloads CSV", async ({ base
   await page.screenshot({ path: testInfo.outputPath("trip-sheet-390.png"), fullPage: true });
 
   const downloadPromise = page.waitForEvent("download");
+  const tripSheetDate = await page.getByLabel("Trip sheet date").inputValue();
   await page.getByRole("button", { name: "Export CSV" }).click();
   const download = await downloadPromise;
-  expect(download.suggestedFilename()).toBe(`${tenantLabels.tripWord}-sheet-${tomorrowDate()}.csv`);
-  await expect(page.getByLabel("Trip sheet date")).toHaveValue(tomorrowDate());
+  expect(download.suggestedFilename()).toBe(`${tenantLabels.tripWord}-sheet-${tripSheetDate}.csv`);
+  await expect(page.getByLabel("Trip sheet date")).toHaveValue(tripSheetDate);
   await page.setViewportSize({ width: 1440, height: 900 });
 
   let reasonPayload: Record<string, unknown> | null = null;

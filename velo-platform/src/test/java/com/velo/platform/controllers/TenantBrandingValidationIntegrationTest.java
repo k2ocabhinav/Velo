@@ -34,14 +34,15 @@ class TenantBrandingValidationIntegrationTest {
     @Test
     void publicBrandingEndpointReturnsTenantScopedCacheableBranding() throws Exception {
         String slug = "ui6-" + UUID.randomUUID().toString().substring(0, 8);
-        tenantRepository.save(Tenant.builder().slug(slug).name("Northstar").active(true).build());
+        tenantRepository.save(Tenant.builder().slug(slug).name("Northstar").active(true).timeZone("Asia/Kolkata").build());
 
         mockMvc.perform(get("/api/v1/public/tenant/branding").param("tenant", slug))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Cache-Control", "public, max-age=60, stale-while-revalidate=60"))
                 .andExpect(jsonPath("$.data.brandName").value("Velo"))
                 .andExpect(jsonPath("$.data.primaryColor").value("#2563EB"))
-                .andExpect(jsonPath("$.data.currency").value("USD"));
+                .andExpect(jsonPath("$.data.currency").value("USD"))
+                .andExpect(jsonPath("$.data.timeZone").value("Asia/Kolkata"));
     }
 
     @Test

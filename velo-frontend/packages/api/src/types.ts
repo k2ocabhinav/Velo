@@ -1,4 +1,5 @@
 export type ISODate = string;
+/** ISO-8601 instant with an explicit UTC marker or offset. */
 export type ISODateTime = string;
 export type DecimalValue = number | string;
 

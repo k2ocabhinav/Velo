@@ -110,8 +110,7 @@ export function createAdminApi(client: AxiosInstance = createVeloClient()): Admi
       requestData<void>(client, {
         method: "POST",
         url: `/api/v1/admin/drivers/${driverId}/reject`,
-        data: reason,
-        headers: textBodyHeaders(),
+        data: { reason },
       }).then(() => undefined),
     getUsers: (params) =>
       requestPageData<AdminUserDto>(client, {

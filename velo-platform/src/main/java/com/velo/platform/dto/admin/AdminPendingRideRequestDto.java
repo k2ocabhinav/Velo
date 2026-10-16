@@ -4,7 +4,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Data
 @Builder
@@ -19,6 +19,6 @@ public class AdminPendingRideRequestDto {
     private String externalReference;
     private String status;
     private BigDecimal fare;
-    private LocalDateTime requestedTime;
+    private OffsetDateTime requestedTime;
     private Long offeredDriverCount;
 }

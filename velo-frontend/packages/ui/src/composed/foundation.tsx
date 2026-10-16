@@ -260,14 +260,16 @@ export function DateTime({
   className,
   locale,
   now,
+  timeZone,
   value,
 }: {
   value: Date | string | number | null | undefined;
   now?: Date;
   locale?: string;
+  timeZone?: string;
   className?: string;
 }) {
-  const text = formatDateTime(value, now, locale);
+  const text = formatDateTime(value, now, locale, timeZone);
   const date = value instanceof Date ? value : value === null || value === undefined ? undefined : new Date(value);
   return (
     <time className={className} dateTime={date && Number.isFinite(date.getTime()) ? date.toISOString() : undefined}>

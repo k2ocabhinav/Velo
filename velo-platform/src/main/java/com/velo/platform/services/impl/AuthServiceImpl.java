@@ -17,6 +17,7 @@ import com.velo.platform.exceptions.BadRequestException;
 import com.velo.platform.exceptions.ResourceNotFoundException;
 import com.velo.platform.exceptions.RuntimeConflictException;
 import com.velo.platform.repositories.PasswordResetTokenRepository;
+import com.velo.platform.repositories.DriverRepository;
 import com.velo.platform.repositories.TenantRepository;
 import com.velo.platform.repositories.UserRepository;
 import com.velo.platform.security.JwtTokenProvider;
@@ -62,6 +63,7 @@ public class AuthServiceImpl implements AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenService refreshTokenService;
     private final TenantRepository tenantRepository;
+    private final DriverRepository driverRepository;
 
     @Override
     @Transactional
@@ -190,19 +192,26 @@ public class AuthServiceImpl implements AuthService {
             throw new AccessDeniedException("You may only onboard yourself or users in your tenant");
         }
 
-        User user = userRepository.findById(userId)
+        User user = userRepository.findByIdForUpdate(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id "+userId));
 
         if (!selfOnboarding && !effectiveTenantId(caller.getTenantId()).equals(effectiveTenantId(user.getTenantId()))) {
             throw new ResourceNotFoundException("User not found with id " + userId);
         }
 
-        if(user.getRoles().contains(DRIVER))
-            throw new RuntimeConflictException("User with id "+userId+" is already a Driver");
+        Long tenantId = user.getTenantId() == null ? DEFAULT_TENANT_ID : user.getTenantId();
+        Driver existingDriver = driverRepository.findByUserIdAndTenantId(userId, tenantId).orElse(null);
+        if (existingDriver != null) {
+            if (!user.getRoles().contains(DRIVER)) {
+                user.getRoles().add(DRIVER);
+                userRepository.save(user);
+            }
+            return modelMapper.map(existingDriver, DriverDto.class);
+        }
 
         Driver createDriver = Driver.builder()
                 .user(user)
-                .tenantId(user.getTenantId() == null ? DEFAULT_TENANT_ID : user.getTenantId())
+                .tenantId(tenantId)
                 .rating(0.0)
                 .vehicleId(vehicleId)
                 .available(false)

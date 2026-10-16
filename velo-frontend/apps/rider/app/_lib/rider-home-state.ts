@@ -1,4 +1,5 @@
 import type { DecimalValue, SpringPage } from "./rider-client";
+import type { ISODateTime } from "@velo/api";
 
 export type RiderHomeRide = {
   id: number;
@@ -14,7 +15,7 @@ export type RiderHomePendingRequest = Readonly<{
   id?: number;
   rideRequestStatus?: string | null;
   paymentMethod?: string | null;
-  requestedTime?: string | null;
+  requestedTime?: ISODateTime | null;
   createdTime?: string | null;
   expiresAt?: string | null;
 }>;

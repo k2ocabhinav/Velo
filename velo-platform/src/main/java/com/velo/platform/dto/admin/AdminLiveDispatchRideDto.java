@@ -1,7 +1,7 @@
 package com.velo.platform.dto.admin;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public record AdminLiveDispatchRideDto(
         Long rideId,
@@ -11,8 +11,8 @@ public record AdminLiveDispatchRideDto(
         Long driverId,
         AdminLiveDispatchLocationDto pickup,
         AdminLiveDispatchLocationDto dropOff,
-        LocalDateTime requestedAt,
-        LocalDateTime startedAt,
+        OffsetDateTime requestedAt,
+        OffsetDateTime startedAt,
         BigDecimal fare,
         boolean simulated
 ) { }

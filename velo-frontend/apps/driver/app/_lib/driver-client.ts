@@ -6,6 +6,7 @@ import {
   toRelativeTimestamp,
   unwrapPageItems
 } from "@velo/app-core/browser-proxy";
+import type { ISODateTime } from "@velo/api";
 
 export type DecimalValue = number | string;
 
@@ -97,8 +98,8 @@ export interface DriverRideRequestPreview {
   fare?: DecimalValue | null;
   promoCode?: string | null;
   discountAmount?: DecimalValue | null;
-  requestedTime?: string | null;
-  expiresAt?: string | null;
+  requestedTime?: ISODateTime | null;
+  expiresAt?: ISODateTime | null;
 }
 
 export interface DriverNotification {
@@ -107,7 +108,7 @@ export interface DriverNotification {
   message: string;
   type: string;
   read: boolean;
-  createdTime: string;
+  createdTime: ISODateTime;
   referenceId?: number | null;
 }
 
