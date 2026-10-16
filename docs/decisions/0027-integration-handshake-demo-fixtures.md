@@ -25,8 +25,9 @@ We will keep the demo fixtures as the demo needs them and have the handshake arr
 ## Consequences
 
 - The handshake now proves the same flows a presenter performs instead of relying on a fixture accident.
+- The driver-app checks sign in as an approved seeded driver (`bob.driver@example.com`); the seeded PENDING applicant (`eve.driver@example.com`) cannot go online, so it is not used.
 - The demo self-healing remains on for everyone else; only the restart pass of the handshake turns it off.
-- **Risks:** the handshake depends on seeded account emails; renaming them requires updating the compose env values. Reintroducing a login body token or seeding a driver online would silently weaken these checks, so both expectations are asserted explicitly.
+- **Risks:** the handshake depends on seeded account emails; renaming them requires updating the compose env values. Reintroducing a login body token, seeding a driver online, or pointing the driver checks at an unapproved account would silently weaken these checks, so the expectations are asserted explicitly.
 
 ## Related
 

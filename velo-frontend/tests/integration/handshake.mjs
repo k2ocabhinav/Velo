@@ -10,7 +10,10 @@ const ADMIN_EMAIL = process.env.VELO_E2E_ADMIN_EMAIL ?? "admin@velo-platform.com
 const ADMIN_PASSWORD = process.env.VELO_E2E_ADMIN_PASSWORD ?? "password123";
 const RIDER_EMAIL = process.env.VELO_E2E_RIDER_EMAIL ?? "henry@example.com";
 const RIDER_PASSWORD = process.env.VELO_E2E_RIDER_PASSWORD ?? "password123";
-const DRIVER_EMAIL = process.env.VELO_E2E_DRIVER_EMAIL ?? "eve.driver@example.com";
+// The driver checks toggle availability, which the backend only allows for an approved driver.
+// eve.driver@example.com is the seeded PENDING applicant (used by the admin approval demo), so the
+// checks run as an approved seeded driver instead.
+const DRIVER_EMAIL = process.env.VELO_E2E_DRIVER_EMAIL ?? "bob.driver@example.com";
 const DRIVER_PASSWORD = process.env.VELO_E2E_DRIVER_PASSWORD ?? "password123";
 const ONLINE_DRIVER_EMAIL = process.env.VELO_E2E_ONLINE_DRIVER_EMAIL ?? "carol.driver@example.com";
 const ONLINE_DRIVER_PASSWORD = process.env.VELO_E2E_ONLINE_DRIVER_PASSWORD ?? DRIVER_PASSWORD;

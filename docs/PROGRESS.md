@@ -17,9 +17,9 @@
 ## Now / Next
 
 ### CI fix round 2026-10-16 (main runs 38923264472, 38923264449)
-- [x] demo-sim fake clock yields to a macrotask like the real clock: the fleet-reset test spun ~134M microtask iterations and was bound by wall-clock speed (10s timeout on CI) — `packages/demo-sim/tests/helpers.ts`, `stomp-session.test.ts`
+- [x] demo-sim fake clock yields to a macrotask like the real clock (the fleet-reset test spun an unbounded microtask chain and was bound by wall-clock speed); the 20 s vitest override is no longer needed — `packages/demo-sim/tests/helpers.ts`, `stomp-session.test.ts`, `vitest.config.mts`
 - [x] E2E gates: review captures use a repo-relative path, axe audits wait for entrance-motion opacity to settle, live fleet panel/skeletons/status pill carry explicit ARIA roles
-- [x] Handshake: the JWT stays in the httpOnly cookie (not the login body), a seeded driver goes online for assignment and booking, and demo fixture repair is switchable (`app.demo.fixture-refresh-enabled`) for the restart pass
+- [x] Handshake: the JWT stays in the httpOnly cookie (not the login body), an approved seeded driver goes online for assignment and booking, driver-app checks run as an approved seed, and demo fixture repair is switchable (`app.demo.fixture-refresh-enabled`) for the restart pass
 
 ### Critical fixes (found in the 2026-10-14 code review)
 - [x] Lock down `/auth/onBoardNewDriver/{userId}`: currently public and grants DRIVER to any user (9ceda0f)
