@@ -1,6 +1,7 @@
 package com.velo.platform.services;
 
 import com.velo.platform.dto.PayoutRequestDto;
+import com.velo.platform.entities.enums.PayoutStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 
@@ -12,5 +13,6 @@ public interface PayoutService {
     PayoutRequestDto rejectPayout(Long payoutId, String adminNote);
     PayoutRequestDto processPayout(Long payoutId);
     Page<PayoutRequestDto> getPendingPayouts(PageRequest pageRequest);
+    Page<PayoutRequestDto> getPayouts(PayoutStatus status, PageRequest pageRequest);
     Page<PayoutRequestDto> getMyPayouts(PageRequest pageRequest);
 }

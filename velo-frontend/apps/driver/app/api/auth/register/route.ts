@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getApiBaseUrl } from "@velo/app-core/env";
-import { handleRegisterFormPost, isFormSubmission, readFormString } from "@velo/app-core/auth";
+import { extractAuthValues, handleRegisterFormPost, isFormSubmission, readFormString } from "@velo/app-core/auth";
 
 interface RegisterBody {
   name: string;
@@ -11,20 +11,31 @@ interface RegisterBody {
   referredByCode?: string;
 }
 
-function extractUserId(payload: Record<string, unknown> | null | undefined): unknown {
-  if (!payload || typeof payload !== "object") {
-    return undefined;
-  }
-
-  const data = payload.data;
-  if (data && typeof data === "object") {
-    const wrappedId = (data as Record<string, unknown>).userId ?? (data as Record<string, unknown>).id;
-    if (wrappedId != null) {
-      return wrappedId;
+function readApiError(payload: unknown, fallback: string): string {
+  if (payload && typeof payload === "object") {
+    const record = payload as Record<string, unknown>;
+    if (typeof record.error === "string" && record.error.trim()) {
+      return record.error;
+    }
+    if (record.error && typeof record.error === "object") {
+      const nested = record.error as Record<string, unknown>;
+      if (typeof nested.message === "string" && nested.message.trim()) {
+        return nested.message;
+      }
+    }
+    if (typeof record.message === "string" && record.message.trim()) {
+      return record.message;
     }
   }
+  return fallback;
+}
 
-  return payload.userId ?? payload.id;
+async function readApiErrorPayload(response: Response, fallback: string): Promise<string> {
+  try {
+    return readApiError(await response.json(), fallback);
+  } catch {
+    return fallback;
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -64,7 +75,7 @@ async function registerDriver(body: RegisterBody): Promise<NextResponse> {
   const normalizedName = name.trim();
   const baseUrl = getApiBaseUrl();
 
-  // Step 1: Create account via signup endpoint (direct backend call, no auth needed)
+  // Step 1: Create the account via the signup endpoint (no auth required).
   let signupResponse: Response;
   try {
     signupResponse = await fetch(`${baseUrl}/auth/signup`, {
@@ -83,76 +94,63 @@ async function registerDriver(body: RegisterBody): Promise<NextResponse> {
   }
 
   if (!signupResponse.ok) {
-    let errorMsg = "Unable to create account.";
-    try {
-      const errPayload = (await signupResponse.json()) as Record<string, unknown>;
-      if (typeof errPayload?.error === "string") errorMsg = errPayload.error;
-      else if (typeof errPayload?.message === "string") errorMsg = errPayload.message;
-    } catch {
-      // response not JSON — use fallback message
-    }
-    return NextResponse.json({ error: errorMsg }, { status: signupResponse.status });
+    const errorMessage = await readApiErrorPayload(signupResponse, "Unable to create account.");
+    return NextResponse.json({ error: errorMessage }, { status: signupResponse.status });
   }
 
-  let signupData: Record<string, unknown>;
+  // Step 2: Sign in to obtain an access token. Driver onboarding is a self-service
+  // request that the backend authorizes with a bearer token, so the account must be
+  // authenticated before it can be promoted to a driver.
+  let loginResponse: Response;
   try {
-    const raw = (await signupResponse.json()) as Record<string, unknown>;
-    // Backend wraps in ApiResponse — unwrap .data if present
-    signupData = (raw?.data && typeof raw.data === "object" ? raw.data : raw) as Record<string, unknown>;
+    loginResponse = await fetch(`${baseUrl}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ email, password }),
+      cache: "no-store",
+    });
   } catch {
-    return NextResponse.json({ error: "Invalid response from signup service." }, { status: 502 });
-  }
-
-  let userId = signupData.userId ?? signupData.id;
-
-  if (!userId) {
-    // Current signup response does not always include userId; fallback to login to resolve it.
-    let loginResponse: Response;
-    try {
-      loginResponse = await fetch(`${baseUrl}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ email, password }),
-        cache: "no-store",
-      });
-    } catch {
-      return NextResponse.json(
-        { error: "Account created but unable to finalize driver setup." },
-        { status: 502 },
-      );
-    }
-
-    if (!loginResponse.ok) {
-      return NextResponse.json(
-        { error: "Account created but unable to finalize driver setup." },
-        { status: 502 },
-      );
-    }
-
-    try {
-      const loginPayload = (await loginResponse.json()) as Record<string, unknown>;
-      userId = extractUserId(loginPayload);
-    } catch {
-      return NextResponse.json(
-        { error: "Account created but unable to finalize driver setup." },
-        { status: 502 },
-      );
-    }
-  }
-
-  if (!userId) {
     return NextResponse.json(
-      { error: "Signup succeeded but user ID could not be resolved for driver onboarding." },
+      { error: "Account created but unable to finalize driver setup." },
       { status: 502 },
     );
   }
 
-  // Step 2: Onboard as driver (direct backend call, no auth needed for this public endpoint)
+  if (!loginResponse.ok) {
+    return NextResponse.json(
+      { error: "Account created but unable to finalize driver setup." },
+      { status: 502 },
+    );
+  }
+
+  let loginPayload: unknown;
+  try {
+    loginPayload = await loginResponse.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Account created but unable to finalize driver setup." },
+      { status: 502 },
+    );
+  }
+
+  const { token, userId } = extractAuthValues(loginPayload);
+  if (!token || userId === null) {
+    return NextResponse.json(
+      { error: "Signup succeeded but the driver session could not be established." },
+      { status: 502 },
+    );
+  }
+
+  // Step 3: Onboard as a driver using the freshly issued token.
   let onboardResponse: Response;
   try {
     onboardResponse = await fetch(`${baseUrl}/auth/onBoardNewDriver/${userId}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify({ vehicleId }),
       cache: "no-store",
     });
@@ -164,15 +162,8 @@ async function registerDriver(body: RegisterBody): Promise<NextResponse> {
   }
 
   if (!onboardResponse.ok) {
-    let errorMsg = "Account created but failed to onboard as driver.";
-    try {
-      const errPayload = (await onboardResponse.json()) as Record<string, unknown>;
-      if (typeof errPayload?.error === "string") errorMsg = errPayload.error;
-      else if (typeof errPayload?.message === "string") errorMsg = errPayload.message;
-    } catch {
-      // response not JSON — use fallback message
-    }
-    return NextResponse.json({ error: errorMsg }, { status: onboardResponse.status });
+    const errorMessage = await readApiErrorPayload(onboardResponse, "Account created but failed to onboard as driver.");
+    return NextResponse.json({ error: errorMessage }, { status: onboardResponse.status });
   }
 
   return NextResponse.json({ success: true });

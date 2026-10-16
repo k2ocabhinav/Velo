@@ -24,12 +24,18 @@ function formPost(fields: Record<string, string>, headers: Record<string, string
 }
 
 describe("driver register route — pre-hydration form post", () => {
-  it("signs up, onboards and redirects to login without leaking the password", async () => {
+  it("signs up, authenticates, onboards and redirects to login without leaking the password", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes("/auth/signup")) {
         return new Response(JSON.stringify({ data: { userId: 9 } }), {
           status: 201,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      if (url.includes("/auth/login")) {
+        return new Response(JSON.stringify({ data: { token: "onboard-token", refreshToken: "refresh", userId: 9 } }), {
+          status: 200,
           headers: { "content-type": "application/json" },
         });
       }
@@ -55,7 +61,10 @@ describe("driver register route — pre-hydration form post", () => {
     expect(location).not.toContain("hunter2");
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringMatching(/\/auth\/onBoardNewDriver\/9$/),
-      expect.objectContaining({ method: "POST" }),
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({ Authorization: "Bearer onboard-token" }),
+      }),
     );
   });
 

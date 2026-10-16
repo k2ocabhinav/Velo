@@ -10,6 +10,7 @@ import { createRouteStageLabels, DateTime, EmptyState, ErrorState, Money, PageHe
 import { CountdownBadge, LiveStatusPill, ReconnectingIndicator, Skeleton } from "@velo/ui/feedback";
 import { useTenantBrandingOrDefault } from "@velo/ui/theme";
 import {
+  isDriverApproved,
   requestDriverProxy,
   type DriverNotification,
   type DriverProfile,
@@ -90,6 +91,7 @@ export default function DriverHomePage() {
   const [retryAction, setRetryAction] = useState<(() => void) | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const locationPublisher = useDriverLocationPublisher(null, profile?.available === true, words.trip);
+  const isApproved = isDriverApproved(profile);
 
   const loadProfile = useCallback(async () => {
     setProfileError(null);
@@ -396,8 +398,10 @@ export default function DriverHomePage() {
         {!loadingIncoming && !incomingError && incoming.length === 0 ? (
           <EmptyState
             title={`No ${words.tripWord} offers yet`}
-            description={profile?.available ? "Keep your availability on and new offers will appear here." : `Go online when you're ready to receive ${words.tripWord} offers.`}
-            action={!profile?.available
+            description={!isApproved
+              ? "Your account is pending approval. Offers will appear once an administrator approves it."
+              : profile?.available ? "Keep your availability on and new offers will appear here." : `Go online when you're ready to receive ${words.tripWord} offers.`}
+            action={isApproved && !profile?.available
               ? <Button onClick={() => void toggleAvailability()} disabled={!profile || togglingAvailability}>Go online</Button>
               : undefined}
           />
@@ -494,10 +498,10 @@ export default function DriverHomePage() {
         {!loadingProfile && !profileError && profile ? (
           <div className="driver-availability">
             <div className="driver-availability-copy">
-              <strong>{profile.available ? "You're online" : "You're offline"}</strong>
-              <p>{profile.available ? `New ${words.tripWord} offers can reach you.` : "Go online when you're ready to drive."}</p>
+              <strong>{!isApproved ? "Approval pending" : profile.available ? "You're online" : "You're offline"}</strong>
+              <p>{!isApproved ? "An administrator must approve your account before you can go online." : profile.available ? `New ${words.tripWord} offers can reach you.` : "Go online when you're ready to drive."}</p>
               {profile.vehicleId ? <p>Vehicle {profile.vehicleId}</p> : null}
-              {profile.available && locationPublisher.mode === "degraded" ? (
+              {isApproved && profile.available && locationPublisher.mode === "degraded" ? (
                 <p className="helper" role="status">{locationPublisher.message}</p>
               ) : null}
             </div>
@@ -507,7 +511,7 @@ export default function DriverHomePage() {
               role="switch"
               aria-checked={profile.available}
               aria-label={profile.available ? "Go offline" : "Go online"}
-              disabled={togglingAvailability || isActionPending(pendingActions, "availability")}
+              disabled={!isApproved || togglingAvailability || isActionPending(pendingActions, "availability")}
               onClick={() => void toggleAvailability()}
             >
               {togglingAvailability ? "Updating…" : profile.available ? "Go offline" : "Go online"}

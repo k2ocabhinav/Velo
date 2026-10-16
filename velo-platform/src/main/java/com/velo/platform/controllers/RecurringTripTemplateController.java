@@ -8,11 +8,14 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,6 +25,7 @@ import java.util.List;
 @RequestMapping("/api/v1")
 @Tag(name = "Recurring trips", description = "Weekly scheduled trip templates")
 @SecurityRequirement(name = "bearerAuth")
+@Validated
 public class RecurringTripTemplateController {
 
     private final RecurringTripTemplateService templateService;
@@ -30,8 +34,8 @@ public class RecurringTripTemplateController {
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "List recurring trip templates for the current tenant")
     public ResponseEntity<Page<RecurringTripTemplateDto>> getTenantTemplates(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "50") int size) {
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "50") @Min(1) @Max(200) int size) {
         return ResponseEntity.ok(templateService.getTenantTemplates(PageRequest.of(page, size)));
     }
 
@@ -84,8 +88,8 @@ public class RecurringTripTemplateController {
     @PreAuthorize("hasRole('RIDER')")
     @Operation(summary = "List recurring trips belonging to the current rider")
     public ResponseEntity<Page<RecurringTripTemplateDto>> getMyTemplates(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "50") int size) {
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "50") @Min(1) @Max(200) int size) {
         return ResponseEntity.ok(templateService.getMyTemplates(PageRequest.of(page, size)));
     }
 

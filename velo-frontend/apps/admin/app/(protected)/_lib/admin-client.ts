@@ -530,6 +530,14 @@ export const adminClient = {
     return toPage<PayoutItem>(payload);
   },
 
+  async getPayouts(status: string | null, page = 0, size = 10): Promise<ApiPage<PayoutItem>> {
+    const statusParam = status && status !== "ALL" ? `&status=${encodeURIComponent(status)}` : "";
+    const payload = await requestAdminProxy<unknown>(
+      `api/v1/admin/payouts?page=${page}&size=${size}${statusParam}`
+    );
+    return toPage<PayoutItem>(payload);
+  },
+
   async approvePayout(id: number, note: string): Promise<PayoutItem> {
     return requestAdminProxy<PayoutItem>(`api/v1/admin/payouts/${id}/approve`, {
       method: "POST",

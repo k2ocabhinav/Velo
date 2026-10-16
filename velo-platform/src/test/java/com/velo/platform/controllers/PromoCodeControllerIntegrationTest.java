@@ -66,6 +66,43 @@ class PromoCodeControllerIntegrationTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
+    void createPromoCode_WithoutCode_ShouldReturn400() throws Exception {
+        PromoCodeDto invalid = PromoCodeDto.builder()
+                .discountType(DiscountType.FLAT)
+                .discountValue(BigDecimal.TEN)
+                .build();
+
+        mockMvc.perform(post("/api/v1/admin/promo-codes")
+                .header("X-Test-User-Id", "1")
+                .header("X-Test-Email", "admin@test.com")
+                .header("X-Test-Role", "ROLE_ADMIN")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(invalid)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.status").value("BAD_REQUEST"));
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void createPromoCode_WithNonPositiveDiscount_ShouldReturn400() throws Exception {
+        PromoCodeDto invalid = PromoCodeDto.builder()
+                .code("NEG")
+                .discountType(DiscountType.FLAT)
+                .discountValue(BigDecimal.valueOf(-5))
+                .build();
+
+        mockMvc.perform(post("/api/v1/admin/promo-codes")
+                .header("X-Test-User-Id", "1")
+                .header("X-Test-Email", "admin@test.com")
+                .header("X-Test-Role", "ROLE_ADMIN")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(invalid)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.status").value("BAD_REQUEST"));
+    }
+
+    @Test
     @WithMockUser(roles = "RIDER")
     void createPromoCode_ByRider_ShouldReturn403() throws Exception {
         mockMvc.perform(post("/api/v1/admin/promo-codes")

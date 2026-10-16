@@ -85,7 +85,7 @@ Pre-booked transfer work is organised by time: a 05:40 airport pickup, a 09:15 h
 - **Static export:** `output: "export"`, no middleware, build-time branding, no request-time fetches. Netlify `netlify.toml` (build command, publish `apps/landing/out`) and `_headers` generated from `createSecurityHeaders({ environment: "production" })`. No new CSP origins.
 - **Remove Lenis** (smooth scroll is decorative and has a RAF cleanup bug). Motion: one hero intro; everything else is user-triggered; reduced motion is respected live, including stopping the RAF loop.
 - **SEO:** metadata, OG image (static PNG of the SVG hero), sitemap, robots, canonical from `NEXT_PUBLIC_SITE_URL`. Privacy and Terms pages in plain language, describing only what the form collects.
-- **Contact form:** posts to `NEXT_PUBLIC_CONTACT_FORM_ACTION` (Netlify Forms or Formspree), with a mailto fallback to `NEXT_PUBLIC_CONTACT_EMAIL`. Accessible validation; success and error states.
+- **Contact form:** posts same-origin to `/_velo/contact`, which Netlify rewrites to the provider in `NEXT_PUBLIC_CONTACT_FORM_ACTION` (Netlify Forms or Formspree), with a mailto fallback to `NEXT_PUBLIC_CONTACT_EMAIL`. Accessible validation; success and error states.
 
 ## 7. Build split (file ownership)
 | Package | Owns | Contract |

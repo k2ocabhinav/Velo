@@ -92,8 +92,8 @@ public class AdminController {
     @GetMapping("/drivers/pending")
     @Operation(summary = "Get pending driver approvals")
     public ResponseEntity<Page<PendingDriverDto>> getPendingDrivers(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "10") @Min(1) @Max(200) int size) {
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         return ResponseEntity.ok(adminService.getPendingDrivers(pageRequest));
     }
@@ -102,8 +102,8 @@ public class AdminController {
     @Operation(summary = "Get drivers by onboarding status")
     public ResponseEntity<Page<PendingDriverDto>> getDriversByStatus(
             @RequestParam(defaultValue = "PENDING") DriverOnboardingStatus status,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "10") @Min(1) @Max(200) int size
     ) {
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         return ResponseEntity.ok(adminService.getDriversByStatus(status, pageRequest));
@@ -140,8 +140,8 @@ public class AdminController {
     @GetMapping("/users")
     @Operation(summary = "Get all users")
     public ResponseEntity<Page<AdminUserDto>> getAllUsers(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "10") @Min(1) @Max(200) int size) {
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdTime"));
         return ResponseEntity.ok(adminService.getAllUsers(pageRequest));
     }
@@ -163,10 +163,20 @@ public class AdminController {
     @GetMapping("/payouts/pending")
     @Operation(summary = "Get pending driver payouts")
     public ResponseEntity<Page<com.velo.platform.dto.PayoutRequestDto>> getPendingPayouts(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "10") @Min(1) @Max(200) int size) {
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "requestedAt"));
         return ResponseEntity.ok(payoutService.getPendingPayouts(pageRequest));
+    }
+
+    @GetMapping("/payouts")
+    @Operation(summary = "Get driver payouts, optionally filtered by status")
+    public ResponseEntity<Page<com.velo.platform.dto.PayoutRequestDto>> getPayouts(
+            @RequestParam(required = false) com.velo.platform.entities.enums.PayoutStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "requestedAt"));
+        return ResponseEntity.ok(payoutService.getPayouts(status, pageRequest));
     }
 
     @PostMapping("/payouts/{id}/approve")
@@ -192,8 +202,8 @@ public class AdminController {
     @GetMapping("/scheduled-rides")
     @Operation(summary = "Get all platform-wide scheduled rides")
     public ResponseEntity<Page<com.velo.platform.dto.ScheduledRideDto>> getAllScheduledRides(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "10") @Min(1) @Max(200) int size) {
         PageRequest pageRequest = PageRequest.of(page, size);
         return ResponseEntity.ok(scheduledRideService.getAllScheduledRides(pageRequest));
     }
@@ -248,8 +258,8 @@ public class AdminController {
     @GetMapping("/dispatch/requests")
     @Operation(summary = "Get pending ride requests for operations dispatch")
     public ResponseEntity<Page<AdminPendingRideRequestDto>> getPendingRideRequests(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "10") @Min(1) @Max(200) int size) {
         PageRequest pageRequest = PageRequest.of(page, size);
         return ResponseEntity.ok(adminDispatchService.getPendingRideRequests(pageRequest));
     }
@@ -264,8 +274,8 @@ public class AdminController {
     @GetMapping("/dispatch/active-rides")
     @Operation(summary = "Get active rides available for operations override controls")
     public ResponseEntity<Page<AdminActiveRideDto>> getActiveRides(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "10") @Min(1) @Max(200) int size) {
         PageRequest pageRequest = PageRequest.of(page, size);
         return ResponseEntity.ok(adminDispatchService.getActiveRides(pageRequest));
     }
@@ -295,8 +305,8 @@ public class AdminController {
     @GetMapping("/dispatch/audit")
     @Operation(summary = "Get operations override audit trail entries")
     public ResponseEntity<Page<AdminDispatchAuditDto>> getDispatchAudit(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "10") @Min(1) @Max(200) int size) {
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         return ResponseEntity.ok(adminDispatchService.getDispatchAudit(pageRequest));
     }

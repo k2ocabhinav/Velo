@@ -139,6 +139,63 @@ class AuthServiceImplTest {
     }
 
     @Test
+    @DisplayName("Signup by an authenticated admin places the new rider in the admin's tenant")
+    void signup_WhenAdminAuthenticated_ShouldUseCallerTenant() {
+        authenticate(9L, Role.ADMIN, 3L);
+        SignupDto signupDto = new SignupDto();
+        signupDto.setName("Tenant Rider");
+        signupDto.setEmail("tenant-rider@test.com");
+        signupDto.setPassword("password123");
+
+        User mappedUser = User.builder()
+                .email("tenant-rider@test.com")
+                .roles(new HashSet<>())
+                .build();
+
+        when(userRepository.findByEmail(signupDto.getEmail())).thenReturn(Optional.empty());
+        when(modelMapper.map(signupDto, User.class)).thenReturn(mappedUser);
+        when(passwordEncoder.encode(signupDto.getPassword())).thenReturn("encoded-password");
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
+            User user = invocation.getArgument(0);
+            user.setId(2L);
+            return user;
+        });
+        when(modelMapper.map(any(User.class), eq(UserDto.class))).thenReturn(new UserDto());
+
+        authService.signup(signupDto);
+
+        assertThat(mappedUser.getTenantId()).isEqualTo(3L);
+    }
+
+    @Test
+    @DisplayName("Anonymous signup keeps falling back to the default tenant")
+    void signup_WhenAnonymous_ShouldUseDefaultTenant() {
+        SignupDto signupDto = new SignupDto();
+        signupDto.setName("Public Rider");
+        signupDto.setEmail("public-rider@test.com");
+        signupDto.setPassword("password123");
+
+        User mappedUser = User.builder()
+                .email("public-rider@test.com")
+                .roles(new HashSet<>())
+                .build();
+
+        when(userRepository.findByEmail(signupDto.getEmail())).thenReturn(Optional.empty());
+        when(modelMapper.map(signupDto, User.class)).thenReturn(mappedUser);
+        when(passwordEncoder.encode(signupDto.getPassword())).thenReturn("encoded-password");
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
+            User user = invocation.getArgument(0);
+            user.setId(3L);
+            return user;
+        });
+        when(modelMapper.map(any(User.class), eq(UserDto.class))).thenReturn(new UserDto());
+
+        authService.signup(signupDto);
+
+        assertThat(mappedUser.getTenantId()).isEqualTo(1L);
+    }
+
+    @Test
     @DisplayName("Login with valid credentials should return auth response")
     void login_WithValidCredentials_ShouldReturnAuthResponse() {
         String email = "user@test.com";

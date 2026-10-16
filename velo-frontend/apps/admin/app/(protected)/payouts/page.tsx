@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { ConfirmDialog, DataTable, EmptyState, ErrorState, PageHeader, Pagination, Section, SegmentedControl, StatusBadge, Money, DateTime, type DataTableColumn } from "@velo/ui";
 import { adminClient, type PayoutItem } from "../_lib/admin-client";
 import { normalizePageNumber, normalizeTotalPages, pageFallbackAfterMutation, toActionErrorMessage } from "../_lib/ui-state";
@@ -24,16 +24,16 @@ export default function PayoutsPage() {
   const [submittingId, setSubmittingId] = useState<number | null>(null);
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
 
-  async function load(targetPage = page, allowFallback = true): Promise<void> {
+  async function load(targetPage = page, targetFilter: (typeof FILTERS)[number] = filter, allowFallback = true): Promise<void> {
     setLoading(true);
     setError(null);
     try {
-      const payload = await adminClient.getPendingPayouts(targetPage, 10);
+      const payload = await adminClient.getPayouts(targetFilter, targetPage, 10);
       const content = payload.content ?? [];
       const nextPage = normalizePageNumber(payload.number, targetPage);
       const nextTotalPages = normalizeTotalPages(payload.totalPages);
       const fallback = allowFallback ? pageFallbackAfterMutation({ requestedPage: targetPage, returnedPage: nextPage, totalPages: nextTotalPages, itemCount: content.length }) : null;
-      if (fallback !== null && fallback !== targetPage) return await load(fallback, false);
+      if (fallback !== null && fallback !== targetPage) return await load(fallback, targetFilter, false);
       setRows(content);
       setPage(nextPage);
       setTotalPages(nextTotalPages);
@@ -44,9 +44,7 @@ export default function PayoutsPage() {
     }
   }
 
-  useEffect(() => { void load(0); }, []);
-
-  const visibleRows = useMemo(() => filter === "ALL" ? rows : rows.filter((payout) => String(payout.status).toUpperCase() === filter), [rows, filter]);
+  useEffect(() => { void load(0, filter); }, [filter]);
 
   async function runAction(payout: PayoutItem, action: PayoutAction): Promise<void> {
     setSubmittingId(payout.id);
@@ -56,7 +54,7 @@ export default function PayoutsPage() {
       if (action === "approve") await adminClient.approvePayout(payout.id, ACTION_NOTES.approve);
       else if (action === "reject") await adminClient.rejectPayout(payout.id, ACTION_NOTES.reject);
       else await adminClient.processPayout(payout.id);
-      await load(page);
+      await load(page, filter);
       const completionLabel: Record<PayoutAction, string> = { approve: "approved", reject: "rejected", process: "processed" };
       setStatusMessage(`Payout ${completionLabel[action]}.`);
     } catch (actionError) {
@@ -83,7 +81,7 @@ export default function PayoutsPage() {
       <Section title="Payout requests" actions={<SegmentedControl ariaLabel="Payout status filter" value={filter} onValueChange={(value) => setFilter(value as (typeof FILTERS)[number])} options={FILTERS.map((value) => ({ value, label: value === "ALL" ? "All" : value.charAt(0) + value.slice(1).toLowerCase() }))} />}>
         {loading ? <DataTable.Skeleton rows={5} columns={4} label="Loading payouts" /> : (
           <DataTable
-            data={visibleRows}
+            data={rows}
             columns={columns}
             getRowKey={(payout) => payout.id}
             ariaLabel="Payout requests"
@@ -100,7 +98,7 @@ export default function PayoutsPage() {
             rowActionsLabel={() => "Payout actions"}
           />
         )}
-        {!loading ? <Pagination page={page + 1} totalPages={totalPages} onPageChange={(next) => void load(next - 1)} /> : null}
+        {!loading ? <Pagination page={page + 1} totalPages={totalPages} onPageChange={(next) => void load(next - 1, filter)} /> : null}
       </Section>
       <ConfirmDialog
         open={Boolean(confirmAction)}

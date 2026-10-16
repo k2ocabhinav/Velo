@@ -8,6 +8,8 @@ import com.velo.platform.services.PayoutService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -15,6 +17,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -25,6 +28,7 @@ import java.time.LocalDate;
 @RequiredArgsConstructor
 @Tag(name = "Driver Earnings", description = "Driver Earnings and Payouts management APIs")
 @SecurityRequirement(name = "bearerAuth")
+@Validated
 public class DriverEarningsController {
 
     private final DriverEarningsService driverEarningsService;
@@ -34,8 +38,8 @@ public class DriverEarningsController {
     @Operation(summary = "Get driver earnings history")
     @PreAuthorize("hasRole('DRIVER')")
     public ResponseEntity<Page<DriverEarningDto>> getEarningsHistory(
-            @RequestParam(defaultValue = "0") Integer pageOffset,
-            @RequestParam(defaultValue = "10") Integer pageSize) {
+            @RequestParam(defaultValue = "0") @Min(0) Integer pageOffset,
+            @RequestParam(defaultValue = "10") @Min(1) @Max(200) Integer pageSize) {
         PageRequest pageRequest = PageRequest.of(pageOffset, pageSize, Sort.by(Sort.Direction.DESC, "createdTime"));
         return ResponseEntity.ok(driverEarningsService.getEarningsHistory(pageRequest));
     }
@@ -73,8 +77,8 @@ public class DriverEarningsController {
     @Operation(summary = "Get payout requests history")
     @PreAuthorize("hasRole('DRIVER')")
     public ResponseEntity<Page<PayoutRequestDto>> getMyPayouts(
-            @RequestParam(defaultValue = "0") Integer pageOffset,
-            @RequestParam(defaultValue = "10") Integer pageSize) {
+            @RequestParam(defaultValue = "0") @Min(0) Integer pageOffset,
+            @RequestParam(defaultValue = "10") @Min(1) @Max(200) Integer pageSize) {
         PageRequest pageRequest = PageRequest.of(pageOffset, pageSize, Sort.by(Sort.Direction.DESC, "requestedAt"));
         return ResponseEntity.ok(payoutService.getMyPayouts(pageRequest));
     }

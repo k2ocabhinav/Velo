@@ -8,6 +8,7 @@ import com.velo.platform.entities.User;
 import com.velo.platform.entities.enums.DiscountType;
 import com.velo.platform.exceptions.ResourceNotFoundException;
 import com.velo.platform.exceptions.RuntimeConflictException;
+import com.velo.platform.exceptions.BadRequestException;
 import com.velo.platform.repositories.PromoCodeRepository;
 import com.velo.platform.repositories.PromoCodeUsageRepository;
 import com.velo.platform.services.TenantScopeService;
@@ -100,6 +101,51 @@ class PromoCodeServiceImplTest {
         assertThatThrownBy(() -> promoCodeService.createPromoCode(promoCodeDto))
                 .isInstanceOf(RuntimeConflictException.class)
                 .hasMessageContaining("already exists");
+    }
+
+    @Test
+    void createPromoCode_WhenCodeMissing_ShouldThrowBadRequest() {
+        promoCodeDto.setCode("  ");
+
+        assertThatThrownBy(() -> promoCodeService.createPromoCode(promoCodeDto))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("code is required");
+
+        verify(promoCodeRepository, never()).save(any());
+    }
+
+    @Test
+    void createPromoCode_WhenDiscountTypeMissing_ShouldThrowBadRequest() {
+        promoCodeDto.setDiscountType(null);
+
+        assertThatThrownBy(() -> promoCodeService.createPromoCode(promoCodeDto))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Discount type is required");
+
+        verify(promoCodeRepository, never()).save(any());
+    }
+
+    @Test
+    void createPromoCode_WhenDiscountValueNotPositive_ShouldThrowBadRequest() {
+        promoCodeDto.setDiscountValue(BigDecimal.ZERO);
+
+        assertThatThrownBy(() -> promoCodeService.createPromoCode(promoCodeDto))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("greater than zero");
+
+        verify(promoCodeRepository, never()).save(any());
+    }
+
+    @Test
+    void createPromoCode_WhenEndDateBeforeStartDate_ShouldThrowBadRequest() {
+        promoCodeDto.setStartDate(LocalDate.of(2026, 12, 1));
+        promoCodeDto.setEndDate(LocalDate.of(2026, 11, 1));
+
+        assertThatThrownBy(() -> promoCodeService.createPromoCode(promoCodeDto))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("End date");
+
+        verify(promoCodeRepository, never()).save(any());
     }
 
     @Test

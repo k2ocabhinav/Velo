@@ -154,6 +154,34 @@ class PaymentMethodControllerIntegrationTest {
     }
 
     @Test
+    @DisplayName("POST /payment-methods without a type should return 400")
+    void addPaymentMethod_MissingType_ShouldReturnBadRequest() throws Exception {
+        mockMvc.perform(withAuth(post("/payment-methods"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.status").value("BAD_REQUEST"));
+    }
+
+    @Test
+    @DisplayName("POST /payment-methods with non-numeric last four digits should return 400")
+    void addPaymentMethod_InvalidLastFourDigits_ShouldReturnBadRequest() throws Exception {
+        String requestBody = """
+                {
+                    "type": "CARD",
+                    "lastFourDigits": "42",
+                    "expiryDate": "12/25"
+                }
+                """;
+
+        mockMvc.perform(withAuth(post("/payment-methods"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.status").value("BAD_REQUEST"));
+    }
+
+    @Test
     @DisplayName("DELETE /payment-methods/{id} for non-existent should return 404")
     void deletePaymentMethod_NonExistent_ShouldReturn404() throws Exception {
         mockMvc.perform(withAuth(delete("/payment-methods/99999")))
