@@ -21,6 +21,7 @@ import {
   normalizeCurrentRideRequest,
   normalizeRidePage,
   hasInFlightRideRequest,
+  resolvePendingRequestExpiryMs,
   shouldShowTripBanner,
   selectTripLaneRide,
   type RiderHomeRide,
@@ -80,6 +81,7 @@ type RideRequest = {
   paymentMethod: string;
   requestedTime?: string | null;
   createdTime?: string;
+  expiresAt?: string | null;
 };
 
 type SavedPlace = {
@@ -141,6 +143,7 @@ export default function RiderHomePage() {
 
   const [bookingOpen, setBookingOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelRequestDialogOpen, setCancelRequestDialogOpen] = useState(false);
 
   const [pickupLat, setPickupLat] = useState("");
   const [pickupLng, setPickupLng] = useState("");
@@ -399,19 +402,10 @@ export default function RiderHomePage() {
     return base;
   }, [lastTripLaneSyncAt, realtime.lastError, realtime.reconnectAttempts, realtime.state, words.trip]);
 
-  const pendingRequestExpiresAtMs = useMemo(() => {
-    const createdTime = lastRequest?.createdTime;
-    if (!createdTime) {
-      return null;
-    }
-
-    const createdMs = new Date(createdTime).getTime();
-    if (!Number.isFinite(createdMs)) {
-      return null;
-    }
-
-    return createdMs + OFFER_TTL_MS;
-  }, [lastRequest?.createdTime]);
+  const pendingRequestExpiresAtMs = useMemo(
+    () => resolvePendingRequestExpiryMs(lastRequest, OFFER_TTL_MS),
+    [lastRequest],
+  );
 
   function buildRequestBody() {
     const pickup = validatePointInput({ lat: pickupLat, lng: pickupLng }, "Pickup");
@@ -711,6 +705,40 @@ export default function RiderHomePage() {
     }
   }
 
+  async function cancelPendingRequest(): Promise<void> {
+    const requestId = lastRequest?.id;
+    if (!requestId) {
+      return;
+    }
+
+    setCancelingRideId(requestId);
+    clearActionFeedback();
+
+    try {
+      await requestRiderProxy<RideRequest>(`riders/cancel-request/${requestId}`, {
+        method: "POST",
+      });
+      const updatedRequest = lastRequest
+        ? {
+            ...lastRequest,
+            rideRequestStatus: "CANCELLED",
+          }
+        : null;
+      setLastRequest(updatedRequest);
+      setMessage(`${words.trip} request cancelled. Request a new ${words.tripWord} when ready.`);
+      await loadTripLane(true, updatedRequest);
+    } catch (cancelError) {
+      const nextMessage =
+        cancelError instanceof Error
+          ? mapApiError({ error: cancelError.message }, `Unable to cancel ${words.tripWord} request.`)
+          : `Unable to cancel ${words.tripWord} request.`;
+      setError(nextMessage);
+    } finally {
+      setCancelingRideId(null);
+    }
+  }
+
+  const canCancelPendingRequest = tripLane.mode === "pending" && lastRequest?.id !== undefined;
   const canEstimate = hasSelectedLocations && !shouldDisableSubmit(estimating, formInputs);
   const hasInFlightTrip = tripLane.mode === "pending" || tripLane.mode === "active" || hasInFlightRideRequest(lastRequest);
   const canRequest =
@@ -823,6 +851,11 @@ export default function RiderHomePage() {
               {tripLane.ride && isRideCancelableFromTripLane(tripLane.ride.rideStatus) ? (
                 <Button variant="ghost" disabled={cancelingRideId !== null} onClick={() => setCancelDialogOpen(true)}>
                   {`Cancel ${words.tripWord}`}
+                </Button>
+              ) : null}
+              {canCancelPendingRequest ? (
+                <Button variant="ghost" disabled={cancelingRideId !== null} onClick={() => setCancelRequestDialogOpen(true)}>
+                  {`Cancel ${words.tripWord} request`}
                 </Button>
               ) : null}
             </div>
@@ -1004,6 +1037,14 @@ export default function RiderHomePage() {
         description={`Your ${words.driverWord} will be notified that the ${words.tripWord} is cancelled.`}
         confirmLabel={`Cancel ${words.tripWord}`}
         onConfirm={cancelActiveRide}
+      />
+      <ConfirmDialog
+        open={cancelRequestDialogOpen}
+        onOpenChange={setCancelRequestDialogOpen}
+        title={`Cancel this ${words.tripWord} request?`}
+        description={`We will stop looking for a ${words.driverWord}. You can request another ${words.tripWord} any time.`}
+        confirmLabel={`Cancel ${words.tripWord} request`}
+        onConfirm={cancelPendingRequest}
       />
     </main>
   );

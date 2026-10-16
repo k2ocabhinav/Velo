@@ -1,5 +1,6 @@
 package com.velo.platform.services.impl;
 
+import com.velo.platform.configs.DispatchProperties;
 import com.velo.platform.dto.DriverDto;
 import com.velo.platform.dto.PointDto;
 import com.velo.platform.dto.RideDto;
@@ -74,6 +75,7 @@ public class RiderServiceImpl implements RiderService {
     private final RideRealtimeService rideRealtimeService;
     private final RideRequestAddressResolver rideRequestAddressResolver;
     private final ApplicationEventPublisher eventPublisher;
+    private final DispatchProperties dispatchProperties;
 
     @Override
     @Transactional
@@ -138,7 +140,7 @@ public class RiderServiceImpl implements RiderService {
 
         eventPublisher.publishEvent(new RideRequestedEvent(this, savedRideRequest, matchedDrivers, false));
 
-        return modelMapper.map(savedRideRequest, RideRequestDto.class);
+        return toRideRequestDto(savedRideRequest);
     }
 
     @Override
@@ -263,7 +265,7 @@ public class RiderServiceImpl implements RiderService {
                         resolveTenantId(currentRider.getTenantId()),
                         List.of(RideRequestStatus.PENDING, RideRequestStatus.CONFIRMED)
                 )
-                .map(rideRequest -> modelMapper.map(rideRequest, RideRequestDto.class))
+                .map(this::toRideRequestDto)
                 .orElse(null);
     }
 
@@ -317,6 +319,15 @@ public class RiderServiceImpl implements RiderService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Rider not found for user id " + principal.getUserId()
                 ));
+    }
+
+    private RideRequestDto toRideRequestDto(RideRequest rideRequest) {
+        RideRequestDto dto = modelMapper.map(rideRequest, RideRequestDto.class);
+        LocalDateTime requestedTime = rideRequest.getRequestedTime();
+        if (requestedTime != null && RideRequestStatus.PENDING.equals(rideRequest.getRideRequestStatus())) {
+            dto.setExpiresAt(requestedTime.plusSeconds(Math.max(1, dispatchProperties.getOfferTtlSeconds())));
+        }
+        return dto;
     }
 
     private RideTrackingDto toRideTrackingDto(Ride ride) {

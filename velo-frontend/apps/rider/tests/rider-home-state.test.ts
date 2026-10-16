@@ -4,6 +4,7 @@ import {
   hasInFlightRideRequest,
   isRideCancelableFromTripLane,
   normalizeCurrentRideRequest,
+  resolvePendingRequestExpiryMs,
   selectTripLaneRide,
   shouldShowTripBanner,
   type RiderHomeRide,
@@ -145,5 +146,40 @@ describe("rider home status helpers", () => {
     expect(isRideCancelableFromTripLane("CONFIRMED")).toBe(true);
     expect(isRideCancelableFromTripLane("ONGOING")).toBe(false);
     expect(isRideCancelableFromTripLane("ENDED")).toBe(false);
+  });
+});
+
+describe("resolvePendingRequestExpiryMs", () => {
+  it("prefers the deadline reported by the dispatcher", () => {
+    const expiresAtMs = resolvePendingRequestExpiryMs(
+      {
+        rideRequestStatus: "PENDING",
+        createdTime: "2026-04-08T10:00:00.000Z",
+        expiresAt: "2026-04-08T10:01:30.000Z",
+      },
+      45_000,
+    );
+
+    expect(expiresAtMs).toBe(new Date("2026-04-08T10:01:30.000Z").getTime());
+  });
+
+  it("falls back to the created time plus the offer TTL when the backend omits a deadline", () => {
+    const expiresAtMs = resolvePendingRequestExpiryMs(
+      {
+        rideRequestStatus: "PENDING",
+        createdTime: "2026-04-08T10:00:00.000Z",
+      },
+      45_000,
+    );
+
+    expect(expiresAtMs).toBe(new Date("2026-04-08T10:00:00.000Z").getTime() + 45_000);
+  });
+
+  it("returns null when there is no usable deadline or created time", () => {
+    expect(resolvePendingRequestExpiryMs(null, 45_000)).toBeNull();
+    expect(resolvePendingRequestExpiryMs({ rideRequestStatus: "PENDING" }, 45_000)).toBeNull();
+    expect(
+      resolvePendingRequestExpiryMs({ expiresAt: "not-a-date", createdTime: "also-bad" }, 45_000),
+    ).toBeNull();
   });
 });

@@ -1,5 +1,6 @@
 package com.velo.platform.services.impl;
 
+import com.velo.platform.configs.DispatchProperties;
 import com.velo.platform.dto.DriverDto;
 import com.velo.platform.dto.GeocodingResultDto;
 import com.velo.platform.dto.PointDto;
@@ -116,6 +117,9 @@ class RiderServiceImplTest {
     private ApplicationEventPublisher eventPublisher;
 
     @Mock
+    private DispatchProperties dispatchProperties;
+
+    @Mock
     private RideFareCalculationStrategy fareCalculationStrategy;
 
     @Mock
@@ -160,7 +164,8 @@ class RiderServiceImplTest {
                 walletService,
                 rideRealtimeService,
                 new RideRequestAddressResolver(geocodingService),
-                eventPublisher);
+                eventPublisher,
+                dispatchProperties);
         lenient().when(tenantConfigurationRepository.findByTenant_Id(anyLong())).thenReturn(Optional.empty());
 
         User testUser = User.builder()
@@ -236,6 +241,34 @@ class RiderServiceImplTest {
         assertThat(testRideRequest.getFare()).isEqualByComparingTo(BigDecimal.valueOf(150.0));
         verify(rideOfferService).createOffers(testRideRequest, List.of(matchedDriver));
         verify(eventPublisher).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("Request ride exposes the offer expiry so the rider countdown matches dispatch")
+    void requestRide_ShouldExposeOfferExpiryForPendingRequest() {
+        mockAuthenticatedRider();
+        RideRequest request = RideRequest.builder()
+                .id(7L)
+                .rideRequestStatus(RideRequestStatus.PENDING)
+                .rider(testRider)
+                .fare(BigDecimal.valueOf(100.0))
+                .build();
+        request.setRequestedTime(LocalDateTime.of(2026, 10, 16, 10, 0, 0));
+        when(modelMapper.map(testRideRequestDto, RideRequest.class)).thenReturn(request);
+        when(rideStrategyManager.rideFareCalculationStrategy()).thenReturn(fareCalculationStrategy);
+        when(fareCalculationStrategy.calculateFare(request)).thenReturn(BigDecimal.valueOf(150.0));
+        when(rideRequestRepository.save(request)).thenReturn(request);
+        when(rideStrategyManager.driverMatchingStrategy(testRider.getRating())).thenReturn(driverMatchingStrategy);
+        Driver matchedDriver = Driver.builder().id(10L).build();
+        when(driverMatchingStrategy.findMatchingDrivers(request)).thenReturn(List.of(matchedDriver));
+        when(rideOfferService.createOffers(request, List.of(matchedDriver))).thenReturn(List.of());
+        RideRequestDto mappedDto = new RideRequestDto();
+        when(modelMapper.map(request, RideRequestDto.class)).thenReturn(mappedDto);
+        when(dispatchProperties.getOfferTtlSeconds()).thenReturn(90L);
+
+        RideRequestDto result = riderService.requestRide(testRideRequestDto);
+
+        assertThat(result.getExpiresAt()).isEqualTo(LocalDateTime.of(2026, 10, 16, 10, 1, 30));
     }
 
     @Test

@@ -108,7 +108,7 @@ export default function RiderActiveRidePage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [retryAction, setRetryAction] = useState<"cancel" | "end" | "rate" | null>(null);
+  const [retryAction, setRetryAction] = useState<"cancel" | "cancelRequest" | "end" | "rate" | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [routePath, setRoutePath] = useState<RoutePath | null>(null);
   const [loadingRoute, setLoadingRoute] = useState(false);
@@ -116,8 +116,10 @@ export default function RiderActiveRidePage() {
   const [ratingRide, setRatingRide] = useState<RiderRideItem | null>(null);
   const [submittingRating, setSubmittingRating] = useState(false);
   const [submittingCancel, setSubmittingCancel] = useState(false);
+  const [submittingCancelRequest, setSubmittingCancelRequest] = useState(false);
   const [submittingEndTrip, setSubmittingEndTrip] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelRequestDialogOpen, setCancelRequestDialogOpen] = useState(false);
   const [endDialogOpen, setEndDialogOpen] = useState(false);
 
   const lifecycleStatus = normalizeRideLifecycleStatus(tracking?.status);
@@ -287,6 +289,35 @@ export default function RiderActiveRidePage() {
     }
   }
 
+  async function cancelPendingRequest(): Promise<void> {
+    const rideRequestId = tracking?.rideRequestId;
+    if (!rideRequestId || lifecycleStatus !== "PENDING") {
+      return;
+    }
+
+    setSubmittingCancelRequest(true);
+    setError(null);
+    setActionError(null);
+    setRetryAction(null);
+    setMessage(null);
+
+    try {
+      await requestRiderProxy(`riders/cancel-request/${rideRequestId}`, { method: "POST" });
+      setMessage(`${words.trip} request cancelled.`);
+      await loadTracking(true);
+      await loadRecentEndedRide();
+    } catch (cancelError) {
+      setActionError(
+        cancelError instanceof Error
+          ? mapApiError({ error: cancelError.message }, `Unable to cancel this ${words.tripWord} request.`)
+          : `Unable to cancel this ${words.tripWord} request.`,
+      );
+      setRetryAction("cancelRequest");
+    } finally {
+      setSubmittingCancelRequest(false);
+    }
+  }
+
   async function endRide(): Promise<void> {
     if (!tracking?.rideId || lifecycleStatus !== "ONGOING") {
       return;
@@ -368,6 +399,7 @@ export default function RiderActiveRidePage() {
             ? `${words.trip} cancelled`
             : `Your ${words.tripWord}`;
   const canCancel = Boolean(tracking?.rideId && tracking.canCancel && lifecycleStatus === "CONFIRMED");
+  const canCancelRequest = Boolean(tracking?.rideRequestId && !tracking?.rideId && lifecycleStatus === "PENDING");
   const fareValue = ratingRide?.fare ?? null;
 
   return (
@@ -387,6 +419,7 @@ export default function RiderActiveRidePage() {
           retryLabel="Retry"
           onRetry={() => {
             if (retryAction === "cancel") setCancelDialogOpen(true);
+            else if (retryAction === "cancelRequest") setCancelRequestDialogOpen(true);
             else if (retryAction === "end") setEndDialogOpen(true);
             else if (retryAction === "rate") void submitRating();
           }}
@@ -462,6 +495,11 @@ export default function RiderActiveRidePage() {
                 {`Cancel ${words.tripWord}`}
               </Button>
             ) : null}
+            {canCancelRequest ? (
+              <Button variant="danger" disabled={submittingCancelRequest} onClick={() => setCancelRequestDialogOpen(true)}>
+                {`Cancel ${words.tripWord} request`}
+              </Button>
+            ) : null}
             {lifecycleStatus === "ONGOING" ? (
               <Button variant="secondary" loading={submittingEndTrip} onClick={() => setEndDialogOpen(true)}>
                 {`End ${words.tripWord}`}
@@ -525,6 +563,14 @@ export default function RiderActiveRidePage() {
         confirmLabel={`End ${words.tripWord}`}
         destructive={false}
         onConfirm={endRide}
+      />
+      <ConfirmDialog
+        open={cancelRequestDialogOpen}
+        onOpenChange={setCancelRequestDialogOpen}
+        title={`Cancel this ${words.tripWord} request?`}
+        description={`We will stop looking for a ${words.driverWord}. You can request another ${words.tripWord} any time.`}
+        confirmLabel={`Cancel ${words.tripWord} request`}
+        onConfirm={cancelPendingRequest}
       />
     </main>
   );
