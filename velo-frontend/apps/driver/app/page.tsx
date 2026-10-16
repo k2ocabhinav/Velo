@@ -7,7 +7,7 @@ import { isActionPending, setActionPending } from "@velo/app-core/async-actions"
 import { getTenantLabelWords } from "@velo/app-core/tenant";
 import { Button } from "@velo/ui/primitives";
 import { createRouteStageLabels, DateTime, EmptyState, ErrorState, Money, PageHeader, RouteStrip, Section, StatusBadge } from "@velo/ui/composed";
-import { CountdownBadge, LiveStatusPill, MatchingIndicator, ReconnectingIndicator, Skeleton } from "@velo/ui/feedback";
+import { CountdownBadge, LiveStatusPill, ReconnectingIndicator, Skeleton } from "@velo/ui/feedback";
 import { useTenantBrandingOrDefault } from "@velo/ui/theme";
 import {
   requestDriverProxy,
@@ -23,7 +23,7 @@ import {
   normalizeDriverRidePage,
   selectCurrentDriverRide,
 } from "./_lib/driver-ride-state";
-import { formatOfferLocation, getIncomingOfferContent, getNextTripActionLabel, getRiderFirstName, resolveOfferExpiresAtMs } from "./_lib/driver-offer";
+import { formatOfferLocation, getIncomingOfferTitle, getNextTripActionLabel, getRiderFirstName, resolveOfferExpiresAtMs } from "./_lib/driver-offer";
 import { useDriverLocationPublisher } from "./_lib/driver-location-publisher";
 import {
   useDriverNotificationSubscription,
@@ -364,42 +364,6 @@ export default function DriverHomePage() {
       ) : null}
       {message ? <p role="status" className="helper">{message}</p> : null}
 
-      <Section title="Availability">
-        {loadingProfile ? (
-          <div className="stack compact" role="status" aria-label="Loading driver profile" aria-busy="true">
-            <Skeleton className="h-5 w-36" />
-            <Skeleton className="h-4 w-48" />
-            <Skeleton className="h-14 w-full" />
-          </div>
-        ) : null}
-        {!loadingProfile && profileError ? (
-          <ErrorState title="Couldn't load your profile" description={profileError} onRetry={() => void loadProfile()} />
-        ) : null}
-        {!loadingProfile && !profileError && profile ? (
-          <div className="driver-availability">
-            <div className="driver-availability-copy">
-              <strong>{profile.available ? "You're online" : "You're offline"}</strong>
-              <p>{profile.available ? `New ${words.tripWord} offers can reach you.` : "Go online when you're ready to drive."}</p>
-              {profile.vehicleId ? <p>Vehicle {profile.vehicleId}</p> : null}
-              {profile.available && locationPublisher.mode === "degraded" ? (
-                <p className="helper" role="status">{locationPublisher.message}</p>
-              ) : null}
-            </div>
-            <Button
-              className="driver-availability-toggle"
-              data-online={profile.available || undefined}
-              role="switch"
-              aria-checked={profile.available}
-              aria-label={profile.available ? "Go offline" : "Go online"}
-              disabled={togglingAvailability || isActionPending(pendingActions, "availability")}
-              onClick={() => void toggleAvailability()}
-            >
-              {togglingAvailability ? "Updating…" : profile.available ? "Go offline" : "Go online"}
-            </Button>
-          </div>
-        ) : null}
-      </Section>
-
       <Section
         title={`${words.trip} offers`}
         actions={(
@@ -444,30 +408,17 @@ export default function DriverHomePage() {
               const requestId = getRideRequestId(notification);
               const busy = requestId !== null && acceptingRequestId === requestId;
               const preview = requestId !== null ? rideRequestPreviews[requestId] : null;
-              const cardContent = getIncomingOfferContent(notification.type, words.tripWord);
+              const offerTitle = getIncomingOfferTitle(notification.type, words.tripWord);
               const riderName = getRiderFirstName(preview?.rider);
               const pickupLabel = formatOfferLocation(preview?.pickupAddress, preview?.pickupLocation);
               const dropOffLabel = formatOfferLocation(preview?.dropOffAddress, preview?.dropOffLocation);
               const offerExpiresAtMs = resolveOfferExpiresAtMs(preview?.expiresAt, notification.createdTime);
               return (
                 <article className="driver-offer" key={notification.id}>
-                  <div className="stack compact">
+                  <div className="driver-offer-header">
+                    <h3>{offerTitle}</h3>
                     <div className="driver-offer-meta">
-                      <h3>{cardContent.title}</h3>
                       {preview?.fare !== undefined && preview.fare !== null ? <Money amount={preview.fare} emphasis /> : null}
-                    </div>
-                    <p className="driver-section-copy">{cardContent.message}</p>
-                    {riderName || pickupLabel || dropOffLabel ? (
-                      <dl className="driver-offer-facts">
-                        {riderName ? <div><dt>{words.rider}</dt><dd>{riderName}</dd></div> : null}
-                        {pickupLabel ? <div><dt>Pickup</dt><dd title={pickupLabel}>{pickupLabel}</dd></div> : null}
-                        {dropOffLabel ? <div><dt>Drop-off</dt><dd title={dropOffLabel}>{dropOffLabel}</dd></div> : null}
-                      </dl>
-                    ) : null}
-                    <RouteStrip stage={preview?.rideRequestStatus ?? "requested"} variant="static" showDriverMarker={false} stageLabels={stageLabels} />
-                    <div className="driver-row-meta">
-                      <DateTime value={notification.createdTime} />
-                      <MatchingIndicator label="Offer response window" />
                       <CountdownBadge
                         expiresAtMs={offerExpiresAtMs}
                         prefix="Offer expires in"
@@ -476,6 +427,37 @@ export default function DriverHomePage() {
                       />
                     </div>
                   </div>
+                  {riderName || pickupLabel || dropOffLabel ? (
+                    <div className="driver-offer-route" role="group" aria-label="Offer route">
+                      {riderName ? (
+                        <p className="driver-offer-rider">
+                          <span className="driver-offer-label">{words.rider}</span>
+                          <span>{riderName}</span>
+                        </p>
+                      ) : null}
+                      {pickupLabel || dropOffLabel ? (
+                        <div
+                          className="driver-offer-stops"
+                          data-has-pickup={Boolean(pickupLabel)}
+                          data-has-drop-off={Boolean(dropOffLabel)}
+                        >
+                          {pickupLabel ? (
+                            <div className="driver-offer-stop driver-offer-pickup">
+                              <span className="driver-offer-label">Pickup</span>
+                              <span className="driver-offer-location" title={pickupLabel}>{pickupLabel}</span>
+                            </div>
+                          ) : null}
+                          {pickupLabel && dropOffLabel ? <span className="driver-offer-route-arrow" aria-hidden="true">→</span> : null}
+                          {dropOffLabel ? (
+                            <div className="driver-offer-stop driver-offer-drop-off">
+                              <span className="driver-offer-label">Drop-off</span>
+                              <span className="driver-offer-location" title={dropOffLabel}>{dropOffLabel}</span>
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
                   <div className="driver-offer-actions">
                     <Button
                       disabled={busy || requestId === null || (requestId !== null && isActionPending(pendingActions, `accept:${requestId}`))}
@@ -494,6 +476,42 @@ export default function DriverHomePage() {
                 </article>
               );
             })}
+          </div>
+        ) : null}
+      </Section>
+
+      <Section title="Availability">
+        {loadingProfile ? (
+          <div className="stack compact" role="status" aria-label="Loading driver profile" aria-busy="true">
+            <Skeleton className="h-5 w-36" />
+            <Skeleton className="h-4 w-48" />
+            <Skeleton className="h-14 w-full" />
+          </div>
+        ) : null}
+        {!loadingProfile && profileError ? (
+          <ErrorState title="Couldn't load your profile" description={profileError} onRetry={() => void loadProfile()} />
+        ) : null}
+        {!loadingProfile && !profileError && profile ? (
+          <div className="driver-availability">
+            <div className="driver-availability-copy">
+              <strong>{profile.available ? "You're online" : "You're offline"}</strong>
+              <p>{profile.available ? `New ${words.tripWord} offers can reach you.` : "Go online when you're ready to drive."}</p>
+              {profile.vehicleId ? <p>Vehicle {profile.vehicleId}</p> : null}
+              {profile.available && locationPublisher.mode === "degraded" ? (
+                <p className="helper" role="status">{locationPublisher.message}</p>
+              ) : null}
+            </div>
+            <Button
+              className="driver-availability-toggle"
+              data-online={profile.available || undefined}
+              role="switch"
+              aria-checked={profile.available}
+              aria-label={profile.available ? "Go offline" : "Go online"}
+              disabled={togglingAvailability || isActionPending(pendingActions, "availability")}
+              onClick={() => void toggleAvailability()}
+            >
+              {togglingAvailability ? "Updating…" : profile.available ? "Go offline" : "Go online"}
+            </Button>
           </div>
         ) : null}
       </Section>

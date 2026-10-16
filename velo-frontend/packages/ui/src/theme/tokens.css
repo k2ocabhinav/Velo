@@ -51,7 +51,7 @@
   --shadow-inner: inset 0 1px 2px hsl(210 20% 10% / 0.06);
   --font-display: "Barlow Condensed", system-ui, sans-serif;
   --font-body: "Inter", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-mono: var(--font-mono-local, "JetBrains Mono"), "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
   /* Duotone palette */
   --velo-black: #131313;

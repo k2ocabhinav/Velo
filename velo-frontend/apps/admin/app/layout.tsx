@@ -1,24 +1,35 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import type { CSSProperties, ReactNode } from "react";
-import { Barlow_Condensed, Inter } from "next/font/google";
+import localFont from "next/font/local";
 import { DEFAULT_TENANT_BRANDING, fetchTenantBranding, getDefaultTenantSlug, TENANT_SLUG_HEADER } from "@velo/app-core/tenant";
 import { resolveTenantPrimaryStyle, TenantBrandingProvider } from "@velo/ui/theme";
 import "leaflet/dist/leaflet.css";
 import "@velo/ui/styles.css";
 import "./globals.css";
 
-const barlowCondensed = Barlow_Condensed({
-  subsets: ["latin"],
-  weight: ["800", "900"],
+const barlowCondensed = localFont({
+  src: [
+    { path: "../../../packages/ui/src/theme/font-assets/barlow-condensed/BarlowCondensed-800-latin.woff2", weight: "800" },
+    { path: "../../../packages/ui/src/theme/font-assets/barlow-condensed/BarlowCondensed-900-latin.woff2", weight: "900" },
+  ],
   variable: "--font-display",
   display: "swap",
+  declarations: [{ prop: "font-family", value: "'Barlow Condensed'" }],
 });
 
-const inter = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+const inter = localFont({
+  src: "../../../packages/ui/src/theme/font-assets/inter/Inter-latin-variable.woff2",
+  weight: "400 700",
   variable: "--font-body",
+  display: "swap",
+  declarations: [{ prop: "font-family", value: "Inter" }],
+});
+
+const jetBrainsMono = localFont({
+  src: "../../../packages/ui/src/theme/font-assets/jetbrains-mono/JetBrainsMono-Regular-latin.woff2",
+  weight: "400",
+  variable: "--font-mono-local",
   display: "swap",
 });
 
@@ -44,7 +55,7 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      className={`${barlowCondensed.variable} ${inter.variable}`}
+      className={`${barlowCondensed.variable} ${inter.variable} ${jetBrainsMono.variable}`}
       style={resolveTenantPrimaryStyle(branding.primaryColor) as CSSProperties}
       data-tenant-slug={tenantSlug}
       data-tenant-brand-name={branding.brandName}

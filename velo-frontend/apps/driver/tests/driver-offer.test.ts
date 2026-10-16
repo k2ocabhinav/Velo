@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatOfferLocation, getIncomingOfferContent, getNextTripActionLabel, getRiderFirstName, resolveOfferExpiresAtMs } from "../app/_lib/driver-offer";
+import { formatOfferLocation, getIncomingOfferTitle, getNextTripActionLabel, getRiderFirstName, resolveOfferExpiresAtMs } from "../app/_lib/driver-offer";
 
 describe("driver offer helpers", () => {
   it("resolves the rider first name when the payload carries one", () => {
@@ -32,22 +32,10 @@ describe("driver offer helpers", () => {
   });
 
   it("words offer cards and next actions with the tenant trip noun", () => {
-    expect(getIncomingOfferContent("RIDE_REQUESTED", "trip")).toEqual({
-      title: "New trip offer",
-      message: "A trip request is waiting for your response.",
-    });
-    expect(getIncomingOfferContent("RIDE_DISPATCHED", "trip")).toEqual({
-      title: "Scheduled trip offer",
-      message: "A scheduled trip is ready for your response.",
-    });
-    expect(getIncomingOfferContent("RIDE_REQUESTED", "transfer")).toEqual({
-      title: "New transfer offer",
-      message: "A transfer request is waiting for your response.",
-    });
-    expect(getIncomingOfferContent("RIDE_DISPATCHED", "transfer")).toEqual({
-      title: "Scheduled transfer offer",
-      message: "A scheduled transfer is ready for your response.",
-    });
+    expect(getIncomingOfferTitle("RIDE_REQUESTED", "trip")).toBe("New trip offer");
+    expect(getIncomingOfferTitle("RIDE_DISPATCHED", "trip")).toBe("Scheduled trip offer");
+    expect(getIncomingOfferTitle("RIDE_REQUESTED", "transfer")).toBe("New transfer offer");
+    expect(getIncomingOfferTitle("RIDE_DISPATCHED", "transfer")).toBe("Scheduled transfer offer");
 
     expect(getNextTripActionLabel("CONFIRMED", "trip")).toBe("Start trip");
     expect(getNextTripActionLabel("ONGOING", "transfer")).toBe("Complete transfer");

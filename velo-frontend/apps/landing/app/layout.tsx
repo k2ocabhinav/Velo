@@ -1,21 +1,30 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Barlow_Condensed, Inter } from "next/font/google";
+import localFont from "next/font/local";
 import "@velo/ui/tokens.css";
 import "./globals.css";
 import "./theme.css";
 
-const barlowCondensed = Barlow_Condensed({
-  subsets: ["latin"],
-  weight: ["800"],
+const barlowCondensed = localFont({
+  src: "../../../packages/ui/src/theme/font-assets/barlow-condensed/BarlowCondensed-800-latin.woff2",
+  weight: "800",
   variable: "--font-display",
   display: "swap",
+  declarations: [{ prop: "font-family", value: "'Barlow Condensed'" }],
 });
 
-const inter = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
+const inter = localFont({
+  src: "../../../packages/ui/src/theme/font-assets/inter/Inter-latin-variable.woff2",
+  weight: "400 600",
   variable: "--font-body",
+  display: "swap",
+  declarations: [{ prop: "font-family", value: "Inter" }],
+});
+
+const jetBrainsMono = localFont({
+  src: "../../../packages/ui/src/theme/font-assets/jetbrains-mono/JetBrainsMono-Regular-latin.woff2",
+  weight: "400",
+  variable: "--font-mono-local",
   display: "swap",
 });
 
@@ -61,7 +70,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="en" className={`${barlowCondensed.variable} ${inter.variable}`} data-theme="day" suppressHydrationWarning>
+    <html lang="en" className={`${barlowCondensed.variable} ${inter.variable} ${jetBrainsMono.variable}`} data-theme="day" suppressHydrationWarning>
       <head>
         <script
           // Runs before paint so the hero never flashes the wrong time of day.
