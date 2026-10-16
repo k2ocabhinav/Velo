@@ -414,6 +414,7 @@ test("driver home shows availability conflict errors", async ({ baseURL, context
 test("driver can decline an offer without changing the notification read flow", async ({ baseURL, context, page }) => {
   const appBaseUrl = baseURL ?? "http://127.0.0.1:4103";
   await context.addCookies([{ name: "velo_driver_token", value: "e2e-driver-token", url: appBaseUrl }]);
+  await page.setViewportSize({ width: 390, height: 844 });
   await mockUnreadCount(page);
 
   let declined = false;
@@ -428,7 +429,22 @@ test("driver can decline an offer without changing the notification read flow", 
     });
   });
   await page.route("**/api/backend/drivers/ride-requests/311", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { id: 311, rideRequestStatus: "PENDING", pickupLocation: { coordinates: [77.5946, 12.9716] } } }) });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: {
+          id: 311,
+          rideRequestStatus: "PENDING",
+          pickupAddress: "Kempegowda Airport, Terminal 1",
+          dropOffAddress: "MG Road",
+          fare: 70.32,
+          expiresAt: new Date(Date.now() + 90_000).toISOString(),
+          rider: { user: { name: "Henry Rider" } },
+          pickupLocation: { coordinates: [77.5946, 12.9716] },
+        },
+      }),
+    });
   });
   await page.route("**/api/backend/drivers/getMyRides?pageOffset=0&pageSize=20", async (route) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { content: [] } }) });
@@ -439,9 +455,30 @@ test("driver can decline an offer without changing the notification read flow", 
   });
 
   await page.goto("/");
-  await page.getByRole("button", { name: "Decline" }).click();
+  const offer = page.locator(".driver-offer");
+  await expect(offer.getByText("Henry")).toBeVisible();
+  await expect(offer.getByText("Kempegowda Airport, Terminal 1")).toBeVisible();
+  await expect(offer.getByText("MG Road")).toBeVisible();
+  await expect(offer.getByText(/^Offer expires in/)).toBeVisible();
+
+  const acceptButton = offer.getByRole("button", { name: /^Accept/ });
+  const declineButton = offer.getByRole("button", { name: "Decline" });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const acceptLabelFits = await acceptButton.locator(".ui-button-content").evaluate((element) => element.scrollWidth <= element.clientWidth);
+  expect(acceptLabelFits).toBe(true);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(acceptButton).toBeInViewport();
+  await expect(declineButton).toBeInViewport();
+  const actions = await Promise.all([acceptButton, declineButton].map(async (button) => {
+    const box = await button.boundingBox();
+    return { bottom: (box?.y ?? Infinity) + (box?.height ?? 0) };
+  }));
+  const bottomNavigationTop = await page.locator(".driver-bottom-nav").evaluate((element) => element.getBoundingClientRect().top);
+  expect(actions.every(({ bottom }) => bottom < bottomNavigationTop)).toBe(true);
+
+  await declineButton.click();
   await expect(page.getByRole("status").getByText("Offer declined.")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "No trip offers yet" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^No .* offers yet$/ })).toBeVisible();
   expect(declined).toBe(true);
 });
 

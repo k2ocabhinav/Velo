@@ -43,22 +43,16 @@ export function formatOfferLocation(
   return mapPoint ? formatMapPoint(mapPoint) : null;
 }
 
-/** Headline and body for an incoming offer card, worded with the tenant's trip noun. */
-export function getIncomingOfferContent(
+/** Compact heading for an incoming offer card, worded with the tenant's trip noun. */
+export function getIncomingOfferTitle(
   type: string | null | undefined,
   tripWord: string,
-): { title: string; message: string } {
+): string {
   if (type === "RIDE_DISPATCHED") {
-    return {
-      title: `Scheduled ${tripWord} offer`,
-      message: `A scheduled ${tripWord} is ready for your response.`,
-    };
+    return `Scheduled ${tripWord} offer`;
   }
 
-  return {
-    title: `New ${tripWord} offer`,
-    message: `A ${tripWord} request is waiting for your response.`,
-  };
+  return `New ${tripWord} offer`;
 }
 
 /** Label for the next action on the current-work card, worded with the tenant's trip noun. */
