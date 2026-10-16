@@ -23,8 +23,13 @@ permissions:
 
 jobs:
   test:
+    name: Backend tests (TZ=${{ matrix.tz }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        tz: [UTC, Asia/Kolkata]
     services:
       postgres:
         image: postgis/postgis:16-3.4-alpine
@@ -58,4 +63,6 @@ jobs:
 
       - name: Run backend tests
         working-directory: velo-platform
-        run: ./mvnw -q test
+        env:
+          TZ: ${{ matrix.tz }}
+        run: ./mvnw -q test -Duser.timezone="${{ matrix.tz }}"

@@ -142,9 +142,6 @@ Integration tests use `TestSecurityConfig` which bypasses JWT and reads auth fro
 ### Test Assertions
 Because `GlobalResponseHandler` wraps everything, JSON assertions target `$.data` or `$.error`.
 
-### Test Data Builders
-Reusable builders in `testdata/` package: `UserTestBuilder`, `RiderTestBuilder`, `DriverTestBuilder`, `RideTestBuilder`, `RideRequestTestBuilder`, `WalletTestBuilder`.
-
 ### Test Suite
 The suite is green in the latest verified run; `PROGRESS.md` records the current count.
 
