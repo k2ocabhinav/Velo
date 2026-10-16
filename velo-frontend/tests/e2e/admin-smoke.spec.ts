@@ -282,6 +282,7 @@ test("admin rejects a driver application with a recorded reason", async ({ baseU
   await signInAsAdmin(context, baseURL);
   let rejected = false;
   let rejectionReason = "";
+  let rejectionContentType = "";
   await page.route("**/api/proxy/api/v1/admin/drivers?status=PENDING*", async (route) => {
     if (route.request().method() !== "GET") { await route.continue(); return; }
     const content = rejected ? [] : [{ driverId: 78, userId: 89, name: "Mira Driver", email: "mira@example.com", phone: "9999999999", rating: 4.9, vehicleId: "KA10AA1234", appliedAt: new Date().toISOString() }];
@@ -294,7 +295,8 @@ test("admin rejects a driver application with a recorded reason", async ({ baseU
   }
   await page.route("**/api/proxy/api/v1/admin/drivers/78/reject", async (route) => {
     rejected = true;
-    rejectionReason = route.request().postData() ?? "";
+    rejectionContentType = route.request().headers()["content-type"] ?? "";
+    rejectionReason = (route.request().postDataJSON() as { reason?: string }).reason ?? "";
     await route.fulfill({ status: 200, body: "" });
   });
 
@@ -309,6 +311,7 @@ test("admin rejects a driver application with a recorded reason", async ({ baseU
   await expect(page.getByText(`${tenantLabels.driver} application rejected.`)).toBeVisible();
   await expect(page.getByRole("heading", { name: "No applications to review" })).toBeVisible();
   expect(rejected).toBe(true);
+  expect(rejectionContentType).toContain("application/json");
   expect(rejectionReason).toBe("Application documents could not be verified.");
 });
 
