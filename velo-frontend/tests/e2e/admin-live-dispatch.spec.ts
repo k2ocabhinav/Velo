@@ -85,12 +85,12 @@ test("admin dispatch shows a live fleet map, supports row focus, and remains pol
   await expect(page.getByRole("heading", { name: "Live fleet Couriers" })).toBeVisible();
   await expect(page.getByTestId("fleet-driver-marker")).toHaveCount(8);
   await expect(page.getByTestId("fleet-request-marker")).toHaveCount(1);
-  await expect(page.getByText("Includes 4 simulated drivers")).toBeVisible();
+  await expect(page.getByText("Includes 4 simulated couriers")).toBeVisible();
   const fleetPanel = page.getByRole("complementary", { name: "Fleet status and open trips" });
-  await expect(fleetPanel.getByRole("button", { name: /Meera Iyer/ })).toContainText("Stale");
+  await expect(fleetPanel.getByRole("button", { name: /Meera Iyer/ })).toContainText("Last seen");
   await expect(page.getByTestId("fleet-count-available")).toContainText("4");
   await expect(page.getByTestId("fleet-count-to-pickup")).toContainText("2");
-  await expect(page.getByTestId("fleet-count-on-trip")).toContainText("2");
+  await expect(page.getByTestId("fleet-count-on-journey")).toContainText("2");
   await expect(page.getByTestId("fleet-count-waiting-requests")).toContainText("1");
 
   const axe = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();

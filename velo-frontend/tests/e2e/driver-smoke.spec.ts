@@ -1,4 +1,5 @@
 import { expect, test } from "./fixtures";
+import { tenantLabels } from "./tenant-labels";
 import type { Page } from "@playwright/test";
 
 async function mockUnreadCount(page: Page): Promise<void> {
@@ -331,25 +332,25 @@ test("driver home supports availability toggle and ride acceptance flow", async 
 
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { name: "Ready for your next trip" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "No active trip" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: `Ready for your next ${tenantLabels.tripWord}` })).toBeVisible();
+  await expect(page.getByRole("heading", { name: `No active ${tenantLabels.tripWord}` })).toBeVisible();
   await page.getByRole("switch", { name: "Go online" }).click();
   await expect(page.getByText("You are now online.")).toBeVisible();
 
-  await page.getByRole("button", { name: "Accept trip" }).click();
+  await page.getByRole("button", { name: `Accept ${tenantLabels.tripWord}` }).click();
   await page.waitForURL("**/ride/911");
 
-  await expect(page.getByRole("button", { name: "Start trip" })).toBeDisabled();
-  await page.getByLabel("4-digit rider OTP").fill("1234");
-  await expect(page.getByRole("button", { name: "Start trip" })).toBeEnabled();
-  await page.getByRole("button", { name: "Start trip" }).click();
-  await expect(page.getByText("Trip started.")).toBeVisible();
+  await expect(page.getByRole("button", { name: `Start ${tenantLabels.tripWord}` })).toBeDisabled();
+  await page.getByLabel(`4-digit ${tenantLabels.riderWord} OTP`).fill("1234");
+  await expect(page.getByRole("button", { name: `Start ${tenantLabels.tripWord}` })).toBeEnabled();
+  await page.getByRole("button", { name: `Start ${tenantLabels.tripWord}` }).click();
+  await expect(page.getByText(`${tenantLabels.trip} started.`)).toBeVisible();
   await expect(page.getByText("Live map")).toBeVisible();
 
-  await page.getByRole("button", { name: "Complete trip" }).click();
-  await expect(page.getByText("Trip completed. Please rate the rider.")).toBeVisible();
+  await page.getByRole("button", { name: `Complete ${tenantLabels.tripWord}` }).click();
+  await expect(page.getByText(`${tenantLabels.trip} completed. Please rate the ${tenantLabels.riderWord}.`)).toBeVisible();
   await page.getByRole("button", { name: "Submit rating" }).click();
-  await expect(page.getByText("Rider rating submitted.")).toBeVisible();
+  await expect(page.getByText(`${tenantLabels.rider} rating submitted.`)).toBeVisible();
 });
 
 test("driver home shows availability conflict errors", async ({ baseURL, context, page }) => {
@@ -495,10 +496,10 @@ test("driver trip history filters active and past trips", async ({ baseURL, cont
   });
 
   await page.goto("/rides");
-  await expect(page.getByRole("heading", { name: "Your trip history" })).toBeVisible();
-  await expect(page.locator(".driver-trip-row").getByText("Trip 911")).toBeVisible();
+  await expect(page.getByRole("heading", { name: `Your ${tenantLabels.tripWord} history` })).toBeVisible();
+  await expect(page.locator(".driver-trip-row").getByText(`${tenantLabels.trip} 911`)).toBeVisible();
   await page.getByRole("radio", { name: "Past, 1" }).click();
-  await expect(page.locator(".driver-trip-row").getByText("Trip 810")).toBeVisible();
+  await expect(page.locator(".driver-trip-row").getByText(`${tenantLabels.trip} 810`)).toBeVisible();
   await expect(page.locator(".driver-trip-row")).toHaveCount(1);
 });
 
@@ -522,17 +523,17 @@ test("driver confirms trip cancellation before the existing cancel action runs",
   });
 
   await page.goto("/ride/911");
-  const followButton = page.getByRole("button", { name: "Follow driver" });
+  const followButton = page.getByRole("button", { name: `Follow ${tenantLabels.driverWord}` });
   await expect(followButton).toBeEnabled();
   await expect(followButton).toHaveCSS("min-height", "44px");
   await followButton.click();
   await expect(page.getByRole("button", { name: "Stop following" })).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "Cancel trip" }).click();
-  const confirmation = page.getByRole("dialog", { name: "Cancel this trip?" });
+  await page.getByRole("button", { name: `Cancel ${tenantLabels.tripWord}` }).click();
+  const confirmation = page.getByRole("dialog", { name: `Cancel this ${tenantLabels.tripWord}?` });
   await expect(confirmation).toBeVisible();
   expect(cancelled).toBe(false);
-  await confirmation.getByRole("button", { name: "Cancel trip" }).click();
-  await expect(page.getByText("Trip cancelled.")).toBeVisible();
+  await confirmation.getByRole("button", { name: `Cancel ${tenantLabels.tripWord}` }).click();
+  await expect(page.getByText(`${tenantLabels.trip} cancelled.`)).toBeVisible();
   expect(cancelled).toBe(true);
 });
 

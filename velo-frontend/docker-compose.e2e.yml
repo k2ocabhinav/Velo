@@ -83,7 +83,7 @@ services:
       frontend-deps:
         condition: service_healthy
     ports:
-      - "3000:3000"
+      - "4101:4101"
 
   frontend-rider:
     image: node:22-alpine
@@ -103,7 +103,7 @@ services:
       frontend-deps:
         condition: service_healthy
     ports:
-      - "3001:3001"
+      - "4102:4102"
 
   frontend-driver:
     image: node:22-alpine
@@ -123,7 +123,7 @@ services:
       frontend-deps:
         condition: service_healthy
     ports:
-      - "3002:3002"
+      - "4103:4103"
 
   smoke:
     image: node:22-alpine
@@ -132,10 +132,10 @@ services:
       VELO_HANDSHAKE_MODE: ${VELO_HANDSHAKE_MODE:-mutate}
       VELO_DISPATCH_AUDIT_MARKER: integration-handshake-admin-assignment
       VELO_BACKEND_BASE_URL: http://backend:8080
-      VELO_FRONTEND_BASE_URL: http://frontend-admin:3000
-      VELO_ADMIN_FRONTEND_BASE_URL: http://frontend-admin:3000
-      VELO_RIDER_FRONTEND_BASE_URL: http://frontend-rider:3001
-      VELO_DRIVER_FRONTEND_BASE_URL: http://frontend-driver:3002
+      VELO_FRONTEND_BASE_URL: http://frontend-admin:4101
+      VELO_ADMIN_FRONTEND_BASE_URL: http://frontend-admin:4101
+      VELO_RIDER_FRONTEND_BASE_URL: http://frontend-rider:4102
+      VELO_DRIVER_FRONTEND_BASE_URL: http://frontend-driver:4103
       VELO_E2E_ADMIN_EMAIL: admin@velo-platform.com
       VELO_E2E_ADMIN_PASSWORD: password123
       VELO_E2E_RIDER_EMAIL: alice@example.com

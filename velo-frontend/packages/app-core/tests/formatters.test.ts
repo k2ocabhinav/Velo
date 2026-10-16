@@ -47,8 +47,13 @@ describe("formatDateTime", () => {
   });
 
   it("formats absolute dates and omits the current year", () => {
-    expect(formatDateTime("2026-04-04T09:00:00+05:30", now)).toBe("4 Apr, 09:00");
-    expect(formatDateTime("2025-04-05T09:00:00+05:30", now)).toBe("5 Apr 2025, 09:00");
+    expect(formatDateTime("2026-04-04T09:00:00+05:30", now, "en-GB", "Asia/Kolkata")).toBe("4 Apr, 09:00");
+    expect(formatDateTime("2025-04-05T09:00:00+05:30", now, "en-GB", "Asia/Kolkata")).toBe("5 Apr 2025, 09:00");
+  });
+
+  it("renders the same instant in the requested time zone", () => {
+    expect(formatDateTime("2026-04-04T09:00:00+05:30", now, "en-GB", "UTC")).toBe("4 Apr, 03:30");
+    expect(formatDateTime("2026-04-04T09:00:00+05:30", now, "en-GB", "America/New_York")).toBe("3 Apr, 23:30");
   });
 
   it("handles unavailable or invalid values", () => {

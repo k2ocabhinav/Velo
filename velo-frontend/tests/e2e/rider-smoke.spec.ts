@@ -1,5 +1,6 @@
 import { expect, test } from "./fixtures";
 import tenantBranding from "./tenant-branding.json";
+import { tenantLabels } from "./tenant-labels";
 
 const tenantBrandName = tenantBranding.brandName;
 import type { Page } from "@playwright/test";
@@ -99,10 +100,10 @@ test.describe("rider smoke", () => {
     await expect(page.getByRole("link", { name: `${tenantBrandName} home` })).toHaveText(tenantBrandName === "Velo" ? "VELO" : tenantBrandName);
     await expect(page.getByRole("link", { name: "Notifications" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Offers" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Scheduled trips" })).toBeVisible();
+    await expect(page.getByRole("link", { name: `Scheduled ${tenantLabels.tripsWord}` })).toBeVisible();
     const mainNavigation = page.getByRole("navigation", { name: "Main navigation" });
     await expect(mainNavigation.getByRole("link", { name: "Book" })).toBeVisible();
-    await expect(mainNavigation.getByRole("link", { name: "Trips" })).toBeVisible();
+    await expect(mainNavigation.getByRole("link", { name: tenantLabels.trips })).toBeVisible();
     await expect(mainNavigation.getByRole("link", { name: "Wallet" })).toBeVisible();
     await expect(mainNavigation.getByRole("link", { name: "Me" })).toHaveAttribute("aria-current", "page");
     await page.getByRole("button", { name: "Switch to dark mode" }).click();
@@ -151,7 +152,7 @@ test.describe("rider smoke", () => {
       });
     });
 
-    await page.route("**/api/backend/riders/recurring-trip-templates*", async (route) => {
+    await page.route("**/api/backend/api/v1/riders/recurring-trip-templates*", async (route) => {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -170,8 +171,8 @@ test.describe("rider smoke", () => {
 
     await page.goto("/scheduled");
 
-    await expect(page.getByRole("heading", { name: "Scheduled trips", exact: true })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "No scheduled trips yet" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: `Scheduled ${tenantLabels.tripsWord}`, exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: `No scheduled ${tenantLabels.tripsWord} yet` })).toBeVisible();
 
     const scheduledTime = formatDateTimeLocal(new Date(Date.now() + 90 * 60 * 1000));
     await page.getByLabel("Scheduled time").fill(scheduledTime);
@@ -180,9 +181,9 @@ test.describe("rider smoke", () => {
     await page.getByLabel("Pickup longitude").fill("77.5946");
     await page.getByLabel("Destination latitude").fill("12.9352");
     await page.getByLabel("Destination longitude").fill("77.6245");
-    await page.getByRole("button", { name: "Schedule trip" }).click();
+    await page.getByRole("button", { name: `Schedule ${tenantLabels.tripWord}` }).click();
 
-    await expect(page.getByText("Trip scheduled.")).toBeVisible();
+    await expect(page.getByText(`${tenantLabels.trip} scheduled.`)).toBeVisible();
     await expect(page.getByText("Scheduled", { exact: true })).toBeVisible();
   });
 
@@ -285,7 +286,7 @@ test.describe("rider smoke", () => {
       } }) });
     });
     await page.goto("/");
-    await expect(page.getByRole("button", { name: "Plan a trip" })).toBeVisible();
+    await expect(page.getByRole("button", { name: `Plan a ${tenantLabels.tripWord}` })).toBeVisible();
 
     // Verify booking map and selection controls are visible
     await expect(page.locator(".booking-map")).toBeVisible();
@@ -295,11 +296,11 @@ test.describe("rider smoke", () => {
     await expect(page.getByRole("button", { name: "Where to?", exact: true })).toBeVisible();
     const mapCanvas = page.locator(".booking-map .leaflet-container");
     await mapCanvas.click({ position: { x: 120, y: 110 } });
-    const bookingSheet = page.getByRole("dialog", { name: "Plan a trip" });
+    const bookingSheet = page.getByRole("dialog", { name: `Plan a ${tenantLabels.tripWord}` });
     await expect(bookingSheet.getByRole("combobox", { name: "Pickup" })).toHaveValue("Pinned map point");
     await page.getByRole("button", { name: "Choose on map" }).nth(1).click();
     await mapCanvas.click({ position: { x: 230, y: 170 } });
-    await expect(page.getByRole("dialog", { name: "Plan a trip" }).getByRole("combobox", { name: "Where to?" })).toHaveValue("Pinned map point");
+    await expect(page.getByRole("dialog", { name: `Plan a ${tenantLabels.tripWord}` }).getByRole("combobox", { name: "Where to?" })).toHaveValue("Pinned map point");
     await page.getByText("Enter coordinates").click();
     await expect(page.getByLabel("Pickup latitude")).not.toHaveValue("");
     await expect(page.getByLabel("Pickup longitude")).not.toHaveValue("");
@@ -311,13 +312,13 @@ test.describe("rider smoke", () => {
     await page.getByLabel("Pickup longitude").fill("77.5946");
     await page.getByLabel("Destination latitude").fill("12.9352");
     await page.getByLabel("Destination longitude").fill("77.6245");
-    await expect(page.getByRole("button", { name: "Request trip" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: `Request ${tenantLabels.tripWord}` })).toBeDisabled();
     await page.getByRole("button", { name: "Estimate fare" }).click();
     await expect(page.getByText("$210.00")).toBeVisible();
 
-    await page.getByRole("button", { name: "Request trip" }).click();
+    await page.getByRole("button", { name: `Request ${tenantLabels.tripWord}` }).click();
     await expect(page.getByText(/requested\. We are now matching you with a nearby/i)).toBeVisible();
-    await expect(page.getByText("Matching you with a nearby driver", { exact: true })).toBeVisible();
+    await expect(page.getByText(`Matching you with a nearby ${tenantLabels.driverWord}`, { exact: true })).toBeVisible();
     expect(rideRequested).toBe(true);
   });
 
@@ -361,8 +362,8 @@ test.describe("rider smoke", () => {
     });
 
     await page.goto("/");
-    await page.getByRole("button", { name: "Plan a trip" }).click();
-    const sheet = page.getByRole("dialog", { name: "Plan a trip" });
+    await page.getByRole("button", { name: `Plan a ${tenantLabels.tripWord}` }).click();
+    const sheet = page.getByRole("dialog", { name: `Plan a ${tenantLabels.tripWord}` });
     await expect(sheet.getByRole("heading", { name: "Saved places" })).toBeVisible();
     await sheet.getByRole("button", { name: "Use Home for pickup" }).click();
     const pickup = sheet.getByRole("combobox", { name: "Pickup" });
@@ -403,7 +404,7 @@ test.describe("rider smoke", () => {
     const requestLoaded = page.waitForResponse("**/api/backend/riders/current-request");
     await page.goto("/");
     await Promise.all([ridesLoaded, requestLoaded]);
-    await expect(page.getByRole("button", { name: "Plan a trip" })).toBeVisible();
+    await expect(page.getByRole("button", { name: `Plan a ${tenantLabels.tripWord}` })).toBeVisible();
     await expect(page.locator(".trip-banner")).toHaveCount(0);
     await expect(page.getByText("Your trip is underway")).toHaveCount(0);
   });
@@ -455,10 +456,10 @@ test.describe("rider smoke", () => {
     await expect(page.getByText("$125.50")).toBeVisible();
     await expect(page.getByText("Used from wallet")).toBeVisible();
     await expect(page.getByText("$18.00")).toBeVisible();
-    await expect(page.getByText("Trip #810")).toBeVisible();
+    await expect(page.getByText(`${tenantLabels.trip} #810`)).toBeVisible();
     await expect(page.getByText("Page 1 of 2")).toBeVisible();
     await page.getByRole("button", { name: "Next", exact: true }).click();
-    await expect(page.getByText("Trip #811")).toBeVisible();
+    await expect(page.getByText(`${tenantLabels.trip} #811`)).toBeVisible();
     await expect(page.getByText("Page 2 of 2")).toBeVisible();
     await page.getByRole("button", { name: "Add method" }).first().click();
     const addDialog = page.getByRole("dialog", { name: "Add payment method" });
@@ -637,19 +638,19 @@ test.describe("rider smoke", () => {
 
     await page.goto("/rides");
 
-    await expect(page.getByRole("heading", { name: "Your trips" })).toBeVisible();
-    await expect(page.getByText("Trip in progress", { exact: true }).first()).toBeVisible();
-    await expect(page.getByRole("button", { name: "Cancel trip" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: `Your ${tenantLabels.tripsWord}` })).toBeVisible();
+    await expect(page.getByText(`${tenantLabels.trip} in progress`, { exact: true }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: `Cancel ${tenantLabels.tripWord}` })).toBeVisible();
 
-    await page.getByRole("button", { name: "Cancel trip" }).click();
-    const cancelDialog = page.getByRole("dialog", { name: "Cancel this trip?" });
-    await cancelDialog.getByRole("button", { name: "Cancel trip" }).click();
-    await expect(page.getByText("Trip cancelled.")).toBeVisible();
+    await page.getByRole("button", { name: `Cancel ${tenantLabels.tripWord}` }).click();
+    const cancelDialog = page.getByRole("dialog", { name: `Cancel this ${tenantLabels.tripWord}?` });
+    await cancelDialog.getByRole("button", { name: `Cancel ${tenantLabels.tripWord}` }).click();
+    await expect(page.getByText(`${tenantLabels.trip} cancelled.`)).toBeVisible();
 
     await page.getByRole("radio", { name: "Past" }).click();
     await expect(page.getByText("Cancelled", { exact: true })).toBeVisible();
     const endedRideCard = page.getByTestId("trip-row").last();
-    await endedRideCard.getByRole("button", { name: "Rate driver" }).click();
+    await endedRideCard.getByRole("button", { name: `Rate ${tenantLabels.driverWord}` }).click();
     await expect(page.getByText("Thanks for your rating.")).toBeVisible();
     expect(ratingCalled).toBe(true);
   });
@@ -752,21 +753,21 @@ test.describe("rider smoke", () => {
     });
 
     await page.goto("/ride/active");
-    await expect(page.getByRole("heading", { name: "Your trip", exact: true })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Your trip is in progress" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: `Your ${tenantLabels.tripWord}`, exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: `Your ${tenantLabels.tripWord} is in progress` })).toBeVisible();
     await expect(page.locator(".active-ride-map")).toBeVisible();
-    const followButton = page.getByRole("button", { name: "Follow driver" });
+    const followButton = page.getByRole("button", { name: `Follow ${tenantLabels.driverWord}` });
     await expect(followButton).toHaveCSS("min-height", "44px");
-    await page.getByRole("button", { name: "Follow driver" }).click();
+    await page.getByRole("button", { name: `Follow ${tenantLabels.driverWord}` }).click();
     await expect(page.getByRole("button", { name: "Stop following" })).toHaveAttribute("aria-pressed", "true");
 
     activeRideVisible = false;
     await page.getByRole("button", { name: "Refresh", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "No active trip" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Rate your last trip" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: `No active ${tenantLabels.tripWord}` })).toBeVisible();
+    await expect(page.getByRole("heading", { name: `Rate your last ${tenantLabels.tripWord}` })).toBeVisible();
 
     await page.getByRole("button", { name: "Submit rating" }).click();
-    await expect(page.getByText("Thanks for rating your driver.")).toBeVisible();
+    await expect(page.getByText(`Thanks for rating your ${tenantLabels.driverWord}.`)).toBeVisible();
     expect(ratingSubmitted).toBe(true);
   });
 
@@ -820,7 +821,7 @@ test.describe("rider smoke", () => {
 
     await page.goto("/scheduled");
     await page.waitForURL("**/ride/active");
-    await expect(page.getByRole("heading", { name: "Your trip", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: `Your ${tenantLabels.tripWord}`, exact: true })).toBeVisible();
   });
 
   test("rider session expiry redirects protected routes to login", async ({ context, page }) => {

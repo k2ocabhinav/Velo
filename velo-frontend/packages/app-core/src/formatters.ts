@@ -36,11 +36,28 @@ export function formatDistance(
   }).format(numeric)} km`;
 }
 
-/** Use a short relative minute label for values within 24 hours. */
+/**
+ * The calendar year a timestamp falls in for a given IANA time zone. Resolving
+ * the year through the same formatter (rather than `Date#getFullYear`) keeps the
+ * year-omission logic aligned with the time zone the absolute date is rendered in.
+ */
+function yearInTimeZone(date: Date, locale: string, timeZone?: string): number {
+  const year = new Intl.DateTimeFormat(locale, { year: "numeric", timeZone })
+    .formatToParts(date)
+    .find((part) => part.type === "year")?.value;
+  return Number(year);
+}
+
+/**
+ * Use a short relative minute label for values within 24 hours. Absolute dates
+ * render in `timeZone` when provided (otherwise the runtime's local zone), so
+ * callers that need a stable wall clock can pass the tenant's or user's zone.
+ */
 export function formatDateTime(
   value: Date | string | number | null | undefined,
   now: Date = new Date(),
-  locale = "en-GB"
+  locale = "en-GB",
+  timeZone?: string
 ): string {
   if (value === null || value === undefined || value === "") return "—";
 
@@ -63,17 +80,18 @@ export function formatDateTime(
     return deltaMs > 0 ? `in ${hours} hr` : `${hours} hr ago`;
   }
 
-  const currentYear = now.getFullYear();
-  const includeYear = date.getFullYear() !== currentYear;
+  const includeYear = yearInTimeZone(date, locale, timeZone) !== yearInTimeZone(now, locale, timeZone);
   const dateText = new Intl.DateTimeFormat(locale, {
     day: "numeric",
     month: "short",
     ...(includeYear ? { year: "numeric" } : {}),
+    timeZone,
   }).format(date);
   const timeText = new Intl.DateTimeFormat(locale, {
     hour: "2-digit",
     minute: "2-digit",
     hourCycle: "h23",
+    timeZone,
   }).format(date);
 
   return `${dateText}, ${timeText}`;

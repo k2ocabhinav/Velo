@@ -1,4 +1,5 @@
 import { expect, test } from "./fixtures";
+import { tenantLabels } from "./tenant-labels";
 import type { BrowserContext, Page } from "@playwright/test";
 
 async function signInAsAdmin(context: BrowserContext, baseURL?: string): Promise<void> {
@@ -68,10 +69,10 @@ test("admin trip sheet filters scheduled rides and downloads CSV", async ({ base
   await mockAdminApi(page);
 
   await page.goto("/trip-sheet");
-  await expect(page.getByRole("heading", { name: "Trip sheet", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: `${tenantLabels.trip} sheet`, exact: true })).toBeVisible();
   const tripTable = page.locator(".trip-sheet-desktop-table");
   await expect(tripTable.getByText("Central Hotel")).toBeVisible();
-  await expect(tripTable.getByText("Needs a driver")).toBeVisible();
+  await expect(tripTable.getByText(`Needs a ${tenantLabels.driverWord}`)).toBeVisible();
   await expect(tripTable.getByText("Kiran Das")).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("trip-sheet-1440.png"), fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
@@ -82,7 +83,7 @@ test("admin trip sheet filters scheduled rides and downloads CSV", async ({ base
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export CSV" }).click();
   const download = await downloadPromise;
-  expect(download.suggestedFilename()).toBe(`trip-sheet-${tomorrowDate()}.csv`);
+  expect(download.suggestedFilename()).toBe(`${tenantLabels.tripWord}-sheet-${tomorrowDate()}.csv`);
   await expect(page.getByLabel("Trip sheet date")).toHaveValue(tomorrowDate());
   await page.setViewportSize({ width: 1440, height: 900 });
 
@@ -100,8 +101,8 @@ test("admin trip sheet filters scheduled rides and downloads CSV", async ({ base
   await firstTrip.getByRole("button", { name: "Actions for Asha Patel" }).click();
   await page.getByRole("menuitem", { name: "Cancel scheduled trip" }).click();
   await page.getByLabel("Reason note (optional)").fill("Guest changed arrival time");
-  await page.getByRole("button", { name: "Cancel scheduled trip" }).click();
-  await expect(page.getByText("Scheduled trip cancelled.")).toBeVisible();
+  await page.getByRole("button", { name: `Cancel scheduled ${tenantLabels.tripWord}` }).click();
+  await expect(page.getByText(`Scheduled ${tenantLabels.tripWord} cancelled.`)).toBeVisible();
   expect(reasonPayload).toEqual({ reasonCode: "OPERATOR_CANCELLED", note: "Guest changed arrival time" });
 });
 
@@ -111,8 +112,8 @@ test("admin creates a weekly recurring trip template", async ({ baseURL, context
   await mockAdminApi(page, { onCreate: (payload) => { createdPayload = payload; } });
 
   await page.goto("/recurring-trips");
-  await expect(page.getByRole("heading", { name: "Recurring trips", exact: true })).toBeVisible();
-  await page.getByLabel("Rider").selectOption("12");
+  await expect(page.getByRole("heading", { name: `Recurring ${tenantLabels.tripsWord}`, exact: true })).toBeVisible();
+  await page.getByLabel(tenantLabels.rider).selectOption("12");
   await page.getByText("Enter pickup and drop-off coordinates").click();
   await page.getByLabel("Pickup latitude").fill("12.9716");
   await page.getByLabel("Pickup longitude").fill("77.5946");
@@ -121,9 +122,9 @@ test("admin creates a weekly recurring trip template", async ({ baseURL, context
   await page.getByLabel("Pickup address").fill("Central Hotel");
   await page.getByLabel("Drop-off address").fill("Airport");
   await page.getByLabel("Booking reference").fill("HOTEL-31");
-  await page.getByRole("button", { name: "Create weekly trip" }).click();
+  await page.getByRole("button", { name: `Create weekly ${tenantLabels.tripWord}` }).click();
 
-  await expect(page.getByText("Weekly trip template created.")).toBeVisible();
+  await expect(page.getByText(`Weekly ${tenantLabels.tripWord} template created.`)).toBeVisible();
   expect(createdPayload).toMatchObject({
     riderId: 12,
     daysOfWeek: expect.arrayContaining(["MONDAY"]),
