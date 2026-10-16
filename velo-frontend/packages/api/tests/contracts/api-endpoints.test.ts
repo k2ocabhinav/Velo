@@ -161,6 +161,25 @@ describe("admin endpoints", () => {
     expect("wallet" in (api as Record<string, unknown>)).toBe(false);
   });
 
+  it("lists payouts by status for review and processing", async () => {
+    const { client, requests } = createRecordingClient({
+      content: [],
+      number: 0,
+      size: 10,
+      totalElements: 0,
+      totalPages: 1,
+    } satisfies SpringPage<unknown>);
+
+    const api = createAdminApi(client);
+    await api.getPayouts({ page: 0, size: 10, status: "APPROVED" });
+
+    expect(requests[0]).toMatchObject({
+      method: "GET",
+      url: "/api/v1/admin/payouts",
+      params: { page: 0, size: 10, status: "APPROVED" },
+    });
+  });
+
   it("maps dispatch control and ops health endpoints", async () => {
     const pages = createRecordingClient({
       content: [],

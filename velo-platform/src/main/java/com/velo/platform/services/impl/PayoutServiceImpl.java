@@ -119,6 +119,16 @@ public class PayoutServiceImpl implements PayoutService {
 
     @Override
     @Transactional(readOnly = true)
+    public Page<PayoutRequestDto> getPayouts(PayoutStatus status, PageRequest pageRequest) {
+        Long tenantId = currentTenantId();
+        Page<PayoutRequest> requests = status == null
+                ? payoutRequestRepository.findByTenantIdOrderByRequestedAtDesc(tenantId, pageRequest)
+                : payoutRequestRepository.findByTenantIdAndStatusOrderByRequestedAtAsc(tenantId, status, pageRequest);
+        return requests.map(request -> modelMapper.map(request, PayoutRequestDto.class));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Page<PayoutRequestDto> getMyPayouts(PageRequest pageRequest) {
         Driver driver = getCurrentDriver();
         return payoutRequestRepository.findByDriverOrderByRequestedAtDesc(driver, pageRequest)

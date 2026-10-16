@@ -5,6 +5,7 @@ import com.velo.platform.services.PromoCodeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -25,7 +26,7 @@ public class PromoCodeController {
     @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Create a new promo code (Admin)")
-    public ResponseEntity<PromoCodeDto> createPromoCode(@RequestBody PromoCodeDto promoCodeDto) {
+    public ResponseEntity<PromoCodeDto> createPromoCode(@Valid @RequestBody PromoCodeDto promoCodeDto) {
         return ResponseEntity.ok(promoCodeService.createPromoCode(promoCodeDto));
     }
 

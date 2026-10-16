@@ -33,6 +33,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -180,5 +181,29 @@ class PayoutServiceImplTest {
 
         verify(payoutRequestRepository).findByTenantIdAndStatusOrderByRequestedAtAsc(
                 1L, PayoutStatus.PENDING, pageRequest);
+    }
+
+    @Test
+    void getPayouts_WithStatus_ShouldFilterByTenantAndStatus() {
+        PageRequest pageRequest = PageRequest.of(0, 10);
+        when(payoutRequestRepository.findByTenantIdAndStatusOrderByRequestedAtAsc(1L, PayoutStatus.APPROVED, pageRequest))
+                .thenReturn(new PageImpl<>(java.util.List.of()));
+
+        payoutService.getPayouts(PayoutStatus.APPROVED, pageRequest);
+
+        verify(payoutRequestRepository).findByTenantIdAndStatusOrderByRequestedAtAsc(1L, PayoutStatus.APPROVED, pageRequest);
+        verify(payoutRequestRepository, never()).findByTenantIdOrderByRequestedAtDesc(anyLong(), any());
+    }
+
+    @Test
+    void getPayouts_WithoutStatus_ShouldListAllTenantPayouts() {
+        PageRequest pageRequest = PageRequest.of(0, 10);
+        when(payoutRequestRepository.findByTenantIdOrderByRequestedAtDesc(1L, pageRequest))
+                .thenReturn(new PageImpl<>(java.util.List.of()));
+
+        payoutService.getPayouts(null, pageRequest);
+
+        verify(payoutRequestRepository).findByTenantIdOrderByRequestedAtDesc(1L, pageRequest);
+        verify(payoutRequestRepository, never()).findByTenantIdAndStatusOrderByRequestedAtAsc(anyLong(), any(), any());
     }
 }

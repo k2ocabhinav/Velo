@@ -62,7 +62,7 @@ test("admin account menu signs out and protected routes redirect again", async (
 test("admin payout review approves a request after confirmation", async ({ baseURL, context, page }) => {
   await signInAsAdmin(context, baseURL);
   let approveCount = 0;
-  await page.route("**/api/proxy/api/v1/admin/payouts/pending*", async (route) => {
+  await page.route(/\/api\/proxy\/api\/v1\/admin\/payouts(\?|$)/, async (route) => {
     if (route.request().method() !== "GET") { await route.continue(); return; }
     const content = approveCount === 0 ? [{ id: 91, amount: 240.75, status: "PENDING", requestedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString() }] : [];
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { content, totalPages: 1, number: 0, totalElements: content.length, size: 10 } }) });
@@ -85,7 +85,7 @@ test("admin payout review approves a request after confirmation", async ({ baseU
 
 test("admin payouts show a retryable error when the session expires", async ({ baseURL, context, page }) => {
   await signInAsAdmin(context, baseURL);
-  await page.route("**/api/proxy/api/v1/admin/payouts/pending*", async (route) => {
+  await page.route(/\/api\/proxy\/api\/v1\/admin\/payouts(\?|$)/, async (route) => {
     await route.fulfill({ status: 401, contentType: "application/json", body: JSON.stringify({ error: "Session expired. Please sign in again." }) });
   });
   await page.goto("/payouts");
@@ -320,7 +320,7 @@ test("admin rejects a pending payout and processes an approved payout", async ({
   ];
   let rejected = false;
   let processed = false;
-  await page.route("**/api/proxy/api/v1/admin/payouts/pending*", async (route) => {
+  await page.route(/\/api\/proxy\/api\/v1\/admin\/payouts(\?|$)/, async (route) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { content: payouts, totalPages: 1, number: 0, totalElements: payouts.length, size: 10 } }) });
   });
   await page.route("**/api/proxy/api/v1/admin/payouts/91/reject", async (route) => {
