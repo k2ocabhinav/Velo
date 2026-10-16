@@ -16,6 +16,7 @@ export type RiderHomePendingRequest = Readonly<{
   paymentMethod?: string | null;
   requestedTime?: string | null;
   createdTime?: string | null;
+  expiresAt?: string | null;
 }>;
 
 export type RiderHomeTripLane = Readonly<{
@@ -220,4 +221,29 @@ export function getRideFareValue(ride: RiderHomeRide | null | undefined): Decima
   }
 
   return ride.fare ?? null;
+}
+
+export function resolvePendingRequestExpiryMs(
+  request: RiderHomePendingRequest | null | undefined,
+  fallbackOfferTtlMs: number,
+): number | null {
+  const expiresAt = request?.expiresAt;
+  if (expiresAt) {
+    const expiresMs = new Date(expiresAt).getTime();
+    if (Number.isFinite(expiresMs)) {
+      return expiresMs;
+    }
+  }
+
+  const createdTime = request?.createdTime;
+  if (!createdTime) {
+    return null;
+  }
+
+  const createdMs = new Date(createdTime).getTime();
+  if (!Number.isFinite(createdMs)) {
+    return null;
+  }
+
+  return createdMs + fallbackOfferTtlMs;
 }
