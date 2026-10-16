@@ -17,6 +17,7 @@ import com.velo.platform.repositories.RideRequestRepository;
 import com.velo.platform.repositories.TenantRepository;
 import com.velo.platform.repositories.UserRepository;
 import com.velo.platform.services.NotificationService;
+import com.velo.platform.services.TenantNotificationFormatter;
 import com.velo.platform.services.TenantScopeService;
 import com.velo.platform.services.TripSheetService;
 import com.velo.platform.configs.ScheduledRideConfig;
@@ -52,6 +53,7 @@ public class TripSheetServiceImpl implements TripSheetService {
     private final NotificationService notificationService;
     private final UserRepository userRepository;
     private final TenantRepository tenantRepository;
+    private final TenantNotificationFormatter tenantNotificationFormatter;
 
     @Override
     @Transactional(readOnly = true)
@@ -99,10 +101,12 @@ public class TripSheetServiceImpl implements TripSheetService {
                 for (User admin : admins) {
                     if (notificationRepository.existsByTenantIdAndUserAndTypeAndReferenceId(
                             tenant.getId(), admin, NotificationType.SCHEDULED_TRIP_UNASSIGNED, row.getId())) continue;
+                    TenantNotificationFormatter.NotificationCopy copy = tenantNotificationFormatter.forUser(admin);
                     notificationService.createNotification(
                             admin,
-                            "Scheduled trip needs a driver",
-                            "A scheduled trip starting soon is still unassigned.",
+                            "Scheduled " + copy.tripLabelTitleCase() + " Needs a "
+                                    + copy.driverLabelTitleCase(),
+                            "A scheduled " + copy.tripLabelLowercase() + " starting soon is still unassigned.",
                             NotificationType.SCHEDULED_TRIP_UNASSIGNED,
                             row.getId());
                     created++;

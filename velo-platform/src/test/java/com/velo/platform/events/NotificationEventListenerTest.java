@@ -1,6 +1,7 @@
 package com.velo.platform.events;
 
 import com.velo.platform.entities.Driver;
+import com.velo.platform.entities.Payment;
 import com.velo.platform.entities.Ride;
 import com.velo.platform.entities.RideRequest;
 import com.velo.platform.entities.Rider;
@@ -10,6 +11,7 @@ import com.velo.platform.entities.enums.RideRequestStatus;
 import com.velo.platform.entities.enums.RideStatus;
 import com.velo.platform.services.NotificationService;
 import com.velo.platform.services.RideRealtimeService;
+import com.velo.platform.services.TenantNotificationFormatter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -20,12 +22,16 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
+import java.math.BigDecimal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.ArgumentMatchers.any;
 
 @ExtendWith(MockitoExtension.class)
 class NotificationEventListenerTest {
@@ -35,6 +41,9 @@ class NotificationEventListenerTest {
 
     @Mock
     private RideRealtimeService rideRealtimeService;
+
+    @Mock
+    private TenantNotificationFormatter tenantNotificationFormatter;
 
     @InjectMocks
     private NotificationEventListener notificationEventListener;
@@ -63,6 +72,8 @@ class NotificationEventListenerTest {
                 .rideRequestStatus(RideRequestStatus.PENDING)
                 .scheduledTime(LocalDateTime.of(2026, 4, 8, 9, 30))
                 .build();
+        when(tenantNotificationFormatter.forUser(any(User.class)))
+                .thenReturn(TenantNotificationFormatter.NotificationCopy.defaults());
     }
 
     @Test
@@ -85,11 +96,11 @@ class NotificationEventListenerTest {
         );
 
         assertThat(userCaptor.getAllValues()).containsExactly(riderUser, driverUserOne, driverUserTwo);
-        assertThat(titleCaptor.getAllValues()).containsExactly("Ride Requested", "Ride Request Received", "Ride Request Received");
+        assertThat(titleCaptor.getAllValues()).containsExactly("Trip Requested", "Trip Request Received", "Trip Request Received");
         assertThat(messageCaptor.getAllValues()).containsExactly(
-                "Your ride request has been submitted. Finding drivers nearby...",
-                "A nearby ride request is waiting for your response.",
-                "A nearby ride request is waiting for your response."
+                "Your trip request has been submitted. Finding drivers nearby...",
+                "A nearby trip request is waiting for your response.",
+                "A nearby trip request is waiting for your response."
         );
         assertThat(typeCaptor.getAllValues()).containsExactly(
                 NotificationType.RIDE_REQUESTED,
@@ -120,10 +131,10 @@ class NotificationEventListenerTest {
         );
 
         assertThat(userCaptor.getAllValues()).containsExactly(riderUser, driverUserOne);
-        assertThat(titleCaptor.getAllValues()).containsExactly("Scheduled Ride Dispatch Started", "Scheduled Request Received");
+        assertThat(titleCaptor.getAllValues()).containsExactly("Scheduled Trip Dispatch Started", "Scheduled Trip Request Received");
         assertThat(messageCaptor.getAllValues()).containsExactly(
-                "Your scheduled ride is now being offered to nearby drivers.",
-                "A scheduled ride request is ready for your response."
+                "Your scheduled trip is now being offered to nearby drivers.",
+                "A scheduled trip request is ready for your response."
         );
         assertThat(typeCaptor.getAllValues()).containsExactly(
                 NotificationType.RIDE_DISPATCHED,
@@ -166,8 +177,8 @@ class NotificationEventListenerTest {
 
         verify(notificationService).createNotification(
                 riderUser,
-                "Ride Scheduled",
-                "Your ride has been scheduled for 2026-04-08T09:30.",
+                "Trip Scheduled",
+                "Your trip has been scheduled for Wed 8 Apr, 09:30.",
                 NotificationType.RIDE_SCHEDULED,
                 101L
         );
@@ -181,8 +192,8 @@ class NotificationEventListenerTest {
 
         verify(notificationService).createNotification(
                 riderUser,
-                "Ride Rescheduled",
-                "Your scheduled ride has been moved to 2026-04-08T09:30.",
+                "Trip Rescheduled",
+                "Your scheduled trip has been moved to Wed 8 Apr, 09:30.",
                 NotificationType.RIDE_RESCHEDULED,
                 101L
         );
@@ -196,11 +207,66 @@ class NotificationEventListenerTest {
 
         verify(notificationService).createNotification(
                 riderUser,
-                "Scheduled Ride Cancelled",
-                "Your scheduled ride has been cancelled.",
+                "Scheduled Trip Cancelled",
+                "Your scheduled trip has been cancelled.",
                 NotificationType.RIDE_CANCELLED,
                 101L
         );
         verifyNoMoreInteractions(notificationService);
+    }
+
+    @Test
+    void saffronNotificationsUseTenantLabelsCurrencyAndLocalHumanTime() {
+        TenantNotificationFormatter.NotificationCopy saffron = new TenantNotificationFormatter.NotificationCopy(
+                "Guest", "Chauffeur", "Transfer", "INR", ZoneId.of("Asia/Kolkata"));
+        when(tenantNotificationFormatter.forUser(riderUser)).thenReturn(saffron);
+
+        Ride ride = Ride.builder()
+                .id(500L)
+                .rider(rider)
+                .driver(driverOne)
+                .rideStatus(RideStatus.CONFIRMED)
+                .build();
+        notificationEventListener.handleRideAccepted(new RideAcceptedEvent(this, ride, driverOne));
+        notificationEventListener.handleRideStarted(new RideStartedEvent(this, ride));
+        notificationEventListener.handleRideEnded(new RideEndedEvent(this, ride));
+        notificationEventListener.handleRideCancelled(new RideCancelledEvent(this, ride));
+        notificationEventListener.handlePaymentProcessed(new PaymentProcessedEvent(this, Payment.builder()
+                .id(777L)
+                .amount(new BigDecimal("1511.19"))
+                .ride(ride)
+                .build()));
+
+        rideRequest.setScheduledTime(LocalDateTime.of(2026, 10, 17, 0, 35));
+        notificationEventListener.handleScheduledRideCreated(new ScheduledRideCreatedEvent(this, rideRequest));
+        notificationEventListener.handleScheduledRideRescheduled(new ScheduledRideRescheduledEvent(this, rideRequest));
+        notificationEventListener.handleScheduledRideCancelled(new ScheduledRideCancelledEvent(this, rideRequest));
+
+        ArgumentCaptor<String> titleCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> messageCaptor = ArgumentCaptor.forClass(String.class);
+        verify(notificationService, times(13)).createNotification(
+                any(User.class), titleCaptor.capture(), messageCaptor.capture(), any(NotificationType.class), any(Long.class));
+
+        assertThat(titleCaptor.getAllValues()).containsExactly(
+                "Chauffeur Accepted", "Transfer Accepted",
+                "Transfer Started", "Transfer Started",
+                "Transfer Ended", "Transfer Ended",
+                "Transfer Cancelled", "Transfer Cancelled",
+                "Payment Processed", "Earnings Credited",
+                "Transfer Scheduled", "Transfer Rescheduled", "Scheduled Transfer Cancelled");
+        assertThat(messageCaptor.getAllValues()).containsExactly(
+                "Your transfer request was accepted by chauffeur Dev.",
+                "You have successfully accepted the transfer for guest Rita.",
+                "Your transfer has started. Enjoy your journey!",
+                "Ongoing transfer with guest Rita has started.",
+                "Your transfer has ended. Thank you for traveling with us!",
+                "The transfer with guest Rita has ended. Earnings will be credited shortly.",
+                "Your transfer has been cancelled.",
+                "The transfer with guest Rita has been cancelled.",
+                "Payment of ₹1,511.19 has been processed.",
+                "Earnings for transfer 500 have been credited to your account.",
+                "Your transfer has been scheduled for Sat 17 Oct, 06:05.",
+                "Your scheduled transfer has been moved to Sat 17 Oct, 06:05.",
+                "Your scheduled transfer has been cancelled.");
     }
 }

@@ -13,6 +13,7 @@ import com.velo.platform.repositories.RideOfferRepository;
 import com.velo.platform.repositories.RideRequestRepository;
 import com.velo.platform.services.NotificationService;
 import com.velo.platform.services.RideRealtimeService;
+import com.velo.platform.services.TenantNotificationFormatter;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -45,6 +46,9 @@ class RideOfferServiceImplTest {
     private RideRealtimeService rideRealtimeService;
 
     @Mock
+    private TenantNotificationFormatter tenantNotificationFormatter;
+
+    @Mock
     private EntityManager entityManager;
 
     private DispatchProperties dispatchProperties;
@@ -58,9 +62,12 @@ class RideOfferServiceImplTest {
                 rideRequestRepository,
                 notificationService,
                 rideRealtimeService,
+                tenantNotificationFormatter,
                 dispatchProperties,
                 entityManager
         );
+        lenient().when(tenantNotificationFormatter.forUser(any(User.class)))
+                .thenReturn(TenantNotificationFormatter.NotificationCopy.defaults());
     }
 
     @Test

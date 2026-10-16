@@ -43,6 +43,7 @@ import com.velo.platform.services.NotificationService;
 import com.velo.platform.services.RideOfferService;
 import com.velo.platform.services.RideRealtimeService;
 import com.velo.platform.services.RideService;
+import com.velo.platform.services.TenantNotificationFormatter;
 import com.velo.platform.services.TenantScopeService;
 import com.velo.platform.strategies.RideStrategyManager;
 import com.velo.platform.utils.GeometryUtil;
@@ -84,6 +85,7 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
     private final RideService rideService;
     private final RideOfferService rideOfferService;
     private final NotificationService notificationService;
+    private final TenantNotificationFormatter tenantNotificationFormatter;
     private final RideRealtimeService rideRealtimeService;
     private final CacheService cacheService;
     private final ApplicationEventPublisher eventPublisher;
@@ -124,14 +126,21 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
             savedRequest.setRideRequestStatus(RideRequestStatus.EXPIRED);
             savedRequest = rideRequestRepository.save(savedRequest);
         } else {
+            User matchedDriverUser = matchedDrivers.stream()
+                    .map(Driver::getUser)
+                    .filter(user -> user != null)
+                    .findFirst()
+                    .orElse(null);
+            TenantNotificationFormatter.NotificationCopy copy =
+                    tenantNotificationFormatter.forUser(matchedDriverUser);
             for (Driver matchedDriver : matchedDrivers) {
                 if (matchedDriver.getUser() == null) {
                     continue;
                 }
                 notificationService.createNotification(
                         matchedDriver.getUser(),
-                        "New dispatch request",
-                        "A new dispatch request is available near your location.",
+                        "New " + copy.tripLabelTitleCase() + " Request",
+                        "A new " + copy.tripLabelLowercase() + " request is available near your location.",
                         NotificationType.RIDE_REQUESTED,
                         savedRequest.getId()
                 );
@@ -536,10 +545,12 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
         }
 
         if (savedRequest.getRider() != null && savedRequest.getRider().getUser() != null) {
+            TenantNotificationFormatter.NotificationCopy copy =
+                    tenantNotificationFormatter.forUser(savedRequest.getRider().getUser());
             notificationService.createNotification(
                     savedRequest.getRider().getUser(),
-                    "Ride request cancelled",
-                    "An admin cancelled this ride request.",
+                    copy.tripLabelTitleCase() + " Request Cancelled",
+                    "An admin cancelled this " + copy.tripLabelLowercase() + " request.",
                     NotificationType.RIDE_CANCELLED,
                     savedRequest.getId()
             );
@@ -647,11 +658,15 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
     }
 
     private void notifyRideReassignment(Ride ride, Driver previousDriver, Driver newDriver) {
+        User tenantUser = ride.getRider() != null && ride.getRider().getUser() != null
+                ? ride.getRider().getUser()
+                : newDriver.getUser();
+        TenantNotificationFormatter.NotificationCopy copy = tenantNotificationFormatter.forUser(tenantUser);
         if (ride.getRider() != null && ride.getRider().getUser() != null) {
             notificationService.createNotification(
                     ride.getRider().getUser(),
-                    "Driver reassigned",
-                    "Your ride has been reassigned by operations.",
+                    copy.tripLabelTitleCase() + " Reassigned",
+                    "Your " + copy.tripLabelLowercase() + " has been reassigned by operations.",
                     NotificationType.RIDE_REASSIGNED,
                     ride.getId()
             );
@@ -660,8 +675,9 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
         if (previousDriver != null && previousDriver.getUser() != null) {
             notificationService.createNotification(
                     previousDriver.getUser(),
-                    "Ride reassigned",
-                    "Operations reassigned this ride to another driver.",
+                    copy.tripLabelTitleCase() + " Reassigned",
+                    "Operations reassigned this " + copy.tripLabelLowercase() + " to another "
+                            + copy.driverLabelLowercase() + ".",
                     NotificationType.RIDE_REASSIGNED,
                     ride.getId()
             );
@@ -670,8 +686,9 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
         if (newDriver.getUser() != null) {
             notificationService.createNotification(
                     newDriver.getUser(),
-                    "Ride assigned by operations",
-                    "You were assigned to an active ride by admin operations.",
+                    copy.tripLabelTitleCase() + " Assigned by Operations",
+                    "You were assigned to an active " + copy.tripLabelLowercase()
+                            + " by admin operations.",
                     NotificationType.RIDE_REASSIGNED,
                     ride.getId()
             );

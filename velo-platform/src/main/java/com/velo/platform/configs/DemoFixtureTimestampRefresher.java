@@ -80,8 +80,21 @@ public class DemoFixtureTimestampRefresher implements ApplicationRunner {
                 """.formatted(DEMO_TENANT_IDS, DEMO_TENANT_IDS));
         jdbcTemplate.update("DELETE FROM promo_code_usage WHERE tenant_id IN (%s) AND (ride_id IS NULL OR ride_id NOT IN (%s))"
                 .formatted(DEMO_TENANT_IDS, FIXTURE_RIDE_IDS));
-        jdbcTemplate.update("DELETE FROM wallet_transaction WHERE tenant_id IN (%s) AND (ride_id IS NULL OR ride_id NOT IN (%s))"
-                .formatted(DEMO_TENANT_IDS, FIXTURE_RIDE_IDS));
+        jdbcTemplate.update("DELETE FROM payout_request WHERE tenant_id IN (%s)".formatted(DEMO_TENANT_IDS));
+        jdbcTemplate.update("DELETE FROM driver_earning WHERE tenant_id IN (%s)".formatted(DEMO_TENANT_IDS));
+        jdbcTemplate.update("""
+                DELETE FROM wallet_transaction ledger
+                USING tenant
+                WHERE ledger.tenant_id = tenant.id
+                  AND tenant.slug IN ('default', 'saffron-routes')
+                  AND NOT (
+                      (tenant.slug = 'default' AND COALESCE(ledger.transaction_id, '') IN (
+                          'TOPUP-ALICE-001', 'RIDE-1-DEBIT', 'RIDE-1-CREDIT', 'DEMO-PAYOUT-VELO-BOB'
+                      ))
+                      OR (tenant.slug = 'saffron-routes'
+                          AND COALESCE(ledger.transaction_id, '') = 'DEMO-PAYOUT-SAFFRON-CHAUFFEUR2')
+                  )
+                """);
         jdbcTemplate.update("""
                 DELETE FROM rating
                 WHERE ride_id IN (

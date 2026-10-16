@@ -88,6 +88,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(RateLimitExceededException.class)
     public ResponseEntity<ApiResponse<?>> handleRateLimitExceeded(RateLimitExceededException exception) {
+        log.warn("Authentication request rate limited; retry after {} seconds", exception.getRetryAfterSeconds());
         ApiError apiError = ApiError.builder()
                 .status(HttpStatus.TOO_MANY_REQUESTS)
                 .message(exception.getMessage())

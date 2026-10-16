@@ -189,12 +189,18 @@ class DemoFixtureTimestampRefresherIntegrationTest {
         long simRequestId = insertRequest(simRiderId, veloId, "PENDING", null, null);
         long simRideId = insertRide(simRiderId, simDriverId, veloId, "ENDED", "1111", null, null,
                 new BigDecimal("180.00"));
+        long futurePayoutId = insertPayoutRequest(simDriverId, veloId, LocalDateTime.now().plusDays(4));
         insertOffer(simRequestId, simDriverId, veloId);
         insertPayment(userId("rider1@sim.velobusiness.demo"), simRideId, veloId);
         insertEarning(simDriverId, simRideId, veloId);
         insertRating(simRideId, simRiderId, simDriverId);
         insertWalletTransaction(simRideId, walletId("rider1@sim.velobusiness.demo"), veloId);
         insertNotification(userId("rider1@sim.velobusiness.demo"), veloId);
+
+        long fixtureRideId = rideIdByReference("DEMO-VELO-ENDED-01");
+        insertWalletTransaction(fixtureRideId, walletId("alice@example.com"), veloId);
+        jdbcTemplate.update("UPDATE driver_earning SET created_time = NOW() + INTERVAL '4 days' WHERE ride_id = ?",
+                fixtureRideId);
 
         long simGuestRequestId = insertRequest(simGuestId, saffronId, "PENDING", null, null);
         long simGuestRideId = insertRide(simGuestId, simChauffeurId, saffronId, "ENDED", "1111", null, null,
@@ -220,6 +226,14 @@ class DemoFixtureTimestampRefresherIntegrationTest {
         assertThat(count("rating", "ride_id", simRideId)).isZero();
         assertThat(count("wallet_transaction", "ride_id", simRideId)).isZero();
         assertThat(count("notification", "user_id", userId("rider1@sim.velobusiness.demo"))).isZero();
+        assertThat(count("payout_request", "id", futurePayoutId)).isZero();
+        assertThat(futureDemoPayoutCount()).isZero();
+        assertThat(payoutCount("default")).isEqualTo(4);
+        assertThat(payoutCount("saffron-routes")).isEqualTo(2);
+        assertThat(count("wallet_transaction", "transaction_id", "TEST-RIDE-" + fixtureRideId)).isZero();
+        assertThat(count("wallet_transaction", "transaction_id", "DEMO-PAYOUT-SAFFRON-CHAUFFEUR2")).isEqualTo(1);
+        assertThat(earningCreatedAt(fixtureRideId)).isEqualTo(rideEndedAt(fixtureRideId));
+        assertThat(earningCreatedAt(fixtureRideId)).isBeforeOrEqualTo(LocalDateTime.now());
         assertThat(count("ride", "id", simGuestRideId)).isZero();
         assertThat(count("ride_request", "id", simGuestRequestId)).isZero();
 
@@ -240,6 +254,29 @@ class DemoFixtureTimestampRefresherIntegrationTest {
         assertThat(driverState(simDriverId)).isEqualTo("offline");
         assertThat(driverState(simChauffeurId)).isEqualTo("offline");
         assertThat(driverState(realDriverId)).isEqualTo("online");
+    }
+
+    @Test
+    void run_leavesMoneyAndNotificationRowsOutsideDemoTenantsUntouched() {
+        long otherTenantId = insertTenant("another-tenant");
+        long otherDriverId = insertDriver("ordinary.other-tenant@example.com", false, otherTenantId);
+        long otherUserId = userId("ordinary.other-tenant@example.com");
+        insertWallet(otherUserId, new BigDecimal("100.00"), otherTenantId);
+        long futurePayoutId = insertPayoutRequest(otherDriverId, otherTenantId, LocalDateTime.now().plusDays(3));
+        insertNotification(otherUserId, otherTenantId);
+        jdbcTemplate.update("""
+                INSERT INTO wallet_transaction (
+                    amount, transaction_type, transaction_method, transaction_id, ride_id, wallet_id,
+                    "timestamp", version, tenant_id
+                ) VALUES (25.00, 0, 0, 'OTHER-TENANT-TOPUP', NULL,
+                          (SELECT id FROM wallet WHERE user_id = ?), NOW() + INTERVAL '3 days', 0, ?)
+                """, otherUserId, otherTenantId);
+
+        runRefresher();
+
+        assertThat(count("payout_request", "id", futurePayoutId)).isEqualTo(1);
+        assertThat(count("notification", "user_id", otherUserId)).isEqualTo(1);
+        assertThat(count("wallet_transaction", "transaction_id", "OTHER-TENANT-TOPUP")).isEqualTo(1);
     }
 
     @Test
@@ -362,6 +399,14 @@ class DemoFixtureTimestampRefresherIntegrationTest {
 
     private long tenantId(String slug) {
         return jdbcTemplate.queryForObject("SELECT id FROM tenant WHERE slug = ?", Long.class, slug);
+    }
+
+    private long insertTenant(String slug) {
+        jdbcTemplate.update("""
+                INSERT INTO tenant (slug, name, active, time_zone)
+                VALUES (?, 'Other Tenant', TRUE, 'UTC')
+                """, slug);
+        return tenantId(slug);
     }
 
     private long userId(String email) {
@@ -634,6 +679,42 @@ class DemoFixtureTimestampRefresherIntegrationTest {
                     user_id, title, message, type, reference_id, read, created_time, version, tenant_id
                 ) VALUES (?, 'Test', 'Test notification', 'RIDE_REQUESTED', NULL, FALSE, NOW(), 0, ?)
                 """, userId, tenantId);
+    }
+
+    private long insertPayoutRequest(long driverId, long tenantId, LocalDateTime requestedAt) {
+        jdbcTemplate.update("""
+                INSERT INTO payout_request (driver_id, amount, status, requested_at, version, tenant_id)
+                VALUES (?, 1.00, 'PENDING', ?, 0, ?)
+                """, driverId, requestedAt, tenantId);
+        return jdbcTemplate.queryForObject("""
+                SELECT id FROM payout_request
+                WHERE driver_id = ? AND requested_at = ? AND tenant_id = ?
+                """, Long.class, driverId, requestedAt, tenantId);
+    }
+
+    private long futureDemoPayoutCount() {
+        return jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM payout_request payout
+                JOIN tenant ON tenant.id = payout.tenant_id
+                WHERE tenant.slug IN ('default', 'saffron-routes') AND payout.requested_at > NOW()
+                """, Long.class);
+    }
+
+    private long payoutCount(String tenantSlug) {
+        return jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM payout_request payout
+                JOIN tenant ON tenant.id = payout.tenant_id
+                WHERE tenant.slug = ?
+                """, Long.class, tenantSlug);
+    }
+
+    private LocalDateTime earningCreatedAt(long rideId) {
+        return jdbcTemplate.queryForObject(
+                "SELECT created_time FROM driver_earning WHERE ride_id = ?", LocalDateTime.class, rideId);
+    }
+
+    private LocalDateTime rideEndedAt(long rideId) {
+        return jdbcTemplate.queryForObject("SELECT ended_at FROM ride WHERE id = ?", LocalDateTime.class, rideId);
     }
 
     private void placeDriver(long driverId, double longitude, double latitude) {

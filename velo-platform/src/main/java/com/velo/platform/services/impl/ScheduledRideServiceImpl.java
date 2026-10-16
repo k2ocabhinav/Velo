@@ -20,6 +20,7 @@ import com.velo.platform.services.RiderService;
 import com.velo.platform.services.NotificationService;
 import com.velo.platform.services.RideOfferService;
 import com.velo.platform.services.ScheduledRideService;
+import com.velo.platform.services.TenantNotificationFormatter;
 import com.velo.platform.services.TenantScopeService;
 import com.velo.platform.strategies.RideStrategyManager;
 import lombok.RequiredArgsConstructor;
@@ -54,6 +55,7 @@ public class ScheduledRideServiceImpl implements ScheduledRideService {
     private final ModelMapper modelMapper;
     private final RideOfferService rideOfferService;
     private final NotificationService notificationService;
+    private final TenantNotificationFormatter tenantNotificationFormatter;
     private final ApplicationEventPublisher eventPublisher;
     private final TenantScopeService tenantScopeService;
     private final RideRequestAddressResolver rideRequestAddressResolver;
@@ -192,10 +194,14 @@ public class ScheduledRideServiceImpl implements ScheduledRideService {
         if (matchedDrivers.isEmpty()) {
             savedRideRequest.setRideRequestStatus(RideRequestStatus.EXPIRED);
             rideRequestRepository.save(savedRideRequest);
+            TenantNotificationFormatter.NotificationCopy copy =
+                    tenantNotificationFormatter.forUser(rider.getUser());
             notificationService.createNotification(
                     rider.getUser(),
-                    "No drivers available for scheduled ride",
-                    "We could not find available drivers for the scheduled ride dispatch window.",
+                    "No " + copy.pluralDriverLabelTitleCase() + " Available for Scheduled "
+                            + copy.tripLabelTitleCase(),
+                    "We could not find available " + copy.pluralDriverLabelLowercase()
+                            + " for the scheduled " + copy.tripLabelLowercase() + " dispatch window.",
                     NotificationType.RIDE_EXPIRED,
                     savedRideRequest.getId()
             );

@@ -13,6 +13,7 @@ import com.velo.platform.repositories.RideRequestRepository;
 import com.velo.platform.services.NotificationService;
 import com.velo.platform.services.RideOfferService;
 import com.velo.platform.services.RideRealtimeService;
+import com.velo.platform.services.TenantNotificationFormatter;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +36,7 @@ public class RideOfferServiceImpl implements RideOfferService {
     private final RideRequestRepository rideRequestRepository;
     private final NotificationService notificationService;
     private final RideRealtimeService rideRealtimeService;
+    private final TenantNotificationFormatter tenantNotificationFormatter;
     private final DispatchProperties dispatchProperties;
     private final EntityManager entityManager;
 
@@ -132,6 +134,7 @@ public class RideOfferServiceImpl implements RideOfferService {
         }
 
         List<RideOffer> saved = rideOfferRepository.saveAll(competing);
+        TenantNotificationFormatter.NotificationCopy copy = copyFor(saved);
         for (RideOffer offer : saved) {
             if (offer.getDriver() == null || offer.getDriver().getUser() == null) {
                 continue;
@@ -139,8 +142,9 @@ public class RideOfferServiceImpl implements RideOfferService {
 
             notificationService.createNotification(
                     offer.getDriver().getUser(),
-                    "Ride no longer available",
-                    "This ride request was accepted by another driver.",
+                    copy.tripLabelTitleCase() + " No Longer Available",
+                    "This " + copy.tripLabelLowercase() + " request was accepted by another "
+                            + copy.driverLabelLowercase() + ".",
                     NotificationType.RIDE_OFFER_REVOKED,
                     rideRequestId
             );
@@ -167,14 +171,16 @@ public class RideOfferServiceImpl implements RideOfferService {
         }
 
         List<RideOffer> saved = rideOfferRepository.saveAll(offered);
+        TenantNotificationFormatter.NotificationCopy copy = copyFor(saved);
         for (RideOffer offer : saved) {
             if (offer.getDriver() == null || offer.getDriver().getUser() == null) {
                 continue;
             }
             notificationService.createNotification(
                     offer.getDriver().getUser(),
-                    "Ride request cancelled",
-                    "The rider cancelled this ride request.",
+                    copy.tripLabelTitleCase() + " Request Cancelled",
+                    "The " + copy.riderLabelLowercase() + " cancelled this "
+                            + copy.tripLabelLowercase() + " request.",
                     NotificationType.RIDE_OFFER_REVOKED,
                     rideRequestId
             );
@@ -207,10 +213,12 @@ public class RideOfferServiceImpl implements RideOfferService {
             }
 
             if (offer.getDriver() != null && offer.getDriver().getUser() != null) {
+                TenantNotificationFormatter.NotificationCopy copy = copyFor(offer);
                 notificationService.createNotification(
                         offer.getDriver().getUser(),
-                        "Ride request expired",
-                        "This ride request timed out before it was accepted.",
+                        copy.tripLabelTitleCase() + " Request Expired",
+                        "This " + copy.tripLabelLowercase()
+                                + " request timed out before it was accepted.",
                         NotificationType.RIDE_EXPIRED,
                         offer.getRideRequest() == null ? null : offer.getRideRequest().getId()
                 );
@@ -227,10 +235,13 @@ public class RideOfferServiceImpl implements RideOfferService {
 
             entityManager.refresh(request);
             if (request.getRider() != null && request.getRider().getUser() != null) {
+                TenantNotificationFormatter.NotificationCopy copy =
+                        tenantNotificationFormatter.forUser(request.getRider().getUser());
                 notificationService.createNotification(
                         request.getRider().getUser(),
-                        "No driver accepted in time",
-                        "Your ride request expired. Please try requesting again.",
+                        "No " + copy.driverLabelTitleCase() + " Accepted in Time",
+                        "Your " + copy.tripLabelLowercase()
+                                + " request expired. Please try requesting again.",
                         NotificationType.RIDE_EXPIRED,
                         request.getId()
                 );
@@ -270,5 +281,21 @@ public class RideOfferServiceImpl implements RideOfferService {
     @Transactional(readOnly = true)
     public long countExpiredOffers(Long tenantId) {
         return rideOfferRepository.countByTenantIdAndStatus(tenantId, RideOfferStatus.EXPIRED);
+    }
+
+    private TenantNotificationFormatter.NotificationCopy copyFor(RideOffer offer) {
+        RideRequest request = offer.getRideRequest();
+        if (request != null && request.getRider() != null && request.getRider().getUser() != null) {
+            return tenantNotificationFormatter.forUser(request.getRider().getUser());
+        }
+        return tenantNotificationFormatter.forUser(offer.getDriver().getUser());
+    }
+
+    private TenantNotificationFormatter.NotificationCopy copyFor(List<RideOffer> offers) {
+        return offers.stream()
+                .filter(offer -> offer.getDriver() != null && offer.getDriver().getUser() != null)
+                .findFirst()
+                .map(this::copyFor)
+                .orElseGet(TenantNotificationFormatter.NotificationCopy::defaults);
     }
 }

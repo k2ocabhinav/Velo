@@ -37,6 +37,7 @@ import com.velo.platform.services.RiderService;
 import com.velo.platform.services.PaymentService;
 import com.velo.platform.services.DriverEarningsService;
 import com.velo.platform.services.RideRealtimeService;
+import com.velo.platform.services.TenantNotificationFormatter;
 import com.velo.platform.services.WalletService;
 import com.velo.platform.strategies.RideStrategyManager;
 import com.velo.platform.utils.UtcTimes;
@@ -71,6 +72,7 @@ public class RiderServiceImpl implements RiderService {
     private final PromoCodeService promoCodeService;
     private final RideOfferService rideOfferService;
     private final NotificationService notificationService;
+    private final TenantNotificationFormatter tenantNotificationFormatter;
     private final TenantConfigurationRepository tenantConfigurationRepository;
     private final PaymentService paymentService;
     private final DriverEarningsService driverEarningsService;
@@ -131,10 +133,13 @@ public class RiderServiceImpl implements RiderService {
         if (matchedDrivers.isEmpty()) {
             savedRideRequest.setRideRequestStatus(RideRequestStatus.EXPIRED);
             RideRequest expiredRequest = rideRequestRepository.save(savedRideRequest);
+            TenantNotificationFormatter.NotificationCopy copy =
+                    tenantNotificationFormatter.forUser(rider.getUser());
             notificationService.createNotification(
                     rider.getUser(),
-                    "No drivers available",
-                    "No nearby drivers were available for this request. Please try again shortly.",
+                    "No " + copy.pluralDriverLabelTitleCase() + " Available",
+                    "No nearby " + copy.pluralDriverLabelLowercase() + " were available for this "
+                            + copy.tripLabelLowercase() + " request. Please try again shortly.",
                     NotificationType.RIDE_EXPIRED,
                     expiredRequest.getId()
             );
@@ -190,10 +195,11 @@ public class RiderServiceImpl implements RiderService {
         request.setRideRequestStatus(RideRequestStatus.CANCELLED);
         RideRequest cancelled = rideRequestRepository.save(request);
         rideOfferService.revokeOpenOffers(rideRequestId, "Ride request cancelled by rider.");
+        TenantNotificationFormatter.NotificationCopy copy = tenantNotificationFormatter.forUser(rider.getUser());
         notificationService.createNotification(
                 rider.getUser(),
-                "Ride request cancelled",
-                "Your pending ride request has been cancelled.",
+                copy.tripLabelTitleCase() + " Request Cancelled",
+                "Your pending " + copy.tripLabelLowercase() + " request has been cancelled.",
                 NotificationType.RIDE_CANCELLED,
                 rideRequestId
         );

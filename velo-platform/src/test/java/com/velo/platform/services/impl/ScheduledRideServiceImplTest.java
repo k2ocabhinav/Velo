@@ -21,6 +21,7 @@ import com.velo.platform.services.NotificationService;
 import com.velo.platform.services.RideOfferService;
 import com.velo.platform.services.RiderService;
 import com.velo.platform.services.TenantScopeService;
+import com.velo.platform.services.TenantNotificationFormatter;
 import com.velo.platform.strategies.RideFareCalculationStrategy;
 import com.velo.platform.strategies.DriverMatchingStrategy;
 import com.velo.platform.strategies.RideStrategyManager;
@@ -68,6 +69,7 @@ class ScheduledRideServiceImplTest {
     @Mock private ModelMapper modelMapper;
     @Mock private RideOfferService rideOfferService;
     @Mock private NotificationService notificationService;
+    @Mock private TenantNotificationFormatter tenantNotificationFormatter;
     @Mock private ApplicationEventPublisher eventPublisher;
     @Mock private TenantScopeService tenantScopeService;
     @Mock private GeocodingService geocodingService;
@@ -104,8 +106,10 @@ class ScheduledRideServiceImplTest {
 
         scheduledRideService = new ScheduledRideServiceImpl(
                 rideRequestRepository, riderService, rideStrategyManager,
-                scheduledRideConfig, modelMapper, rideOfferService, notificationService, eventPublisher,
+                scheduledRideConfig, modelMapper, rideOfferService, notificationService, tenantNotificationFormatter, eventPublisher,
                 tenantScopeService, new RideRequestAddressResolver(geocodingService), transactionManager);
+        lenient().when(tenantNotificationFormatter.forUser(any(User.class)))
+                .thenReturn(TenantNotificationFormatter.NotificationCopy.defaults());
 
         testUser = User.builder().id(1L).email("rider@test.com").build();
         testRider = Rider.builder().id(1L).user(testUser).rating(4.5).build();
