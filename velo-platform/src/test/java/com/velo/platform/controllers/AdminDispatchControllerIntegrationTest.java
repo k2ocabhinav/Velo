@@ -1,5 +1,6 @@
 package com.velo.platform.controllers;
 
+import com.velo.platform.utils.UtcTimes;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.velo.platform.config.TestSecurityConfig;
 import com.velo.platform.entities.AdminDispatchAudit;
@@ -26,6 +27,7 @@ import com.velo.platform.repositories.RideRepository;
 import com.velo.platform.repositories.RideRequestRepository;
 import com.velo.platform.repositories.RiderRepository;
 import com.velo.platform.repositories.UserRepository;
+import com.velo.platform.services.RideOfferService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,14 +46,17 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TimeZone;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -62,6 +67,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -87,6 +93,8 @@ class AdminDispatchControllerIntegrationTest {
     @Autowired private AdminDispatchAuditRepository adminDispatchAuditRepository;
     @Autowired private EntityManager entityManager;
     @Autowired private EntityManagerFactory entityManagerFactory;
+    @Autowired private JdbcTemplate jdbcTemplate;
+    @Autowired private RideOfferService rideOfferService;
 
     private User adminUser;
     private Rider rider;
@@ -158,20 +166,20 @@ class AdminDispatchControllerIntegrationTest {
                 .paymentMethod(PaymentMethod.WALLET)
                 .rideRequestStatus(RideRequestStatus.PENDING)
                 .fare(BigDecimal.valueOf(180))
-                .requestedTime(LocalDateTime.now().minusMinutes(3))
+                .requestedTime(UtcTimes.now().minusMinutes(3))
                 .build());
 
         rideOfferRepository.save(RideOffer.builder()
                 .rideRequest(pendingRequest)
                 .driver(primaryDriver)
                 .status(RideOfferStatus.OFFERED)
-                .expiresAt(LocalDateTime.now().plusSeconds(45))
+                .expiresAt(UtcTimes.now().plusSeconds(45))
                 .build());
         rideOfferRepository.save(RideOffer.builder()
                 .rideRequest(pendingRequest)
                 .driver(secondaryDriver)
                 .status(RideOfferStatus.OFFERED)
-                .expiresAt(LocalDateTime.now().plusSeconds(45))
+                .expiresAt(UtcTimes.now().plusSeconds(45))
                 .build());
 
         activeRide = rideRepository.save(Ride.builder()
@@ -183,7 +191,7 @@ class AdminDispatchControllerIntegrationTest {
                 .dropOffLocation(new GeometryFactory(new PrecisionModel(), 4326).createPoint(new Coordinate(77.6, 12.8)))
                 .fare(BigDecimal.valueOf(220))
                 .otp("1234")
-                .createdTime(LocalDateTime.now().minusMinutes(5))
+                .createdTime(UtcTimes.now().minusMinutes(5))
                 .build());
     }
 
@@ -222,26 +230,52 @@ class AdminDispatchControllerIntegrationTest {
     }
 
     @Test
-    @DisplayName("Live dispatch timestamps are explicit UTC instants")
-    void liveDispatch_shouldSerializeInstantsWithUtcOffset() throws Exception {
-        primaryDriver.setCurrentLocation(new GeometryFactory(new PrecisionModel(), 4326)
-                .createPoint(new Coordinate(77.5946, 12.9716)));
-        primaryDriver.setLocationUpdatedAt(LocalDateTime.now(ZoneOffset.UTC).minusSeconds(5));
-        driverRepository.saveAndFlush(primaryDriver);
+    @DisplayName("A just-updated driver appears in live dispatch under a non-UTC host default")
+    void liveDispatch_includesDriverUpdatedFromNonUtcHost() throws Exception {
+        assertThat(TimeZone.getDefault().getID()).isEqualTo("UTC");
+        assertThat(jdbcTemplate.queryForObject("SELECT current_setting('TimeZone')", String.class)).isEqualTo("UTC");
 
-        mockMvc.perform(withAdminAuth(get("/api/v1/admin/dispatch/live")))
+        mockMvc.perform(withDriverAuth(put("/drivers/location")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"lat\":12.9716,\"lng\":77.5946}"), primaryDriver))
+                .andExpect(status().isOk());
+
+        String response = mockMvc.perform(withAdminAuth(get("/api/v1/admin/dispatch/live")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.generatedAt").value(org.hamcrest.Matchers.matchesPattern(".+Z")))
-                .andExpect(jsonPath("$.data.drivers[0].locationUpdatedAt").value(org.hamcrest.Matchers.matchesPattern(".+Z")))
-                .andExpect(jsonPath("$.data.rides[0].requestedAt").value(org.hamcrest.Matchers.matchesPattern(".+Z")));
+                .andReturn().getResponse().getContentAsString();
+
+        var drivers = objectMapper.readTree(response).path("data").path("drivers");
+        assertThat(drivers.findValuesAsText("driverId")).contains(primaryDriver.getId().toString());
+        assertThat(drivers.get(0).path("locationUpdatedAt").asText()).matches(".+Z");
+    }
+
+    @Test
+    @DisplayName("Offer expiry is serialized as the same UTC instant under a non-UTC host default")
+    void offerExpiry_shouldSerializeCorrectInstantFromNonUtcHost() throws Exception {
+        assertThat(TimeZone.getDefault().getID()).isEqualTo("UTC");
+        OffsetDateTime beforeCreation = OffsetDateTime.now(ZoneOffset.UTC);
+        rideOfferRepository.deleteAll();
+        rideOfferService.createOffers(pendingRequest, List.of(primaryDriver));
+        rideOfferRepository.flush();
+
+        String response = mockMvc.perform(withAdminAuth(get(
+                        "/api/v1/admin/dispatch/requests/" + pendingRequest.getId() + "/offers")))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        OffsetDateTime expiresAt = OffsetDateTime.parse(
+                objectMapper.readTree(response).path("data").get(0).path("expiresAt").asText());
+        assertThat(expiresAt).isAfter(beforeCreation.plusSeconds(43));
+        assertThat(expiresAt).isBefore(beforeCreation.plusSeconds(48));
     }
 
     @Test
     @DisplayName("Admin revenue endpoint aggregates top drivers and excludes other tenants and old earnings")
     void topDriversRevenue_shouldAggregateWithinTenantAndDefaultDateRange() throws Exception {
-        createEarning(primaryDriver, new BigDecimal("100.00"), new BigDecimal("20.00"), LocalDateTime.now().minusDays(5));
-        createEarning(primaryDriver, new BigDecimal("500.00"), new BigDecimal("100.00"), LocalDateTime.now().minusDays(40));
-        createEarning(secondaryDriver, new BigDecimal("120.00"), new BigDecimal("30.00"), LocalDateTime.now().minusDays(2));
+        createEarning(primaryDriver, new BigDecimal("100.00"), new BigDecimal("20.00"), UtcTimes.now().minusDays(5));
+        createEarning(primaryDriver, new BigDecimal("500.00"), new BigDecimal("100.00"), UtcTimes.now().minusDays(40));
+        createEarning(secondaryDriver, new BigDecimal("120.00"), new BigDecimal("30.00"), UtcTimes.now().minusDays(2));
 
         User otherTenantUser = userRepository.save(User.builder()
                 .email(uniqueEmail("other.tenant.driver@test.com"))
@@ -259,7 +293,7 @@ class AdminDispatchControllerIntegrationTest {
                 .available(true)
                 .onboardingStatus(DriverOnboardingStatus.APPROVED)
                 .build());
-        createEarning(otherTenantDriver, new BigDecimal("1000.00"), new BigDecimal("100.00"), LocalDateTime.now().minusDays(1));
+        createEarning(otherTenantDriver, new BigDecimal("1000.00"), new BigDecimal("100.00"), UtcTimes.now().minusDays(1));
 
         mockMvc.perform(withAdminAuth(get("/api/v1/admin/stats/revenue/top-drivers")))
                 .andExpect(status().isOk())
@@ -287,13 +321,13 @@ class AdminDispatchControllerIntegrationTest {
                 .paymentMethod(PaymentMethod.WALLET)
                 .rideRequestStatus(RideRequestStatus.PENDING)
                 .fare(BigDecimal.valueOf(190))
-                .requestedTime(LocalDateTime.now().minusMinutes(2))
+                .requestedTime(UtcTimes.now().minusMinutes(2))
                 .build());
         rideOfferRepository.save(RideOffer.builder()
                 .rideRequest(secondPendingRequest)
                 .driver(primaryDriver)
                 .status(RideOfferStatus.OFFERED)
-                .expiresAt(LocalDateTime.now().plusSeconds(45))
+                .expiresAt(UtcTimes.now().plusSeconds(45))
                 .build());
         rideRepository.save(Ride.builder()
                 .rider(rider)
@@ -302,7 +336,7 @@ class AdminDispatchControllerIntegrationTest {
                 .rideStatus(RideStatus.ONGOING)
                 .fare(BigDecimal.valueOf(230))
                 .otp("4321")
-                .createdTime(LocalDateTime.now().minusMinutes(1))
+                .createdTime(UtcTimes.now().minusMinutes(1))
                 .build());
 
         entityManager.flush();

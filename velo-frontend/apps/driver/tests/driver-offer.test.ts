@@ -29,6 +29,12 @@ describe("driver offer helpers", () => {
     expect(resolveOfferExpiresAtMs("not-a-date", "also-not-a-date")).toBeNull();
   });
 
+  it("treats zone-less server timestamps as UTC", () => {
+    expect(resolveOfferExpiresAtMs("2026-04-08T10:01:30", null)).toBe(
+      new Date("2026-04-08T10:01:30Z").getTime(),
+    );
+  });
+
   it("shows the provided address and never falls back to raw coordinates", () => {
     expect(
       formatOfferLocation("Kempegowda Airport", { coordinates: [77.59, 12.97], type: "Point" }, PENDING_PICKUP_LABEL),

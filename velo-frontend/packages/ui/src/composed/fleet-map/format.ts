@@ -1,10 +1,12 @@
+import { parseApiTimestamp } from "@velo/app-core/formatters";
+
 export function formatFleetLastUpdate(
   value: string | null | undefined,
   stale = false,
   now = Date.now(),
 ): string {
   if (!value) return "Last seen time unavailable";
-  const timestamp = new Date(value).getTime();
+  const timestamp = parseApiTimestamp(value).getTime();
   if (!Number.isFinite(timestamp)) return "Last seen time unavailable";
 
   const seconds = Math.max(0, Math.floor((now - timestamp) / 1_000));

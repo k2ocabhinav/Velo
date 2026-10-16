@@ -1,5 +1,6 @@
 package com.velo.platform.services.impl;
 
+import com.velo.platform.utils.UtcTimes;
 import com.velo.platform.dto.DriverLocationUpdateRequestDto;
 import com.velo.platform.dto.RideUpdateEventDto;
 import com.velo.platform.entities.Driver;
@@ -96,7 +97,7 @@ class RideRealtimeServiceImplTest {
                 120.0,
                 30.0,
                 8.0,
-                LocalDateTime.now()
+                UtcTimes.now()
         );
 
         service.publishDriverLocation(ride, location);

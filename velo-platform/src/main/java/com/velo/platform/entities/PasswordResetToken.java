@@ -1,5 +1,6 @@
 package com.velo.platform.entities;
 
+import com.velo.platform.utils.UtcTimes;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -35,7 +36,7 @@ public class PasswordResetToken {
     private Long version;
 
     public boolean isExpired() {
-        return LocalDateTime.now().isAfter(expiryDate);
+        return UtcTimes.now().isAfter(expiryDate);
     }
 
     public boolean isValid() {

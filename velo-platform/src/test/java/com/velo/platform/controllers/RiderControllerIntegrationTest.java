@@ -1,5 +1,6 @@
 package com.velo.platform.controllers;
 
+import com.velo.platform.utils.UtcTimes;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.velo.platform.config.TestSecurityConfig;
 import com.velo.platform.entities.Driver;
@@ -134,8 +135,8 @@ class RiderControllerIntegrationTest {
                 .paymentMethod(PaymentMethod.WALLET)
                 .fare(BigDecimal.valueOf(140.0))
                 .otp("5678")
-                .startedAt(LocalDateTime.now().minusMinutes(30))
-                .endedAt(LocalDateTime.now().minusMinutes(10))
+                .startedAt(UtcTimes.now().minusMinutes(30))
+                .endedAt(UtcTimes.now().minusMinutes(10))
                 .build();
         endedRide = rideRepository.save(endedRide);
 
@@ -263,8 +264,8 @@ class RiderControllerIntegrationTest {
                 .paymentMethod(PaymentMethod.CASH)
                 .fare(BigDecimal.valueOf(100.0))
                 .otp("6789")
-                .startedAt(LocalDateTime.now().minusHours(2))
-                .endedAt(LocalDateTime.now().minusHours(1))
+                .startedAt(UtcTimes.now().minusHours(2))
+                .endedAt(UtcTimes.now().minusHours(1))
                 .build());
         ratingRepository.save(Rating.builder()
                 .ride(priorRide)
@@ -356,7 +357,7 @@ class RiderControllerIntegrationTest {
                 .rideRequest(pendingRequest)
                 .driver(testDriver)
                 .status(RideOfferStatus.OFFERED)
-                .expiresAt(LocalDateTime.now().plusMinutes(1))
+                .expiresAt(UtcTimes.now().plusMinutes(1))
                 .build());
 
         mockMvc.perform(withRiderAuth(post("/riders/cancel-request/" + pendingRequest.getId())))

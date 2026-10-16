@@ -1,5 +1,6 @@
 package com.velo.platform.services.impl;
 
+import com.velo.platform.utils.UtcTimes;
 import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.RideOffer;
 import com.velo.platform.entities.RideRequest;
@@ -44,7 +45,7 @@ public class RideOfferServiceImpl implements RideOfferService {
             return List.of();
         }
 
-        LocalDateTime expiry = LocalDateTime.now().plusSeconds(Math.max(1, dispatchProperties.getOfferTtlSeconds()));
+        LocalDateTime expiry = UtcTimes.now().plusSeconds(Math.max(1, dispatchProperties.getOfferTtlSeconds()));
         List<RideOffer> offers = new ArrayList<>(drivers.size());
         for (Driver driver : drivers) {
             offers.add(RideOffer.builder()
@@ -74,9 +75,9 @@ public class RideOfferServiceImpl implements RideOfferService {
         }
 
         RideOffer offer = existing.get();
-        if (offer.getExpiresAt() != null && offer.getExpiresAt().isBefore(LocalDateTime.now())) {
+        if (offer.getExpiresAt() != null && offer.getExpiresAt().isBefore(UtcTimes.now())) {
             offer.setStatus(RideOfferStatus.EXPIRED);
-            offer.setResolvedAt(LocalDateTime.now());
+            offer.setResolvedAt(UtcTimes.now());
             offer.setResolutionReason("Offer expired before acceptance.");
             rideOfferRepository.save(offer);
             return Optional.empty();
@@ -95,8 +96,8 @@ public class RideOfferServiceImpl implements RideOfferService {
     @Transactional
     public void markAccepted(RideOffer rideOffer) {
         rideOffer.setStatus(RideOfferStatus.ACCEPTED);
-        rideOffer.setAcceptedAt(LocalDateTime.now());
-        rideOffer.setResolvedAt(LocalDateTime.now());
+        rideOffer.setAcceptedAt(UtcTimes.now());
+        rideOffer.setResolvedAt(UtcTimes.now());
         rideOffer.setResolutionReason("Accepted by driver.");
         rideOfferRepository.save(rideOffer);
     }
@@ -105,7 +106,7 @@ public class RideOfferServiceImpl implements RideOfferService {
     @Transactional
     public void markRevoked(RideOffer rideOffer, String reason) {
         rideOffer.setStatus(RideOfferStatus.REVOKED);
-        rideOffer.setResolvedAt(LocalDateTime.now());
+        rideOffer.setResolvedAt(UtcTimes.now());
         rideOffer.setResolutionReason(reason);
         rideOfferRepository.save(rideOffer);
     }
@@ -123,7 +124,7 @@ public class RideOfferServiceImpl implements RideOfferService {
             return List.of();
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = UtcTimes.now();
         for (RideOffer offer : competing) {
             offer.setStatus(RideOfferStatus.REVOKED);
             offer.setResolvedAt(now);
@@ -158,7 +159,7 @@ public class RideOfferServiceImpl implements RideOfferService {
             return List.of();
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = UtcTimes.now();
         for (RideOffer offer : offered) {
             offer.setStatus(RideOfferStatus.REVOKED);
             offer.setResolvedAt(now);
@@ -184,7 +185,7 @@ public class RideOfferServiceImpl implements RideOfferService {
     @Override
     @Transactional
     public int expireStaleOffers() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = UtcTimes.now();
         List<RideOffer> staleOffers = rideOfferRepository.findByStatusAndExpiresAtLessThanEqual(RideOfferStatus.OFFERED, now);
         if (staleOffers.isEmpty()) {
             return 0;

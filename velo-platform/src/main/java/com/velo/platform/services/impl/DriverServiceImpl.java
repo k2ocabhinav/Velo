@@ -212,7 +212,7 @@ public class DriverServiceImpl implements DriverService {
             throw new RuntimeConflictException("Otp is not valid.");
         }
 
-        ride.setStartedAt(LocalDateTime.now());
+        ride.setStartedAt(UtcTimes.now());
         Ride savedRide = rideService.updateRideStatus(ride, RideStatus.ONGOING);
 
         paymentService.createNewPayment(savedRide);
@@ -240,7 +240,7 @@ public class DriverServiceImpl implements DriverService {
             throw new RuntimeConflictException("Ride status is not ONGOING hence cannot be ended, status: "+ride.getRideStatus());
         }
 
-        ride.setEndedAt(LocalDateTime.now());
+        ride.setEndedAt(UtcTimes.now());
         Ride savedRide = rideService.updateRideStatus(ride, RideStatus.ENDED);
         updateDriverAvailability(driver, true);
 
@@ -417,7 +417,7 @@ public class DriverServiceImpl implements DriverService {
         DriverLocationUpdateRequestDto normalizedUpdate = normalizeLocationUpdate(locationUpdate);
         PointDto pointDto = new PointDto(new double[]{normalizedUpdate.getLng(), normalizedUpdate.getLat()});
         driver.setCurrentLocation(GeometryUtil.createPoint(pointDto));
-        driver.setLocationUpdatedAt(LocalDateTime.now());
+        driver.setLocationUpdatedAt(UtcTimes.now());
         driver.setLocationHeading(normalizedUpdate.getHeading());
         driver.setLocationSpeedKph(normalizedUpdate.getSpeedKph());
         driverRepository.save(driver);
@@ -436,7 +436,7 @@ public class DriverServiceImpl implements DriverService {
                 normalizedUpdate.getSpeedKph(),
                 normalizedUpdate.getAccuracyM(),
                 normalizedUpdate.getCapturedAt(),
-                LocalDateTime.now()
+                UtcTimes.now()
         );
     }
 
@@ -447,7 +447,7 @@ public class DriverServiceImpl implements DriverService {
         update.setHeading(locationUpdate.getHeading());
         update.setSpeedKph(locationUpdate.getSpeedKph());
         update.setAccuracyM(locationUpdate.getAccuracyM());
-        update.setCapturedAt(locationUpdate.getCapturedAt() == null ? LocalDateTime.now() : locationUpdate.getCapturedAt());
+        update.setCapturedAt(locationUpdate.getCapturedAt() == null ? UtcTimes.now() : locationUpdate.getCapturedAt());
         return update;
     }
 

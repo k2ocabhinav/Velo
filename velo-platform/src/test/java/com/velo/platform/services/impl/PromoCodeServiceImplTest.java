@@ -1,5 +1,6 @@
 package com.velo.platform.services.impl;
 
+import com.velo.platform.utils.UtcTimes;
 import com.velo.platform.dto.PromoCodeDto;
 import com.velo.platform.dto.PromoCodeResultDto;
 import com.velo.platform.entities.PromoCode;
@@ -69,8 +70,8 @@ class PromoCodeServiceImplTest {
                 .currentUses(0)
                 .maxUses(100)
                 .minRideFare(BigDecimal.valueOf(50))
-                .startDate(LocalDate.now().minusDays(1))
-                .endDate(LocalDate.now().plusDays(1))
+                .startDate(UtcTimes.today().minusDays(1))
+                .endDate(UtcTimes.today().plusDays(1))
                 .build();
 
         promoCodeDto = PromoCodeDto.builder()
@@ -214,7 +215,7 @@ class PromoCodeServiceImplTest {
 
     @Test
     void validateAndApplyPromo_WhenExpired_ShouldThrowException() {
-        promoCode.setEndDate(LocalDate.now().minusDays(1));
+        promoCode.setEndDate(UtcTimes.today().minusDays(1));
         when(promoCodeRepository.findByCodeAndTenantId("SAVE10", 1L)).thenReturn(Optional.of(promoCode));
 
         assertThatThrownBy(() -> promoCodeService.validateAndApplyPromo("SAVE10", user, BigDecimal.valueOf(100)))

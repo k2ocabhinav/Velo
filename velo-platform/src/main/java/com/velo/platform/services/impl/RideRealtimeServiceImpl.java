@@ -1,5 +1,6 @@
 package com.velo.platform.services.impl;
 
+import com.velo.platform.utils.UtcTimes;
 import com.velo.platform.dto.DriverLocationUpdateRequestDto;
 import com.velo.platform.dto.RideLocationDto;
 import com.velo.platform.dto.RideUpdateEventDto;
@@ -36,7 +37,7 @@ public class RideRealtimeServiceImpl implements RideRealtimeService {
         payload.setRideRequestId(rideRequest.getId());
         payload.setStatus(rideRequest.getRideRequestStatus() == null ? "PENDING" : rideRequest.getRideRequestStatus().name());
         payload.setRiderId(rideRequest.getRider().getId());
-        payload.setUpdatedAt(LocalDateTime.now());
+        payload.setUpdatedAt(UtcTimes.now());
 
         sendToUser(rideRequest.getRider().getUser(), payload);
     }
@@ -54,7 +55,7 @@ public class RideRealtimeServiceImpl implements RideRealtimeService {
         payload.setStatus(rideStatus == null ? null : rideStatus.name());
         payload.setRiderId(ride.getRider().getId());
         payload.setDriverId(ride.getDriver() == null ? null : ride.getDriver().getId());
-        payload.setUpdatedAt(LocalDateTime.now());
+        payload.setUpdatedAt(UtcTimes.now());
 
         sendToUser(ride.getRider().getUser(), payload);
         if (ride.getDriver() != null && ride.getDriver().getUser() != null) {
@@ -74,7 +75,7 @@ public class RideRealtimeServiceImpl implements RideRealtimeService {
                 locationUpdate.getHeading(),
                 locationUpdate.getSpeedKph(),
                 locationUpdate.getAccuracyM(),
-                locationUpdate.getCapturedAt() == null ? LocalDateTime.now() : locationUpdate.getCapturedAt()
+                locationUpdate.getCapturedAt() == null ? UtcTimes.now() : locationUpdate.getCapturedAt()
         );
 
         RideUpdateEventDto payload = new RideUpdateEventDto();
@@ -85,7 +86,7 @@ public class RideRealtimeServiceImpl implements RideRealtimeService {
         payload.setRiderId(ride.getRider().getId());
         payload.setDriverId(ride.getDriver() == null ? null : ride.getDriver().getId());
         payload.setDriverLocation(location);
-        payload.setUpdatedAt(LocalDateTime.now());
+        payload.setUpdatedAt(UtcTimes.now());
 
         sendToUser(ride.getRider().getUser(), payload);
     }

@@ -180,4 +180,9 @@ describe("fleet location age labels", () => {
     expect(formatFleetLastUpdate("2026-10-16T12:01:48Z", false, now)).toBe("Updated 12 s ago");
     expect(formatFleetLastUpdate("not-a-time", true, now)).toBe("Last seen time unavailable");
   });
+
+  it("reads zone-less API location times as UTC", () => {
+    const now = Date.parse("2026-10-16T12:02:00Z");
+    expect(formatFleetLastUpdate("2026-10-16T12:00:00", true, now)).toBe("Last seen 2 min ago");
+  });
 });

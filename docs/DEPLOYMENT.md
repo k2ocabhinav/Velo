@@ -42,6 +42,8 @@ Local PostgreSQL credentials are `postgres` / `user`. Flyway owns the schema. Lo
 
 Non-local profiles require explicit database credentials, `JWT_SECRET`, and `CORS_ALLOWED_ORIGINS`. Prometheus metrics require `VELO_PROMETHEUS_ENABLED=true` and an ADMIN bearer token. `/actuator/health` remains public.
 
+The backend forces its JVM default zone, Hibernate JDBC time zone, and PostgreSQL connection sessions to UTC. Zone-less backend timestamps are UTC; tenant schedule inputs and calendar display continue to use each tenant's configured IANA time zone. Local demo startup rebuilds fixture timestamps in UTC. Older non-fixture rows in an existing local database may appear shifted and are not rewritten because their original zone cannot be determined safely.
+
 ### Run the Applications
 
 ```bash

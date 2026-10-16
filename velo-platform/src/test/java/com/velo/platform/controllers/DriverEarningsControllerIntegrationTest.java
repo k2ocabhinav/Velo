@@ -1,5 +1,6 @@
 package com.velo.platform.controllers;
 
+import com.velo.platform.utils.UtcTimes;
 import com.velo.platform.config.TestSecurityConfig;
 import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.DriverEarning;
@@ -109,13 +110,13 @@ class DriverEarningsControllerIntegrationTest {
                 testDriver,
                 new BigDecimal("120.00"),
                 new BigDecimal("24.00"),
-                LocalDateTime.now().minusDays(1));
+                UtcTimes.now().minusDays(1));
         DriverEarning newerEarning = createEarning(
                 testDriver,
                 new BigDecimal("80.00"),
                 new BigDecimal("16.00"),
-                LocalDateTime.now().minusHours(2));
-        createEarning(otherDriver, new BigDecimal("95.00"), new BigDecimal("19.00"), LocalDateTime.now().minusHours(1));
+                UtcTimes.now().minusHours(2));
+        createEarning(otherDriver, new BigDecimal("95.00"), new BigDecimal("19.00"), UtcTimes.now().minusHours(1));
 
         mockMvc.perform(withDriverAuth(get("/drivers/earnings")
                         .param("pageOffset", "0")
@@ -131,7 +132,7 @@ class DriverEarningsControllerIntegrationTest {
     @Test
     @DisplayName("GET /drivers/earnings/summary returns the requested weekly aggregate")
     void getEarningsSummary_ShouldReturnWeeklySummary() throws Exception {
-        LocalDate today = LocalDate.now();
+        LocalDate today = UtcTimes.today();
         createEarning(testDriver, new BigDecimal("100.00"), new BigDecimal("20.00"), today.atStartOfDay().plusHours(9));
         createEarning(testDriver, new BigDecimal("70.00"), new BigDecimal("14.00"), today.atStartOfDay().plusHours(12));
         createEarning(otherDriver, new BigDecimal("60.00"), new BigDecimal("12.00"), today.atStartOfDay().plusHours(10));
@@ -150,11 +151,11 @@ class DriverEarningsControllerIntegrationTest {
     @Test
     @DisplayName("GET /drivers/earnings/balance subtracts pending, approved, and processed payouts")
     void getAvailableBalance_ShouldSubtractReservedPayouts() throws Exception {
-        createEarning(testDriver, new BigDecimal("100.00"), new BigDecimal("20.00"), LocalDateTime.now().minusDays(2));
-        createEarning(testDriver, new BigDecimal("80.00"), new BigDecimal("16.00"), LocalDateTime.now().minusDays(1));
-        createPayout(testDriver, new BigDecimal("20.00"), PayoutStatus.PENDING, LocalDateTime.now().minusHours(5), null);
-        createPayout(testDriver, new BigDecimal("15.00"), PayoutStatus.APPROVED, LocalDateTime.now().minusHours(4), "approved");
-        createPayout(testDriver, new BigDecimal("10.00"), PayoutStatus.PROCESSED, LocalDateTime.now().minusHours(3), "processed");
+        createEarning(testDriver, new BigDecimal("100.00"), new BigDecimal("20.00"), UtcTimes.now().minusDays(2));
+        createEarning(testDriver, new BigDecimal("80.00"), new BigDecimal("16.00"), UtcTimes.now().minusDays(1));
+        createPayout(testDriver, new BigDecimal("20.00"), PayoutStatus.PENDING, UtcTimes.now().minusHours(5), null);
+        createPayout(testDriver, new BigDecimal("15.00"), PayoutStatus.APPROVED, UtcTimes.now().minusHours(4), "approved");
+        createPayout(testDriver, new BigDecimal("10.00"), PayoutStatus.PROCESSED, UtcTimes.now().minusHours(3), "processed");
 
         mockMvc.perform(withDriverAuth(get("/drivers/earnings/balance")))
                 .andExpect(status().isOk())
@@ -164,7 +165,7 @@ class DriverEarningsControllerIntegrationTest {
     @Test
     @DisplayName("POST /drivers/earnings/payout creates a pending payout request")
     void requestPayout_ShouldCreatePendingRequest() throws Exception {
-        createEarning(testDriver, new BigDecimal("100.00"), new BigDecimal("20.00"), LocalDateTime.now().minusDays(1));
+        createEarning(testDriver, new BigDecimal("100.00"), new BigDecimal("20.00"), UtcTimes.now().minusDays(1));
 
         mockMvc.perform(withDriverAuth(post("/drivers/earnings/payout")
                         .param("amount", "50.00")))
@@ -198,10 +199,10 @@ class DriverEarningsControllerIntegrationTest {
     @DisplayName("GET /drivers/earnings/payouts returns only the signed-in driver's payouts")
     void getMyPayouts_ShouldReturnCurrentDriverPayoutHistory() throws Exception {
         PayoutRequest olderRequest = createPayout(
-                testDriver, new BigDecimal("40.00"), PayoutStatus.PROCESSED, LocalDateTime.now().minusDays(2), "older");
+                testDriver, new BigDecimal("40.00"), PayoutStatus.PROCESSED, UtcTimes.now().minusDays(2), "older");
         PayoutRequest newerRequest = createPayout(
-                testDriver, new BigDecimal("25.00"), PayoutStatus.PENDING, LocalDateTime.now().minusHours(6), null);
-        createPayout(otherDriver, new BigDecimal("99.00"), PayoutStatus.PENDING, LocalDateTime.now().minusHours(2), null);
+                testDriver, new BigDecimal("25.00"), PayoutStatus.PENDING, UtcTimes.now().minusHours(6), null);
+        createPayout(otherDriver, new BigDecimal("99.00"), PayoutStatus.PENDING, UtcTimes.now().minusHours(2), null);
 
         mockMvc.perform(withDriverAuth(get("/drivers/earnings/payouts")
                         .param("pageOffset", "0")
@@ -216,8 +217,8 @@ class DriverEarningsControllerIntegrationTest {
     @DisplayName("GET /api/v1/admin/payouts/pending returns only pending payouts")
     void getPendingPayouts_ShouldReturnPendingRequestsForAdmin() throws Exception {
         PayoutRequest pendingRequest = createPayout(
-                testDriver, new BigDecimal("35.00"), PayoutStatus.PENDING, LocalDateTime.now().minusHours(3), null);
-        createPayout(testDriver, new BigDecimal("15.00"), PayoutStatus.APPROVED, LocalDateTime.now().minusHours(2), "approved");
+                testDriver, new BigDecimal("35.00"), PayoutStatus.PENDING, UtcTimes.now().minusHours(3), null);
+        createPayout(testDriver, new BigDecimal("15.00"), PayoutStatus.APPROVED, UtcTimes.now().minusHours(2), "approved");
 
         mockMvc.perform(withAdminAuth(get("/api/v1/admin/payouts/pending")
                         .param("page", "0")
@@ -243,7 +244,7 @@ class DriverEarningsControllerIntegrationTest {
     @DisplayName("POST /api/v1/admin/payouts/{id}/approve marks a payout as approved")
     void approvePayout_ShouldUpdateStatusAndAdminNote() throws Exception {
         PayoutRequest pendingRequest = createPayout(
-                testDriver, new BigDecimal("55.00"), PayoutStatus.PENDING, LocalDateTime.now().minusHours(1), null);
+                testDriver, new BigDecimal("55.00"), PayoutStatus.PENDING, UtcTimes.now().minusHours(1), null);
 
         mockMvc.perform(withAdminAuth(post("/api/v1/admin/payouts/" + pendingRequest.getId() + "/approve")
                         .contentType(MediaType.TEXT_PLAIN)
@@ -258,7 +259,7 @@ class DriverEarningsControllerIntegrationTest {
     @DisplayName("POST /api/v1/admin/payouts/{id}/reject marks a payout as rejected")
     void rejectPayout_ShouldUpdateStatusAndAdminNote() throws Exception {
         PayoutRequest pendingRequest = createPayout(
-                testDriver, new BigDecimal("30.00"), PayoutStatus.PENDING, LocalDateTime.now().minusHours(1), null);
+                testDriver, new BigDecimal("30.00"), PayoutStatus.PENDING, UtcTimes.now().minusHours(1), null);
 
         mockMvc.perform(withAdminAuth(post("/api/v1/admin/payouts/" + pendingRequest.getId() + "/reject")
                         .contentType(MediaType.TEXT_PLAIN)
@@ -273,7 +274,7 @@ class DriverEarningsControllerIntegrationTest {
     @DisplayName("POST /api/v1/admin/payouts/{id}/process marks a payout processed and credits the wallet")
     void processPayout_ShouldUpdateStatusAndCreditWallet() throws Exception {
         PayoutRequest approvedRequest = createPayout(
-                testDriver, new BigDecimal("45.00"), PayoutStatus.APPROVED, LocalDateTime.now().minusHours(1), "approved");
+                testDriver, new BigDecimal("45.00"), PayoutStatus.APPROVED, UtcTimes.now().minusHours(1), "approved");
 
         mockMvc.perform(withAdminAuth(post("/api/v1/admin/payouts/" + approvedRequest.getId() + "/process")))
                 .andExpect(status().isOk())

@@ -1,5 +1,6 @@
 package com.velo.platform.services.impl;
 
+import com.velo.platform.utils.UtcTimes;
 import com.velo.platform.dto.PayoutRequestDto;
 import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.PayoutRequest;
@@ -110,7 +111,7 @@ public class PayoutServiceImpl implements PayoutService {
                 "PAYOUT_" + UUID.randomUUID().toString(), null, TransactionMethod.BANKING);
 
         request.setStatus(PayoutStatus.PROCESSED);
-        request.setProcessedAt(LocalDateTime.now());
+        request.setProcessedAt(UtcTimes.now());
         return modelMapper.map(payoutRequestRepository.save(request), PayoutRequestDto.class);
     }
 

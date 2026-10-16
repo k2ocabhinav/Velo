@@ -1,4 +1,5 @@
 import { getErrorMessage, isRecordLike, readResponsePayload, unwrapData } from "./http-payload";
+import { parseApiTimestamp } from "./formatters";
 
 export interface ProxyRequestOptions {
   pathPrefix: string;
@@ -92,7 +93,7 @@ export function toRelativeTimestamp(value: string | null | undefined, fallback =
     return fallback;
   }
 
-  const date = new Date(value);
+  const date = parseApiTimestamp(value);
   if (Number.isNaN(date.getTime())) {
     return value;
   }

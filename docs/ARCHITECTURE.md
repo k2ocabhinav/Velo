@@ -116,9 +116,11 @@ Long userId = principal.getUserId(); // This is User.id
 | `testpostgres_flyway` | Flyway migration integration test database |
 
 - User: `postgres`, Password: `user`
-- `ddl-auto=validate`; Flyway migrations `V1`–`V14` own the schema.
+- `ddl-auto=validate`; Flyway migrations `V1`–`V16` own the schema.
+- All backend `LocalDateTime` and PostgreSQL `timestamp without time zone` values represent UTC. The JVM, Hibernate JDBC binding, and PostgreSQL sessions are configured accordingly (decision 0030).
 - Local and dev profiles also load the demo seed in `db/demo-migration/`; staging and prod load only schema migrations.
 - SQL initialization is disabled (`spring.sql.init.mode=never`).
+- Local demo startup rebuilds fixture timestamps in UTC. Older non-fixture rows in a local database may appear shifted after this change; they are not rewritten because their original zone is unknown.
 - Create the two test databases and enable PostGIS in each before running tests; see `DEPLOYMENT.md`.
 
 ## Testing

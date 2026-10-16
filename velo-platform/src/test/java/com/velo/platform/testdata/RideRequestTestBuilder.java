@@ -1,5 +1,6 @@
 package com.velo.platform.testdata;
 
+import com.velo.platform.utils.UtcTimes;
 import com.velo.platform.entities.RideRequest;
 import com.velo.platform.entities.Rider;
 import com.velo.platform.entities.enums.PaymentMethod;
@@ -16,7 +17,7 @@ public class RideRequestTestBuilder {
     private Long id;
     private Point pickupLocation;
     private Point dropOffLocation;
-    private LocalDateTime requestedTime = LocalDateTime.now();
+    private LocalDateTime requestedTime = UtcTimes.now();
     private LocalDateTime scheduledTime;
     private Rider rider;
     private PaymentMethod paymentMethod = PaymentMethod.WALLET;

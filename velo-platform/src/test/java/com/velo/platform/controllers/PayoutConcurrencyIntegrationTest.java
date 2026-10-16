@@ -1,5 +1,6 @@
 package com.velo.platform.controllers;
 
+import com.velo.platform.utils.UtcTimes;
 import com.velo.platform.config.TestSecurityConfig;
 import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.DriverEarning;
@@ -137,8 +138,8 @@ class PayoutConcurrencyIntegrationTest {
                 .paymentMethod(PaymentMethod.WALLET)
                 .fare(netEarning)
                 .otp("1234")
-                .startedAt(LocalDateTime.now().minusMinutes(20))
-                .endedAt(LocalDateTime.now().minusMinutes(5))
+                .startedAt(UtcTimes.now().minusMinutes(20))
+                .endedAt(UtcTimes.now().minusMinutes(5))
                 .build());
 
         driverEarningRepository.saveAndFlush(DriverEarning.builder()

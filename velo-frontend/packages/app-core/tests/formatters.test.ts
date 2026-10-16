@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDateTime, formatDistance, formatMoney, getCurrencyLocale } from "../src/formatters";
+import { formatDateTime, formatDistance, formatMoney, getCurrencyLocale, parseApiTimestamp } from "../src/formatters";
 
 describe("formatMoney", () => {
   it("formats the default currency and supports a tenant currency and locale", () => {
@@ -40,10 +40,21 @@ describe("formatDateTime", () => {
   const now = new Date("2026-04-05T09:00:00+05:30");
 
   it("formats relative dates inside 24 hours", () => {
+    expect(formatDateTime("2026-04-05T08:59:30+05:30", now)).toBe("just now");
     expect(formatDateTime("2026-04-05T09:05:00+05:30", now)).toBe("in 5 min");
     expect(formatDateTime("2026-04-05T08:48:00+05:30", now)).toBe("12 min ago");
     expect(formatDateTime("2026-04-05T11:00:00+05:30", now)).toBe("in 2 hr");
     expect(formatDateTime("2026-04-05T07:00:00+05:30", now)).toBe("2 hr ago");
+  });
+
+  it("reads zone-less API timestamps as UTC", () => {
+    const utcNow = new Date("2026-04-05T03:30:00Z");
+    expect(formatDateTime("2026-04-05T03:35:00", utcNow)).toBe("in 5 min");
+    expect(parseApiTimestamp("2026-04-05T03:35:00").toISOString()).toBe("2026-04-05T03:35:00.000Z");
+  });
+
+  it("preserves explicit timestamp offsets", () => {
+    expect(parseApiTimestamp("2026-04-05T09:05:00+05:30").toISOString()).toBe("2026-04-05T03:35:00.000Z");
   });
 
   it("formats absolute dates and omits the current year", () => {

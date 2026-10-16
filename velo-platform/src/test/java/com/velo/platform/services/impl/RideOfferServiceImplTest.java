@@ -1,5 +1,6 @@
 package com.velo.platform.services.impl;
 
+import com.velo.platform.utils.UtcTimes;
 import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.RideOffer;
 import com.velo.platform.entities.RideRequest;
@@ -77,7 +78,7 @@ class RideOfferServiceImplTest {
         assertThat(offers).allSatisfy((offer) -> {
             assertThat(offer.getStatus()).isEqualTo(RideOfferStatus.OFFERED);
             assertThat(offer.getRideRequest()).isEqualTo(request);
-            assertThat(offer.getExpiresAt()).isAfter(LocalDateTime.now().plusSeconds(40));
+            assertThat(offer.getExpiresAt()).isAfter(UtcTimes.now().plusSeconds(40));
         });
     }
 
@@ -90,7 +91,7 @@ class RideOfferServiceImplTest {
 
         List<RideOffer> offers = rideOfferService.createOffers(request, List.of(Driver.builder().id(1L).build()));
 
-        assertThat(offers.get(0).getExpiresAt()).isAfter(LocalDateTime.now().plusSeconds(85));
+        assertThat(offers.get(0).getExpiresAt()).isAfter(UtcTimes.now().plusSeconds(85));
     }
 
     @Test
@@ -99,7 +100,7 @@ class RideOfferServiceImplTest {
         RideOffer stale = RideOffer.builder()
                 .id(42L)
                 .status(RideOfferStatus.OFFERED)
-                .expiresAt(LocalDateTime.now().minusSeconds(1))
+                .expiresAt(UtcTimes.now().minusSeconds(1))
                 .build();
 
         when(rideOfferRepository.findTopByRideRequestIdAndDriverIdAndStatusOrderByOfferedAtDesc(
@@ -130,7 +131,7 @@ class RideOfferServiceImplTest {
                 .rideRequest(rideRequest)
                 .driver(driver)
                 .status(RideOfferStatus.OFFERED)
-                .expiresAt(LocalDateTime.now().minusSeconds(2))
+                .expiresAt(UtcTimes.now().minusSeconds(2))
                 .build();
 
         when(rideOfferRepository.findByStatusAndExpiresAtLessThanEqual(eq(RideOfferStatus.OFFERED), any(LocalDateTime.class)))
@@ -160,7 +161,7 @@ class RideOfferServiceImplTest {
         RideOffer stale = RideOffer.builder()
                 .id(502L)
                 .status(RideOfferStatus.OFFERED)
-                .expiresAt(LocalDateTime.now().minusSeconds(1))
+                .expiresAt(UtcTimes.now().minusSeconds(1))
                 .build();
         when(rideOfferRepository.findByStatusAndExpiresAtLessThanEqual(eq(RideOfferStatus.OFFERED), any(LocalDateTime.class)))
                 .thenReturn(List.of(stale));

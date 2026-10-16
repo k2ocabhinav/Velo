@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getTenantLabelWords } from "@velo/app-core/tenant";
+import { parseApiTimestamp } from "@velo/app-core/formatters";
 import {
   Button,
   DateTime,
@@ -35,8 +36,8 @@ const REFRESH_INTERVAL_MS = 30_000;
 
 function sortNotifications(items: RiderNotification[]): RiderNotification[] {
   return [...items].sort((left, right) => {
-    const leftTime = new Date(left.createdTime).getTime();
-    const rightTime = new Date(right.createdTime).getTime();
+    const leftTime = parseApiTimestamp(left.createdTime).getTime();
+    const rightTime = parseApiTimestamp(right.createdTime).getTime();
     if (!Number.isNaN(leftTime) && !Number.isNaN(rightTime) && leftTime !== rightTime) return rightTime - leftTime;
     return right.id - left.id;
   });

@@ -56,6 +56,7 @@ Small, reversible choices do not need a record.
 | [0027](0027-integration-handshake-demo-fixtures.md) | Integration handshake drives the local demo fixture profile | Accepted | 2026-10-16 |
 | [0028](0028-tenant-time-zones.md) | Tenant time zones for scheduled and recurring trips | Accepted | 2026-10-16 |
 | [0029](0029-open-signup-tenant-selection.md) | Open signup tenant selection | Accepted | 2026-10-17 |
+| [0030](0030-backend-time-model-utc-everywhere.md) | Backend time model: UTC everywhere | Accepted | 2026-10-17 |
 
 `0000-template.md` is the template and is intentionally not indexed.
 

@@ -1,5 +1,6 @@
 package com.velo.platform.services.impl;
 
+import com.velo.platform.utils.UtcTimes;
 import com.velo.platform.dto.AuthResponseDto;
 import com.velo.platform.dto.DriverDto;
 import com.velo.platform.dto.ForgotPasswordRequestDto;
@@ -264,7 +265,7 @@ public Map<String, String> forgotPassword(ForgotPasswordRequestDto requestDto) {
     PasswordResetToken resetToken = PasswordResetToken.builder()
             .token(token)
             .user(user)
-            .expiryDate(LocalDateTime.now().plusHours(24))
+            .expiryDate(UtcTimes.now().plusHours(24))
             .used(false)
             .build();
 

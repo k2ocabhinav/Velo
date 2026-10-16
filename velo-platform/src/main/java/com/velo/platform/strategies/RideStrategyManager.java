@@ -1,5 +1,6 @@
 package com.velo.platform.strategies;
 
+import com.velo.platform.utils.UtcTimes;
 import com.velo.platform.configs.FareConfig;
 import com.velo.platform.configs.PlatformConfig;
 import com.velo.platform.strategies.impl.DriverMatchingHighestRatedDriverStrategy;
@@ -33,7 +34,7 @@ public class RideStrategyManager {
     public RideFareCalculationStrategy rideFareCalculationStrategy() {
         LocalTime surgeStartTime = LocalTime.of((int) fareConfig.getSurgeStartHour(), 0);
         LocalTime surgeEndTime = LocalTime.of((int) fareConfig.getSurgeEndHour(), 0);
-        LocalTime currentTime = LocalTime.now();
+        LocalTime currentTime = UtcTimes.timeOfDay();
 
         boolean isSurgeTime = currentTime.isAfter(surgeStartTime) && currentTime.isBefore(surgeEndTime);
 

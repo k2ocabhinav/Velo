@@ -1,4 +1,5 @@
 import type { DriverRidePerson, PointDto } from "./driver-client";
+import { parseApiTimestamp } from "@velo/app-core/formatters";
 import { toMapPoint } from "./driver-ride-state";
 
 export const OFFER_TTL_MS = 45_000;
@@ -21,12 +22,12 @@ export function resolveOfferExpiresAtMs(
   serverExpiresAt: string | null | undefined,
   createdTime: string | null | undefined,
 ): number | null {
-  const serverMs = serverExpiresAt ? new Date(serverExpiresAt).getTime() : Number.NaN;
+  const serverMs = serverExpiresAt ? parseApiTimestamp(serverExpiresAt).getTime() : Number.NaN;
   if (Number.isFinite(serverMs)) {
     return serverMs;
   }
 
-  const createdMs = createdTime ? new Date(createdTime).getTime() : Number.NaN;
+  const createdMs = createdTime ? parseApiTimestamp(createdTime).getTime() : Number.NaN;
   if (!Number.isFinite(createdMs)) {
     return null;
   }

@@ -1,5 +1,6 @@
 package com.velo.platform.testdata;
 
+import com.velo.platform.utils.UtcTimes;
 import com.velo.platform.entities.Ride;
 import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.Rider;
@@ -19,7 +20,7 @@ public class RideTestBuilder {
     private Long id = 1L;
     private Point pickupLocation = GF.createPoint(new Coordinate(-73.935242, 40.730610));
     private Point dropOffLocation = GF.createPoint(new Coordinate(-73.935242, 40.740610));
-    private LocalDateTime createdTime = LocalDateTime.now();
+    private LocalDateTime createdTime = UtcTimes.now();
     private LocalDateTime startedAt;
     private LocalDateTime endedAt;
     private Rider rider;

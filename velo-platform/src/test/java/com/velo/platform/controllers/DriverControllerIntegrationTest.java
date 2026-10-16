@@ -1,5 +1,6 @@
 package com.velo.platform.controllers;
 
+import com.velo.platform.utils.UtcTimes;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.velo.platform.config.TestSecurityConfig;
 import com.velo.platform.entities.Rating;
@@ -112,8 +113,8 @@ class DriverControllerIntegrationTest {
                 .paymentMethod(PaymentMethod.CASH)
                 .fare(BigDecimal.valueOf(220.0))
                 .otp("5678")
-                .startedAt(LocalDateTime.now().minusMinutes(25))
-                .endedAt(LocalDateTime.now().minusMinutes(5))
+                .startedAt(UtcTimes.now().minusMinutes(25))
+                .endedAt(UtcTimes.now().minusMinutes(5))
                 .build();
         endedRide = rideRepository.save(endedRide);
 
@@ -169,8 +170,8 @@ class DriverControllerIntegrationTest {
                 .paymentMethod(PaymentMethod.CASH)
                 .fare(BigDecimal.valueOf(100.0))
                 .otp("6789")
-                .startedAt(LocalDateTime.now().minusHours(2))
-                .endedAt(LocalDateTime.now().minusHours(1))
+                .startedAt(UtcTimes.now().minusHours(2))
+                .endedAt(UtcTimes.now().minusHours(1))
                 .build());
         ratingRepository.save(Rating.builder()
                 .ride(priorRide)
