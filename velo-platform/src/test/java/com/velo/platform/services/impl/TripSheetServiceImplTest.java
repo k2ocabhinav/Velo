@@ -11,6 +11,7 @@ import com.velo.platform.repositories.RideRequestRepository;
 import com.velo.platform.repositories.TenantRepository;
 import com.velo.platform.repositories.UserRepository;
 import com.velo.platform.services.NotificationService;
+import com.velo.platform.services.TenantNotificationFormatter;
 import com.velo.platform.services.TenantScopeService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -37,6 +38,7 @@ class TripSheetServiceImplTest {
     @Mock private UserRepository userRepository;
     @Mock private TenantRepository tenantRepository;
     @Mock private ScheduledRideConfig scheduledRideConfig;
+    @Mock private TenantNotificationFormatter tenantNotificationFormatter;
     @InjectMocks private TripSheetServiceImpl service;
 
     @Test

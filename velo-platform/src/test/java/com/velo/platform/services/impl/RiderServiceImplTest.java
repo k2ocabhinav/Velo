@@ -28,6 +28,7 @@ import com.velo.platform.services.RatingService;
 import com.velo.platform.services.RideOfferService;
 import com.velo.platform.services.RideRealtimeService;
 import com.velo.platform.services.RideService;
+import com.velo.platform.services.TenantNotificationFormatter;
 import com.velo.platform.services.WalletService;
 import com.velo.platform.strategies.RideFareCalculationStrategy;
 import com.velo.platform.strategies.DriverMatchingStrategy;
@@ -103,6 +104,9 @@ class RiderServiceImplTest {
     private NotificationService notificationService;
 
     @Mock
+    private TenantNotificationFormatter tenantNotificationFormatter;
+
+    @Mock
     private TenantConfigurationRepository tenantConfigurationRepository;
 
     @Mock
@@ -159,6 +163,7 @@ class RiderServiceImplTest {
                 promoCodeService,
                 rideOfferService,
                 notificationService,
+                tenantNotificationFormatter,
                 tenantConfigurationRepository,
                 paymentService,
                 driverEarningsService,
@@ -168,6 +173,8 @@ class RiderServiceImplTest {
                 eventPublisher,
                 dispatchProperties);
         lenient().when(tenantConfigurationRepository.findByTenant_Id(anyLong())).thenReturn(Optional.empty());
+        lenient().when(tenantNotificationFormatter.forUser(any(User.class)))
+                .thenReturn(TenantNotificationFormatter.NotificationCopy.defaults());
 
         User testUser = User.builder()
                 .id(1L)

@@ -16,6 +16,7 @@ import com.velo.platform.repositories.RideRequestRepository;
 import com.velo.platform.repositories.RideRepository;
 import com.velo.platform.services.RideService;
 import com.velo.platform.services.TenantScopeService;
+import com.velo.platform.services.TenantNotificationFormatter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -45,6 +46,7 @@ class AdminDispatchServiceImplTest {
     @Mock private DriverRepository driverRepository;
     @Mock private RideService rideService;
     @Mock private TenantScopeService tenantScopeService;
+    @Mock private TenantNotificationFormatter tenantNotificationFormatter;
     @InjectMocks private AdminDispatchServiceImpl adminDispatchService;
 
     @BeforeEach

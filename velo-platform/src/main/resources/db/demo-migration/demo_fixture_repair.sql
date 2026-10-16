@@ -178,6 +178,19 @@ WHERE earning.ride_id = ride.id
       'DEMO-VELO-CANCELLED-01', 'DEMO-VELO-ONGOING-01', 'DEMO-SAFFRON-ONGOING-01'
   );
 
+INSERT INTO driver_earning (
+    driver_id, ride_id, gross_fare, platform_commission, net_earning, created_time, version, tenant_id
+)
+SELECT ride.driver_id, ride.id, ride.fare,
+       round(ride.fare * 0.30, 2), round(ride.fare * 0.70, 2), ride.ended_at, 0, ride.tenant_id
+FROM ride
+WHERE ride.ride_status = 'ENDED'
+  AND ride.external_reference IN (
+      'DEMO-VELO-ENDED-01', 'DEMO-VELO-ENDED-02', 'DEMO-VELO-ENDED-03',
+      'DEMO-SAFFRON-ENDED-01', 'DEMO-SAFFRON-ENDED-02'
+  )
+  AND NOT EXISTS (SELECT 1 FROM driver_earning existing WHERE existing.ride_id = ride.id);
+
 INSERT INTO rating (rider_id, driver_id, ride_id, driver_rating, rider_rating, version)
 SELECT ride.rider_id, ride.driver_id, ride.id, NULL, NULL, 0
 FROM ride

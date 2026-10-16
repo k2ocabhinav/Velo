@@ -12,6 +12,7 @@ import { SimLogger } from "../log.ts";
 import { SystemClock, SimulationClock, type Clock } from "./clock.ts";
 import type { RidePlan, RideRegistry } from "./contracts.ts";
 import { DriverBot } from "./driver-bot.ts";
+import { loginStaggerDelayMs, LOCAL_LOGIN_RATE_LIMIT } from "./login-stagger.ts";
 import { poissonDelayMs, SeededRandom, type RandomSource } from "./random.ts";
 import { RiderBot } from "./rider-bot.ts";
 
@@ -632,7 +633,7 @@ export class TenantOrchestrator {
 
   private async staggerLogin(): Promise<void> {
     if (this.lastLoginStartedAt !== null) {
-      const wait = 600 - (this.clock.now() - this.lastLoginStartedAt);
+      const wait = loginStaggerDelayMs(this.clock.now() - this.lastLoginStartedAt, LOCAL_LOGIN_RATE_LIMIT);
       if (wait > 0) await this.clock.sleep(wait, this.startupController.signal);
     }
     this.lastLoginStartedAt = this.clock.now();
