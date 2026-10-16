@@ -68,19 +68,25 @@ jobs:
           java-version: 21
           cache: maven
 
-      - name: Require NVD API key for fast and reliable updates
+      - name: Check NVD API key (optional; NVD-backed steps are skipped when absent)
+        id: nvd-key
+        shell: bash
         run: |
           if [ -z "$NVD_API_KEY" ]; then
-            echo "NVD_API_KEY secret is missing. Configure repository secret NVD_API_KEY."
-            exit 1
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=NVD_API_KEY not set::OWASP dependency-check needs a free NVD API key for fast, reliable NVD update downloads. Request one at https://nvd.nist.gov/developers/request-an-api-key and add it as the repository secret NVD_API_KEY, then re-run this workflow. Skipping the NVD-backed dependency-check steps until it is configured."
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Compute dependency-check cache key
+        if: steps.nvd-key.outputs.present == 'true'
         id: odc-cache-key
         shell: bash
         run: echo "week=$(date +%G-%V)" >> "$GITHUB_OUTPUT"
 
       - name: Cache dependency-check data
+        if: steps.nvd-key.outputs.present == 'true'
         env:
           ODC_DATA_DIR: ${{ runner.temp }}/dependency-check-data
         uses: actions/cache@v4
@@ -91,12 +97,14 @@ jobs:
             ${{ runner.os }}-odc-data-v1-
 
       - name: Warm OWASP NVD cache
+        if: steps.nvd-key.outputs.present == 'true'
         working-directory: velo-platform
         env:
           ODC_DATA_DIR: ${{ runner.temp }}/dependency-check-data
         run: ./mvnw -q -DdataDirectory="$ODC_DATA_DIR" "org.owasp:dependency-check-maven:$DEPENDENCY_CHECK_PLUGIN_VERSION:update-only"
 
       - name: Run OWASP dependency check (no update)
+        if: steps.nvd-key.outputs.present == 'true'
         working-directory: velo-platform
         env:
           ODC_DATA_DIR: ${{ runner.temp }}/dependency-check-data
