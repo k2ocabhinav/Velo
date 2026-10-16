@@ -156,7 +156,7 @@ export default function UsersPage() {
           <Field label="Filter by role"><Select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}><option value="ALL">All roles</option><option value="RIDER">{riderLabel}</option><option value="DRIVER">{driverLabel}</option><option value="ADMIN">Admin</option></Select></Field>
         </div>
         {loading ? (
-          <div aria-label={`Loading ${usersWord}`} aria-busy="true" className="stack">
+          <div role="status" aria-label={`Loading ${usersWord}`} aria-busy="true" className="stack">
             {Array.from({ length: 5 }, (_, index) => <Skeleton className="h-12" key={index} />)}
           </div>
         ) : (

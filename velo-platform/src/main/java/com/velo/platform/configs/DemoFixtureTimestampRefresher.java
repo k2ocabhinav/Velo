@@ -4,6 +4,7 @@ import com.velo.platform.services.TenantBrandingCacheService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -16,6 +17,7 @@ import javax.sql.DataSource;
 
 @Component
 @Profile("local")
+@ConditionalOnProperty(name = "app.demo.fixture-refresh-enabled", havingValue = "true", matchIfMissing = true)
 @RequiredArgsConstructor
 public class DemoFixtureTimestampRefresher implements ApplicationRunner {
 

@@ -78,7 +78,7 @@ export default function RiderPromosPage() {
         {message ? <p className="booking-feedback" role="status">{message}</p> : null}
         {actionError ? <p className="error-text" role="alert">{actionError}</p> : null}
         {error ? <ErrorState title={error} onRetry={() => void loadPromos()} /> : null}
-        {loading ? <div className="stack" aria-label="Loading offers">{[0, 1, 2].map((row) => <Skeleton className="promo-skeleton-row" key={row} />)}</div> : null}
+        {loading ? <div className="stack" role="status" aria-label="Loading offers">{[0, 1, 2].map((row) => <Skeleton className="promo-skeleton-row" key={row} />)}</div> : null}
         {!loading && !error && sortedPromos.length === 0 ? (
           <EmptyState
             title="No offers available right now"

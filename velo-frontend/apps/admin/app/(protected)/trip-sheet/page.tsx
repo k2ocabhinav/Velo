@@ -147,7 +147,7 @@ export default function TripSheetPage() {
           <button className="secondary-button" type="button" disabled={exporting} onClick={() => void exportCsv()}>{exporting ? "Preparing CSV…" : "Export CSV"}</button>
         </div>
       }>
-        {loading ? <div className="stack" aria-label={`Loading ${tripWord} sheet`} aria-busy="true">{[0, 1, 2].map((index) => <Skeleton className="h-12" key={index} />)}</div> : rows.length === 0 ? (
+        {loading ? <div className="stack" role="status" aria-label={`Loading ${tripWord} sheet`} aria-busy="true">{[0, 1, 2].map((index) => <Skeleton className="h-12" key={index} />)}</div> : rows.length === 0 ? (
           <EmptyState title={`No scheduled ${tripsLabel.toLowerCase()} for this date`} description="Choose another date or clear the assignment filter." action={assignment !== "ALL" ? <button className="secondary-button" type="button" onClick={() => setAssignment("ALL")}>Show all {tripsLabel.toLowerCase()}</button> : undefined} />
         ) : (
           <div className="trip-sheet-groups">
@@ -162,7 +162,7 @@ export default function TripSheetPage() {
                 rowActions={actionsForRow}
                 rowActionsLabel={(row) => `Actions for ${row.riderName || `scheduled ${tripWord}`}`}
               />
-              <div className="trip-sheet-mobile-list" aria-label={`Scheduled ${tripsLabel.toLowerCase()} at ${hour}`}>
+              <div className="trip-sheet-mobile-list" role="group" aria-label={`Scheduled ${tripsLabel.toLowerCase()} at ${hour}`}>
                 {hourRows.map((row) => <article className="trip-sheet-mobile-card" key={row.rideRequestId}>
                   <header>
                     <div className="stack compact">

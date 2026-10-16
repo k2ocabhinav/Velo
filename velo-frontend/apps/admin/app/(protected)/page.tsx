@@ -79,7 +79,7 @@ export default function DashboardPage() {
       {error ? <ErrorState title="Couldn't load dashboard data" description={error} onRetry={() => setReloadVersion((value) => value + 1)} /> : null}
 
       {loading ? (
-        <div className="dashboard-kpis" aria-label="Loading dashboard" aria-busy="true">
+        <div className="dashboard-kpis" role="status" aria-label="Loading dashboard" aria-busy="true">
           {Array.from({ length: 4 }, (_, index) => <StatCard.Skeleton key={index} />)}
         </div>
       ) : null}

@@ -172,7 +172,7 @@ export default function RiderNotificationsPage() {
             onRetry={() => void loadNotifications(true)}
           />
         ) : null}
-        {loading ? <div className="stack" aria-label="Loading notifications">{[0, 1, 2].map((row) => <Skeleton className="notification-skeleton-row" key={row} />)}</div> : null}
+        {loading ? <div className="stack" role="status" aria-label="Loading notifications">{[0, 1, 2].map((row) => <Skeleton className="notification-skeleton-row" key={row} />)}</div> : null}
         {!loading && !error && items.length === 0 ? (
           <EmptyState
             title="No notifications yet"

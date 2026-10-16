@@ -116,7 +116,7 @@ export default function DriversPage() {
       {statusMessage ? <p role="status" className="helper">{statusMessage}</p> : null}
 
       <Section title={`${driverLabel} applications`} actions={<SegmentedControl ariaLabel={`${driverLabel} status`} value={selectedStatus} onValueChange={(value) => { const status = value as DriverStatus; setSelectedStatus(status); setPage(0); setStatusMessage(null); void load(status, 0); }} options={STATUSES.map((tab) => ({ ...tab, count: counts[tab.value] }))} />}>
-        {loading ? <div aria-label={`Loading ${driversLabel.toLowerCase()}`} aria-busy="true" className="stack">{Array.from({ length: 5 }, (_, index) => <Skeleton className="h-12" key={index} />)}</div> : (
+        {loading ? <div role="status" aria-label={`Loading ${driversLabel.toLowerCase()}`} aria-busy="true" className="stack">{Array.from({ length: 5 }, (_, index) => <Skeleton className="h-12" key={index} />)}</div> : (
           <DataTable
             data={drivers}
             columns={columns}

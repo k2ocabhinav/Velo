@@ -4,7 +4,8 @@ import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { expect, test } from "./fixtures";
 
-const shotsDirectory = "/private/tmp/claude-501/velo-wt/out/sim-p2/shots";
+// Manual design-review captures, repo-relative and gitignored so any host can run.
+const shotsDirectory = path.join("test-results", "live-fleet-shots");
 
 function recent(secondsAgo: number): string {
   const date = new Date(Date.now() - secondsAgo * 1_000);

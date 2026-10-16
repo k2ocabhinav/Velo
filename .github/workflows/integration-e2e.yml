@@ -39,7 +39,9 @@ jobs:
         run: VELO_HANDSHAKE_MODE=mutate docker compose --project-directory . -f velo-frontend/docker-compose.e2e.yml up --build --abort-on-container-exit --exit-code-from smoke
 
       - name: Run handshake checks (post-restart persistence verification)
-        run: VELO_HANDSHAKE_MODE=verify-persisted docker compose --project-directory . -f velo-frontend/docker-compose.e2e.yml up --abort-on-container-exit --exit-code-from smoke
+        # The local profile repairs the demo fixtures on every boot, which would erase the
+        # mutation this pass is verifying, so disable that repair for the restarted stack.
+        run: VELO_HANDSHAKE_MODE=verify-persisted VELO_DEMO_FIXTURE_REFRESH=false docker compose --project-directory . -f velo-frontend/docker-compose.e2e.yml up --abort-on-container-exit --exit-code-from smoke
 
       - name: Tear down compose stack
         if: always()

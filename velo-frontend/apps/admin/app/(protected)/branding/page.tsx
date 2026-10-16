@@ -86,7 +86,7 @@ export default function BrandingPage() {
       <PageHeader title="Branding" description="Set the customer-facing identity and operating labels." actions={<Button variant="secondary" disabled={loading || saving} onClick={() => void load()}>Reload</Button>} />
       {error ? <ErrorState title="Couldn't update branding" description={error} onRetry={() => void load()} /> : null}
       {message ? <p role="status" className="helper">{message}</p> : null}
-      {loading ? <div className="branding-columns" aria-label="Loading branding settings" aria-busy="true"><Section.Skeleton rows={5} /><Section.Skeleton rows={3} /></div> : (
+      {loading ? <div className="branding-columns" role="status" aria-label="Loading branding settings" aria-busy="true"><Section.Skeleton rows={5} /><Section.Skeleton rows={3} /></div> : (
         <div className="branding-columns">
           <div className="stack">
             <Section title="Identity">

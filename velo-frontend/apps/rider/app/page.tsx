@@ -807,7 +807,7 @@ export default function RiderHomePage() {
 
       <div className="booking-overlay-content">
         {loadingTripLane ? (
-          <div className="trip-banner-skeleton" aria-label={`Checking for an active ${words.tripWord}`}>
+          <div className="trip-banner-skeleton" role="status" aria-label={`Checking for an active ${words.tripWord}`}>
             <Skeleton className="skeleton-line skeleton-line-wide" />
             <Skeleton className="skeleton-line" />
           </div>

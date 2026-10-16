@@ -68,7 +68,7 @@ export default function ScheduledRidesPage() {
       <PageHeader title={pageTitle} description={usesDefaultTripLabel ? "Review upcoming bookings and their current status." : `Review upcoming ${tripsLabel.toLowerCase()} and their current status.`} />
       {error ? <ErrorState title={`Couldn't load ${pageTitle.toLowerCase()}`} description={error} onRetry={() => void load(page)} /> : null}
       <Section title={sectionTitle} actions={<SegmentedControl ariaLabel={usesDefaultTripLabel ? "Scheduled ride status" : `Scheduled ${tripWord} status`} value={filter} onValueChange={(value) => setFilter(value as (typeof FILTERS)[number])} options={FILTERS.map((value) => ({ value, label: value === "ALL" ? "All" : value.charAt(0) + value.slice(1).toLowerCase() }))} />}>
-        {loading ? <div aria-label={`Loading ${pageTitle.toLowerCase()}`} aria-busy="true" className="stack">{Array.from({ length: 5 }, (_, index) => <Skeleton key={index} className="h-12" />)}</div> : (
+        {loading ? <div role="status" aria-label={`Loading ${pageTitle.toLowerCase()}`} aria-busy="true" className="stack">{Array.from({ length: 5 }, (_, index) => <Skeleton key={index} className="h-12" />)}</div> : (
           <DataTable
             data={visibleRows}
             columns={columns}

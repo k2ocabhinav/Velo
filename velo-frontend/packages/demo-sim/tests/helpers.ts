@@ -35,7 +35,10 @@ export class FakeClock implements Clock {
       });
     }
     this.currentTime += milliseconds;
-    return Promise.resolve();
+    // Yield to a macrotask like the real clock does. Resolving in a microtask lets a
+    // bot loop that re-arms between short simulated sleeps spin through an unbounded
+    // microtask chain, starving macrotasks and making tests wall-clock dependent.
+    return new Promise<void>((resolve) => { setImmediate(resolve); });
   }
 
   every(_milliseconds: number, _callback: () => void): () => void {
