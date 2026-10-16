@@ -282,6 +282,7 @@
 }
 
 .trip-banner,
+.rate-trip-prompt,
 .trip-banner-skeleton {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -301,8 +302,14 @@
 }
 
 .trip-banner-copy > strong,
-.trip-banner-copy > p {
+.trip-banner-copy > p,
+.rate-trip-prompt-title {
   margin: 0;
+}
+
+.rate-trip-prompt-title {
+  font-size: 1rem;
+  font-weight: 700;
 }
 
 .trip-banner-copy > p,
@@ -1025,7 +1032,8 @@
     min-height: 2.75rem;
   }
 
-  .trip-banner {
+  .trip-banner,
+  .rate-trip-prompt {
     grid-template-columns: 1fr;
     align-items: start;
   }

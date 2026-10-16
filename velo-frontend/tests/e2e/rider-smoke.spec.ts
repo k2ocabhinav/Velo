@@ -392,12 +392,20 @@ test.describe("rider smoke", () => {
     const riderBaseUrl = baseURL ?? "http://127.0.0.1:4102";
     await context.addCookies([{ name: "velo_rider_token", value: "e2e-rider-token", url: riderBaseUrl }]);
     await mockUnreadCount(page);
-    await mockRideHistory(page, () => [{ id: 777, rideStatus: "ENDED", paymentMethod: "WALLET", fare: 205, endedAt: new Date().toISOString() }]);
+
+    let driverRated = false;
+    await mockRideHistory(page, () => [
+      { id: 777, rideStatus: "ENDED", paymentMethod: "WALLET", fare: 205, endedAt: new Date().toISOString(), driverRated },
+    ]);
     await page.route("**/api/backend/riders/current-request", async (route) => {
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: null }) });
     });
     await page.route("**/api/backend/riders/active-ride", async (route) => {
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: null }) });
+    });
+    await page.route("**/api/backend/riders/rateDriver", async (route) => {
+      driverRated = true;
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { id: 1 } }) });
     });
 
     const ridesLoaded = page.waitForResponse("**/api/backend/riders/getMyRides?pageOffset=0&pageSize=10");
@@ -405,8 +413,28 @@ test.describe("rider smoke", () => {
     await page.goto("/");
     await Promise.all([ridesLoaded, requestLoaded]);
     await expect(page.getByRole("button", { name: `Plan a ${tenantLabels.tripWord}` })).toBeVisible();
+
+    // A finished trip must not keep the in-progress banner on screen...
     await expect(page.locator(".trip-banner")).toHaveCount(0);
     await expect(page.getByText("Your trip is underway")).toHaveCount(0);
+    // ...the rider is asked to rate it instead, with an identity of its own.
+    const ratePrompt = page.getByTestId("rate-last-trip");
+    await expect(ratePrompt).toBeVisible();
+    await expect(page.getByRole("region", { name: `Rate your last ${tenantLabels.tripWord}` })).toBeVisible();
+    await expect(ratePrompt.getByRole("heading", { name: `Rate your last ${tenantLabels.tripWord}` })).toBeVisible();
+
+    // Rating the trip clears the prompt the next time home is shown.
+    await ratePrompt.getByRole("link", { name: `Rate ${tenantLabels.driverWord}` }).click();
+    await page.waitForURL("**/rides");
+    await page.getByRole("button", { name: `Rate ${tenantLabels.driverWord}` }).click();
+    await expect(page.getByText("Thanks for your rating.")).toBeVisible();
+
+    const refreshedRides = page.waitForResponse("**/api/backend/riders/getMyRides?pageOffset=0&pageSize=10");
+    await page.goto("/");
+    await refreshedRides;
+    await expect(page.getByRole("button", { name: `Plan a ${tenantLabels.tripWord}` })).toBeVisible();
+    await expect(page.getByTestId("rate-last-trip")).toHaveCount(0);
+    await expect(page.locator(".trip-banner")).toHaveCount(0);
   });
 
   test("rider wallet adds, selects, and removes saved payment methods", async ({ baseURL, context, page }) => {
