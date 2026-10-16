@@ -85,7 +85,7 @@ describe("fleet map camera", () => {
     expect(focusZoom(17)).toBe(17);
   });
 
-  it("frames drivers and open-trip pickups, adding a drop-off only for the selected trip", () => {
+  it("frames the fleet with open-trip pickups near its centroid", () => {
     const drivers = [driver(1, 12.97, 77.59)];
     const rides = [
       ride(31, [12.98, 77.6], [13.1989, 77.7068]),
@@ -93,12 +93,42 @@ describe("fleet map camera", () => {
     ];
 
     expect(fleetMapCameraPoints({ drivers, rides })).toEqual([[12.97, 77.59], [12.98, 77.6], [12.95, 77.62]]);
-    expect(fleetMapCameraPoints({ drivers, rides, selection: { type: "ride", id: 32 } })).toEqual([
-      [12.97, 77.59], [12.98, 77.6], [12.95, 77.62], [12.9, 77.68],
+  });
+
+  it("leaves out an open-trip pickup far from the fleet centroid", () => {
+    const drivers = [driver(1, 12.97, 77.59)];
+    const rides = [ride(31, [13.1989, 77.7068], [12.98, 77.6])];
+
+    expect(fleetMapCameraPoints({ drivers, rides })).toEqual([[12.97, 77.59]]);
+  });
+
+  it("frames every pickup when no driver is online", () => {
+    const rides = [
+      ride(31, [13.1989, 77.7068], [12.98, 77.6]),
+      ride(32, [12.95, 77.62], [12.9, 77.68]),
+    ];
+
+    expect(fleetMapCameraPoints({ drivers: [], rides })).toEqual([[13.1989, 77.7068], [12.95, 77.62]]);
+  });
+
+  it("adds both endpoints of the selected trip without duplicating its pickup", () => {
+    const drivers = [driver(1, 12.97, 77.59)];
+    const rides = [ride(31, [12.98, 77.6], [13.25, 77.72])];
+    const selection = { type: "ride" as const, id: 31 };
+
+    expect(fleetMapCameraPoints({ drivers, rides, selection })).toEqual([
+      [12.97, 77.59], [12.98, 77.6], [13.25, 77.72],
     ]);
-    expect(fleetMapCameraPoints({ drivers, rides, selection: { type: "driver", id: 1 } })).toEqual([
-      [12.97, 77.59], [12.98, 77.6], [12.95, 77.62],
+  });
+
+  it("adds a distant selected trip even when its pickup is outside the fleet radius", () => {
+    const drivers = [driver(1, 12.97, 77.59)];
+    const rides = [ride(31, [13.1989, 77.7068], [13.25, 77.72])];
+
+    expect(fleetMapCameraPoints({ drivers, rides, selection: { type: "ride", id: 31 } })).toEqual([
+      [12.97, 77.59], [13.1989, 77.7068], [13.25, 77.72],
     ]);
+    expect(fleetMapCameraPoints({ drivers, rides, selection: { type: "driver", id: 1 } })).toEqual([[12.97, 77.59]]);
   });
 
   it("centres the camera on one cluster instead of zooming past it", () => {
