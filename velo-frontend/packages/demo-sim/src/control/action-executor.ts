@@ -144,6 +144,9 @@ export class ActionExecutor {
         const online = action.type === "driver-online";
         const driver = this.chooseDriver(runtime, action.driver, online);
         await runtime.setDriverOnline(driver, online);
+        if (online && driver.rideId !== null) {
+          return { summary: `Cancelled ${driver.name}'s pending offline request; they will stay online after the active ride.` };
+        }
         return { summary: `${driver.name} will ${online ? "come online" : "go offline"}${driver.rideId === null ? " now" : " after the active ride"}.` };
       }
       case "decline-next":
@@ -328,7 +331,7 @@ export class ActionExecutor {
       return driver;
     }
     const eligible = runtime.drivers.filter((driver) => onlineTarget === undefined
-      || (onlineTarget ? driver.state === "offline" : driver.state !== "offline"));
+      || (onlineTarget ? !driver.wantsOnline : driver.wantsOnline));
     if (eligible.length === 0) throw new ControlRequestError(409, `No ${onlineTarget ? "offline" : "online"} driver is available.`);
     return eligible[Math.floor(runtime.random.next() * eligible.length)]!;
   }

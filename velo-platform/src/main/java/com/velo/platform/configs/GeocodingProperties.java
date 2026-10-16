@@ -16,4 +16,6 @@ public class GeocodingProperties {
     private String countryBias = "";
     private Duration timeout = Duration.ofSeconds(3);
     private Duration cacheTtl = Duration.ofHours(24);
+    private Double serviceAreaLatitude;
+    private Double serviceAreaLongitude;
 }

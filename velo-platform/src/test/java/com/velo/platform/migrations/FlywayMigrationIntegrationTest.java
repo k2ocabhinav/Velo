@@ -11,9 +11,12 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.data.Offset.offset;
 
 class FlywayMigrationIntegrationTest {
 
@@ -129,6 +132,8 @@ class FlywayMigrationIntegrationTest {
         assertThat(countRequestFixture("DEMO-VELO-SCHEDULED-01", "alice@example.com", "SCHEDULED")).isEqualTo(1);
         assertThat(countRequestFixture("DEMO-VELO-SCHEDULED-02", "frank@example.com", "SCHEDULED")).isEqualTo(1);
         assertThat(countRequestFixture("DEMO-VELO-SCHEDULED-02", "henry@example.com", "SCHEDULED")).isZero();
+        assertSeededFaresFollowPricingFormula(schemaName);
+        assertThat(countSeededRatingRows(schemaName)).isEqualTo(5);
 
         long usersAfterFirst = count(schemaName, "app_user");
         long ridesAfterFirst = count(schemaName, "ride");
@@ -147,6 +152,8 @@ class FlywayMigrationIntegrationTest {
         assertThat(countRideFixture("DEMO-VELO-ONGOING-01", "alice@example.com", "carol.driver@example.com", "ONGOING"))
                 .isEqualTo(1);
         assertThat(countRequestFixture("DEMO-VELO-SCHEDULED-02", "frank@example.com", "SCHEDULED")).isEqualTo(1);
+        assertSeededFaresFollowPricingFormula(schemaName);
+        assertThat(countSeededRatingRows(schemaName)).isEqualTo(5);
     }
 
     @Test
@@ -191,6 +198,67 @@ class FlywayMigrationIntegrationTest {
             return resultSet.getLong(1);
         }
     }
+
+    private void assertSeededFaresFollowPricingFormula(String schema) throws Exception {
+        List<SeededFare> fares = List.of(
+                new SeededFare("ride_request", "DEMO-VELO-PENDING-01", 34.810),
+                new SeededFare("ride_request", "DEMO-VELO-SCHEDULED-01", 3.791),
+                new SeededFare("ride_request", "DEMO-VELO-SCHEDULED-02", 35.171),
+                new SeededFare("ride_request", "DEMO-SAFFRON-PENDING-01", 34.374),
+                new SeededFare("ride_request", "DEMO-SAFFRON-SCHEDULED-01", 36.128),
+                new SeededFare("ride_request", "DEMO-SAFFRON-SCHEDULED-02", 4.337),
+                new SeededFare("ride_request", "DEMO-VELO-RIDE-ENDED-01", 6.683),
+                new SeededFare("ride_request", "DEMO-VELO-RIDE-CANCELLED-01", 5.817),
+                new SeededFare("ride_request", "DEMO-VELO-RIDE-ONGOING-01", 6.683),
+                new SeededFare("ride_request", "DEMO-VELO-RIDE-ENDED-02", 3.791),
+                new SeededFare("ride_request", "DEMO-VELO-RIDE-ENDED-03", 6.683),
+                new SeededFare("ride_request", "DEMO-SAFFRON-RIDE-ENDED-01", 38.919),
+                new SeededFare("ride_request", "DEMO-SAFFRON-RIDE-ENDED-02", 2.980),
+                new SeededFare("ride_request", "DEMO-SAFFRON-RIDE-ONGOING-01", 40.100),
+                new SeededFare("ride", "DEMO-VELO-ENDED-01", 6.683),
+                new SeededFare("ride", "DEMO-VELO-CANCELLED-01", 5.817),
+                new SeededFare("ride", "DEMO-VELO-ONGOING-01", 6.683),
+                new SeededFare("ride", "DEMO-VELO-ENDED-02", 3.791),
+                new SeededFare("ride", "DEMO-VELO-ENDED-03", 6.683),
+                new SeededFare("ride", "DEMO-SAFFRON-ENDED-01", 38.919),
+                new SeededFare("ride", "DEMO-SAFFRON-ENDED-02", 2.980),
+                new SeededFare("ride", "DEMO-SAFFRON-ONGOING-01", 40.100)
+        );
+
+        try (Connection connection = DriverManager.getConnection(JDBC_URL, JDBC_USERNAME, JDBC_PASSWORD)) {
+            for (SeededFare seededFare : fares) {
+                String query = "SELECT fare FROM " + schema + "." + seededFare.table()
+                        + " WHERE external_reference = ?";
+                try (PreparedStatement statement = connection.prepareStatement(query)) {
+                    statement.setString(1, seededFare.reference());
+                    try (ResultSet result = statement.executeQuery()) {
+                        assertThat(result.next()).as("fixture %s.%s exists", seededFare.table(), seededFare.reference())
+                                .isTrue();
+                        BigDecimal fare = result.getBigDecimal(1);
+                        double formula = 5.0 + 2.0 * seededFare.routeDistanceKm();
+                        assertThat(fare.doubleValue())
+                                .as("%s.%s should use base + per-kilometre pricing", seededFare.table(), seededFare.reference())
+                                .isCloseTo(formula, offset(formula * 0.15));
+                    }
+                }
+            }
+        }
+    }
+
+    private long countSeededRatingRows(String schema) throws Exception {
+        String query = "SELECT COUNT(*) FROM " + schema + ".rating rating JOIN " + schema
+                + ".ride ride ON ride.id = rating.ride_id WHERE ride.external_reference IN "
+                + "('DEMO-VELO-ENDED-01', 'DEMO-VELO-ENDED-02', 'DEMO-VELO-ENDED-03', "
+                + "'DEMO-SAFFRON-ENDED-01', 'DEMO-SAFFRON-ENDED-02')";
+        try (Connection connection = DriverManager.getConnection(JDBC_URL, JDBC_USERNAME, JDBC_PASSWORD);
+             Statement statement = connection.createStatement();
+             ResultSet result = statement.executeQuery(query)) {
+            result.next();
+            return result.getLong(1);
+        }
+    }
+
+    private record SeededFare(String table, String reference, double routeDistanceKm) { }
 
     private long countByTenantSlug(String table, String slug) throws Exception {
         String sql = "SELECT COUNT(*) FROM " + schemaName + "." + table + " row "

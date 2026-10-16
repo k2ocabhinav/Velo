@@ -68,7 +68,8 @@ class NominatimGeocodingServiceTest {
                 .andExpect(queryParam("addressdetails", "1"))
                 .andExpect(queryParam("countrycodes", "in"))
                 .andExpect(queryParam("email", "geo@example.test"))
-                .andExpect(queryParam("viewbox", "77.35000,13.05000,77.65000,12.75000"))
+                .andExpect(queryParam("viewbox", "76.94706,13.43899,78.05294,12.36101"))
+                .andExpect(queryParam("bounded", "1"))
                 .andRespond(withSuccess("""
                         [{"name":"Central Market","display_name":"Central Market, Bengaluru, Karnataka, India","address":{"marketplace":"Central Market","city":"Bengaluru","state":"Karnataka","country":"India"},"lat":"12.9","lon":"77.5","type":"market"}]
                         """, MediaType.APPLICATION_JSON));
@@ -77,6 +78,72 @@ class NominatimGeocodingServiceTest {
 
         assertThat(results).containsExactly(new GeocodingResultDto(
                 "Central Market, Bengaluru", "Central Market, Bengaluru, Karnataka, India", 12.9, 77.5, "market"));
+    }
+
+    @Test
+    void genericAirportSearchPrefersTheLocalInternationalAirport() {
+        provider.expect(requestTo(org.hamcrest.Matchers.containsString("/search")))
+                .andExpect(queryParam("q", "Bengaluru"))
+                .andExpect(queryParam("limit", "1"))
+                .andRespond(withSuccess("""
+                        [{"display_name":"Bengaluru, Karnataka, India","lat":"12.9716","lon":"77.5946","type":"city"}]
+                        """, MediaType.APPLICATION_JSON));
+        provider.expect(requestTo(org.hamcrest.Matchers.containsString("/search")))
+                .andExpect(queryParam("q", "Airport"))
+                .andExpect(queryParam("viewbox", "77.04150,13.51059,78.14770,12.43261"))
+                .andExpect(queryParam("bounded", "1"))
+                .andRespond(withSuccess("""
+                        [
+                          {"display_name":"Kempegowda International Airport, Devanahalli, Karnataka, India","address":{"airport":"Kempegowda International Airport","city":"Bengaluru","state":"Karnataka","country":"India"},"lat":"13.1989","lon":"77.7068","type":"aerodrome"},
+                          {"display_name":"Bengaluru Airport Road, Bengaluru, India","address":{"road":"Bengaluru Airport Road","city":"Bengaluru","state":"Karnataka","country":"India"},"lat":"12.9800","lon":"77.6000","type":"road"}
+                        ]
+                        """, MediaType.APPLICATION_JSON));
+
+        List<GeocodingResultDto> results = service.search("Airport", "Bengaluru");
+
+        assertThat(results).extracting(GeocodingResultDto::fullAddress).containsExactly(
+                "Kempegowda International Airport, Devanahalli, Karnataka, India",
+                "Bengaluru Airport Road, Bengaluru, India");
+    }
+
+    @Test
+    void otherLocalSearchesRemainRankedByDistance() {
+        provider.expect(requestTo(org.hamcrest.Matchers.containsString("/search")))
+                .andExpect(queryParam("q", "Cafe"))
+                .andExpect(queryParam("bounded", "1"))
+                .andRespond(withSuccess("""
+                        [
+                          {"display_name":"Far Cafe, Bengaluru, India","address":{"cafe":"Far Cafe","city":"Bengaluru","country":"India"},"lat":"13.02","lon":"77.59","type":"cafe"},
+                          {"display_name":"Near Cafe, Bengaluru, India","address":{"cafe":"Near Cafe","city":"Bengaluru","country":"India"},"lat":"12.9720","lon":"77.5950","type":"cafe"}
+                        ]
+                        """, MediaType.APPLICATION_JSON));
+
+        List<GeocodingResultDto> results = service.search("Cafe", "12.9716,77.5946");
+
+        assertThat(results).extracting(GeocodingResultDto::label)
+                .containsExactly("Near Cafe, Bengaluru", "Far Cafe, Bengaluru");
+    }
+
+    @Test
+    void emptyBoundedSearchFallsBackToUnboundedResults() {
+        provider.expect(requestTo(org.hamcrest.Matchers.containsString("/search")))
+                .andExpect(queryParam("q", "Airport"))
+                .andExpect(queryParam("bounded", "1"))
+                .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
+        provider.expect(requestTo(org.hamcrest.Matchers.containsString("/search")))
+                .andExpect(queryParam("q", "Airport"))
+                .andExpect(queryParam("bounded", "0"))
+                .andRespond(withSuccess("""
+                        [
+                          {"display_name":"Kempegowda International Airport, Karnataka, India","address":{"airport":"Kempegowda International Airport","city":"Bengaluru","country":"India"},"lat":"13.1989","lon":"77.7068","type":"aerodrome"},
+                          {"display_name":"HAL Airport, Bengaluru, India","address":{"airport":"HAL Airport","city":"Bengaluru","country":"India"},"lat":"12.9515","lon":"77.6706","type":"aerodrome"}
+                        ]
+                        """, MediaType.APPLICATION_JSON));
+
+        List<GeocodingResultDto> results = service.search("Airport", "12.9716,77.5946");
+
+        assertThat(results).extracting(GeocodingResultDto::fullAddress)
+                .containsExactly("HAL Airport, Bengaluru, India", "Kempegowda International Airport, Karnataka, India");
     }
 
     @Test

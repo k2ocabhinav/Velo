@@ -12,6 +12,7 @@ import com.velo.platform.repositories.RideRequestRepository;
 import com.velo.platform.services.NotificationService;
 import com.velo.platform.services.RideOfferService;
 import com.velo.platform.services.RideRealtimeService;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -34,6 +35,7 @@ public class RideOfferServiceImpl implements RideOfferService {
     private final NotificationService notificationService;
     private final RideRealtimeService rideRealtimeService;
     private final DispatchProperties dispatchProperties;
+    private final EntityManager entityManager;
 
     @Override
     @Transactional
@@ -188,15 +190,16 @@ public class RideOfferServiceImpl implements RideOfferService {
             return 0;
         }
 
-        for (RideOffer offer : staleOffers) {
-            offer.setStatus(RideOfferStatus.EXPIRED);
-            offer.setResolvedAt(now);
-            offer.setResolutionReason("Offer timed out.");
-        }
-        rideOfferRepository.saveAll(staleOffers);
-
         Map<Long, RideRequest> rideRequestById = new LinkedHashMap<>();
+        int expiredCount = 0;
         for (RideOffer offer : staleOffers) {
+            int updated = rideOfferRepository.expireIfStillOffered(
+                    offer.getId(), RideOfferStatus.OFFERED, RideOfferStatus.EXPIRED, now, "Offer timed out.");
+            if (updated == 0) {
+                continue;
+            }
+            expiredCount += updated;
+
             RideRequest rideRequest = offer.getRideRequest();
             if (rideRequest != null && rideRequest.getId() != null) {
                 rideRequestById.putIfAbsent(rideRequest.getId(), rideRequest);
@@ -214,32 +217,34 @@ public class RideOfferServiceImpl implements RideOfferService {
         }
 
         for (RideRequest request : rideRequestById.values()) {
-            if (!RideRequestStatus.PENDING.equals(request.getRideRequestStatus())) {
+            int requestExpired = rideRequestRepository.expirePendingIfNoOpenOffers(
+                    request.getId(), RideRequestStatus.PENDING, RideRequestStatus.EXPIRED,
+                    RideOfferStatus.OFFERED, RideOfferStatus.ACCEPTED);
+            if (requestExpired == 0) {
                 continue;
             }
 
-            boolean stillOpen = rideOfferRepository.existsByRideRequestIdAndStatus(request.getId(), RideOfferStatus.OFFERED);
-            boolean hasAccepted = rideOfferRepository.existsByRideRequestIdAndStatus(request.getId(), RideOfferStatus.ACCEPTED);
-            if (stillOpen || hasAccepted) {
-                continue;
-            }
-
-            request.setRideRequestStatus(RideRequestStatus.EXPIRED);
-            RideRequest saved = rideRequestRepository.save(request);
-            if (saved.getRider() != null && saved.getRider().getUser() != null) {
+            entityManager.refresh(request);
+            if (request.getRider() != null && request.getRider().getUser() != null) {
                 notificationService.createNotification(
-                        saved.getRider().getUser(),
+                        request.getRider().getUser(),
                         "No driver accepted in time",
                         "Your ride request expired. Please try requesting again.",
                         NotificationType.RIDE_EXPIRED,
-                        saved.getId()
+                        request.getId()
                 );
-                rideRealtimeService.publishRideRequestPending(saved);
+                rideRealtimeService.publishRideRequestPending(request);
             }
         }
 
-        log.info("Expired {} stale ride offers", staleOffers.size());
-        return staleOffers.size();
+        int skippedCount = staleOffers.size() - expiredCount;
+        if (skippedCount > 0) {
+            log.debug("Skipped {} stale ride offers changed concurrently", skippedCount);
+        }
+        if (expiredCount > 0) {
+            log.info("Expired {} stale ride offers", expiredCount);
+        }
+        return expiredCount;
     }
 
     @Override

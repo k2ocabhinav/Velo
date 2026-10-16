@@ -17,6 +17,8 @@ import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Objects;
+
 @Service
 @RequiredArgsConstructor
 public class RatingServiceImpl implements RatingService {
@@ -42,7 +44,9 @@ public class RatingServiceImpl implements RatingService {
 
         Double newRating = ratingRepository.findByDriver(driver)
                 .stream()
-                .mapToDouble(Rating::getDriverRating)
+                .map(Rating::getDriverRating)
+                .filter(Objects::nonNull)
+                .mapToInt(Integer::intValue)
                 .average().orElse(0.0);
         driver.setRating(newRating);
 
@@ -65,7 +69,9 @@ public class RatingServiceImpl implements RatingService {
 
         Double newRating = ratingRepository.findByRider(rider)
                 .stream()
-                .mapToDouble(Rating::getRiderRating)
+                .map(Rating::getRiderRating)
+                .filter(Objects::nonNull)
+                .mapToInt(Integer::intValue)
                 .average().orElse(0.0);
         rider.setRating(newRating);
 

@@ -115,4 +115,28 @@ public interface RideRequestRepository extends JpaRepository<RideRequest, Long> 
             @Param("expectedStatus") RideRequestStatus expectedStatus,
             @Param("nextStatus") RideRequestStatus nextStatus
     );
+
+    @Modifying(flushAutomatically = true)
+    @Query("""
+            update RideRequest request
+            set request.rideRequestStatus = :expiredStatus,
+                request.version = request.version + 1
+            where request.id = :rideRequestId
+              and request.rideRequestStatus = :pendingStatus
+              and not exists (
+                  select offer.id from RideOffer offer
+                  where offer.rideRequest.id = request.id and offer.status = :offeredStatus
+              )
+              and not exists (
+                  select offer.id from RideOffer offer
+                  where offer.rideRequest.id = request.id and offer.status = :acceptedStatus
+              )
+            """)
+    int expirePendingIfNoOpenOffers(
+            @Param("rideRequestId") Long rideRequestId,
+            @Param("pendingStatus") RideRequestStatus pendingStatus,
+            @Param("expiredStatus") RideRequestStatus expiredStatus,
+            @Param("offeredStatus") com.velo.platform.entities.enums.RideOfferStatus offeredStatus,
+            @Param("acceptedStatus") com.velo.platform.entities.enums.RideOfferStatus acceptedStatus
+    );
 }
