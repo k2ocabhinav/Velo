@@ -48,6 +48,7 @@
 - [x] Demo fleet simulator (`packages/demo-sim`, simulated accounts, matching isolation incl. manual assignment, V13, live controls panel + `scripts/demo-sim.sh`; decision 0024)
 - [x] Rider live trip updates delivered over WebSocket (principal fix, decision 0025)
 - [x] Demo polish: single request countdown, driver name on profile, operator-style audit seed text, rounded distance, plurals; demo seed fixtures repaired
+- [x] Per-tenant tariffs and service areas (V14, decision 0026); offline font builds; compact driver offer card; demo rehearsals #6/#7 demo-ready
 
 ### Tenant commercial settings (V14)
 - [x] Per-tenant fare tariffs and geocoder service areas; Saffron demo money fixtures follow INR rates (decision 0026)
