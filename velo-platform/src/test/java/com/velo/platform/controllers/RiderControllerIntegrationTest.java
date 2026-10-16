@@ -43,6 +43,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Set;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -330,12 +331,15 @@ class RiderControllerIntegrationTest {
                 .rider(testRider)
                 .paymentMethod(PaymentMethod.WALLET)
                 .rideRequestStatus(RideRequestStatus.PENDING)
+                .requestedTime(LocalDateTime.now(ZoneOffset.UTC).minusMinutes(2))
                 .build());
 
         mockMvc.perform(withRiderAuth(get("/riders/current-request")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.id").value(pendingRequest.getId()))
-                .andExpect(jsonPath("$.data.rideRequestStatus").value("PENDING"));
+                .andExpect(jsonPath("$.data.rideRequestStatus").value("PENDING"))
+                .andExpect(jsonPath("$.data.requestedTime").value(org.hamcrest.Matchers.matchesPattern(".+Z")))
+                .andExpect(jsonPath("$.data.expiresAt").value(org.hamcrest.Matchers.matchesPattern(".+Z")));
     }
 
     @Test
@@ -358,7 +362,8 @@ class RiderControllerIntegrationTest {
         mockMvc.perform(withRiderAuth(post("/riders/cancel-request/" + pendingRequest.getId())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.id").value(pendingRequest.getId()))
-                .andExpect(jsonPath("$.data.rideRequestStatus").value("CANCELLED"));
+                .andExpect(jsonPath("$.data.rideRequestStatus").value("CANCELLED"))
+                .andExpect(jsonPath("$.data.requestedTime").value(org.hamcrest.Matchers.matchesPattern(".+Z")));
         assertThat(rideOfferRepository.findByRideRequestIdAndStatus(pendingRequest.getId(), RideOfferStatus.REVOKED))
                 .hasSize(1);
     }
@@ -421,6 +426,8 @@ class RiderControllerIntegrationTest {
                                 """)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.rideRequestStatus").value("PENDING"))
+                .andExpect(jsonPath("$.data.requestedTime").value(org.hamcrest.Matchers.matchesPattern(".+Z")))
+                .andExpect(jsonPath("$.data.expiresAt").value(org.hamcrest.Matchers.matchesPattern(".+Z")))
                 .andReturn().getResponse().getContentAsString();
 
         long requestId = objectMapper.readTree(response).path("data").path("id").asLong();

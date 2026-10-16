@@ -5,7 +5,7 @@ import type { AdminLiveDispatchSnapshotDto, ApiResponse } from "../../src/types"
 
 describe("admin live dispatch client", () => {
   it("requests the live snapshot with its abort signal and unwraps the API response", async () => {
-    const snapshot: AdminLiveDispatchSnapshotDto = { generatedAt: "2026-10-15T10:00:00", drivers: [], rides: [] };
+    const snapshot: AdminLiveDispatchSnapshotDto = { generatedAt: "2026-10-15T10:00:00Z", drivers: [], rides: [] };
     const abort = new AbortController();
     let captured: AxiosRequestConfig | undefined;
     const client = {

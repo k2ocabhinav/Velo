@@ -37,6 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -70,7 +71,7 @@ class AdminLiveDispatchControllerIntegrationTest {
 
     @Test
     void liveSnapshot_ShouldReturnTenantScopedDriversAndOpenRidesWithExpectedShape() throws Exception {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         Driver available = persistDriver("Available", 1L, true, true, now.minusSeconds(20));
         Driver confirmed = persistDriver("Confirmed", 1L, false, false, now.minusSeconds(75));
         Driver staleRecent = persistDriver("Stale recent", 1L, true, false, now.minusSeconds(95));
@@ -137,7 +138,7 @@ class AdminLiveDispatchControllerIntegrationTest {
             users.add(newUser("Perf" + index, 1L, false, Role.DRIVER));
         }
         users = userRepository.saveAll(users);
-        LocalDateTime locationTime = LocalDateTime.now().minusSeconds(10);
+        LocalDateTime locationTime = LocalDateTime.now(ZoneOffset.UTC).minusSeconds(10);
         List<Driver> drivers = new ArrayList<>(200);
         for (User user : users) {
             drivers.add(Driver.builder()

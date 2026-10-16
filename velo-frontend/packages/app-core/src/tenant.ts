@@ -15,6 +15,7 @@ export interface TenantBranding {
   riderLabel: string;
   driverLabel: string;
   tripLabel: string;
+  timeZone: string;
   currency: string;
   dispatchMode: string;
   riderPortalEnabled: boolean;
@@ -28,6 +29,7 @@ export const DEFAULT_TENANT_BRANDING: TenantBranding = {
   riderLabel: "Rider",
   driverLabel: "Driver",
   tripLabel: "Trip",
+  timeZone: "UTC",
   currency: "USD",
   dispatchMode: "RIDE_HAILING",
   riderPortalEnabled: true,
@@ -191,6 +193,7 @@ function brandingFromPayload(payload: unknown): TenantBranding | null {
     riderLabel: text("riderLabel", DEFAULT_TENANT_BRANDING.riderLabel, 64),
     driverLabel: text("driverLabel", DEFAULT_TENANT_BRANDING.driverLabel, 64),
     tripLabel: text("tripLabel", DEFAULT_TENANT_BRANDING.tripLabel, 64),
+    timeZone: text("timeZone", DEFAULT_TENANT_BRANDING.timeZone, 64),
     currency: typeof candidate.currency === "string" && /^[A-Z]{3}$/.test(candidate.currency)
       ? candidate.currency
       : DEFAULT_TENANT_BRANDING.currency,

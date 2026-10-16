@@ -290,7 +290,7 @@ class DriverServiceImplTest {
 
         assertThat(result.getPickupAddress()).isEqualTo("The Leela Palace, Old Airport Road");
         assertThat(result.getDropOffAddress()).isEqualTo("Kempegowda International Airport, Terminal 1");
-        assertThat(result.getExpiresAt()).isEqualTo(expiresAt);
+        assertThat(result.getExpiresAt()).isEqualTo(expiresAt.atOffset(java.time.ZoneOffset.UTC));
         assertThat(result.getRider().getUser().getName()).isEqualTo("Henry Walsh");
     }
 

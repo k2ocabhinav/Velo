@@ -15,6 +15,7 @@ import com.velo.platform.exceptions.BadRequestException;
 import com.velo.platform.exceptions.ResourceNotFoundException;
 import com.velo.platform.exceptions.RuntimeConflictException;
 import com.velo.platform.repositories.PasswordResetTokenRepository;
+import com.velo.platform.repositories.DriverRepository;
 import com.velo.platform.repositories.TenantRepository;
 import com.velo.platform.repositories.UserRepository;
 import com.velo.platform.security.JwtTokenProvider;
@@ -83,6 +84,9 @@ class AuthServiceImplTest {
     @Mock
     private TenantRepository tenantRepository;
 
+    @Mock
+    private DriverRepository driverRepository;
+
     private AuthServiceImpl authService;
 
     @BeforeEach
@@ -90,7 +94,7 @@ class AuthServiceImplTest {
         SecurityContextHolder.clearContext();
         authService = new AuthServiceImpl(
                 userRepository, passwordResetTokenRepository, modelMapper, riderService, walletService, driverService,
-                passwordEncoder, jwtTokenProvider, refreshTokenService, tenantRepository);
+                passwordEncoder, jwtTokenProvider, refreshTokenService, tenantRepository, driverRepository);
     }
 
     @Test
@@ -343,7 +347,8 @@ class AuthServiceImplTest {
                 .onboardingStatus(DriverOnboardingStatus.PENDING)
                 .build();
 
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userRepository.findByIdForUpdate(userId)).thenReturn(Optional.of(user));
+        when(driverRepository.findByUserIdAndTenantId(userId, 1L)).thenReturn(Optional.empty());
         when(userRepository.save(any(User.class))).thenReturn(user);
         when(driverService.createNewDriver(any(Driver.class))).thenAnswer(invocation -> {
             Driver d = invocation.getArgument(0);
@@ -364,7 +369,7 @@ class AuthServiceImplTest {
     void onboardNewDriver_ForNonExistentUser_ShouldThrowException() {
         Long userId = 999L;
         authenticate(userId, Role.RIDER, 1L);
-        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+        when(userRepository.findByIdForUpdate(userId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> authService.onboardNewDriver(userId, "VEH123"))
                 .isInstanceOf(ResourceNotFoundException.class)
@@ -372,8 +377,8 @@ class AuthServiceImplTest {
     }
 
     @Test
-    @DisplayName("Onboard new driver for user who is already a driver should throw exception")
-    void onboardNewDriver_ForAlreadyDriver_ShouldThrowException() {
+    @DisplayName("Onboard retries repair a driver role without a profile")
+    void onboardNewDriver_WhenDriverRoleHasNoProfile_ShouldCreateProfile() {
         Long userId = 1L;
         String vehicleId = "VEH123";
 
@@ -383,11 +388,29 @@ class AuthServiceImplTest {
                 .build();
         authenticate(userId, Role.RIDER, 1L);
 
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userRepository.findByIdForUpdate(userId)).thenReturn(Optional.of(user));
+        when(driverRepository.findByUserIdAndTenantId(userId, 1L)).thenReturn(Optional.empty());
+        when(userRepository.save(any(User.class))).thenReturn(user);
+        when(driverService.createNewDriver(any(Driver.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(modelMapper.map(any(Driver.class), eq(DriverDto.class))).thenReturn(new DriverDto());
 
-        assertThatThrownBy(() -> authService.onboardNewDriver(userId, vehicleId))
-                .isInstanceOf(RuntimeConflictException.class)
-                .hasMessageContaining("already a Driver");
+        assertThat(authService.onboardNewDriver(userId, vehicleId)).isNotNull();
+        verify(driverService).createNewDriver(any(Driver.class));
+    }
+
+    @Test
+    @DisplayName("Onboard retry returns an existing driver profile without creating a second one")
+    void onboardNewDriver_WhenProfileExists_ShouldReturnIt() {
+        Long userId = 1L;
+        User user = User.builder().id(userId).tenantId(1L).roles(new HashSet<>(Set.of(Role.DRIVER))).build();
+        Driver existingDriver = Driver.builder().id(17L).user(user).tenantId(1L).vehicleId("KA-17").build();
+        authenticate(userId, Role.RIDER, 1L);
+        when(userRepository.findByIdForUpdate(userId)).thenReturn(Optional.of(user));
+        when(driverRepository.findByUserIdAndTenantId(userId, 1L)).thenReturn(Optional.of(existingDriver));
+        when(modelMapper.map(existingDriver, DriverDto.class)).thenReturn(new DriverDto());
+
+        assertThat(authService.onboardNewDriver(userId, "DIFFERENT-VEHICLE")).isNotNull();
+        verify(driverService, never()).createNewDriver(any(Driver.class));
     }
 
     private void authenticate(Long userId, Role role, Long tenantId) {

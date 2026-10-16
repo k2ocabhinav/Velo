@@ -3,7 +3,7 @@ package com.velo.platform.dto.admin;
 import lombok.Builder;
 import lombok.Data;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Data
 @Builder
@@ -12,8 +12,8 @@ public class AdminRideOfferDto {
     private Long driverId;
     private String driverName;
     private String status;
-    private LocalDateTime offeredAt;
-    private LocalDateTime expiresAt;
-    private LocalDateTime resolvedAt;
+    private OffsetDateTime offeredAt;
+    private OffsetDateTime expiresAt;
+    private OffsetDateTime resolvedAt;
     private String resolutionReason;
 }

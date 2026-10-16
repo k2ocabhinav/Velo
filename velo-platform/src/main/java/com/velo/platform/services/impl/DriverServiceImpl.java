@@ -29,6 +29,7 @@ import com.velo.platform.repositories.RideRepository;
 import com.velo.platform.security.UserPrincipal;
 import com.velo.platform.services.*;
 import com.velo.platform.utils.GeometryUtil;
+import com.velo.platform.utils.UtcTimes;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.context.ApplicationEventPublisher;
@@ -148,10 +149,11 @@ public class DriverServiceImpl implements DriverService {
 
     private RideRequestDto toRideRequestDto(RideRequest rideRequest, LocalDateTime expiresAt) {
         RideRequestDto dto = modelMapper.map(rideRequest, RideRequestDto.class);
+        dto.setRequestedTime(UtcTimes.toOffsetDateTime(rideRequest.getRequestedTime()));
         dto.setScheduledTime(rideRequest.getScheduledTime() == null ? null : rideRequest.getScheduledTime().atOffset(ZoneOffset.UTC));
         dto.setPickupAddress(rideRequest.getPickupAddress());
         dto.setDropOffAddress(rideRequest.getDropOffAddress());
-        dto.setExpiresAt(expiresAt);
+        dto.setExpiresAt(UtcTimes.toOffsetDateTime(expiresAt));
         Rider rider = rideRequest.getRider();
         if (rider != null && rider.getUser() != null) {
             RiderDto riderDto = dto.getRider();

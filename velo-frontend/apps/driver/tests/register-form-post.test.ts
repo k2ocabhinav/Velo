@@ -68,26 +68,46 @@ describe("driver register route — pre-hydration form post", () => {
     );
   });
 
-  it("redirects a failed signup with an error code and no reflected message", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () =>
-        new Response(JSON.stringify({ error: "Email already registered." }), {
-          status: 409,
-          headers: { "content-type": "application/json" },
-        }),
-      ),
-    );
+  it("recovers a duplicate signup after authenticating and retries onboarding", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/auth/signup")) {
+        return new Response(JSON.stringify({ error: "Email already registered." }), { status: 409 });
+      }
+      if (url.includes("/auth/login")) {
+        return new Response(JSON.stringify({ data: { token: "retry-token", userId: 9 } }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ ok: true }), { status: 201 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
 
     const response = await POST(
       formPost({ name: "Dana", email: "dana@example.com", password: "hunter2", vehicleId: "KA-01-1234" }),
     );
 
+    expect(response.status).toBe(303);
     const location = response.headers.get("location") ?? "";
-    expect(new URL(location).pathname).toBe("/register");
-    expect(location).toContain("error=email_in_use");
-    expect(location).not.toContain("already+registered");
+    expect(new URL(location).pathname).toBe("/login");
     expect(location).not.toContain("hunter2");
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(/\/auth\/onBoardNewDriver\/9$/),
+      expect.objectContaining({ headers: expect.objectContaining({ Authorization: "Bearer retry-token" }) }),
+    );
+  });
+
+  it("does not resume duplicate registration with an invalid password", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => String(input).includes("/auth/signup")
+      ? new Response(JSON.stringify({ error: "Email already registered." }), { status: 409 })
+      : new Response(JSON.stringify({ error: "Invalid email or password" }), { status: 401 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await POST(
+      formPost({ name: "Dana", email: "dana@example.com", password: "wrong", vehicleId: "KA-01-1234" }),
+    );
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toContain("error=invalid_credentials");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("rejects a cross-site form post before reaching the backend", async () => {

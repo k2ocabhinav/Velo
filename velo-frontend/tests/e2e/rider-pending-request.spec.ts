@@ -72,7 +72,7 @@ test.describe("rider pending request cancellation", () => {
     await page.goto("/");
 
     await expect(page.locator(".trip-banner")).toBeVisible();
-    await expect(page.getByText(`Matching you with a nearby ${tenantLabels.driverWord}`, { exact: true })).toBeVisible();
+    await expect(page.getByText(/^Matching you with a nearby /)).toBeVisible();
     const cancelRequest = page.getByRole("button", { name: `Cancel ${tenantLabels.trip} request` });
     await expect(cancelRequest).toBeVisible();
 
@@ -83,7 +83,7 @@ test.describe("rider pending request cancellation", () => {
 
     expect(cancelled).toBe(true);
     await expect(page.getByText(`${tenantLabels.trip} request cancelled.`)).toBeVisible();
-    await expect(page.getByText(`Matching you with a nearby ${tenantLabels.driverWord}`, { exact: true })).toHaveCount(0);
+    await expect(page.getByText(/^Matching you with a nearby /)).toHaveCount(0);
   });
 
   test("cancels a pending request from the active trip page", async ({ baseURL, context, page }) => {

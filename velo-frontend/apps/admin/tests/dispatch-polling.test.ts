@@ -25,7 +25,7 @@ function Harness({ fetchSnapshot, report }: HarnessProps): ReactNode {
 }
 
 const sampleSnapshot: AdminLiveDispatchSnapshotDto = {
-  generatedAt: "2026-10-15T10:00:00",
+  generatedAt: "2026-10-15T10:00:00Z",
   drivers: [],
   rides: [],
 };

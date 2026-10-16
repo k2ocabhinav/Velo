@@ -14,7 +14,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.modelmapper.ModelMapper;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
@@ -37,9 +36,6 @@ class NotificationServiceImplTest {
 
     @Mock
     private SimpMessagingTemplate messagingTemplate;
-
-    @Mock
-    private ModelMapper modelMapper;
 
     @InjectMocks
     private NotificationServiceImpl notificationService;
@@ -71,8 +67,6 @@ class NotificationServiceImplTest {
     @DisplayName("Create notification should save and push")
     void createNotification_ShouldSaveAndPush() {
         when(notificationRepository.save(any(Notification.class))).thenReturn(testNotification);
-        when(modelMapper.map(any(Notification.class), eq(NotificationDto.class))).thenReturn(new NotificationDto());
-
         notificationService.createNotification(testUser, "Title", "Message", NotificationType.RIDE_REQUESTED, 1L);
 
         verify(notificationRepository).save(any(Notification.class));
@@ -85,8 +79,6 @@ class NotificationServiceImplTest {
         mockSecurityContext(1L);
         when(notificationRepository.findById(101L)).thenReturn(Optional.of(testNotification));
         when(notificationRepository.save(any(Notification.class))).thenReturn(testNotification);
-        when(modelMapper.map(any(Notification.class), eq(NotificationDto.class))).thenReturn(new NotificationDto());
-
         notificationService.markAsRead(101L);
 
         assertThat(testNotification.getRead()).isTrue();

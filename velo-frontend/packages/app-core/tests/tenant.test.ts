@@ -145,6 +145,7 @@ describe("tenant branding fetch", () => {
         riderLabel: "Passenger",
         driverLabel: "Courier",
         tripLabel: "Journey",
+        timeZone: "Asia/Kolkata",
         riderPortalEnabled: true,
       },
     }), { status: 200 }));
@@ -159,6 +160,7 @@ describe("tenant branding fetch", () => {
       riderLabel: "Passenger",
       driverLabel: "Courier",
       tripLabel: "Journey",
+      timeZone: "Asia/Kolkata",
     });
     expect(fetcher).toHaveBeenCalledWith(
       "http://api.test/api/v1/public/tenant/branding?tenant=northstar",

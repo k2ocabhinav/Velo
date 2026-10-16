@@ -10,7 +10,7 @@ import { useTenantBrandingOrDefault } from "@velo/ui/theme";
 const FILTERS = ["ALL", "SCHEDULED", "CONFIRMED", "COMPLETED", "CANCELLED"] as const;
 
 export default function ScheduledRidesPage() {
-  const { riderLabel, driverLabel, tripLabel } = useTenantBrandingOrDefault();
+  const { riderLabel, driverLabel, timeZone, tripLabel } = useTenantBrandingOrDefault();
   const tripsLabel = getTenantPluralTripLabel(tripLabel);
   const tripWord = getTenantLabelForCount(1, tripLabel, { midSentence: true, fallback: "Trip" });
   const ridersLabel = getTenantPluralLabel(riderLabel, "Rider").toLowerCase();
@@ -57,7 +57,7 @@ export default function ScheduledRidesPage() {
   const visibleRows = useMemo(() => filter === "ALL" ? rows : rows.filter((ride) => String(ride.status).toUpperCase() === filter), [rows, filter]);
   const columns: DataTableColumn<ScheduledRide>[] = [
     { header: "Route", cell: (ride) => <RouteStrip stage={ride.status} stageLabels={routeStageLabels} variant="static" pickupLabel="Pickup" dropoffLabel="Drop-off" /> },
-    { header: "Scheduled", cell: (ride) => <DateTime value={ride.scheduledTime} /> },
+    { header: "Scheduled", cell: (ride) => <DateTime value={ride.scheduledTime} timeZone={timeZone} /> },
     { header: "Fare", cell: (ride) => <Money amount={ride.fare} /> },
     { header: "Payment", cell: (ride) => ride.paymentMethod === "WALLET" ? "Wallet" : ride.paymentMethod === "CASH" ? "Cash" : "Other" },
     { header: "Status", cell: (ride) => <StatusBadge domain="request" status={ride.status} /> },

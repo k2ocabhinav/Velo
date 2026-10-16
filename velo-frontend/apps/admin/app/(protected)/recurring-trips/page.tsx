@@ -20,7 +20,7 @@ function title(value: string): string {
 }
 
 export default function RecurringTripsPage() {
-  const { riderLabel, tripLabel } = useTenantBrandingOrDefault();
+  const { riderLabel, timeZone, tripLabel } = useTenantBrandingOrDefault();
   const riderWord = getTenantLabelForCount(1, riderLabel, { midSentence: true, fallback: "Rider" });
   const tripWord = getTenantLabelForCount(1, tripLabel, { midSentence: true, fallback: "Trip" });
   const tripsLabel = getTenantPluralTripLabel(tripLabel);
@@ -173,7 +173,7 @@ export default function RecurringTripsPage() {
 
   const columns: DataTableColumn<RecurringTripTemplate>[] = [
     { header: riderLabel, cell: (template) => template.riderName || riderLabel },
-    { header: "Repeats", cell: (template) => `${title(template.daysOfWeek.join("_"))} at ${template.localTime.slice(0, 5)}` },
+    { header: "Repeats", cell: (template) => `${title(template.daysOfWeek.join("_"))} at ${template.localTime.slice(0, 5)} ${timeZone}` },
     { header: "Route", cell: (template) => `${template.pickupAddress || "Pickup"} → ${template.dropOffAddress || "Drop-off"}` },
     { header: "Booking reference", cell: (template) => template.bookingReference || "—" },
     { header: "Status", cell: (template) => <StatusBadge domain="request" status={template.active ? "ACTIVE" : "PAUSED"} /> },
@@ -253,7 +253,7 @@ export default function RecurringTripsPage() {
               <header>
                 <div className="stack compact">
                   <strong>{template.riderName || riderLabel}</strong>
-                  <span>{title(template.daysOfWeek.join("_"))} · {template.localTime.slice(0, 5)}</span>
+                  <span>{title(template.daysOfWeek.join("_"))} · {template.localTime.slice(0, 5)} {timeZone}</span>
                 </div>
                 <Menu
                   items={actionsForTemplate(template)}

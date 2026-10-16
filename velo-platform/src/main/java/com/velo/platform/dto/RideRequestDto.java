@@ -8,7 +8,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 
 @Data
@@ -32,7 +31,7 @@ public class RideRequestDto {
     @NotNull(message = "Payment method is required")
     private PaymentMethod paymentMethod;
 
-    private LocalDateTime requestedTime;
+    private OffsetDateTime requestedTime;
 
     private Double fare;
     private String promoCode;
@@ -44,5 +43,5 @@ public class RideRequestDto {
     /** UTC instant with offset (ISO-8601 with zone) for a scheduled trip; null for immediate requests. */
     private OffsetDateTime scheduledTime;
 
-    private LocalDateTime expiresAt;
+    private OffsetDateTime expiresAt;
 }
