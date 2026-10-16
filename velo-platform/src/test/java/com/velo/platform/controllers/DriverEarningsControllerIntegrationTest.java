@@ -180,6 +180,21 @@ class DriverEarningsControllerIntegrationTest {
     }
 
     @Test
+    @DisplayName("POST /drivers/earnings/payout rejects a non-numeric amount with a 400")
+    void requestPayout_WithNonNumericAmount_ShouldReturnBadRequest() throws Exception {
+        mockMvc.perform(withDriverAuth(post("/drivers/earnings/payout")
+                        .param("amount", "abc")))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("POST /drivers/earnings/payout rejects a missing amount with a 400")
+    void requestPayout_WithoutAmount_ShouldReturnBadRequest() throws Exception {
+        mockMvc.perform(withDriverAuth(post("/drivers/earnings/payout")))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     @DisplayName("GET /drivers/earnings/payouts returns only the signed-in driver's payouts")
     void getMyPayouts_ShouldReturnCurrentDriverPayoutHistory() throws Exception {
         PayoutRequest olderRequest = createPayout(

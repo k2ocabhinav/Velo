@@ -14,6 +14,7 @@ import com.velo.platform.entities.RideOffer;
 import com.velo.platform.entities.RideRequest;
 import com.velo.platform.entities.Rider;
 import com.velo.platform.entities.User;
+import com.velo.platform.entities.enums.DriverOnboardingStatus;
 import com.velo.platform.entities.enums.RideRequestStatus;
 import com.velo.platform.entities.enums.RideStatus;
 import com.velo.platform.events.RideAcceptedEvent;
@@ -62,6 +63,7 @@ public class DriverServiceImpl implements DriverService {
     @Transactional
     public RideDto acceptRide(Long rideRequestId) {
         Driver currentDriver = getCurrentDriver();
+        requireApprovedDriver(currentDriver);
         RideRequest rideRequest = rideRequestService.findRideRequestById(rideRequestId);
         if (!resolveTenantId(rideRequest.getTenantId()).equals(resolveTenantId(currentDriver.getTenantId()))) {
             throw new RuntimeConflictException("Cross-tenant ride request access is not allowed.");
@@ -341,10 +343,25 @@ public class DriverServiceImpl implements DriverService {
                 ));
     }
 
+    /**
+     * A driver may only take work once an administrator has approved the account. Pending, rejected
+     * and suspended drivers must not be able to go online, publish location or accept trips.
+     */
+    private void requireApprovedDriver(Driver driver) {
+        if (driver.getOnboardingStatus() != DriverOnboardingStatus.APPROVED) {
+            throw new RuntimeConflictException(
+                    "Your driver account is not approved yet. An administrator must approve it before you can go online."
+            );
+        }
+    }
+
     @Override
     @Transactional
     public DriverDto updateDriverAvailability(boolean available) {
         Driver driver = getCurrentDriver();
+        if (available) {
+            requireApprovedDriver(driver);
+        }
         return updateDriverAvailability(driver, available);
     }
 
@@ -352,7 +369,9 @@ public class DriverServiceImpl implements DriverService {
     @Transactional
     public DriverDto updateDriverAvailability(Driver driver, boolean available) {
         if (driver.getAvailable() != null && driver.getAvailable() == available) {
-            return modelMapper.map(driver, DriverDto.class);
+            DriverDto currentDto = modelMapper.map(driver, DriverDto.class);
+            populateDriverName(driver, currentDto);
+            return currentDto;
         }
 
         if (!available && Boolean.TRUE.equals(driver.getAvailable())) {
@@ -368,6 +387,7 @@ public class DriverServiceImpl implements DriverService {
         driverRepository.updateAvailabilityById(driver.getId(), available);
         DriverDto dto = modelMapper.map(driver, DriverDto.class);
         dto.setAvailable(available);
+        populateDriverName(driver, dto);
         return dto;
     }
 
@@ -384,6 +404,7 @@ public class DriverServiceImpl implements DriverService {
     @Transactional
     public DriverLocationDto updateDriverLocation(DriverLocationUpdateRequestDto locationUpdate) {
         Driver driver = getCurrentDriver();
+        requireApprovedDriver(driver);
 
         DriverLocationUpdateRequestDto normalizedUpdate = normalizeLocationUpdate(locationUpdate);
         PointDto pointDto = new PointDto(new double[]{normalizedUpdate.getLng(), normalizedUpdate.getLat()});

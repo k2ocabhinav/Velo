@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.velo.platform.config.TestSecurityConfig;
 import com.velo.platform.dto.RideUpdateEventDto;
 import com.velo.platform.entities.Driver;
+import com.velo.platform.entities.enums.DriverOnboardingStatus;
 import com.velo.platform.entities.Ride;
 import com.velo.platform.entities.RideRequest;
 import com.velo.platform.entities.Rider;
@@ -122,6 +123,7 @@ class RideRealtimeWebSocketIntegrationTest {
                 .available(true)
                 .rating(5.0)
                 .vehicleId("KA01WS0001")
+                .onboardingStatus(DriverOnboardingStatus.APPROVED)
                 .build());
 
         rideRequest = rideRequestRepository.save(RideRequest.builder()

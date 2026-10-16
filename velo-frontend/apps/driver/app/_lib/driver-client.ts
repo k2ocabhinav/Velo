@@ -34,7 +34,13 @@ export interface DriverProfile {
   rating?: number | null;
   available: boolean;
   vehicleId?: string | null;
+  onboardingStatus?: string | null;
   user?: DriverUserSummary | null;
+}
+
+export function isDriverApproved(profile: DriverProfile | null | undefined): boolean {
+  // Older responses may omit the status; treat that as approved so the toggle still works.
+  return !profile?.onboardingStatus || profile.onboardingStatus.toUpperCase() === "APPROVED";
 }
 
 export interface DriverRidePerson {
