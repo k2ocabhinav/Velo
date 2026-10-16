@@ -6,6 +6,7 @@ import {
   normalizeCurrentRideRequest,
   resolvePendingRequestExpiryMs,
   selectTripLaneRide,
+  shouldPromptRating,
   shouldShowTripBanner,
   type RiderHomeRide,
 } from "../app/_lib/rider-home-state";
@@ -130,6 +131,29 @@ describe("rider home trip lane", () => {
     expect(shouldShowTripBanner(selectTripLaneRide([], { rideRequestStatus: "PENDING" }))).toBe(true);
     expect(shouldShowTripBanner(selectTripLaneRide([createRide({ rideStatus: "CONFIRMED" })]))).toBe(true);
     expect(shouldShowTripBanner(selectTripLaneRide([createRide({ rideStatus: "ONGOING" })]))).toBe(true);
+  });
+
+  it("prompts to rate a just-completed trip that has not been rated", () => {
+    const lane = selectTripLaneRide([
+      createRide({ id: 202, rideStatus: "ENDED", endedAt: "2026-04-08T08:00:00.000Z", driverRated: false }),
+    ]);
+
+    expect(lane.mode).toBe("recent");
+    expect(shouldPromptRating(lane)).toBe(true);
+  });
+
+  it("does not prompt once the completed trip has been rated", () => {
+    const lane = selectTripLaneRide([
+      createRide({ id: 202, rideStatus: "ENDED", endedAt: "2026-04-08T08:00:00.000Z", driverRated: true }),
+    ]);
+
+    expect(shouldPromptRating(lane)).toBe(false);
+  });
+
+  it("does not prompt while a trip is active, cancelled, or absent", () => {
+    expect(shouldPromptRating(selectTripLaneRide([createRide({ rideStatus: "ONGOING", driverRated: false })]))).toBe(false);
+    expect(shouldPromptRating(selectTripLaneRide([createRide({ rideStatus: "CANCELLED", driverRated: false })]))).toBe(false);
+    expect(shouldPromptRating(selectTripLaneRide([]))).toBe(false);
   });
 });
 

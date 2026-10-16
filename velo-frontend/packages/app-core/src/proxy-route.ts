@@ -81,7 +81,7 @@ export async function proxyBackendRequest(
 
   const sendUpstream = async (currentToken: string) => {
     const headers = new Headers({
-      Accept: "application/json",
+      Accept: request.headers.get("accept") ?? "application/json",
       Authorization: currentToken.startsWith("Bearer ") ? currentToken : `Bearer ${currentToken}`
     });
     if (contentType) {
@@ -111,22 +111,28 @@ export async function proxyBackendRequest(
     return response;
   }
 
-  const payload = await upstreamResponse.text();
   const responseHeaders = new Headers();
   responseHeaders.set("Cache-Control", "no-store, max-age=0");
-  const upstreamContentType = upstreamResponse.headers.get("content-type");
 
-  if (upstreamContentType) {
-    responseHeaders.set("content-type", upstreamContentType);
-  } else {
-    responseHeaders.set("content-type", "application/json");
+  // 204/205/304 and HEAD responses must not carry a body, and no content-type:
+  // passing a body to Response for these statuses throws a TypeError.
+  const statusForbidsBody =
+    upstreamResponse.status === 204 || upstreamResponse.status === 205 || upstreamResponse.status === 304;
+  const responseHasBody = !statusForbidsBody && method !== "HEAD";
+
+  if (responseHasBody) {
+    responseHeaders.set("content-type", upstreamResponse.headers.get("content-type") ?? "application/json");
+    const contentDisposition = upstreamResponse.headers.get("content-disposition");
+    if (contentDisposition) {
+      responseHeaders.set("Content-Disposition", contentDisposition);
+    }
   }
   const retryAfter = upstreamResponse.headers.get("retry-after");
   if (retryAfter) {
     responseHeaders.set("Retry-After", retryAfter);
   }
 
-  const response = new NextResponse(payload, {
+  const response = new NextResponse(responseHasBody ? await upstreamResponse.text() : null, {
     status: upstreamResponse.status,
     headers: responseHeaders
   });
