@@ -10,27 +10,27 @@ CREATE TEMPORARY TABLE demo_fixture_request_seed (
     pickup_lat DOUBLE PRECISION,
     drop_lon DOUBLE PRECISION,
     drop_lat DOUBLE PRECISION,
-    fare NUMERIC(10, 2),
+    route_distance_km NUMERIC(8, 3),
     payment_method VARCHAR(32),
     pickup_address VARCHAR(255),
     drop_off_address VARCHAR(255)
 );
 
 INSERT INTO demo_fixture_request_seed VALUES
-    ('DEMO-VELO-PENDING-01', 'default', 'dave@example.com', 'PENDING', 4, NULL, 77.5946, 12.9716, 77.7060, 13.1986, round(5.0 + 2.0 * 34.810, 2), 'CASH', 'Cubbon Park, Bengaluru', 'Kempegowda International Airport, Terminal 1'),
-    ('DEMO-VELO-SCHEDULED-01', 'default', 'alice@example.com', 'SCHEDULED', 0, 1440, 77.5846, 12.9842, 77.5963, 12.9716, round(5.0 + 2.0 * 3.791, 2), 'CASH', 'Taj West End, Bengaluru', 'UB City, Bengaluru'),
-    ('DEMO-VELO-SCHEDULED-02', 'default', 'frank@example.com', 'SCHEDULED', 0, 4320, 77.6408, 12.9784, 77.7060, 13.1986, round(5.0 + 2.0 * 35.171, 2), 'WALLET', 'Indiranagar Metro, Bengaluru', 'Kempegowda International Airport, Terminal 1'),
-    ('DEMO-SAFFRON-PENDING-01', 'saffron-routes', 'guest2@saffronroutes.demo', 'PENDING', 4, NULL, 77.6050, 12.9729, 77.7060, 13.1986, round(5.0 + 2.0 * 34.374, 2), 'CASH', 'Trinity Circle, Bengaluru', 'Kempegowda International Airport, Terminal 1'),
-    ('DEMO-SAFFRON-SCHEDULED-01', 'saffron-routes', 'guest2@saffronroutes.demo', 'SCHEDULED', 0, 120, 77.5950, 12.9666, 77.7060, 13.1986, round(5.0 + 2.0 * 36.128, 2), 'WALLET', 'ITC Gardenia, Bengaluru', 'Kempegowda International Airport, Terminal 1'),
-    ('DEMO-SAFFRON-SCHEDULED-02', 'saffron-routes', 'guest2@saffronroutes.demo', 'SCHEDULED', 0, 240, 77.5846, 12.9842, 77.5713, 12.9767, round(5.0 + 2.0 * 4.337, 2), 'WALLET', 'Taj West End, Bengaluru', 'KSR Bengaluru City Railway Station'),
-    ('DEMO-VELO-RIDE-ENDED-01', 'default', 'alice@example.com', 'EXPIRED', 5760, NULL, 77.5946, 12.9716, 77.6200, 12.9350, round(5.0 + 2.0 * 6.683, 2), 'CASH', 'Cubbon Park, Bengaluru', 'JP Nagar, Bengaluru'),
-    ('DEMO-VELO-RIDE-CANCELLED-01', 'default', 'dave@example.com', 'CANCELLED', 4320, NULL, 77.5848, 12.9507, 77.5946, 12.9716, round(5.0 + 2.0 * 5.817, 2), 'CASH', 'Lalbagh Botanical Garden, Bengaluru', 'Cubbon Park, Bengaluru'),
-    ('DEMO-VELO-RIDE-ONGOING-01', 'default', 'alice@example.com', 'CONFIRMED', 0, NULL, 77.5946, 12.9716, 77.6200, 12.9350, round(5.0 + 2.0 * 6.683, 2), 'CASH', 'Cubbon Park, Bengaluru', 'JP Nagar, Bengaluru'),
-    ('DEMO-VELO-RIDE-ENDED-02', 'default', 'dave@example.com', 'EXPIRED', 4320, NULL, 77.5846, 12.9842, 77.5963, 12.9716, round(5.0 + 2.0 * 3.791, 2), 'CASH', 'Taj West End, Bengaluru', 'UB City, Bengaluru'),
-    ('DEMO-VELO-RIDE-ENDED-03', 'default', 'alice@example.com', 'EXPIRED', 2880, NULL, 77.5946, 12.9716, 77.6200, 12.9350, round(5.0 + 2.0 * 6.683, 2), 'CASH', 'Cubbon Park, Bengaluru', 'JP Nagar, Bengaluru'),
-    ('DEMO-SAFFRON-RIDE-ENDED-01', 'saffron-routes', 'guest@saffronroutes.demo', 'EXPIRED', 2880, NULL, 77.6200, 12.9350, 77.7060, 13.1986, round(5.0 + 2.0 * 38.919, 2), 'CASH', 'JP Nagar, Bengaluru', 'Kempegowda International Airport, Terminal 1'),
-    ('DEMO-SAFFRON-RIDE-ENDED-02', 'saffron-routes', 'guest2@saffronroutes.demo', 'EXPIRED', 1440, NULL, 77.5950, 12.9750, 77.6100, 12.9700, round(5.0 + 2.0 * 2.980, 2), 'CASH', 'Cubbon Park, Bengaluru', 'Trinity Circle, Bengaluru'),
-    ('DEMO-SAFFRON-RIDE-ONGOING-01', 'saffron-routes', 'guest2@saffronroutes.demo', 'CONFIRMED', 0, NULL, 77.6100, 12.9350, 77.7060, 13.1986, round(5.0 + 2.0 * 40.100, 2), 'CASH', 'JP Nagar, Bengaluru', 'Kempegowda International Airport, Terminal 1');
+    ('DEMO-VELO-PENDING-01', 'default', 'dave@example.com', 'PENDING', 4, NULL, 77.5946, 12.9716, 77.7060, 13.1986, 34.810, 'CASH', 'Cubbon Park, Bengaluru', 'Kempegowda International Airport, Terminal 1'),
+    ('DEMO-VELO-SCHEDULED-01', 'default', 'alice@example.com', 'SCHEDULED', 0, 1440, 77.5846, 12.9842, 77.5963, 12.9716, 3.791, 'CASH', 'Taj West End, Bengaluru', 'UB City, Bengaluru'),
+    ('DEMO-VELO-SCHEDULED-02', 'default', 'frank@example.com', 'SCHEDULED', 0, 4320, 77.6408, 12.9784, 77.7060, 13.1986, 35.171, 'WALLET', 'Indiranagar Metro, Bengaluru', 'Kempegowda International Airport, Terminal 1'),
+    ('DEMO-SAFFRON-PENDING-01', 'saffron-routes', 'guest2@saffronroutes.demo', 'PENDING', 4, NULL, 77.6050, 12.9729, 77.7060, 13.1986, 34.374, 'CASH', 'Trinity Circle, Bengaluru', 'Kempegowda International Airport, Terminal 1'),
+    ('DEMO-SAFFRON-SCHEDULED-01', 'saffron-routes', 'guest2@saffronroutes.demo', 'SCHEDULED', 0, 120, 77.5950, 12.9666, 77.7060, 13.1986, 36.128, 'WALLET', 'ITC Gardenia, Bengaluru', 'Kempegowda International Airport, Terminal 1'),
+    ('DEMO-SAFFRON-SCHEDULED-02', 'saffron-routes', 'guest2@saffronroutes.demo', 'SCHEDULED', 0, 240, 77.5846, 12.9842, 77.5713, 12.9767, 4.337, 'WALLET', 'Taj West End, Bengaluru', 'KSR Bengaluru City Railway Station'),
+    ('DEMO-VELO-RIDE-ENDED-01', 'default', 'alice@example.com', 'EXPIRED', 5760, NULL, 77.5946, 12.9716, 77.6200, 12.9350, 6.683, 'CASH', 'Cubbon Park, Bengaluru', 'JP Nagar, Bengaluru'),
+    ('DEMO-VELO-RIDE-CANCELLED-01', 'default', 'dave@example.com', 'CANCELLED', 4320, NULL, 77.5848, 12.9507, 77.5946, 12.9716, 5.817, 'CASH', 'Lalbagh Botanical Garden, Bengaluru', 'Cubbon Park, Bengaluru'),
+    ('DEMO-VELO-RIDE-ONGOING-01', 'default', 'alice@example.com', 'CONFIRMED', 0, NULL, 77.5946, 12.9716, 77.6200, 12.9350, 6.683, 'CASH', 'Cubbon Park, Bengaluru', 'JP Nagar, Bengaluru'),
+    ('DEMO-VELO-RIDE-ENDED-02', 'default', 'dave@example.com', 'EXPIRED', 4320, NULL, 77.5846, 12.9842, 77.5963, 12.9716, 3.791, 'CASH', 'Taj West End, Bengaluru', 'UB City, Bengaluru'),
+    ('DEMO-VELO-RIDE-ENDED-03', 'default', 'alice@example.com', 'EXPIRED', 2880, NULL, 77.5946, 12.9716, 77.6200, 12.9350, 6.683, 'CASH', 'Cubbon Park, Bengaluru', 'JP Nagar, Bengaluru'),
+    ('DEMO-SAFFRON-RIDE-ENDED-01', 'saffron-routes', 'guest@saffronroutes.demo', 'EXPIRED', 2880, NULL, 77.6200, 12.9350, 77.7060, 13.1986, 38.919, 'CASH', 'JP Nagar, Bengaluru', 'Kempegowda International Airport, Terminal 1'),
+    ('DEMO-SAFFRON-RIDE-ENDED-02', 'saffron-routes', 'guest2@saffronroutes.demo', 'EXPIRED', 1440, NULL, 77.5950, 12.9750, 77.6100, 12.9700, 2.980, 'CASH', 'Cubbon Park, Bengaluru', 'Trinity Circle, Bengaluru'),
+    ('DEMO-SAFFRON-RIDE-ONGOING-01', 'saffron-routes', 'guest2@saffronroutes.demo', 'CONFIRMED', 0, NULL, 77.6100, 12.9350, 77.7060, 13.1986, 40.100, 'CASH', 'JP Nagar, Bengaluru', 'Kempegowda International Airport, Terminal 1');
 
 UPDATE ride_request request
 SET rider_id = rider.id,
@@ -41,7 +41,7 @@ SET rider_id = rider.id,
                           ELSE NOW() + seed.scheduled_after_minutes * INTERVAL '1 minute' END,
     pickup_location = ST_SetSRID(ST_MakePoint(seed.pickup_lon, seed.pickup_lat), 4326),
     drop_off_location = ST_SetSRID(ST_MakePoint(seed.drop_lon, seed.drop_lat), 4326),
-    fare = seed.fare,
+    fare = round(greatest(tenant.minimum_fare, tenant.base_fare + tenant.per_km_rate * seed.route_distance_km), 2),
     customer_name = concat(app_user.first_name, ' ', app_user.last_name),
     customer_phone = app_user.phone_number,
     pickup_address = seed.pickup_address,
@@ -63,7 +63,9 @@ SELECT ST_SetSRID(ST_MakePoint(seed.pickup_lon, seed.pickup_lat), 4326),
        NOW() - seed.request_age_minutes * INTERVAL '1 minute',
        CASE WHEN seed.scheduled_after_minutes IS NULL THEN NULL
             ELSE NOW() + seed.scheduled_after_minutes * INTERVAL '1 minute' END,
-       rider.id, seed.payment_method, seed.request_status, seed.fare, 0, tenant.id,
+       rider.id, seed.payment_method, seed.request_status,
+       round(greatest(tenant.minimum_fare, tenant.base_fare + tenant.per_km_rate * seed.route_distance_km), 2),
+       0, tenant.id,
        concat(app_user.first_name, ' ', app_user.last_name), app_user.phone_number,
        seed.pickup_address, seed.drop_off_address, seed.external_reference
 FROM demo_fixture_request_seed seed
@@ -85,19 +87,18 @@ CREATE TEMPORARY TABLE demo_fixture_ride_seed (
     created_age_minutes INTEGER,
     started_age_minutes INTEGER,
     ended_age_minutes INTEGER,
-    fare NUMERIC(10, 2),
     otp VARCHAR(8)
 );
 
 INSERT INTO demo_fixture_ride_seed VALUES
-    ('DEMO-VELO-ENDED-01', 'default', 'DEMO-VELO-RIDE-ENDED-01', 'alice@example.com', 'bob.driver@example.com', 'ENDED', 5760, 5735, 5702, round(5.0 + 2.0 * 6.683, 2), '1904'),
-    ('DEMO-VELO-CANCELLED-01', 'default', 'DEMO-VELO-RIDE-CANCELLED-01', 'dave@example.com', 'carol.driver@example.com', 'CANCELLED', 4320, NULL, NULL, round(5.0 + 2.0 * 5.817, 2), '5678'),
-    ('DEMO-VELO-ONGOING-01', 'default', 'DEMO-VELO-RIDE-ONGOING-01', 'alice@example.com', 'carol.driver@example.com', 'ONGOING', 18, 9, NULL, round(5.0 + 2.0 * 6.683, 2), '2468'),
-    ('DEMO-VELO-ENDED-02', 'default', 'DEMO-VELO-RIDE-ENDED-02', 'dave@example.com', 'bob.driver@example.com', 'ENDED', 4320, 4295, 4262, round(5.0 + 2.0 * 3.791, 2), '1357'),
-    ('DEMO-VELO-ENDED-03', 'default', 'DEMO-VELO-RIDE-ENDED-03', 'alice@example.com', 'bob.driver@example.com', 'ENDED', 2880, 2855, 2822, round(5.0 + 2.0 * 6.683, 2), '1904'),
-    ('DEMO-SAFFRON-ENDED-01', 'saffron-routes', 'DEMO-SAFFRON-RIDE-ENDED-01', 'guest@saffronroutes.demo', 'chauffeur1@saffronroutes.demo', 'ENDED', 2880, 2855, 2822, round(5.0 + 2.0 * 38.919, 2), '5182'),
-    ('DEMO-SAFFRON-ENDED-02', 'saffron-routes', 'DEMO-SAFFRON-RIDE-ENDED-02', 'guest2@saffronroutes.demo', 'chauffeur2@saffronroutes.demo', 'ENDED', 1440, 1415, 1382, round(5.0 + 2.0 * 2.980, 2), '7394'),
-    ('DEMO-SAFFRON-ONGOING-01', 'saffron-routes', 'DEMO-SAFFRON-RIDE-ONGOING-01', 'guest2@saffronroutes.demo', 'chauffeur2@saffronroutes.demo', 'ONGOING', 16, 7, NULL, round(5.0 + 2.0 * 40.100, 2), '4826');
+    ('DEMO-VELO-ENDED-01', 'default', 'DEMO-VELO-RIDE-ENDED-01', 'alice@example.com', 'bob.driver@example.com', 'ENDED', 5760, 5735, 5702, '1904'),
+    ('DEMO-VELO-CANCELLED-01', 'default', 'DEMO-VELO-RIDE-CANCELLED-01', 'dave@example.com', 'carol.driver@example.com', 'CANCELLED', 4320, NULL, NULL, '5678'),
+    ('DEMO-VELO-ONGOING-01', 'default', 'DEMO-VELO-RIDE-ONGOING-01', 'alice@example.com', 'carol.driver@example.com', 'ONGOING', 18, 9, NULL, '2468'),
+    ('DEMO-VELO-ENDED-02', 'default', 'DEMO-VELO-RIDE-ENDED-02', 'dave@example.com', 'bob.driver@example.com', 'ENDED', 4320, 4295, 4262, '1357'),
+    ('DEMO-VELO-ENDED-03', 'default', 'DEMO-VELO-RIDE-ENDED-03', 'alice@example.com', 'bob.driver@example.com', 'ENDED', 2880, 2855, 2822, '1904'),
+    ('DEMO-SAFFRON-ENDED-01', 'saffron-routes', 'DEMO-SAFFRON-RIDE-ENDED-01', 'guest@saffronroutes.demo', 'chauffeur1@saffronroutes.demo', 'ENDED', 2880, 2855, 2822, '5182'),
+    ('DEMO-SAFFRON-ENDED-02', 'saffron-routes', 'DEMO-SAFFRON-RIDE-ENDED-02', 'guest2@saffronroutes.demo', 'chauffeur2@saffronroutes.demo', 'ENDED', 1440, 1415, 1382, '7394'),
+    ('DEMO-SAFFRON-ONGOING-01', 'saffron-routes', 'DEMO-SAFFRON-RIDE-ONGOING-01', 'guest2@saffronroutes.demo', 'chauffeur2@saffronroutes.demo', 'ONGOING', 16, 7, NULL, '4826');
 
 UPDATE ride
 SET ride_request_id = request.id,
@@ -112,7 +113,7 @@ SET ride_request_id = request.id,
                     ELSE NOW() - seed.ended_age_minutes * INTERVAL '1 minute' END,
     payment_method = 'CASH',
     ride_status = seed.ride_status,
-    fare = seed.fare,
+    fare = request.fare,
     otp = seed.otp
 FROM demo_fixture_ride_seed seed
 JOIN tenant ON tenant.slug = seed.tenant_slug
@@ -134,7 +135,7 @@ SELECT request.pickup_location, request.drop_off_location,
             ELSE NOW() - seed.started_age_minutes * INTERVAL '1 minute' END,
        CASE WHEN seed.ended_age_minutes IS NULL THEN NULL
             ELSE NOW() - seed.ended_age_minutes * INTERVAL '1 minute' END,
-       rider.id, driver.id, 'CASH', seed.ride_status, seed.fare, seed.otp,
+       rider.id, driver.id, 'CASH', seed.ride_status, request.fare, seed.otp,
        request.id, seed.external_reference, 0, tenant.id
 FROM demo_fixture_ride_seed seed
 JOIN tenant ON tenant.slug = seed.tenant_slug
@@ -235,12 +236,13 @@ WHERE NOT EXISTS (
 );
 
 UPDATE payout_request payout
-SET amount = seed.amount,
+SET amount = round(greatest(tenant.minimum_fare, tenant.base_fare + tenant.per_km_rate * seed.distance_km)
+                   * seed.net_share, 2),
     admin_note = seed.admin_note
 FROM (VALUES
-    ('chauffeur1@saffronroutes.demo', 50.00::NUMERIC, 'PENDING', TIMESTAMP '2026-10-14 10:15:00', 'Airport transfer earnings ready for review.'),
-    ('chauffeur2@saffronroutes.demo', round((5.0 + 2.0 * 2.980) * 0.70, 2), 'PROCESSED', TIMESTAMP '2026-10-13 15:20:00', 'Paid to registered bank account.')
-) AS seed(driver_email, amount, status, requested_at, admin_note)
+    ('chauffeur1@saffronroutes.demo', 38.919::NUMERIC, 0.35::NUMERIC, 'PENDING', TIMESTAMP '2026-10-14 10:15:00', 'Airport transfer earnings ready for review.'),
+    ('chauffeur2@saffronroutes.demo', 2.980::NUMERIC, 0.70::NUMERIC, 'PROCESSED', TIMESTAMP '2026-10-13 15:20:00', 'Paid to registered bank account.')
+) AS seed(driver_email, distance_km, net_share, status, requested_at, admin_note)
 JOIN tenant ON tenant.slug = 'saffron-routes'
 JOIN app_user ON app_user.email = seed.driver_email AND app_user.tenant_id = tenant.id
 JOIN driver ON driver.user_id = app_user.id AND driver.tenant_id = tenant.id
@@ -250,18 +252,21 @@ WHERE payout.tenant_id = tenant.id
   AND payout.requested_at = seed.requested_at;
 
 INSERT INTO payout_request (driver_id, amount, status, requested_at, processed_at, admin_note, version, tenant_id)
-SELECT driver.id, seed.amount, seed.status, seed.requested_at, seed.processed_at, seed.admin_note, 0, tenant.id
+SELECT driver.id, priced.amount, seed.status, seed.requested_at, seed.processed_at, seed.admin_note, 0, tenant.id
 FROM (VALUES
-    ('chauffeur1@saffronroutes.demo', 50.00::NUMERIC, 'PENDING', TIMESTAMP '2026-10-14 10:15:00', NULL::TIMESTAMP, 'Airport transfer earnings ready for review.'),
-    ('chauffeur2@saffronroutes.demo', round((5.0 + 2.0 * 2.980) * 0.70, 2), 'PROCESSED', TIMESTAMP '2026-10-13 15:20:00', TIMESTAMP '2026-10-13 16:05:00', 'Paid to registered bank account.')
-) AS seed(driver_email, amount, status, requested_at, processed_at, admin_note)
+    ('chauffeur1@saffronroutes.demo', 38.919::NUMERIC, 0.35::NUMERIC, 'PENDING', TIMESTAMP '2026-10-14 10:15:00', NULL::TIMESTAMP, 'Airport transfer earnings ready for review.'),
+    ('chauffeur2@saffronroutes.demo', 2.980::NUMERIC, 0.70::NUMERIC, 'PROCESSED', TIMESTAMP '2026-10-13 15:20:00', TIMESTAMP '2026-10-13 16:05:00', 'Paid to registered bank account.')
+) AS seed(driver_email, distance_km, net_share, status, requested_at, processed_at, admin_note)
 JOIN tenant ON tenant.slug = 'saffron-routes'
 JOIN app_user ON app_user.email = seed.driver_email AND app_user.tenant_id = tenant.id
 JOIN driver ON driver.user_id = app_user.id AND driver.tenant_id = tenant.id
+JOIN LATERAL (SELECT round(greatest(tenant.minimum_fare, tenant.base_fare + tenant.per_km_rate * seed.distance_km)
+                            * seed.net_share, 2) AS amount) priced ON TRUE
 WHERE NOT EXISTS (
     SELECT 1 FROM payout_request existing
     WHERE existing.tenant_id = tenant.id
       AND existing.driver_id = driver.id
+      AND existing.amount = priced.amount
       AND existing.status = seed.status
       AND existing.requested_at = seed.requested_at
 );
@@ -327,11 +332,24 @@ FROM (VALUES
     ('bob.driver@example.com', 'default', 17.86::NUMERIC),
     ('carol.driver@example.com', 'default', 0.00::NUMERIC),
     ('chauffeur1@saffronroutes.demo', 'saffron-routes', 0.00::NUMERIC),
-    ('chauffeur2@saffronroutes.demo', 'saffron-routes', 7.67::NUMERIC)
+    ('chauffeur2@saffronroutes.demo', 'saffron-routes', 0.00::NUMERIC)
 ) AS seed(email, tenant_slug, balance)
 JOIN tenant ON tenant.slug = seed.tenant_slug
 JOIN app_user ON app_user.email = seed.email AND app_user.tenant_id = tenant.id
 WHERE wallet.user_id = app_user.id AND wallet.tenant_id = tenant.id;
+
+UPDATE wallet
+SET balance = payout.amount
+FROM payout_request payout
+JOIN driver ON driver.id = payout.driver_id
+JOIN app_user ON app_user.id = driver.user_id
+JOIN tenant ON tenant.id = payout.tenant_id
+WHERE wallet.user_id = app_user.id
+  AND wallet.tenant_id = tenant.id
+  AND app_user.email = 'chauffeur2@saffronroutes.demo'
+  AND tenant.slug = 'saffron-routes'
+  AND payout.status = 'PROCESSED'
+  AND payout.requested_at = TIMESTAMP '2026-10-13 15:20:00';
 
 INSERT INTO admin_dispatch_audit (
     action_type, actor_user_id, ride_request_id, ride_id, previous_driver_id, next_driver_id,

@@ -56,9 +56,12 @@ public class TestSecurityConfig {
                     String userId = request.getHeader("X-Test-User-Id");
                     String email = request.getHeader("X-Test-Email");
                     String role = request.getHeader("X-Test-Role");
+                    String tenantId = request.getHeader("X-Test-Tenant-Id");
 
                     if (userId != null && email != null && role != null) {
-                        UserPrincipal principal = new UserPrincipal(Long.valueOf(userId), email, role);
+                        UserPrincipal principal = tenantId == null
+                                ? new UserPrincipal(Long.valueOf(userId), email, role)
+                                : new UserPrincipal(Long.valueOf(userId), email, role, Long.valueOf(tenantId));
                         String authority = role.startsWith("ROLE_") ? role : "ROLE_" + role;
                         List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(authority));
                         UsernamePasswordAuthenticationToken authentication =

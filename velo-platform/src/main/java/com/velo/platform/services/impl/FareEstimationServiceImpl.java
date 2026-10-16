@@ -12,6 +12,7 @@ import com.velo.platform.services.DistanceService;
 import com.velo.platform.services.FareEstimationService;
 import com.velo.platform.services.PromoCodeService;
 import com.velo.platform.services.RiderService;
+import com.velo.platform.services.TenantTariffService;
 import com.velo.platform.services.WalletService;
 import com.velo.platform.strategies.RideStrategyManager;
 import lombok.RequiredArgsConstructor;
@@ -34,11 +35,15 @@ public class FareEstimationServiceImpl implements FareEstimationService {
     private final RiderService riderService;
     private final WalletService walletService;
     private final FareConfig fareConfig;
+    private final TenantTariffService tenantTariffService;
     private final ModelMapper modelMapper;
 
     @Override
     public FareEstimateDto estimateFare(FareEstimateRequestDto fareEstimateRequestDto) {
         RideRequest dummyRideRequest = modelMapper.map(fareEstimateRequestDto, RideRequest.class);
+        Rider rider = riderService.getCurrentRider();
+        dummyRideRequest.setTenantId(rider.getTenantId());
+        TenantTariffService.Tariff tariff = tenantTariffService.findForTenant(rider.getTenantId());
         
         Point pickupPoint = dummyRideRequest.getPickupLocation();
         Point dropOffPoint = dummyRideRequest.getDropOffLocation();
@@ -52,8 +57,6 @@ public class FareEstimationServiceImpl implements FareEstimationService {
         BigDecimal discountAmount = BigDecimal.ZERO;
         boolean promoApplied = false;
         String promoMessage = null;
-        Rider rider = riderService.getCurrentRider();
-
         String promoCode = fareEstimateRequestDto.getPromoCode();
         if (promoCode != null && !promoCode.isBlank()) {
             try {
@@ -86,7 +89,7 @@ public class FareEstimationServiceImpl implements FareEstimationService {
         
         return FareEstimateDto.builder()
                 .estimatedFare(finalFare)
-                .baseFare(BigDecimal.valueOf(fareConfig.getBaseFare()))
+                .baseFare(tariff.baseFare())
                 .originalFare(originalFare)
                 .discountedFare(finalFare)
                 .savings(discountAmount)

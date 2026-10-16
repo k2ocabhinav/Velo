@@ -3,6 +3,7 @@ package com.velo.platform.strategies.impl;
 import com.velo.platform.configs.FareConfig;
 import com.velo.platform.entities.RideRequest;
 import com.velo.platform.services.DistanceService;
+import com.velo.platform.services.TenantTariffService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,6 +15,8 @@ import java.math.BigDecimal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 
 @ExtendWith(MockitoExtension.class)
 class FareCalculationTest {
@@ -22,6 +25,7 @@ class FareCalculationTest {
     private DistanceService distanceService;
 
     private FareConfig fareConfig;
+    private TenantTariffService tenantTariffService;
     private RiderFareDefaultRideFareCalculationStrategy defaultStrategy;
     private RideFareSurgePricingFareCalculationStrategy surgeStrategy;
 
@@ -31,9 +35,11 @@ class FareCalculationTest {
         fareConfig.setBaseFare(7.5);
         fareConfig.setPerKmRate(10.0);
         fareConfig.setSurgeMultiplier(2.0);
-        
-        defaultStrategy = new RiderFareDefaultRideFareCalculationStrategy(distanceService, fareConfig);
-        surgeStrategy = new RideFareSurgePricingFareCalculationStrategy(distanceService, fareConfig);
+        tenantTariffService = mock(TenantTariffService.class);
+        when(tenantTariffService.findForTenant(any())).thenReturn(new TenantTariffService.Tariff(
+                BigDecimal.valueOf(7.5), BigDecimal.TEN, BigDecimal.ZERO));
+        defaultStrategy = new RiderFareDefaultRideFareCalculationStrategy(distanceService, tenantTariffService);
+        surgeStrategy = new RideFareSurgePricingFareCalculationStrategy(distanceService, fareConfig, tenantTariffService);
     }
 
     @Test

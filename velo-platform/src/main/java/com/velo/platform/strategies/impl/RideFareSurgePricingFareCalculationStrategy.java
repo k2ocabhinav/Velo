@@ -3,6 +3,7 @@ package com.velo.platform.strategies.impl;
 import com.velo.platform.configs.FareConfig;
 import com.velo.platform.entities.RideRequest;
 import com.velo.platform.services.DistanceService;
+import com.velo.platform.services.TenantTariffService;
 import com.velo.platform.strategies.RideFareCalculationStrategy;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -16,13 +17,13 @@ public class RideFareSurgePricingFareCalculationStrategy implements RideFareCalc
 
     private final DistanceService distanceService;
     private final FareConfig fareConfig;
+    private final TenantTariffService tenantTariffService;
 
     @Override
     public BigDecimal calculateFare(RideRequest rideRequest) {
         double distance = distanceService.calculateDistance(rideRequest.getPickupLocation(),
                 rideRequest.getDropOffLocation());
-        return BigDecimal.valueOf(fareConfig.getBaseFare())
-                .add(BigDecimal.valueOf(distance).multiply(BigDecimal.valueOf(fareConfig.getPerKmRate())))
-                .multiply(BigDecimal.valueOf(fareConfig.getSurgeMultiplier()));
+        return tenantTariffService.findForTenant(rideRequest.getTenantId())
+                .calculate(distance, BigDecimal.valueOf(fareConfig.getSurgeMultiplier()));
     }
 }

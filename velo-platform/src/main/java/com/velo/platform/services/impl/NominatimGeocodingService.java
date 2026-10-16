@@ -6,8 +6,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.velo.platform.configs.GeocodingProperties;
 import com.velo.platform.dto.GeocodingResultDto;
+import com.velo.platform.entities.Tenant;
 import com.velo.platform.exceptions.GeocodingUnavailableException;
+import com.velo.platform.repositories.TenantRepository;
 import com.velo.platform.services.GeocodingService;
+import com.velo.platform.services.TenantScopeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -39,7 +42,6 @@ import java.util.function.Supplier;
 public class NominatimGeocodingService implements GeocodingService {
     private static final int SEARCH_LIMIT = 6;
     private static final int MAX_MEMORY_CACHE_ENTRIES = 10_000;
-    private static final double LOCAL_RADIUS_KM = 60.0;
     private static final double KM_PER_DEGREE_LATITUDE = 111.32;
     private static final TypeReference<List<GeocodingResultDto>> RESULTS_TYPE = new TypeReference<>() { };
 
@@ -49,14 +51,17 @@ public class NominatimGeocodingService implements GeocodingService {
     private final NominatimRateLimiter rateLimiter;
     @Qualifier("geocodingRestTemplate")
     private final RestTemplate restTemplate;
+    private final TenantScopeService tenantScopeService;
+    private final TenantRepository tenantRepository;
     private final Map<String, CachedValue> memoryCache = new ConcurrentHashMap<>();
 
     @Override
     public List<GeocodingResultDto> search(String query, String near) {
         String normalizedQuery = query.trim().replaceAll("\\s+", " ");
+        ServiceArea serviceArea = resolveServiceArea();
         String cacheKey = cacheKey("search", properties.getBaseUrl(), properties.getCountryBias(),
-                normalizedQuery.toLowerCase(), near == null ? "" : near.trim());
-        return cached(cacheKey, RESULTS_TYPE, () -> fetchSearch(normalizedQuery, near));
+                normalizedQuery.toLowerCase(), near == null ? "" : near.trim(), serviceArea.cacheKey());
+        return cached(cacheKey, RESULTS_TYPE, () -> fetchSearch(normalizedQuery, near, serviceArea));
     }
 
     @Override
@@ -66,22 +71,22 @@ public class NominatimGeocodingService implements GeocodingService {
         return cached(cacheKey, new TypeReference<>() { }, () -> fetchReverse(latitude, longitude));
     }
 
-    private List<GeocodingResultDto> fetchSearch(String query, String near) {
-        GeoPoint anchor = resolveAnchor(near).orElse(null);
+    private List<GeocodingResultDto> fetchSearch(String query, String near, ServiceArea serviceArea) {
+        GeoPoint anchor = resolveAnchor(near, serviceArea).orElse(null);
         String searchQuery = anchor != null || near == null || near.isBlank()
                 ? query
                 : query + ", " + near.trim();
         if (anchor != null) {
-            List<GeocodingResultDto> localResults = fetchSearch(searchQuery, anchor, true);
+            List<GeocodingResultDto> localResults = fetchSearch(searchQuery, anchor, serviceArea.radiusKm(), true);
             if (!localResults.isEmpty()) {
                 return rankByDistance(localResults, anchor, isGenericAirportSearch(query));
             }
-            return rankByDistance(fetchSearch(searchQuery, anchor, false), anchor, false);
+            return rankByDistance(fetchSearch(searchQuery, anchor, serviceArea.radiusKm(), false), anchor, false);
         }
-        return fetchSearch(searchQuery, null, false);
+        return fetchSearch(searchQuery, null, serviceArea.radiusKm(), false);
     }
 
-    private List<GeocodingResultDto> fetchSearch(String query, GeoPoint anchor, boolean bounded) {
+    private List<GeocodingResultDto> fetchSearch(String query, GeoPoint anchor, double radiusKm, boolean bounded) {
         UriComponentsBuilder uri = UriComponentsBuilder.fromUriString(properties.getBaseUrl())
                 .path("/search")
                 .queryParam("format", "jsonv2")
@@ -89,7 +94,7 @@ public class NominatimGeocodingService implements GeocodingService {
                 .queryParam("limit", SEARCH_LIMIT)
                 .queryParam("addressdetails", 1);
         addCountryBias(uri);
-        addViewbox(uri, anchor, bounded);
+        addViewbox(uri, anchor, radiusKm, bounded);
         addProviderEmail(uri);
 
         JsonNode response = get(uri.build().encode().toUri());
@@ -106,7 +111,7 @@ public class NominatimGeocodingService implements GeocodingService {
         return results;
     }
 
-    private Optional<GeoPoint> resolveAnchor(String near) {
+    private Optional<GeoPoint> resolveAnchor(String near, ServiceArea serviceArea) {
         Optional<GeoPoint> parsed = parseCoordinates(near);
         if (parsed.isPresent()) {
             return parsed;
@@ -122,7 +127,7 @@ public class NominatimGeocodingService implements GeocodingService {
                 return Optional.of(new GeoPoint(result.lat(), result.lon()));
             }
         }
-        return serviceAreaPoint();
+        return serviceAreaPoint(serviceArea);
     }
 
     private List<GeocodingResultDto> fetchNear(String query) {
@@ -169,9 +174,9 @@ public class NominatimGeocodingService implements GeocodingService {
         return Optional.empty();
     }
 
-    private Optional<GeoPoint> serviceAreaPoint() {
-        Double latitude = properties.getServiceAreaLatitude();
-        Double longitude = properties.getServiceAreaLongitude();
+    private Optional<GeoPoint> serviceAreaPoint(ServiceArea serviceArea) {
+        Double latitude = serviceArea == null ? null : serviceArea.latitude();
+        Double longitude = serviceArea == null ? null : serviceArea.longitude();
         if (latitude == null || longitude == null
                 || !Double.isFinite(latitude) || !Double.isFinite(longitude)
                 || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
@@ -180,12 +185,12 @@ public class NominatimGeocodingService implements GeocodingService {
         return Optional.of(new GeoPoint(latitude, longitude));
     }
 
-    private void addViewbox(UriComponentsBuilder uri, GeoPoint anchor, boolean bounded) {
+    private void addViewbox(UriComponentsBuilder uri, GeoPoint anchor, double radiusKm, boolean bounded) {
         if (anchor == null) {
             return;
         }
-        double latitudeRadius = LOCAL_RADIUS_KM / KM_PER_DEGREE_LATITUDE;
-        double longitudeRadius = Math.min(180.0, LOCAL_RADIUS_KM
+        double latitudeRadius = radiusKm / KM_PER_DEGREE_LATITUDE;
+        double longitudeRadius = Math.min(180.0, radiusKm
                 / (KM_PER_DEGREE_LATITUDE * Math.max(0.01, Math.cos(Math.toRadians(anchor.latitude())))));
         uri.queryParam("viewbox", String.format(java.util.Locale.ROOT, "%.5f,%.5f,%.5f,%.5f",
                 anchor.longitude() - longitudeRadius,
@@ -193,6 +198,30 @@ public class NominatimGeocodingService implements GeocodingService {
                 anchor.longitude() + longitudeRadius,
                 anchor.latitude() - latitudeRadius));
         uri.queryParam("bounded", bounded ? 1 : 0);
+    }
+
+    private ServiceArea resolveServiceArea() {
+        Tenant tenant = tenantRepository.findById(tenantScopeService.requireCurrentTenantId()).orElse(null);
+        Double latitude = tenant == null || tenant.getServiceAreaLatitude() == null
+                ? properties.getServiceAreaLatitude() : tenant.getServiceAreaLatitude();
+        Double longitude = tenant == null || tenant.getServiceAreaLongitude() == null
+                ? properties.getServiceAreaLongitude() : tenant.getServiceAreaLongitude();
+        double radiusKm = tenant == null || tenant.getServiceAreaRadiusKm() == null
+                ? valueOrDefault(properties.getServiceAreaRadiusKm(), 60.0) : tenant.getServiceAreaRadiusKm();
+        if (latitude != null && longitude != null
+                && (!Double.isFinite(latitude) || latitude < -90 || latitude > 90
+                || !Double.isFinite(longitude) || longitude < -180 || longitude > 180)) {
+            latitude = null;
+            longitude = null;
+        }
+        if (!Double.isFinite(radiusKm) || radiusKm <= 0 || radiusKm > 500) {
+            radiusKm = 60.0;
+        }
+        return new ServiceArea(latitude, longitude, radiusKm);
+    }
+
+    private double valueOrDefault(Double value, double fallback) {
+        return value == null ? fallback : value;
     }
 
     private List<GeocodingResultDto> rankByDistance(
@@ -360,4 +389,11 @@ public class NominatimGeocodingService implements GeocodingService {
 
     private record CachedValue(String json, Instant expiresAt) { }
     private record GeoPoint(double latitude, double longitude) { }
+    private record ServiceArea(Double latitude, Double longitude, double radiusKm) {
+        private String cacheKey() {
+            return String.format(java.util.Locale.ROOT, "%s,%s,%.2f",
+                    latitude == null ? "" : String.format(java.util.Locale.ROOT, "%.5f", latitude),
+                    longitude == null ? "" : String.format(java.util.Locale.ROOT, "%.5f", longitude), radiusKm);
+        }
+    }
 }

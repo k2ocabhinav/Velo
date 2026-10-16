@@ -3,7 +3,10 @@ package com.velo.platform.services.impl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.velo.platform.configs.GeocodingProperties;
 import com.velo.platform.dto.GeocodingResultDto;
+import com.velo.platform.entities.Tenant;
 import com.velo.platform.exceptions.GeocodingUnavailableException;
+import com.velo.platform.repositories.TenantRepository;
+import com.velo.platform.services.TenantScopeService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,6 +19,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -32,6 +36,7 @@ class NominatimGeocodingServiceTest {
     private RestTemplate restTemplate;
     private MockRestServiceServer provider;
     private NominatimGeocodingService service;
+    private TenantRepository tenantRepository;
 
     @BeforeEach
     @SuppressWarnings("unchecked")
@@ -47,11 +52,14 @@ class NominatimGeocodingServiceTest {
         properties.setCacheTtl(Duration.ofHours(24));
 
         RedisTemplate<String, Object> redisTemplate = mock(RedisTemplate.class);
+        TenantScopeService tenantScopeService = mock(TenantScopeService.class);
+        when(tenantScopeService.requireCurrentTenantId()).thenReturn(1L);
+        tenantRepository = mock(TenantRepository.class);
         ValueOperations<String, Object> valueOperations = mock(ValueOperations.class);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(org.mockito.ArgumentMatchers.anyString())).thenReturn(null);
         service = new NominatimGeocodingService(properties, new ObjectMapper(), redisTemplate,
-                new NominatimRateLimiter(), restTemplate);
+                new NominatimRateLimiter(), restTemplate, tenantScopeService, tenantRepository);
     }
 
     @AfterEach
@@ -78,6 +86,25 @@ class NominatimGeocodingServiceTest {
 
         assertThat(results).containsExactly(new GeocodingResultDto(
                 "Central Market, Bengaluru", "Central Market, Bengaluru, Karnataka, India", 12.9, 77.5, "market"));
+    }
+
+    @Test
+    void searchUsesTenantServiceAreaCenterAndRadius() {
+        when(tenantRepository.findById(1L)).thenReturn(Optional.of(Tenant.builder()
+                .serviceAreaLatitude(12.9716)
+                .serviceAreaLongitude(77.5946)
+                .serviceAreaRadiusKm(30.0)
+                .build()));
+        provider.expect(requestTo(org.hamcrest.Matchers.containsString("/search")))
+                .andExpect(queryParam("viewbox", "77.31805,13.24109,77.87115,12.70211"))
+                .andExpect(queryParam("bounded", "1"))
+                .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
+        provider.expect(requestTo(org.hamcrest.Matchers.containsString("/search")))
+                .andExpect(queryParam("viewbox", "77.31805,13.24109,77.87115,12.70211"))
+                .andExpect(queryParam("bounded", "0"))
+                .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
+
+        assertThat(service.search("Cafe", null)).isEmpty();
     }
 
     @Test

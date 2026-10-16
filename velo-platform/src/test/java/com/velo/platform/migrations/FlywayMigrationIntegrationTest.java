@@ -108,6 +108,8 @@ class FlywayMigrationIntegrationTest {
         flyway.migrate();
 
         assertThat(count(schemaName, "tenant")).isEqualTo(2);
+        assertTenantServiceArea("default", 12.9716, 77.5946, 60.0);
+        assertTenantServiceArea("saffron-routes", 12.9716, 77.5946, 60.0);
         assertThat(countByTenantSlug("app_user", "default")).isGreaterThanOrEqualTo(5);
         assertThat(countByTenantSlug("app_user", "saffron-routes")).isEqualTo(21);
         assertThat(countByTenantSlug("driver", "default")).isGreaterThanOrEqualTo(2);
@@ -123,6 +125,8 @@ class FlywayMigrationIntegrationTest {
         assertThat(countByTenantSlug("payout_request", "saffron-routes")).isEqualTo(2);
         assertThat(countBranding("saffron-routes", "Saffron Routes", "#8A3D2B", "Guest", "Chauffeur", "Transfer", "INR")).isEqualTo(1);
         assertThat(countBranding("default", "Velo Business", "#1A56FF", "Rider", "Driver", "Trip", "USD")).isEqualTo(1);
+        assertTenantTariff("default", "5.00", "2.00", "0.00");
+        assertTenantTariff("saffron-routes", "250.00", "35.00", "600.00");
         assertThat(countAuditReason("Assigned nearest available driver")).isZero();
         assertThat(countAuditReason("Initial seeded assignment history entry.")).isZero();
 
@@ -133,6 +137,7 @@ class FlywayMigrationIntegrationTest {
         assertThat(countRequestFixture("DEMO-VELO-SCHEDULED-02", "frank@example.com", "SCHEDULED")).isEqualTo(1);
         assertThat(countRequestFixture("DEMO-VELO-SCHEDULED-02", "henry@example.com", "SCHEDULED")).isZero();
         assertSeededFaresFollowPricingFormula(schemaName);
+        assertSaffronEarningsPayoutAndWalletUseTariff();
         assertThat(countSeededRatingRows(schemaName)).isEqualTo(5);
 
         long usersAfterFirst = count(schemaName, "app_user");
@@ -153,6 +158,7 @@ class FlywayMigrationIntegrationTest {
                 .isEqualTo(1);
         assertThat(countRequestFixture("DEMO-VELO-SCHEDULED-02", "frank@example.com", "SCHEDULED")).isEqualTo(1);
         assertSeededFaresFollowPricingFormula(schemaName);
+        assertSaffronEarningsPayoutAndWalletUseTariff();
         assertThat(countSeededRatingRows(schemaName)).isEqualTo(5);
     }
 
@@ -166,6 +172,7 @@ class FlywayMigrationIntegrationTest {
         assertThat(count(schemaName, "app_user")).isZero();
         assertThat(count(schemaName, "tenant")).isEqualTo(1);
         assertThat(countTenantSlug("saffron-routes")).isZero();
+        assertTenantTariff("default", "5.00", "2.00", "0.00");
     }
 
     private Flyway newFlyway(String schema) {
@@ -201,43 +208,48 @@ class FlywayMigrationIntegrationTest {
 
     private void assertSeededFaresFollowPricingFormula(String schema) throws Exception {
         List<SeededFare> fares = List.of(
-                new SeededFare("ride_request", "DEMO-VELO-PENDING-01", 34.810),
-                new SeededFare("ride_request", "DEMO-VELO-SCHEDULED-01", 3.791),
-                new SeededFare("ride_request", "DEMO-VELO-SCHEDULED-02", 35.171),
-                new SeededFare("ride_request", "DEMO-SAFFRON-PENDING-01", 34.374),
-                new SeededFare("ride_request", "DEMO-SAFFRON-SCHEDULED-01", 36.128),
-                new SeededFare("ride_request", "DEMO-SAFFRON-SCHEDULED-02", 4.337),
-                new SeededFare("ride_request", "DEMO-VELO-RIDE-ENDED-01", 6.683),
-                new SeededFare("ride_request", "DEMO-VELO-RIDE-CANCELLED-01", 5.817),
-                new SeededFare("ride_request", "DEMO-VELO-RIDE-ONGOING-01", 6.683),
-                new SeededFare("ride_request", "DEMO-VELO-RIDE-ENDED-02", 3.791),
-                new SeededFare("ride_request", "DEMO-VELO-RIDE-ENDED-03", 6.683),
-                new SeededFare("ride_request", "DEMO-SAFFRON-RIDE-ENDED-01", 38.919),
-                new SeededFare("ride_request", "DEMO-SAFFRON-RIDE-ENDED-02", 2.980),
-                new SeededFare("ride_request", "DEMO-SAFFRON-RIDE-ONGOING-01", 40.100),
-                new SeededFare("ride", "DEMO-VELO-ENDED-01", 6.683),
-                new SeededFare("ride", "DEMO-VELO-CANCELLED-01", 5.817),
-                new SeededFare("ride", "DEMO-VELO-ONGOING-01", 6.683),
-                new SeededFare("ride", "DEMO-VELO-ENDED-02", 3.791),
-                new SeededFare("ride", "DEMO-VELO-ENDED-03", 6.683),
-                new SeededFare("ride", "DEMO-SAFFRON-ENDED-01", 38.919),
-                new SeededFare("ride", "DEMO-SAFFRON-ENDED-02", 2.980),
-                new SeededFare("ride", "DEMO-SAFFRON-ONGOING-01", 40.100)
+                new SeededFare("ride_request", "default", "DEMO-VELO-PENDING-01", 34.810),
+                new SeededFare("ride_request", "default", "DEMO-VELO-SCHEDULED-01", 3.791),
+                new SeededFare("ride_request", "default", "DEMO-VELO-SCHEDULED-02", 35.171),
+                new SeededFare("ride_request", "saffron-routes", "DEMO-SAFFRON-PENDING-01", 34.374),
+                new SeededFare("ride_request", "saffron-routes", "DEMO-SAFFRON-SCHEDULED-01", 36.128),
+                new SeededFare("ride_request", "saffron-routes", "DEMO-SAFFRON-SCHEDULED-02", 4.337),
+                new SeededFare("ride_request", "default", "DEMO-VELO-RIDE-ENDED-01", 6.683),
+                new SeededFare("ride_request", "default", "DEMO-VELO-RIDE-CANCELLED-01", 5.817),
+                new SeededFare("ride_request", "default", "DEMO-VELO-RIDE-ONGOING-01", 6.683),
+                new SeededFare("ride_request", "default", "DEMO-VELO-RIDE-ENDED-02", 3.791),
+                new SeededFare("ride_request", "default", "DEMO-VELO-RIDE-ENDED-03", 6.683),
+                new SeededFare("ride_request", "saffron-routes", "DEMO-SAFFRON-RIDE-ENDED-01", 38.919),
+                new SeededFare("ride_request", "saffron-routes", "DEMO-SAFFRON-RIDE-ENDED-02", 2.980),
+                new SeededFare("ride_request", "saffron-routes", "DEMO-SAFFRON-RIDE-ONGOING-01", 40.100),
+                new SeededFare("ride", "default", "DEMO-VELO-ENDED-01", 6.683),
+                new SeededFare("ride", "default", "DEMO-VELO-CANCELLED-01", 5.817),
+                new SeededFare("ride", "default", "DEMO-VELO-ONGOING-01", 6.683),
+                new SeededFare("ride", "default", "DEMO-VELO-ENDED-02", 3.791),
+                new SeededFare("ride", "default", "DEMO-VELO-ENDED-03", 6.683),
+                new SeededFare("ride", "saffron-routes", "DEMO-SAFFRON-ENDED-01", 38.919),
+                new SeededFare("ride", "saffron-routes", "DEMO-SAFFRON-ENDED-02", 2.980),
+                new SeededFare("ride", "saffron-routes", "DEMO-SAFFRON-ONGOING-01", 40.100)
         );
 
         try (Connection connection = DriverManager.getConnection(JDBC_URL, JDBC_USERNAME, JDBC_PASSWORD)) {
             for (SeededFare seededFare : fares) {
-                String query = "SELECT fare FROM " + schema + "." + seededFare.table()
-                        + " WHERE external_reference = ?";
+                String query = "SELECT fixture_row.fare, tenant.base_fare, tenant.per_km_rate, tenant.minimum_fare FROM "
+                        + schema + "." + seededFare.table() + " fixture_row JOIN " + schema
+                        + ".tenant tenant ON tenant.id = fixture_row.tenant_id "
+                        + "WHERE tenant.slug = ? AND fixture_row.external_reference = ?";
                 try (PreparedStatement statement = connection.prepareStatement(query)) {
-                    statement.setString(1, seededFare.reference());
+                    statement.setString(1, seededFare.tenantSlug());
+                    statement.setString(2, seededFare.reference());
                     try (ResultSet result = statement.executeQuery()) {
                         assertThat(result.next()).as("fixture %s.%s exists", seededFare.table(), seededFare.reference())
                                 .isTrue();
                         BigDecimal fare = result.getBigDecimal(1);
-                        double formula = 5.0 + 2.0 * seededFare.routeDistanceKm();
+                        double formula = Math.max(result.getBigDecimal(4).doubleValue(),
+                                result.getBigDecimal(2).doubleValue()
+                                        + result.getBigDecimal(3).doubleValue() * seededFare.routeDistanceKm());
                         assertThat(fare.doubleValue())
-                                .as("%s.%s should use base + per-kilometre pricing", seededFare.table(), seededFare.reference())
+                                .as("%s.%s should use %s's tariff", seededFare.table(), seededFare.reference(), seededFare.tenantSlug())
                                 .isCloseTo(formula, offset(formula * 0.15));
                     }
                 }
@@ -258,7 +270,67 @@ class FlywayMigrationIntegrationTest {
         }
     }
 
-    private record SeededFare(String table, String reference, double routeDistanceKm) { }
+    private void assertTenantTariff(String slug, String baseFare, String perKmRate, String minimumFare) throws Exception {
+        String sql = "SELECT base_fare, per_km_rate, minimum_fare FROM " + schemaName + ".tenant WHERE slug = ?";
+        try (Connection connection = DriverManager.getConnection(JDBC_URL, JDBC_USERNAME, JDBC_PASSWORD);
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, slug);
+            try (ResultSet result = statement.executeQuery()) {
+                assertThat(result.next()).isTrue();
+                assertThat(result.getBigDecimal(1)).isEqualByComparingTo(baseFare);
+                assertThat(result.getBigDecimal(2)).isEqualByComparingTo(perKmRate);
+                assertThat(result.getBigDecimal(3)).isEqualByComparingTo(minimumFare);
+            }
+        }
+    }
+
+    private void assertTenantServiceArea(String slug, double latitude, double longitude, double radiusKm)
+            throws Exception {
+        String sql = "SELECT service_area_latitude, service_area_longitude, service_area_radius_km FROM "
+                + schemaName + ".tenant WHERE slug = ?";
+        try (Connection connection = DriverManager.getConnection(JDBC_URL, JDBC_USERNAME, JDBC_PASSWORD);
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, slug);
+            try (ResultSet result = statement.executeQuery()) {
+                assertThat(result.next()).isTrue();
+                assertThat(result.getDouble(1)).isEqualTo(latitude);
+                assertThat(result.getDouble(2)).isEqualTo(longitude);
+                assertThat(result.getDouble(3)).isEqualTo(radiusKm);
+            }
+        }
+    }
+
+    private record SeededFare(String table, String tenantSlug, String reference, double routeDistanceKm) { }
+
+    private void assertSaffronEarningsPayoutAndWalletUseTariff() throws Exception {
+        String earningQuery = "SELECT ride.fare, earning.gross_fare, earning.platform_commission, earning.net_earning "
+                + "FROM " + schemaName + ".ride ride JOIN " + schemaName
+                + ".driver_earning earning ON earning.ride_id = ride.id "
+                + "WHERE ride.external_reference = 'DEMO-SAFFRON-ENDED-01'";
+        try (Connection connection = DriverManager.getConnection(JDBC_URL, JDBC_USERNAME, JDBC_PASSWORD);
+             Statement statement = connection.createStatement();
+             ResultSet result = statement.executeQuery(earningQuery)) {
+            assertThat(result.next()).isTrue();
+            assertThat(result.getBigDecimal(1)).isEqualByComparingTo("1612.17");
+            assertThat(result.getBigDecimal(2)).isEqualByComparingTo("1612.17");
+            assertThat(result.getBigDecimal(3)).isEqualByComparingTo("483.65");
+            assertThat(result.getBigDecimal(4)).isEqualByComparingTo("1128.52");
+        }
+
+        String payoutQuery = "SELECT payout.amount, wallet.balance FROM " + schemaName
+                + ".payout_request payout JOIN " + schemaName + ".driver driver ON driver.id = payout.driver_id "
+                + "JOIN " + schemaName + ".app_user account ON account.id = driver.user_id JOIN " + schemaName
+                + ".wallet wallet ON wallet.user_id = account.id AND wallet.tenant_id = payout.tenant_id "
+                + "WHERE account.email = 'chauffeur2@saffronroutes.demo' AND payout.status = 'PROCESSED' "
+                + "AND payout.requested_at = TIMESTAMP '2026-10-13 15:20:00'";
+        try (Connection connection = DriverManager.getConnection(JDBC_URL, JDBC_USERNAME, JDBC_PASSWORD);
+             Statement statement = connection.createStatement();
+             ResultSet result = statement.executeQuery(payoutQuery)) {
+            assertThat(result.next()).isTrue();
+            assertThat(result.getBigDecimal(1)).isEqualByComparingTo("420.00");
+            assertThat(result.getBigDecimal(2)).isEqualByComparingTo("420.00");
+        }
+    }
 
     private long countByTenantSlug(String table, String slug) throws Exception {
         String sql = "SELECT COUNT(*) FROM " + schemaName + "." + table + " row "

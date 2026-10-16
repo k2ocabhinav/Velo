@@ -5,6 +5,7 @@ import com.velo.platform.strategies.RideFareCalculationStrategy;
 import com.velo.platform.strategies.impl.RideFareSurgePricingFareCalculationStrategy;
 import com.velo.platform.strategies.impl.RiderFareDefaultRideFareCalculationStrategy;
 import com.velo.platform.services.DistanceService;
+import com.velo.platform.services.TenantTariffService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,6 +23,9 @@ class RideStrategyManagerTest {
     @Mock
     private DistanceService distanceService;
 
+    @Mock
+    private TenantTariffService tenantTariffService;
+
     private FareConfig fareConfig;
     private RideStrategyManagerTestWrapper strategyManager;
 
@@ -32,9 +36,9 @@ class RideStrategyManagerTest {
         fareConfig.setSurgeEndHour(21);
         
         RiderFareDefaultRideFareCalculationStrategy defaultFareStrategy = 
-                new RiderFareDefaultRideFareCalculationStrategy(distanceService, fareConfig);
+                new RiderFareDefaultRideFareCalculationStrategy(distanceService, tenantTariffService);
         RideFareSurgePricingFareCalculationStrategy surgePricingStrategy = 
-                new RideFareSurgePricingFareCalculationStrategy(distanceService, fareConfig);
+                new RideFareSurgePricingFareCalculationStrategy(distanceService, fareConfig, tenantTariffService);
         strategyManager = new RideStrategyManagerTestWrapper(
                 defaultFareStrategy, surgePricingStrategy, fareConfig);
     }

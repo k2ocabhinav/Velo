@@ -18,4 +18,5 @@ public class GeocodingProperties {
     private Duration cacheTtl = Duration.ofHours(24);
     private Double serviceAreaLatitude;
     private Double serviceAreaLongitude;
+    private Double serviceAreaRadiusKm = 60.0;
 }

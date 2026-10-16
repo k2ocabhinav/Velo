@@ -22,7 +22,7 @@ import static org.mockito.Mockito.verify;
 
 /**
  * Runs the demo fixture refresher against a freshly migrated schema so the SQL is exercised with the
- * real V13 columns and the local demo seed in place.
+ * real schema and the local demo seed in place.
  */
 class DemoFixtureTimestampRefresherIntegrationTest {
 
@@ -98,6 +98,8 @@ class DemoFixtureTimestampRefresherIntegrationTest {
         assertThat(rideStatusOf(fixtureRideId)).isEqualTo("ONGOING");
         assertThat(riderEmailOfRide(fixtureRideId)).isEqualTo("alice@example.com");
         assertThat(driverEmailOfRide(fixtureRideId)).isEqualTo("carol.driver@example.com");
+        assertThat(fareOf("ride_request", "DEMO-SAFFRON-PENDING-01")).isEqualByComparingTo("1453.09");
+        assertThat(fareOf("ride", "DEMO-SAFFRON-ENDED-01")).isEqualByComparingTo("1612.17");
         long frankScheduledId = requestIdByReference("DEMO-VELO-SCHEDULED-02");
         assertThat(requestStatusOf(frankScheduledId)).isEqualTo("SCHEDULED");
         assertThat(requestRiderEmailOf(frankScheduledId)).isEqualTo("frank@example.com");
@@ -389,6 +391,11 @@ class DemoFixtureTimestampRefresherIntegrationTest {
     private long rideIdByReference(String externalReference) {
         return jdbcTemplate.queryForObject(
                 "SELECT id FROM ride WHERE external_reference = ?", Long.class, externalReference);
+    }
+
+    private BigDecimal fareOf(String table, String externalReference) {
+        return jdbcTemplate.queryForObject(
+                "SELECT fare FROM " + table + " WHERE external_reference = ?", BigDecimal.class, externalReference);
     }
 
     private long offerCount(String requestReference) {
