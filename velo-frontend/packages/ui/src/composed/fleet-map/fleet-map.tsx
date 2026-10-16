@@ -4,7 +4,7 @@ import { memo, useCallback, useEffect, useRef, type MouseEvent, type RefObject }
 import L, { type Marker as LeafletMarker, type Polyline as LeafletPolyline } from "leaflet";
 import { MapContainer, TileLayer, useMap, ZoomControl } from "react-leaflet";
 import { getFleetDriverVisualState, interpolateFleetPosition, type FleetPosition } from "./animation";
-import { DEFAULT_CENTER, fitFleetMap, focusZoom } from "./camera";
+import { DEFAULT_CENTER, fitFleetMap, fleetMapCameraPoints, focusZoom } from "./camera";
 import { formatFleetLastUpdate } from "./format";
 import { FleetMapStore, type FleetMapState } from "./store";
 import styles from "./fleet-map.module.css";
@@ -146,15 +146,12 @@ function createRequestIcon(): L.DivIcon {
   });
 }
 
-function pointsForSnapshot(drivers: FleetMapDriver[], rides: FleetMapRide[]): [number, number][] {
-  return [
-    ...drivers.map(toLatLng),
-    ...rides.flatMap((ride) => [toLatLng(ride.pickup), toLatLng(ride.dropOff)]),
-  ];
-}
-
-function snapshotPoints(state: FleetMapState): [number, number][] {
-  return pointsForSnapshot(state.drivers, state.rides);
+function cameraPoints(state: FleetMapState): [number, number][] {
+  return fleetMapCameraPoints({
+    drivers: state.drivers,
+    rides: state.rides,
+    selection: state.focusRequest?.selection ?? null,
+  });
 }
 
 function MapCamera({ store, actions }: { store: FleetMapStore; actions: RefObject<CameraActions | null> }) {
@@ -164,12 +161,12 @@ function MapCamera({ store, actions }: { store: FleetMapStore; actions: RefObjec
   useEffect(() => {
     actions.current = {
       recenter: () => {
-        fitFleetMap(map, snapshotPoints(store.getState()));
+        fitFleetMap(map, cameraPoints(store.getState()));
       },
     };
     const fitInitial = () => {
       if (hasFitted.current) return;
-      const points = snapshotPoints(store.getState());
+      const points = cameraPoints(store.getState());
       if (!points.length) return;
       hasFitted.current = true;
       fitFleetMap(map, points);

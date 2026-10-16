@@ -102,14 +102,6 @@ export function toMapPoint(point: PointDto | null | undefined): MapPoint | null 
   return { lat, lng };
 }
 
-export function formatMapPoint(point: MapPoint | null): string {
-  if (!point) {
-    return "--";
-  }
-
-  return `${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}`;
-}
-
 export function toDriverRideTimeline(status: string | null | undefined): Array<{ label: string; done: boolean }> {
   const normalized = normalizeRideStatus(status);
   const order = ["CONFIRMED", "ONGOING", "ENDED"] as const;

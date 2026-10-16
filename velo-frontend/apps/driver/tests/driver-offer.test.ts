@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { formatOfferLocation, getIncomingOfferTitle, getNextTripActionLabel, getRiderFirstName, resolveOfferExpiresAtMs } from "../app/_lib/driver-offer";
+import {
+  formatOfferLocation,
+  getIncomingOfferTitle,
+  getNextTripActionLabel,
+  getRiderFirstName,
+  PENDING_DROP_OFF_LABEL,
+  PENDING_PICKUP_LABEL,
+  resolveOfferExpiresAtMs,
+} from "../app/_lib/driver-offer";
 
 describe("driver offer helpers", () => {
   it("resolves the rider first name when the payload carries one", () => {
@@ -21,14 +29,18 @@ describe("driver offer helpers", () => {
     expect(resolveOfferExpiresAtMs("not-a-date", "also-not-a-date")).toBeNull();
   });
 
-  it("shows the provided address and falls back to the point coordinates", () => {
+  it("shows the provided address and never falls back to raw coordinates", () => {
     expect(
-      formatOfferLocation("Kempegowda Airport", { coordinates: [77.59, 12.97], type: "Point" }),
+      formatOfferLocation("Kempegowda Airport", { coordinates: [77.59, 12.97], type: "Point" }, PENDING_PICKUP_LABEL),
     ).toBe("Kempegowda Airport");
     expect(
-      formatOfferLocation(null, { coordinates: [77.5946, 12.9716], type: "Point" }),
-    ).toBe("12.97160, 77.59460");
-    expect(formatOfferLocation("   ", null)).toBeNull();
+      formatOfferLocation(null, { coordinates: [77.5946, 12.9716], type: "Point" }, PENDING_PICKUP_LABEL),
+    ).toBe("Pickup location pending");
+    expect(
+      formatOfferLocation("   ", { coordinates: [77.5946, 12.9716], type: "Point" }, PENDING_DROP_OFF_LABEL),
+    ).toBe("Drop-off location pending");
+    expect(formatOfferLocation("   ", null, PENDING_PICKUP_LABEL)).toBeNull();
+    expect(formatOfferLocation(undefined, undefined, PENDING_DROP_OFF_LABEL)).toBeNull();
   });
 
   it("words offer cards and next actions with the tenant trip noun", () => {

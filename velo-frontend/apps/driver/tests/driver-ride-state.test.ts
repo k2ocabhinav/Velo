@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  formatMapPoint,
   getDriverRideFareValue,
   getDriverRideStatusLabel,
   getDriverRideTimeLabel,
@@ -27,15 +26,13 @@ describe("driver ride state helpers", () => {
     expect(isDriverRideActive(activeRide?.rideStatus)).toBe(true);
   });
 
-  it("parses map points and formats fallback values", () => {
+  it("parses map points and rejects incomplete coordinates", () => {
     const point = toMapPoint({
       coordinates: [77.5946, 12.9716],
       type: "Point",
     });
     expect(point).toEqual({ lat: 12.9716, lng: 77.5946 });
-    expect(formatMapPoint(point)).toBe("12.97160, 77.59460");
     expect(toMapPoint({ coordinates: [NaN, 12] })).toBeNull();
-    expect(formatMapPoint(null)).toBe("--");
   });
 
   it("produces deterministic labels, fare values, and timeline steps", () => {

@@ -72,6 +72,7 @@ public class RiderServiceImpl implements RiderService {
     private final DriverEarningsService driverEarningsService;
     private final WalletService walletService;
     private final RideRealtimeService rideRealtimeService;
+    private final RideRequestAddressResolver rideRequestAddressResolver;
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
@@ -89,6 +90,7 @@ public class RiderServiceImpl implements RiderService {
         }
 
         RideRequest rideRequest = modelMapper.map(rideRequestDto, RideRequest.class);
+        rideRequestAddressResolver.fillMissingLabels(rideRequest);
         rideRequest.setRideRequestStatus(RideRequestStatus.PENDING);
         rideRequest.setRider(rider);
         rideRequest.setTenantId(rider.getTenantId());

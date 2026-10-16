@@ -218,8 +218,23 @@ describe("shared UI foundation", () => {
     const markup = html(h(Sheet, { open: true, onOpenChange: vi.fn(), title: "New trip", description: "Enter trip details.", children: "Form" }));
     expect(markup).toContain('role="dialog"');
     expect(markup).toContain('aria-modal="true"');
+    expect(markup).toContain('data-modal="true"');
     expect(markup).toContain("Enter trip details.");
     expect(markup).toContain("Form");
+  });
+
+  it("leaves the page behind a non-modal sheet interactive", () => {
+    const markup = html(h(Sheet, {
+      open: true,
+      onOpenChange: vi.fn(),
+      title: "Plan a trip",
+      side: "bottom",
+      modal: false,
+      children: "Form",
+    }));
+    expect(markup).toContain('role="dialog"');
+    expect(markup).toContain('data-modal="false"');
+    expect(markup).not.toContain("aria-modal");
   });
 
   it("renders the live route status as an accessible alternative", () => {

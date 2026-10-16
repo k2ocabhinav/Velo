@@ -847,6 +847,7 @@ export default function RiderHomePage() {
         open={bookingOpen}
         onOpenChange={setBookingOpen}
         side="bottom"
+        modal={false}
         title={`Plan a ${words.tripWord}`}
         description="Choose locations on the map, then review your fare."
       >

@@ -1,8 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { Map as LeafletMap } from "leaflet";
 import { getFleetDriverVisualState, interpolateFleetPosition, shortestHeadingDelta } from "../src/composed/fleet-map/animation";
-import { fitFleetMap, focusZoom } from "../src/composed/fleet-map/camera";
+import {
+  DEFAULT_CENTER,
+  fitFleetMap,
+  fleetMapCameraPoints,
+  fleetMapCameraView,
+  focusZoom,
+  type FleetMapPoint,
+} from "../src/composed/fleet-map/camera";
 import { formatFleetLastUpdate } from "../src/composed/fleet-map/format";
+import type { FleetMapDriver, FleetMapRide } from "../src/composed/fleet-map/types";
 
 describe("fleet map marker animation", () => {
   it("maps driver statuses to semantic marker tones and preserves stale state", () => {
@@ -28,6 +36,48 @@ describe("fleet map marker animation", () => {
   });
 });
 
+type FakeLeafletMap = Pick<LeafletMap, "invalidateSize" | "setView" | "fitBounds" | "getZoom" | "setZoom">;
+
+function fakeMap(zoom: number): { map: FakeLeafletMap; calls: string[] } {
+  const calls: string[] = [];
+  return {
+    calls,
+    map: {
+      invalidateSize: () => { calls.push("invalidateSize"); },
+      setView: () => { calls.push("setView"); },
+      fitBounds: () => { calls.push("fitBounds"); },
+      getZoom: () => zoom,
+      setZoom: (next: number) => { calls.push(`setZoom:${next}`); },
+    } as unknown as FakeLeafletMap,
+  };
+}
+
+function driver(driverId: number, lat: number, lng: number): FleetMapDriver {
+  return {
+    driverId,
+    name: `Driver ${driverId}`,
+    vehiclePlate: `KA01AA${driverId}`,
+    rating: 4.8,
+    status: "AVAILABLE",
+    lat,
+    lng,
+    stale: false,
+    simulated: false,
+  };
+}
+
+function ride(rideRequestId: number, pickup: FleetMapPoint, dropOff: FleetMapPoint): FleetMapRide {
+  return {
+    rideId: null,
+    rideRequestId,
+    status: "REQUESTED",
+    riderName: "Rider",
+    pickup: { lat: pickup[0], lng: pickup[1] },
+    dropOff: { lat: dropOff[0], lng: dropOff[1] },
+    simulated: false,
+  };
+}
+
 describe("fleet map camera", () => {
   it("focuses row selections at context zoom while preserving closer views", () => {
     expect(focusZoom(12)).toBe(14);
@@ -35,17 +85,61 @@ describe("fleet map camera", () => {
     expect(focusZoom(17)).toBe(17);
   });
 
-  it("refreshes the measured map size before fitting the first snapshot", () => {
-    const calls: string[] = [];
-    const map = {
-      invalidateSize: () => { calls.push("invalidateSize"); },
-      setView: () => { calls.push("setView"); },
-      fitBounds: () => { calls.push("fitBounds"); },
-    };
+  it("frames drivers and open-trip pickups, adding a drop-off only for the selected trip", () => {
+    const drivers = [driver(1, 12.97, 77.59)];
+    const rides = [
+      ride(31, [12.98, 77.6], [13.1989, 77.7068]),
+      ride(32, [12.95, 77.62], [12.9, 77.68]),
+    ];
 
-    fitFleetMap(map as unknown as Pick<LeafletMap, "invalidateSize" | "setView" | "fitBounds">, [[12.9, 77.5], [13.1, 77.7]]);
+    expect(fleetMapCameraPoints({ drivers, rides })).toEqual([[12.97, 77.59], [12.98, 77.6], [12.95, 77.62]]);
+    expect(fleetMapCameraPoints({ drivers, rides, selection: { type: "ride", id: 32 } })).toEqual([
+      [12.97, 77.59], [12.98, 77.6], [12.95, 77.62], [12.9, 77.68],
+    ]);
+    expect(fleetMapCameraPoints({ drivers, rides, selection: { type: "driver", id: 1 } })).toEqual([
+      [12.97, 77.59], [12.98, 77.6], [12.95, 77.62],
+    ]);
+  });
+
+  it("centres the camera on one cluster instead of zooming past it", () => {
+    expect(fleetMapCameraView([])).toEqual({ kind: "center", center: DEFAULT_CENTER, zoom: 12 });
+    expect(fleetMapCameraView([[12.97, 77.59]])).toEqual({ kind: "center", center: [12.97, 77.59], zoom: 13 });
+
+    const cluster: FleetMapPoint[] = [[12.97, 77.59], [12.975, 77.6]];
+    expect(fleetMapCameraView(cluster)).toEqual({
+      kind: "center",
+      center: [(12.97 + 12.975) / 2, (77.59 + 77.6) / 2],
+      zoom: 13,
+    });
+  });
+
+  it("fits bounds when the fleet is spread out", () => {
+    const points: FleetMapPoint[] = [[12.9, 77.5], [13.2, 77.71]];
+    expect(fleetMapCameraView(points)).toEqual({ kind: "bounds", points });
+  });
+
+  it("refreshes the measured map size before fitting the first snapshot", () => {
+    const { map, calls } = fakeMap(12);
+
+    fitFleetMap(map, [[12.9, 77.5], [13.2, 77.71]]);
 
     expect(calls).toEqual(["invalidateSize", "fitBounds"]);
+  });
+
+  it("never zooms out further than the city view", () => {
+    const { map, calls } = fakeMap(9);
+
+    fitFleetMap(map, [[12.9, 77.5], [13.6, 78.1]]);
+
+    expect(calls).toEqual(["invalidateSize", "fitBounds", "setZoom:11"]);
+  });
+
+  it("recentres a single cluster without a bounds fit", () => {
+    const { map, calls } = fakeMap(9);
+
+    fitFleetMap(map, [[12.97, 77.59], [12.975, 77.6]]);
+
+    expect(calls).toEqual(["invalidateSize", "setView"]);
   });
 });
 
