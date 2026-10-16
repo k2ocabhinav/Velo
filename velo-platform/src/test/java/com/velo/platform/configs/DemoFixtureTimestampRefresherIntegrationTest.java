@@ -668,11 +668,6 @@ class DemoFixtureTimestampRefresherIntegrationTest {
         return jdbcTemplate.queryForObject("SELECT ride_status FROM ride WHERE id = ?", String.class, rideId);
     }
 
-    private LocalDateTime scheduledTimeOf(long requestId) {
-        return jdbcTemplate.queryForObject(
-                "SELECT scheduled_time FROM ride_request WHERE id = ?", LocalDateTime.class, requestId);
-    }
-
     private BigDecimal fareOf(long rideId) {
         return jdbcTemplate.queryForObject("SELECT fare FROM ride WHERE id = ?", BigDecimal.class, rideId);
     }
