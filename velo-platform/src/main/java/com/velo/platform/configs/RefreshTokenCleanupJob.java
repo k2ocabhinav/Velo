@@ -1,5 +1,6 @@
 package com.velo.platform.configs;
 
+import com.velo.platform.utils.UtcTimes;
 import com.velo.platform.entities.Tenant;
 import com.velo.platform.repositories.RefreshTokenRepository;
 import com.velo.platform.repositories.TenantRepository;
@@ -30,7 +31,7 @@ public class RefreshTokenCleanupJob {
     @Scheduled(fixedDelayString = "${auth.refresh-token.cleanup-interval-ms:3600000}")
     @Transactional
     public void deleteExpiredAndLongRevokedTokens() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = UtcTimes.now();
         LocalDateTime revokedBefore = now.minus(revokedRetention);
         int deleted = 0;
         for (Tenant tenant : tenantRepository.findAllByOrderByIdAsc()) {

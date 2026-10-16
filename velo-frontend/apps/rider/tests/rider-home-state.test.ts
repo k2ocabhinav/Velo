@@ -163,6 +163,12 @@ describe("resolvePendingRequestExpiryMs", () => {
     expect(expiresAtMs).toBe(new Date("2026-04-08T10:01:30.000Z").getTime());
   });
 
+  it("treats a zone-less server deadline as UTC", () => {
+    expect(resolvePendingRequestExpiryMs({ expiresAt: "2026-04-08T10:01:30" }, 45_000)).toBe(
+      new Date("2026-04-08T10:01:30Z").getTime(),
+    );
+  });
+
   it("falls back to the created time plus the offer TTL when the backend omits a deadline", () => {
     const expiresAtMs = resolvePendingRequestExpiryMs(
       {

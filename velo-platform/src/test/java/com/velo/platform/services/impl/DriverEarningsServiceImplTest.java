@@ -1,5 +1,6 @@
 package com.velo.platform.services.impl;
 
+import com.velo.platform.utils.UtcTimes;
 import com.velo.platform.configs.PlatformConfig;
 import com.velo.platform.dto.EarningsSummaryDto;
 import com.velo.platform.entities.Driver;
@@ -90,7 +91,7 @@ class DriverEarningsServiceImplTest {
     void getDailySummary_ShouldReturnSummary() {
         mockSecurityContext();
 
-        LocalDate today = LocalDate.now();
+        LocalDate today = UtcTimes.today();
         EarningsSummaryDto expectedSummary = new EarningsSummaryDto(
             BigDecimal.valueOf(100.0), 
             BigDecimal.valueOf(30.0), 
@@ -115,7 +116,7 @@ class DriverEarningsServiceImplTest {
     void getDailySummary_ShouldReturnEmpty_WhenNoRides() {
         mockSecurityContext();
 
-        LocalDate today = LocalDate.now();
+        LocalDate today = UtcTimes.today();
         when(driverEarningRepository.getEarningsSummary(eq(driver), any(LocalDateTime.class), any(LocalDateTime.class)))
                 .thenReturn(null);
 

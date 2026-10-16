@@ -1,5 +1,6 @@
 package com.velo.platform.advices;
 
+import com.velo.platform.utils.UtcTimes;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -13,7 +14,7 @@ public class ApiResponse<T> {
     private ApiError error;
 
     public ApiResponse() {
-        this.timeStamp = LocalDateTime.now();
+        this.timeStamp = UtcTimes.now();
     }
 
     public ApiResponse(T data) {

@@ -218,7 +218,7 @@ public class RiderServiceImpl implements RiderService {
             throw new RuntimeConflictException("Ride status is not ONGOING hence cannot be ended, status: " + ride.getRideStatus());
         }
 
-        ride.setEndedAt(LocalDateTime.now());
+        ride.setEndedAt(UtcTimes.now());
         Ride savedRide = rideService.updateRideStatus(ride, RideStatus.ENDED);
         driverService.updateDriverAvailability(savedRide.getDriver(), true);
         paymentService.processPayment(savedRide);
@@ -420,7 +420,7 @@ public class RiderServiceImpl implements RiderService {
         trackingDto.setStatus(rideRequest.getRideRequestStatus() == null ? null : rideRequest.getRideRequestStatus().name());
         trackingDto.setPickupLocation(toPointDto(rideRequest.getPickupLocation()));
         trackingDto.setDropOffLocation(toPointDto(rideRequest.getDropOffLocation()));
-        trackingDto.setUpdatedAt(rideRequest.getRequestedTime() == null ? LocalDateTime.now() : rideRequest.getRequestedTime());
+        trackingDto.setUpdatedAt(rideRequest.getRequestedTime() == null ? UtcTimes.now() : rideRequest.getRequestedTime());
         trackingDto.setCanCancel(true);
         return trackingDto;
     }
@@ -452,7 +452,7 @@ public class RiderServiceImpl implements RiderService {
         if (ride.getCreatedTime() != null) {
             return ride.getCreatedTime();
         }
-        return LocalDateTime.now();
+        return UtcTimes.now();
     }
 
     private Long resolveTenantId(Long tenantId) {

@@ -1,5 +1,6 @@
 package com.velo.platform.services.impl;
 
+import com.velo.platform.utils.UtcTimes;
 import com.velo.platform.dto.admin.AdminStatsDto;
 import com.velo.platform.dto.admin.AdminUserDto;
 import com.velo.platform.dto.admin.DashboardDto;
@@ -130,7 +131,7 @@ public class AdminServiceImpl implements AdminService {
     @Override
     @Transactional(readOnly = true)
     public List<TopDriverRevenueDto> getTopDriversByRevenue(int days) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = UtcTimes.today();
         LocalDateTime startDate = today.minusDays(days - 1L).atStartOfDay();
         LocalDateTime endDate = today.plusDays(1).atStartOfDay();
         return driverEarningRepository.findTopDriversByNetEarnings(

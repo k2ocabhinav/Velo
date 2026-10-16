@@ -590,7 +590,7 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
                 .pendingRideRequests(rideRequestRepository.countByTenantIdAndRideRequestStatus(tenantId, RideRequestStatus.PENDING))
                 .dispatchQueueDepth(rideOfferService.countOpenOffers(tenantId))
                 .expiredOfferCount(rideOfferService.countExpiredOffers(tenantId))
-                .updatedAt(LocalDateTime.now())
+                .updatedAt(UtcTimes.now())
                 .build();
     }
 

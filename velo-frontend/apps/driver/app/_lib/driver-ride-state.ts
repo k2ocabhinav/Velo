@@ -1,5 +1,6 @@
 import type { DecimalValue, DriverRide, PointDto, SpringPage } from "./driver-client";
 import type { MapPoint } from "./map/routing";
+import { parseApiTimestamp } from "@velo/app-core/formatters";
 
 const ACTIVE_DRIVER_RIDE_STATUSES = new Set(["CONFIRMED", "ONGOING"]);
 
@@ -13,7 +14,7 @@ function getRideTimestamp(ride: DriverRide): number {
     return 0;
   }
 
-  const parsed = new Date(timeCandidate);
+  const parsed = parseApiTimestamp(timeCandidate);
   return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
 }
 
@@ -72,7 +73,7 @@ export function getDriverRideTimeLabel(ride: DriverRide): string {
     return "--";
   }
 
-  const parsed = new Date(timestamp);
+  const parsed = parseApiTimestamp(timestamp);
   if (Number.isNaN(parsed.getTime())) {
     return "--";
   }

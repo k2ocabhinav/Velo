@@ -48,6 +48,16 @@ function yearInTimeZone(date: Date, locale: string, timeZone?: string): number {
   return Number(year);
 }
 
+/** API timestamps without an offset are UTC wall times by the backend contract. */
+export function parseApiTimestamp(value: Date | string | number): Date {
+  if (value instanceof Date || typeof value === "number") return new Date(value);
+
+  const timestamp = value.includes("T") && !/(?:Z|[+-]\d{2}(?::?\d{2})?)$/i.test(value)
+    ? `${value}Z`
+    : value;
+  return new Date(timestamp);
+}
+
 /**
  * Use a short relative minute label for values within 24 hours. Absolute dates
  * render in `timeZone` when provided (otherwise the runtime's local zone), so
@@ -61,12 +71,12 @@ export function formatDateTime(
 ): string {
   if (value === null || value === undefined || value === "") return "—";
 
-  const date = value instanceof Date ? value : new Date(value);
+  const date = parseApiTimestamp(value);
   if (!Number.isFinite(date.getTime()) || !Number.isFinite(now.getTime())) return "—";
 
   const deltaMs = date.getTime() - now.getTime();
   if (Math.abs(deltaMs) < 24 * 60 * 60 * 1000) {
-    if (deltaMs === 0) return "now";
+    if (deltaMs >= -60_000 && deltaMs <= 0) return "just now";
     const absoluteDelta = Math.abs(deltaMs);
     if (absoluteDelta < 60 * 60 * 1000) {
       const minutes = deltaMs > 0

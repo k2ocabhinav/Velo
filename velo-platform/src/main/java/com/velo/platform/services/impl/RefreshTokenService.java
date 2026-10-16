@@ -1,5 +1,6 @@
 package com.velo.platform.services.impl;
 
+import com.velo.platform.utils.UtcTimes;
 import com.velo.platform.entities.User;
 import com.velo.platform.exceptions.InvalidRefreshTokenException;
 import com.velo.platform.security.JwtTokenProvider;
@@ -39,7 +40,7 @@ public class RefreshTokenService {
         String rawToken = newRawToken();
         Long tenantId = user.getTenantId() == null ? DEFAULT_TENANT_ID : user.getTenantId();
         refreshTokenStore.create(hash(rawToken), UUID.randomUUID().toString(), user, tenantId,
-                LocalDateTime.now().plus(tokenTtl));
+                UtcTimes.now().plus(tokenTtl));
         return rawToken;
     }
 
@@ -48,7 +49,7 @@ public class RefreshTokenService {
         if (rawToken == null || rawToken.isBlank()) {
             throw new InvalidRefreshTokenException();
         }
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = UtcTimes.now();
         String nextRawToken = newRawToken();
         RefreshTokenStore.RotationResult result = refreshTokenStore.rotate(
                 hash(rawToken), hash(nextRawToken), now, now.plus(tokenTtl), rotationGraceWindow);
@@ -76,13 +77,13 @@ public class RefreshTokenService {
 
     public void revoke(String rawToken) {
         if (rawToken != null && !rawToken.isBlank()) {
-            refreshTokenStore.revoke(hash(rawToken), LocalDateTime.now());
+            refreshTokenStore.revoke(hash(rawToken), UtcTimes.now());
         }
     }
 
     public void revokeAllForUser(Long userId, Long tenantId) {
         refreshTokenStore.revokeAllForUser(userId,
-                tenantId == null ? DEFAULT_TENANT_ID : tenantId, LocalDateTime.now());
+                tenantId == null ? DEFAULT_TENANT_ID : tenantId, UtcTimes.now());
     }
 
     private String newRawToken() {

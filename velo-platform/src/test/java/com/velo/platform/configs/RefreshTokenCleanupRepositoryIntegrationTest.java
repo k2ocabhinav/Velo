@@ -1,5 +1,6 @@
 package com.velo.platform.configs;
 
+import com.velo.platform.utils.UtcTimes;
 import com.velo.platform.entities.RefreshToken;
 import com.velo.platform.entities.User;
 import com.velo.platform.entities.enums.Role;
@@ -36,7 +37,7 @@ class RefreshTokenCleanupRepositoryIntegrationTest {
                 .tenantId(1L)
                 .roles(Set.of(Role.RIDER))
                 .build());
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = UtcTimes.now();
         LocalDateTime revokedBefore = now.minusDays(30);
         refreshTokenRepository.saveAll(List.of(
                 token("cleanup-expired-1", user, 1L, now.minusSeconds(5), null),

@@ -1,5 +1,6 @@
 package com.velo.platform.services.impl;
 
+import com.velo.platform.utils.UtcTimes;
 import com.velo.platform.dto.PromoCodeDto;
 import com.velo.platform.dto.PromoCodeResultDto;
 import com.velo.platform.entities.PromoCode;
@@ -111,7 +112,7 @@ public class PromoCodeServiceImpl implements PromoCodeService {
             throw new RuntimeConflictException("Promo code is inactive");
         }
 
-        LocalDate now = LocalDate.now();
+        LocalDate now = UtcTimes.today();
         if (promoCode.getStartDate() != null && now.isBefore(promoCode.getStartDate())) {
             throw new RuntimeConflictException("Promo code is not yet valid");
         }
@@ -153,7 +154,7 @@ public class PromoCodeServiceImpl implements PromoCodeService {
                     .promoCode(promoCode)
                     .user(user)
                     .discountApplied(discountAmount)
-                    .usedAt(LocalDateTime.now())
+                    .usedAt(UtcTimes.now())
                     .build();
             try {
                 promoCodeUsageRepository.save(usage);
@@ -181,7 +182,7 @@ public class PromoCodeServiceImpl implements PromoCodeService {
     @Transactional(readOnly = true)
     public List<PromoCodeDto> getActivePromoCodes() {
         return promoCodeRepository.findByTenantIdAndActiveTrue(currentTenantId()).stream()
-                .filter(p -> p.getEndDate() == null || !LocalDate.now().isAfter(p.getEndDate()))
+                .filter(p -> p.getEndDate() == null || !UtcTimes.today().isAfter(p.getEndDate()))
                 .map(p -> modelMapper.map(p, PromoCodeDto.class))
                 .collect(Collectors.toList());
     }

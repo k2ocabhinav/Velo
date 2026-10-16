@@ -239,7 +239,7 @@ SET customer_name = concat(app_user.first_name, ' ', app_user.last_name),
     END,
     pickup_address = CASE WHEN request.id = 2 THEN 'Taj West End, Bengaluru' ELSE 'Indiranagar Metro, Bengaluru' END,
     drop_off_address = CASE WHEN request.id = 2 THEN 'UB City, Bengaluru' ELSE 'Kempegowda International Airport, Terminal 1' END,
-    scheduled_time = (NOW() AT TIME ZONE 'UTC') + ((request.id % 3) + 1) * INTERVAL '1 day',
+    scheduled_time = NOW() + ((request.id % 3) + 1) * INTERVAL '1 day',
     external_reference = CASE app_user.email
         WHEN 'alice@example.com' THEN 'DEMO-VELO-SCHEDULED-01'
         WHEN 'frank@example.com' THEN 'DEMO-VELO-SCHEDULED-02'
@@ -263,7 +263,7 @@ INSERT INTO ride_request (
 )
 SELECT ST_SetSRID(ST_MakePoint(77.6408, 12.9784), 4326),
        ST_SetSRID(ST_MakePoint(77.7060, 13.1986), 4326), NOW(),
-       (NOW() AT TIME ZONE 'UTC') + INTERVAL '3 days', rider.id, 'WALLET', 'SCHEDULED',
+       NOW() + INTERVAL '3 days', rider.id, 'WALLET', 'SCHEDULED',
        0.00::NUMERIC, 0, tenant.id, concat(app_user.first_name, ' ', app_user.last_name), app_user.phone_number,
        'Indiranagar Metro, Bengaluru', 'Kempegowda International Airport, Terminal 1', 'DEMO-VELO-SCHEDULED-02'
 FROM tenant
@@ -279,7 +279,7 @@ INSERT INTO ride_request (
 )
 SELECT ST_SetSRID(ST_MakePoint(seed.pickup_lon, seed.pickup_lat), 4326),
        ST_SetSRID(ST_MakePoint(seed.drop_lon, seed.drop_lat), 4326), NOW(),
-       (NOW() AT TIME ZONE 'UTC') + seed.advance_days * INTERVAL '1 day', rider.id, 'WALLET', 'SCHEDULED',
+       NOW() + seed.advance_days * INTERVAL '1 day', rider.id, 'WALLET', 'SCHEDULED',
        seed.fare, 0, tenant.id, seed.customer_name, app_user.phone_number,
        seed.pickup_address, seed.drop_address, seed.external_reference
 FROM (VALUES

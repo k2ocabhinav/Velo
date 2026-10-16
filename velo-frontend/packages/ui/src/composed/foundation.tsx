@@ -11,7 +11,7 @@ import {
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
 } from "react";
-import { formatDateTime, formatMoney } from "@velo/app-core/formatters";
+import { formatDateTime, formatMoney, parseApiTimestamp } from "@velo/app-core/formatters";
 import { useTenantBrandingOrDefault } from "../theme/tenant-branding-provider";
 import { cn } from "../lib/cn";
 import { Skeleton as GenericSkeleton } from "../feedback/skeleton";
@@ -270,7 +270,7 @@ export function DateTime({
   className?: string;
 }) {
   const text = formatDateTime(value, now, locale, timeZone);
-  const date = value instanceof Date ? value : value === null || value === undefined ? undefined : new Date(value);
+  const date = value === null || value === undefined ? undefined : parseApiTimestamp(value);
   return (
     <time className={className} dateTime={date && Number.isFinite(date.getTime()) ? date.toISOString() : undefined}>
       {text}

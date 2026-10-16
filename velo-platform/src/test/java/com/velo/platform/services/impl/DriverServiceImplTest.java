@@ -1,5 +1,6 @@
 package com.velo.platform.services.impl;
 
+import com.velo.platform.utils.UtcTimes;
 import com.velo.platform.dto.DriverDto;
 import com.velo.platform.dto.DriverLocationDto;
 import com.velo.platform.dto.DriverLocationUpdateRequestDto;
@@ -419,7 +420,7 @@ class DriverServiceImplTest {
     void endRide_WithOngoingStatus_ShouldEndRideAndProcessPayment() {
         mockAuthenticatedDriver();
         testRide.setRideStatus(RideStatus.ONGOING);
-        testRide.setStartedAt(LocalDateTime.now());
+        testRide.setStartedAt(UtcTimes.now());
 
         when(rideService.getRideById(1L)).thenReturn(testRide);
         when(rideService.updateRideStatus(testRide, RideStatus.ENDED)).thenReturn(testRide);
@@ -677,7 +678,7 @@ class DriverServiceImplTest {
         DriverLocationUpdateRequestDto request = new DriverLocationUpdateRequestDto();
         request.setLat(12.9610);
         request.setLng(77.6011);
-        request.setCapturedAt(LocalDateTime.now());
+        request.setCapturedAt(UtcTimes.now());
 
         when(driverRepository.save(any(Driver.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(rideRepository.findTopByDriverAndRideStatusInOrderByCreatedTimeDesc(

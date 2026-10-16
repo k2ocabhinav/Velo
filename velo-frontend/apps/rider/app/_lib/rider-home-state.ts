@@ -1,5 +1,6 @@
 import type { DecimalValue, SpringPage } from "./rider-client";
 import type { ISODateTime } from "@velo/api";
+import { parseApiTimestamp } from "@velo/app-core/formatters";
 
 export type RiderHomeRide = {
   id: number;
@@ -74,7 +75,7 @@ function getRideTimestamp(ride: RiderHomeRide): number {
     return 0;
   }
 
-  const parsed = new Date(primary);
+  const parsed = parseApiTimestamp(primary);
   return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
 }
 
@@ -117,9 +118,9 @@ export function getRideStatusLabel(status: string | null | undefined): string {
 }
 
 export function getRideTimeLabel(ride: RiderHomeRide): string {
-  const created = ride.createdTime ? new Date(ride.createdTime) : null;
-  const started = ride.startedAt ? new Date(ride.startedAt) : null;
-  const ended = ride.endedAt ? new Date(ride.endedAt) : null;
+  const created = ride.createdTime ? parseApiTimestamp(ride.createdTime) : null;
+  const started = ride.startedAt ? parseApiTimestamp(ride.startedAt) : null;
+  const ended = ride.endedAt ? parseApiTimestamp(ride.endedAt) : null;
 
   const time = started ?? created ?? ended;
   if (!time || Number.isNaN(time.getTime())) {
@@ -134,7 +135,7 @@ function getPendingRequestTimeLabel(request: RiderHomePendingRequest): string {
     return "--";
   }
 
-  const parsed = new Date(request.createdTime);
+  const parsed = parseApiTimestamp(request.createdTime);
   if (Number.isNaN(parsed.getTime())) {
     return "--";
   }
@@ -230,7 +231,7 @@ export function resolvePendingRequestExpiryMs(
 ): number | null {
   const expiresAt = request?.expiresAt;
   if (expiresAt) {
-    const expiresMs = new Date(expiresAt).getTime();
+    const expiresMs = parseApiTimestamp(expiresAt).getTime();
     if (Number.isFinite(expiresMs)) {
       return expiresMs;
     }
@@ -241,7 +242,7 @@ export function resolvePendingRequestExpiryMs(
     return null;
   }
 
-  const createdMs = new Date(createdTime).getTime();
+  const createdMs = parseApiTimestamp(createdTime).getTime();
   if (!Number.isFinite(createdMs)) {
     return null;
   }

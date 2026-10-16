@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ErrorState, LiveStatusPill, ReconnectingIndicator } from "@velo/ui";
 import { useTenantBrandingOrDefault } from "@velo/ui/theme";
 import { getTenantLabelForCount, getTenantPluralLabel, getTenantPluralTripLabel } from "@velo/app-core/tenant";
+import { parseApiTimestamp } from "@velo/app-core/formatters";
 import type { AdminLiveDispatchSnapshotDto } from "@velo/api/types";
 import type { FleetMapFocusRequest, FleetMapSelection } from "@velo/ui/fleet-map";
 import { useLiveDispatch } from "./use-live-dispatch";
@@ -31,7 +32,7 @@ function openTripSignature(snapshot: AdminLiveDispatchSnapshotDto): string {
 
 function lastUpdateLabel(value: string | null | undefined, stale: boolean): string {
   if (!value) return "Last seen time unavailable";
-  const timestamp = new Date(value).getTime();
+  const timestamp = parseApiTimestamp(value).getTime();
   if (!Number.isFinite(timestamp)) return "Last seen time unavailable";
   const seconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1_000));
   const age = seconds < 60 ? `${seconds} s ago` : `${Math.floor(seconds / 60)} min ago`;

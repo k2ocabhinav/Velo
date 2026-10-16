@@ -1,5 +1,6 @@
 package com.velo.platform.services.impl;
 
+import com.velo.platform.utils.UtcTimes;
 import com.velo.platform.configs.FareConfig;
 import com.velo.platform.dto.FareEstimateDto;
 import com.velo.platform.dto.FareEstimateRequestDto;
@@ -100,7 +101,7 @@ public class FareEstimationServiceImpl implements FareEstimationService {
                 .distanceKm(distanceKm)
                 .durationMinutes(Math.toIntExact(Math.round(durationMins)))
                 .walletSufficient(walletSufficient)
-                .estimatedPickupTime(LocalDateTime.now().plusMinutes(10)) // Static stub for v1.1.0
+                .estimatedPickupTime(UtcTimes.now().plusMinutes(10)) // Static stub for v1.1.0
                 .applicablePromos(promoCodeService.getActivePromoCodes())
                 .build();
     }

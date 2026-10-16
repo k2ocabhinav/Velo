@@ -1,5 +1,6 @@
 package com.velo.platform.services.impl;
 
+import com.velo.platform.utils.UtcTimes;
 import com.velo.platform.configs.DispatchProperties;
 import com.velo.platform.dto.DriverDto;
 import com.velo.platform.dto.GeocodingResultDto;
@@ -515,7 +516,7 @@ class RiderServiceImplTest {
                 .rideStatus(RideStatus.CONFIRMED)
                 .pickupLocation(GeometryUtil.createPoint(new PointDto(new double[]{77.585, 12.97})))
                 .dropOffLocation(GeometryUtil.createPoint(new PointDto(new double[]{77.62, 12.94})))
-                .createdTime(LocalDateTime.now().minusMinutes(5))
+                .createdTime(UtcTimes.now().minusMinutes(5))
                 .build();
 
         when(rideRepository.findTopByRiderAndRideStatusInOrderByCreatedTimeDesc(
@@ -546,7 +547,7 @@ class RiderServiceImplTest {
                 .rideRequestStatus(RideRequestStatus.PENDING)
                 .pickupLocation(GeometryUtil.createPoint(new PointDto(new double[]{77.6, 12.96})))
                 .dropOffLocation(GeometryUtil.createPoint(new PointDto(new double[]{77.62, 12.99})))
-                .requestedTime(LocalDateTime.now().minusMinutes(2))
+                .requestedTime(UtcTimes.now().minusMinutes(2))
                 .build();
 
         when(rideRepository.findTopByRiderAndRideStatusInOrderByCreatedTimeDesc(

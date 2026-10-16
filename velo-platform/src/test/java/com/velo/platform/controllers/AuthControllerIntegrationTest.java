@@ -1,5 +1,6 @@
 package com.velo.platform.controllers;
 
+import com.velo.platform.utils.UtcTimes;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.velo.platform.config.TestSecurityConfig;
 import com.velo.platform.dto.SignupDto;
@@ -300,7 +301,7 @@ class AuthControllerIntegrationTest {
         createUser("expired-reset@test.com", "Expired Reset");
         requestPasswordReset("expired-reset@test.com");
         PasswordResetToken resetToken = passwordResetTokenRepository.findAll().get(0);
-        resetToken.setExpiryDate(LocalDateTime.now().minusMinutes(1));
+        resetToken.setExpiryDate(UtcTimes.now().minusMinutes(1));
         passwordResetTokenRepository.save(resetToken);
 
         mockMvc.perform(post("/auth/reset-password")
@@ -379,7 +380,7 @@ class AuthControllerIntegrationTest {
         var consumedToken = refreshTokenRepository.findAll().stream()
                 .filter(token -> token.getConsumedAt() != null)
                 .findFirst().orElseThrow();
-        consumedToken.setConsumedAt(LocalDateTime.now().minusSeconds(21));
+        consumedToken.setConsumedAt(UtcTimes.now().minusSeconds(21));
         refreshTokenRepository.saveAndFlush(consumedToken);
 
         mockMvc.perform(post("/auth/refresh")

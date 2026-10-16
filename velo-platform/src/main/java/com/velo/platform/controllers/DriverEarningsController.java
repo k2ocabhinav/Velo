@@ -1,5 +1,6 @@
 package com.velo.platform.controllers;
 
+import com.velo.platform.utils.UtcTimes;
 import com.velo.platform.dto.DriverEarningDto;
 import com.velo.platform.dto.EarningsSummaryDto;
 import com.velo.platform.dto.PayoutRequestDto;
@@ -50,7 +51,7 @@ public class DriverEarningsController {
     public ResponseEntity<EarningsSummaryDto> getEarningsSummary(
             @RequestParam(defaultValue = "DAILY") String period,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        if (date == null) date = LocalDate.now();
+        if (date == null) date = UtcTimes.today();
         
         return switch (period.toUpperCase()) {
             case "WEEKLY" -> ResponseEntity.ok(driverEarningsService.getWeeklySummary(date));
