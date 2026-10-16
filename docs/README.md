@@ -8,7 +8,7 @@ Single source of truth for the Velo project.
 |---|---|
 | [PRODUCT_VISION.md](PRODUCT_VISION.md) | What Velo is, who it's for, and where it's going |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Codebase structure, patterns, conventions, database setup |
-| [SWAGGER.md](SWAGGER.md) | API inventory — 79 operations across 9 groups |
+| [SWAGGER.md](SWAGGER.md) | API inventory — HTTP operations and endpoint groups |
 | [DEPLOYMENT.md](DEPLOYMENT.md) | Local dev, Docker Compose, AWS production architecture |
 
 ## Frontend
@@ -48,8 +48,8 @@ Single source of truth for the Velo project.
 
 ## Current State
 
-- Backend: Spring Boot 3.5.13 / Java 22 on PostgreSQL + PostGIS, 234 tests run (233 passing, 1 skipped).
-- Frontend: Turborepo monorepo (landing, admin, requester, driver) with shared packages and cookie-based BFF auth.
+- Backend: Spring Boot 3.5.13 / Java 21+ on PostgreSQL + PostGIS.
+- Frontend: Turborepo monorepo (landing, admin, rider, driver) with shared packages and cookie-based BFF auth.
 - Multi-tenant foundations are in place (tenant scoping + branding); production AWS deployment is not yet provisioned.
 - See `PROGRESS.md` for what's done and `decisions/` for why it's built that way.
 

@@ -163,6 +163,24 @@ class FlywayMigrationIntegrationTest {
     }
 
     @Test
+    @DisplayName("Repeatable demo seed restores realistic Velo Business names on existing rows, idempotently")
+    void repeatableSeed_shouldRenameExistingRowsIdempotently() throws Exception {
+        Flyway flyway = newFlyway(schemaName);
+        flyway.clean();
+        flyway.migrate();
+
+        assertVeloBusinessDisplayNames();
+
+        updateUserDisplayName("alice@example.com", "Alice", "Rider");
+        updateUserDisplayName("henry@example.com", "Henry", "Rider");
+        rerunTenantSeed(flyway);
+        assertVeloBusinessDisplayNames();
+
+        rerunTenantSeed(flyway);
+        assertVeloBusinessDisplayNames();
+    }
+
+    @Test
     @DisplayName("Production Flyway location excludes the demo seed")
     void productionLocation_ShouldExcludeDemoSeed() throws Exception {
         Flyway productionFlyway = newFlyway("classpath:db/migration", schemaName);
@@ -357,6 +375,50 @@ class FlywayMigrationIntegrationTest {
                 return resultSet.getLong(1);
             }
         }
+    }
+
+    private void assertVeloBusinessDisplayNames() throws Exception {
+        assertThat(userDisplayName("admin@velo-platform.com")).isEqualTo("Nadia Farouk");
+        assertThat(userDisplayName("alice@example.com")).isEqualTo("Alice Moreau");
+        assertThat(userDisplayName("bob.driver@example.com")).isEqualTo("Bob Lindqvist");
+        assertThat(userDisplayName("carol.driver@example.com")).isEqualTo("Carol Mendes");
+        assertThat(userDisplayName("dave@example.com")).isEqualTo("Dave Okafor");
+        assertThat(userDisplayName("henry@example.com")).isEqualTo("Henry Walsh");
+        assertThat(userDisplayName("frank@example.com")).isEqualTo("Frank Mensah");
+        assertThat(userDisplayName("eve.driver@example.com")).isEqualTo("Eve Petrov");
+        assertThat(userDisplayName("grace.driver@example.com")).isEqualTo("Grace Kim");
+    }
+
+    private String userDisplayName(String email) throws Exception {
+        try (Connection connection = DriverManager.getConnection(JDBC_URL, JDBC_USERNAME, JDBC_PASSWORD);
+             PreparedStatement statement = connection.prepareStatement(
+                     "SELECT first_name || ' ' || last_name FROM " + schemaName + ".app_user WHERE email = ?")) {
+            statement.setString(1, email);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                assertThat(resultSet.next()).as("seeded user %s exists", email).isTrue();
+                return resultSet.getString(1);
+            }
+        }
+    }
+
+    private void updateUserDisplayName(String email, String firstName, String lastName) throws Exception {
+        try (Connection connection = DriverManager.getConnection(JDBC_URL, JDBC_USERNAME, JDBC_PASSWORD);
+             PreparedStatement statement = connection.prepareStatement(
+                     "UPDATE " + schemaName + ".app_user SET first_name = ?, last_name = ? WHERE email = ?")) {
+            statement.setString(1, firstName);
+            statement.setString(2, lastName);
+            statement.setString(3, email);
+            statement.executeUpdate();
+        }
+    }
+
+    private void rerunTenantSeed(Flyway flyway) throws Exception {
+        try (Connection connection = DriverManager.getConnection(JDBC_URL, JDBC_USERNAME, JDBC_PASSWORD);
+             Statement statement = connection.createStatement()) {
+            statement.execute("DELETE FROM " + schemaName
+                    + ".flyway_schema_history WHERE script = 'R__demo_tenants.sql'");
+        }
+        flyway.migrate();
     }
 
     private long countTenantSlug(String slug) throws Exception {
