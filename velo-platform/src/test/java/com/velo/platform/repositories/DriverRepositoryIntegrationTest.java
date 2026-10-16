@@ -10,7 +10,6 @@ import com.velo.platform.entities.enums.Role;
 import com.velo.platform.strategies.impl.DriverMatchingHighestRatedDriverStrategy;
 import com.velo.platform.strategies.impl.DriverMatchingNearestDriverStrategy;
 import com.velo.platform.utils.GeometryUtil;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +19,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -34,11 +34,14 @@ class DriverRepositoryIntegrationTest {
     private static final double PICKUP_LONGITUDE = 77.5946;
     private static final double PICKUP_LATITUDE = 12.9716;
 
-    @BeforeEach
-    void setUp() {
-        driverRepository.deleteAll();
-        userRepository.deleteAll();
-    }
+    /*
+     * The test database is shared with every other @SpringBootTest and each Spring context manages
+     * the schema itself, so a global delete of app_user rows races with data committed by other test
+     * classes and fails on the rider -> app_user foreign key (test execution order is JVM/filesystem
+     * dependent). Every test method instead gets its own tenant id and only ever reads its own rows;
+     * the surrounding transaction rolls the rows back.
+     */
+    private final long tenantId = ThreadLocalRandom.current().nextLong(1_000_000L, 9_000_000L);
 
     @Test
     @DisplayName("findTenNearestDrivers should order by distance, ignore unavailable drivers, and cap the result set at ten")
@@ -57,7 +60,7 @@ class DriverRepositoryIntegrationTest {
         Driver unavailableDriver = persistDriver("nearest-unavailable@test.com", 0.0005, false, 5.0);
         Driver noLocationDriver = persistDriverWithoutLocation("nearest-null-location@test.com", true, 4.9);
 
-        List<Long> driverIds = driverRepository.findTenNearestDrivers(pickupLocation()).stream()
+        List<Long> driverIds = driverRepository.findTenNearestDrivers(pickupLocation(), tenantId, false).stream()
                 .map(Driver::getId)
                 .toList();
 
@@ -93,7 +96,7 @@ class DriverRepositoryIntegrationTest {
         Driver farAwayTopRatedDriver = persistDriver("top-rated-far-away@test.com", 0.2000, true, 5.0);
         Driver noLocationTopRatedDriver = persistDriverWithoutLocation("top-rated-null-location@test.com", true, 5.0);
 
-        List<Long> driverIds = driverRepository.findTenNearbyTopRatedDrivers(pickupLocation()).stream()
+        List<Long> driverIds = driverRepository.findTenNearbyTopRatedDrivers(pickupLocation(), tenantId, false).stream()
                 .map(Driver::getId)
                 .toList();
 
@@ -116,17 +119,17 @@ class DriverRepositoryIntegrationTest {
         Driver realDriver = persistDriver("matching-real@test.com", 0.001, true, 4.8, false);
         Driver simulatedDriver = persistDriver("matching-sim@test.com", 0.002, true, 4.9, true);
 
-        assertThat(driverRepository.findTenNearestDrivers(pickupLocation(), 1L, false))
+        assertThat(driverRepository.findTenNearestDrivers(pickupLocation(), tenantId, false))
                 .extracting(Driver::getId).contains(realDriver.getId()).doesNotContain(simulatedDriver.getId());
-        assertThat(driverRepository.findTenNearestDrivers(pickupLocation(), 1L, true))
+        assertThat(driverRepository.findTenNearestDrivers(pickupLocation(), tenantId, true))
                 .extracting(Driver::getId).contains(simulatedDriver.getId()).doesNotContain(realDriver.getId());
-        assertThat(driverRepository.findTenNearbyTopRatedDrivers(pickupLocation(), 1L, false))
+        assertThat(driverRepository.findTenNearbyTopRatedDrivers(pickupLocation(), tenantId, false))
                 .extracting(Driver::getId).contains(realDriver.getId()).doesNotContain(simulatedDriver.getId());
-        assertThat(driverRepository.findTenNearbyTopRatedDrivers(pickupLocation(), 1L, true))
+        assertThat(driverRepository.findTenNearbyTopRatedDrivers(pickupLocation(), tenantId, true))
                 .extracting(Driver::getId).contains(simulatedDriver.getId()).doesNotContain(realDriver.getId());
-        assertThat(driverRepository.findFallbackDrivers(1L, 10, false))
+        assertThat(driverRepository.findFallbackDrivers(tenantId, 10, false))
                 .extracting(Driver::getId).contains(realDriver.getId()).doesNotContain(simulatedDriver.getId());
-        assertThat(driverRepository.findFallbackDrivers(1L, 10, true))
+        assertThat(driverRepository.findFallbackDrivers(tenantId, 10, true))
                 .extracting(Driver::getId).contains(simulatedDriver.getId()).doesNotContain(realDriver.getId());
 
         DriverMatchingNearestDriverStrategy nearestStrategy = new DriverMatchingNearestDriverStrategy(driverRepository);
@@ -144,7 +147,7 @@ class DriverRepositoryIntegrationTest {
     private RideRequest requestFor(boolean simulated) {
         User riderUser = User.builder().simulated(simulated).build();
         return RideRequest.builder()
-                .tenantId(1L)
+                .tenantId(tenantId)
                 .pickupLocation(pickupLocation())
                 .rider(Rider.builder().user(riderUser).build())
                 .build();
@@ -163,10 +166,12 @@ class DriverRepositoryIntegrationTest {
         user.setRoles(Set.of(Role.DRIVER));
         user.setActive(true);
         user.setSimulated(simulated);
+        user.setTenantId(tenantId);
         user = userRepository.saveAndFlush(user);
 
         Driver driver = new Driver();
         driver.setUser(user);
+        driver.setTenantId(tenantId);
         driver.setAvailable(available);
         driver.setRating(rating);
         driver.setVehicleId(email.replace("@test.com", "").toUpperCase());
@@ -186,10 +191,12 @@ class DriverRepositoryIntegrationTest {
         user.setLastName("Driver");
         user.setRoles(Set.of(Role.DRIVER));
         user.setActive(true);
+        user.setTenantId(tenantId);
         user = userRepository.saveAndFlush(user);
 
         Driver driver = new Driver();
         driver.setUser(user);
+        driver.setTenantId(tenantId);
         driver.setAvailable(available);
         driver.setRating(rating);
         driver.setVehicleId(email.replace("@test.com", "").toUpperCase());
