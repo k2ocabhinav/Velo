@@ -9,6 +9,8 @@ export type RiderHomeRide = {
   startedAt?: string | null;
   endedAt?: string | null;
   fare?: DecimalValue | null;
+  /** True once this ride's driver has been rated by the rider. */
+  driverRated?: boolean;
 };
 
 export type RiderHomePendingRequest = Readonly<{
@@ -34,10 +36,23 @@ export function shouldShowTripBanner(lane: RiderHomeTripLane): boolean {
   return lane.mode === "active" || lane.mode === "pending";
 }
 
+/**
+ * True when the rider has no active trip and their most recent completed ride
+ * is still unrated, so home can prompt them to rate it.
+ */
+export function shouldPromptRating(lane: RiderHomeTripLane): boolean {
+  return lane.mode === "recent" && isCompletedRideStatus(lane.ride?.rideStatus) && lane.ride?.driverRated !== true;
+}
+
+export function isCompletedRideStatus(status: string | null | undefined): boolean {
+  return COMPLETED_STATUSES.has(normalizeStatus(status));
+}
+
 const ACTIVE_STATUSES = new Set(["CONFIRMED", "ONGOING"]);
 const CANCELLABLE_STATUSES = new Set(["CONFIRMED"]);
 const PENDING_REQUEST_STATUSES = new Set(["PENDING", "CONFIRMED", "SCHEDULED"]);
 const REQUEST_BLOCKING_STATUSES = new Set(["PENDING", "CONFIRMED"]);
+const COMPLETED_STATUSES = new Set(["ENDED", "COMPLETED"]);
 
 function normalizeStatus(status: string | null | undefined): string {
   return (status ?? "").toUpperCase();

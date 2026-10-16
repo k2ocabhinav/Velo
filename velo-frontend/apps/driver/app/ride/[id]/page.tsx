@@ -316,7 +316,10 @@ export default function DriverRidePage() {
             {canEnd ? <Button className="driver-action-button" loading={pendingAction === "END"} onClick={() => void endRide()}>{`Complete ${words.tripWord}`}</Button> : null}
             {!canEnterStartDetails && !canEnd ? <p className="helper">{`No ${words.tripWord} action is needed right now.`}</p> : null}
             {canCancel ? <Button variant="secondary" className="driver-action-button" onClick={() => setCancelDialogOpen(true)}>{`Cancel ${words.tripWord}`}</Button> : null}
-            {ride.rider && status === "ENDED" ? (
+            {ride.rider && status === "ENDED" && ratingAlreadySubmitted ? (
+              <p className="helper" role="status">{`You rated this ${words.riderWord}.`}</p>
+            ) : null}
+            {ride.rider && status === "ENDED" && !ratingAlreadySubmitted ? (
               <div className="driver-actions">
                 <Field label={`Rate ${words.riderWord}`}>
                   <Select value={ratingValue} onChange={(event) => setRatingValue(event.target.value)}>
@@ -328,7 +331,7 @@ export default function DriverRidePage() {
                   </Select>
                 </Field>
                 <Button variant="secondary" disabled={!canRate} loading={submittingRating} onClick={() => void rateRider()}>
-                  {ratingAlreadySubmitted ? "Rated" : "Submit rating"}
+                  Submit rating
                 </Button>
               </div>
             ) : null}

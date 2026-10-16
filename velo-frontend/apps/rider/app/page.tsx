@@ -23,6 +23,7 @@ import {
   hasInFlightRideRequest,
   resolvePendingRequestExpiryMs,
   shouldShowTripBanner,
+  shouldPromptRating,
   selectTripLaneRide,
   type RiderHomeRide,
   type RiderHomeTripLane,
@@ -858,6 +859,16 @@ export default function RiderHomePage() {
                   {`Cancel ${words.tripWord} request`}
                 </Button>
               ) : null}
+            </div>
+          </section>
+        ) : shouldPromptRating(tripLane) ? (
+          <section className="trip-banner" aria-label={`Rate your last ${words.tripWord}`}>
+            <div className="trip-banner-copy">
+              <strong>{`Rate your last ${words.tripWord}`}</strong>
+              <p>{`Tell us how your ${words.tripWord} with the ${words.driverWord} went.`}</p>
+            </div>
+            <div className="trip-banner-actions">
+              <Link className="ui-button" data-variant="primary" href="/rides">{`Rate ${words.driverWord}`}</Link>
             </div>
           </section>
         ) : null}

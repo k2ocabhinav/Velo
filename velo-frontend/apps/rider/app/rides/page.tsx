@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { isActionPending, setActionPending } from "@velo/app-core/async-actions";
 import { getTenantLabelWords } from "@velo/app-core/tenant";
@@ -72,6 +72,7 @@ export default function RiderRidesPage() {
   const [pendingActions, setPendingActions] = useState<Record<string, boolean>>({});
   const [ratingByRideId, setRatingByRideId] = useState<Record<number, string>>({});
   const [filter, setFilter] = useState<"upcoming" | "past">("upcoming");
+  const filterInitializedRef = useRef(false);
   const [cancelRideId, setCancelRideId] = useState<number | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -90,6 +91,12 @@ export default function RiderRidesPage() {
       setRides(parsed.content);
       setPage(parsed.number);
       setTotalPages(parsed.totalPages);
+      if (!filterInitializedRef.current) {
+        filterInitializedRef.current = true;
+        const hasUpcoming = parsed.content.some((ride) => !PAST_STATUSES.has(ride.rideStatus.toUpperCase()));
+        const hasPast = parsed.content.some((ride) => PAST_STATUSES.has(ride.rideStatus.toUpperCase()));
+        if (!hasUpcoming && hasPast) setFilter("past");
+      }
     } catch (loadError) {
       setLoadError(loadError instanceof Error ? mapApiError({ error: loadError.message }, `Couldn't load your ${words.tripsWord}.`) : `Couldn't load your ${words.tripsWord}.`);
     } finally {
