@@ -16,11 +16,10 @@ export const siteConfig = {
 } as const;
 
 /**
- * Single source for the numbers in the "What you can verify today" strip.
- * Keep these accurate: they are a claim on the page.
+ * Single source for the "What you can verify today" strip.
+ * Keep it accurate: every value here is a claim on the page.
  */
 export const verifyFacts = {
-  landingChecksPassed: 6,
   landingChecksVerifiedOn: "2026-10-15",
   demoTenants: ["Velo Business", "Saffron Routes"],
 } as const;
@@ -99,7 +98,7 @@ export const landingCopy = {
     backend: "Automated backend test suite",
     backendScope: "Unit + integration",
     endToEnd: "Browser and accessibility checks",
-    endToEndScope: "landing checks passed",
+    endToEndScope: "Landing checks passed",
     checkedLabel: "checked",
     dateUnavailable: "Run date unavailable",
     tenants: "branded demo tenants",

@@ -123,4 +123,4 @@ npx turbo run lint typecheck test:unit test:contracts build --cache-dir=.turbo-l
 PLAYWRIGHT_ADMIN_BASE_URL=http://127.0.0.1:4101 PLAYWRIGHT_RIDER_BASE_URL=http://127.0.0.1:4102 PLAYWRIGHT_DRIVER_BASE_URL=http://127.0.0.1:4103 npx playwright test
 ```
 
-Remove `.turbo-local` after running the checks. More detail is in the [docs index](docs/README.md), [architecture](docs/ARCHITECTURE.md), [deployment guide](docs/DEPLOYMENT.md) and [decision ledger](docs/decisions/README.md).
+`.turbo-local` is a local Turborepo cache and is git-ignored. More detail is in the [docs index](docs/README.md), [architecture](docs/ARCHITECTURE.md), [deployment guide](docs/DEPLOYMENT.md) and [decision ledger](docs/decisions/README.md).
