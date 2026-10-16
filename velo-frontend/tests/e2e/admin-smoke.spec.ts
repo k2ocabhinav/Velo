@@ -1,4 +1,5 @@
 import { expect, test } from "./fixtures";
+import { tenantLabels } from "./tenant-labels";
 import type { BrowserContext } from "@playwright/test";
 
 async function signInAsAdmin(context: BrowserContext, baseURL?: string): Promise<void> {
@@ -126,7 +127,7 @@ test("admin revenue shows top drivers and changes the date range", async ({ base
 
   await page.goto("/revenue");
   await expect(page.getByRole("heading", { name: "Revenue", exact: true })).toBeVisible();
-  const driversTable = page.getByRole("table", { name: "Top drivers by net earnings" });
+  const driversTable = page.getByRole("table", { name: `Top ${tenantLabels.driversWord} by net earnings` });
   await expect(driversTable).toBeVisible();
   const revenueDriverRow = driversTable.getByRole("row").filter({ hasText: "Revenue Driver" });
   await expect(revenueDriverRow).toContainText("8");
@@ -134,7 +135,7 @@ test("admin revenue shows top drivers and changes the date range", async ({ base
   await expect(revenueDriverRow).toContainText("$75.00");
   await expect(revenueDriverRow).toContainText("$425.00");
 
-  await page.getByLabel("Top drivers date range").selectOption("7");
+  await page.getByLabel(`Top ${tenantLabels.driversWord} date range`).selectOption("7");
   await expect(page.getByText("Recent Driver")).toBeVisible();
 });
 
@@ -154,13 +155,13 @@ test("admin users can be deactivated from a row action", async ({ baseURL, conte
   });
 
   await page.goto("/users");
-  await expect(page.getByRole("heading", { name: "Users", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: tenantLabels.riders, exact: true })).toBeVisible();
   await expect(page.getByText("Active")).toBeVisible();
   await page.getByRole("button", { name: "Actions for Eve Rider" }).click();
   await page.getByRole("menuitem", { name: "Deactivate" }).click();
   await page.getByRole("button", { name: "Deactivate user" }).click();
   await expect(page.getByText("Inactive")).toBeVisible();
-  await expect(page.getByText("User deactivated.")).toBeVisible();
+  await expect(page.getByText("Account deactivated.")).toBeVisible();
   expect(deactivateCount).toBe(1);
 });
 
@@ -184,9 +185,9 @@ test("admin drivers can approve a pending application", async ({ baseURL, contex
   });
 
   await page.goto("/drivers");
-  await expect(page.getByRole("heading", { name: "Drivers" })).toBeVisible();
-  await page.getByRole("button", { name: "Approve driver" }).click();
-  await expect(page.getByText("Driver approved.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: tenantLabels.drivers })).toBeVisible();
+  await page.getByRole("button", { name: `Approve ${tenantLabels.driverWord}` }).click();
+  await expect(page.getByText(`${tenantLabels.driver} approved.`)).toBeVisible();
   await expect(page.getByRole("heading", { name: "No applications to review" })).toBeVisible();
   expect(approveCount).toBe(1);
 });
@@ -239,7 +240,9 @@ test("admin new trip selects address suggestions with the keyboard", async ({ ba
     const path = new URL(route.request().url()).pathname;
     const data = path.endsWith("/recent-addresses")
       ? [{ label: "12.95000,77.60000", lat: 12.95, lon: 77.6, type: "Recent pickup" }]
-      : { content: [], number: 0, totalPages: 1, totalElements: 0, size: 10 };
+      : path.endsWith("/dispatch/live")
+        ? { generatedAt: new Date().toISOString(), drivers: [], rides: [] }
+        : { content: [], number: 0, totalPages: 1, totalElements: 0, size: 10 };
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data }) });
   });
   let searchCount = 0;
@@ -302,8 +305,8 @@ test("admin rejects a driver application with a recorded reason", async ({ baseU
   const rejectSheet = page.getByRole("dialog", { name: "Reject application" });
   await rejectSheet.getByLabel("Reason").fill("Application documents could not be verified.");
   await rejectSheet.getByRole("button", { name: "Continue to confirmation" }).click();
-  await page.getByRole("dialog", { name: "Reject driver application?" }).getByRole("button", { name: "Reject application" }).click();
-  await expect(page.getByText("Driver application rejected.")).toBeVisible();
+  await page.getByRole("dialog", { name: `Reject ${tenantLabels.driverWord} application?` }).getByRole("button", { name: "Reject application" }).click();
+  await expect(page.getByText(`${tenantLabels.driver} application rejected.`)).toBeVisible();
   await expect(page.getByRole("heading", { name: "No applications to review" })).toBeVisible();
   expect(rejected).toBe(true);
   expect(rejectionReason).toBe("Application documents could not be verified.");

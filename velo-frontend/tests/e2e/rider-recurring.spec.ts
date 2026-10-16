@@ -1,4 +1,5 @@
 import { expect, test } from "./fixtures";
+import { tenantLabels } from "./tenant-labels";
 
 test("rider creates and reviews a weekly trip template", async ({ baseURL, context, page }, testInfo) => {
   const riderBaseURL = baseURL ?? "http://127.0.0.1:5802";
@@ -17,7 +18,7 @@ test("rider creates and reviews a weekly trip template", async ({ baseURL, conte
   await page.route("**/api/backend/riders/scheduled-rides*", async (route) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { content: [] } }) });
   });
-  await page.route("**/api/backend/riders/recurring-trip-templates*", async (route) => {
+  await page.route("**/api/backend/api/v1/riders/recurring-trip-templates*", async (route) => {
     if (route.request().method() === "POST") {
       created = true;
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { id: 19 } }) });
@@ -43,8 +44,8 @@ test("rider creates and reviews a weekly trip template", async ({ baseURL, conte
   await weeklySection.getByLabel("Longitude for weekly destination").fill("77.6245");
   await weeklySection.getByLabel("Pickup address").fill("Central Hotel");
   await weeklySection.getByLabel("Drop-off address").fill("Airport");
-  await weeklySection.getByRole("button", { name: "Create weekly trip" }).click();
+  await weeklySection.getByRole("button", { name: `Create weekly ${tenantLabels.tripWord}` }).click();
 
-  await expect(page.getByText("Weekly trip created.")).toBeVisible();
+  await expect(page.getByText(`Weekly ${tenantLabels.tripWord} created.`)).toBeVisible();
   await expect(page.getByText("Central Hotel → Airport")).toBeVisible();
 });
