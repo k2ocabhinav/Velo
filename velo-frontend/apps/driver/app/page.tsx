@@ -10,6 +10,7 @@ import { createRouteStageLabels, DateTime, EmptyState, ErrorState, Money, PageHe
 import { CountdownBadge, LiveStatusPill, ReconnectingIndicator, Skeleton } from "@velo/ui/feedback";
 import { useTenantBrandingOrDefault } from "@velo/ui/theme";
 import {
+  getDriverRejectionMessage,
   isDriverApproved,
   requestDriverProxy,
   type DriverNotification,
@@ -92,6 +93,7 @@ export default function DriverHomePage() {
   const [message, setMessage] = useState<string | null>(null);
   const locationPublisher = useDriverLocationPublisher(null, profile?.available === true, words.trip);
   const isApproved = isDriverApproved(profile);
+  const rejectionMessage = getDriverRejectionMessage(profile);
 
   const loadProfile = useCallback(async () => {
     setProfileError(null);
@@ -498,8 +500,8 @@ export default function DriverHomePage() {
         {!loadingProfile && !profileError && profile ? (
           <div className="driver-availability">
             <div className="driver-availability-copy">
-              <strong>{!isApproved ? "Approval pending" : profile.available ? "You're online" : "You're offline"}</strong>
-              <p>{!isApproved ? "An administrator must approve your account before you can go online." : profile.available ? `New ${words.tripWord} offers can reach you.` : "Go online when you're ready to drive."}</p>
+              <strong>{rejectionMessage ?? (!isApproved ? "Approval pending" : profile.available ? "You're online" : "You're offline")}</strong>
+              <p>{rejectionMessage ? "An administrator rejected your application. Contact support if you believe this was a mistake." : !isApproved ? "An administrator must approve your account before you can go online." : profile.available ? `New ${words.tripWord} offers can reach you.` : "Go online when you're ready to drive."}</p>
               {profile.vehicleId ? <p>Vehicle {profile.vehicleId}</p> : null}
               {isApproved && profile.available && locationPublisher.mode === "degraded" ? (
                 <p className="helper" role="status">{locationPublisher.message}</p>

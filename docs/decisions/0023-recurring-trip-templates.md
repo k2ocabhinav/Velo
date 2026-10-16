@@ -1,6 +1,6 @@
 # 0023 — Materialize recurring trips into scheduled ride requests
 
-- **Status:** Accepted
+- **Status:** Superseded in part by 0028
 - **Date:** 2026-10-15
 
 ## Context

@@ -12,7 +12,6 @@ import com.velo.platform.entities.enums.DriverOnboardingStatus;
 import com.velo.platform.entities.enums.PaymentStatus;
 import com.velo.platform.entities.enums.RideRequestStatus;
 import com.velo.platform.entities.enums.RideStatus;
-import com.velo.platform.exceptions.RuntimeConflictException;
 import com.velo.platform.exceptions.ResourceNotFoundException;
 import com.velo.platform.repositories.*;
 import com.velo.platform.services.AdminService;
@@ -155,14 +154,10 @@ public class AdminServiceImpl implements AdminService {
     @Override
     @Transactional
     public void approveDriver(Long driverId) {
-        Long tenantId = currentTenantId();
-        Driver driver = driverRepository.findById(driverId)
-                .orElseThrow(() -> new RuntimeConflictException("Driver not found"));
-        if (!tenantId.equals(driver.getTenantId())) {
-            throw new RuntimeConflictException("Cross-tenant driver access is not allowed.");
-        }
+        Driver driver = requireTenantDriver(driverId);
         driver.setOnboardingStatus(DriverOnboardingStatus.APPROVED);
         driver.setAvailable(true);
+        driver.setRejectionReason(null);
         driverRepository.save(driver);
         cacheService.evictAvailableDriversCache();
         cacheService.evictDashboardCache();
@@ -171,12 +166,7 @@ public class AdminServiceImpl implements AdminService {
     @Override
     @Transactional
     public void suspendDriver(Long driverId) {
-        Long tenantId = currentTenantId();
-        Driver driver = driverRepository.findById(driverId)
-                .orElseThrow(() -> new RuntimeConflictException("Driver not found"));
-        if (!tenantId.equals(driver.getTenantId())) {
-            throw new RuntimeConflictException("Cross-tenant driver access is not allowed.");
-        }
+        Driver driver = requireTenantDriver(driverId);
         driver.setOnboardingStatus(DriverOnboardingStatus.SUSPENDED);
         driver.setAvailable(false);
         driverRepository.save(driver);
@@ -187,16 +177,28 @@ public class AdminServiceImpl implements AdminService {
     @Override
     @Transactional
     public void rejectDriver(Long driverId, String reason) {
-        Long tenantId = currentTenantId();
-        Driver driver = driverRepository.findById(driverId)
-                .orElseThrow(() -> new RuntimeConflictException("Driver not found"));
-        if (!tenantId.equals(driver.getTenantId())) {
-            throw new RuntimeConflictException("Cross-tenant driver access is not allowed.");
-        }
+        Driver driver = requireTenantDriver(driverId);
         driver.setOnboardingStatus(DriverOnboardingStatus.REJECTED);
         driver.setAvailable(false);
+        driver.setRejectionReason(clean(reason));
         driverRepository.save(driver);
+        cacheService.evictAvailableDriversCache();
         cacheService.evictDashboardCache();
+    }
+
+    /**
+     * Loads a driver that belongs to the caller's tenant. A driver in another tenant is reported as
+     * not found so the endpoint never discloses that the id exists elsewhere.
+     */
+    private Driver requireTenantDriver(Long driverId) {
+        Long tenantId = currentTenantId();
+        return driverRepository.findById(driverId)
+                .filter(driver -> tenantId.equals(driver.getTenantId()))
+                .orElseThrow(() -> new ResourceNotFoundException("Driver not found"));
+    }
+
+    private String clean(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     @Override

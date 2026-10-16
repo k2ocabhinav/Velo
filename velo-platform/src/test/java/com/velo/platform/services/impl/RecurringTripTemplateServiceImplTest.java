@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.PrecisionModel;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -26,6 +27,7 @@ import org.springframework.data.domain.PageRequest;
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.HashSet;
 import java.util.List;
@@ -73,6 +75,31 @@ class RecurringTripTemplateServiceImplTest {
         assertThat(service.materializeOccurrences()).isEqualTo(1);
         assertThat(service.materializeOccurrences()).isZero();
         verify(rideRequestRepository, times(1)).save(any(RideRequest.class));
+    }
+
+    @Test
+    void materializeOccurrences_materializesLocalTimeInTheTemplatesZone() {
+        LocalDate date = LocalDate.now(java.time.ZoneId.of("Asia/Kolkata")).plusDays(1);
+        Rider rider = Rider.builder().id(12L).tenantId(7L).build();
+        RecurringTripTemplate template = template(date, rider);
+        template.setTimeZone("Asia/Kolkata");
+        template.setLocalTime(LocalTime.of(9, 0));
+
+        when(tenantRepository.findAll()).thenReturn(List.of(Tenant.builder().id(7L).timeZone("Asia/Kolkata").build()));
+        when(scheduledRideConfig.getRecurringMaterializationHorizonDays()).thenReturn(7);
+        when(templateRepository.findByTenantIdAndActiveTrueAndDeletedFalse(7L)).thenReturn(List.of(template));
+        when(templateRepository.findByIdAndTenantIdForUpdate(31L, 7L)).thenReturn(java.util.Optional.of(template));
+        when(rideRequestRepository.existsByTenantIdAndRecurringTemplate_IdAndOccurrenceDate(7L, 31L, date)).thenReturn(false);
+        RideFareCalculationStrategy fareStrategy = mock(RideFareCalculationStrategy.class);
+        when(rideStrategyManager.rideFareCalculationStrategy()).thenReturn(fareStrategy);
+        when(fareStrategy.calculateFare(any(RideRequest.class))).thenReturn(new BigDecimal("28.50"));
+        when(rideRequestRepository.save(any(RideRequest.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThat(service.materializeOccurrences()).isEqualTo(1);
+
+        ArgumentCaptor<RideRequest> captor = ArgumentCaptor.forClass(RideRequest.class);
+        verify(rideRequestRepository).save(captor.capture());
+        assertThat(captor.getValue().getScheduledTime()).isEqualTo(LocalDateTime.of(date, LocalTime.of(3, 30)));
     }
 
     @Test

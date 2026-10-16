@@ -5,9 +5,11 @@ import com.velo.platform.config.TestSecurityConfig;
 import com.velo.platform.dto.SignupDto;
 import com.velo.platform.configs.AuthRateLimitProperties;
 import com.velo.platform.entities.PasswordResetToken;
+import com.velo.platform.entities.Tenant;
 import com.velo.platform.repositories.PasswordResetTokenRepository;
 import com.velo.platform.repositories.RefreshTokenRepository;
 import com.velo.platform.repositories.RiderRepository;
+import com.velo.platform.repositories.TenantRepository;
 import com.velo.platform.repositories.UserRepository;
 import com.velo.platform.repositories.WalletRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,6 +44,7 @@ class AuthControllerIntegrationTest {
     @Autowired private WalletRepository walletRepository;
     @Autowired private PasswordResetTokenRepository passwordResetTokenRepository;
     @Autowired private RefreshTokenRepository refreshTokenRepository;
+    @Autowired private TenantRepository tenantRepository;
     @Autowired private AuthRateLimitProperties authRateLimitProperties;
 
     @BeforeEach
@@ -113,6 +116,49 @@ class AuthControllerIntegrationTest {
                         .content(objectMapper.writeValueAsString(signupDto)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error.message").value(org.hamcrest.Matchers.containsString("already exists")));
+    }
+
+    @Test
+    @DisplayName("POST /auth/signup resolves an anonymous signup to the host tenant slug")
+    void signup_WithTenantSlugHeader_ShouldUseThatTenant() throws Exception {
+        Tenant tenant = tenantRepository.save(Tenant.builder()
+                .slug("saffron-routes").name("Saffron Routes").active(true).build());
+
+        mockMvc.perform(post("/auth/signup")
+                        .header("X-Velo-Tenant-Slug", "saffron-routes")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name":"Saffron Guest","email":"guest-slug@test.com","password":"password123"}
+                                """))
+                .andExpect(status().isCreated());
+
+        var user = userRepository.findByEmail("guest-slug@test.com").orElseThrow();
+        org.assertj.core.api.Assertions.assertThat(user.getTenantId()).isEqualTo(tenant.getId());
+    }
+
+    @Test
+    @DisplayName("POST /auth/signup rejects an unknown tenant slug with 400")
+    void signup_WithUnknownTenantSlug_ShouldReturn400() throws Exception {
+        mockMvc.perform(post("/auth/signup")
+                        .header("X-Velo-Tenant-Slug", "ghost-tenant")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name":"Ghost","email":"ghost@test.com","password":"password123"}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.message").value(org.hamcrest.Matchers.containsString("Unknown tenant")));
+    }
+
+    @Test
+    @DisplayName("POST /auth/login with a missing field should return 400")
+    void login_WithMissingField_ShouldReturn400() throws Exception {
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"nobody@test.com"}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.message").value("Input validation failed"));
     }
 
     @Test

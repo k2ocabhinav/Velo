@@ -5,7 +5,6 @@ import com.velo.platform.entities.Notification;
 import com.velo.platform.entities.User;
 import com.velo.platform.entities.enums.NotificationType;
 import com.velo.platform.exceptions.ResourceNotFoundException;
-import com.velo.platform.exceptions.RuntimeConflictException;
 import com.velo.platform.repositories.NotificationRepository;
 import com.velo.platform.security.UserPrincipal;
 import org.junit.jupiter.api.BeforeEach;
@@ -95,14 +94,26 @@ class NotificationServiceImplTest {
     }
 
     @Test
-    @DisplayName("Mark as read with incorrect ownership should throw exception")
-    void markAsRead_ByNonOwner_ShouldThrowException() {
+    @DisplayName("Mark as read by a different user in the same tenant should be forbidden")
+    void markAsRead_ByNonOwner_ShouldThrowForbidden() {
         mockSecurityContext(99L); // Different user
         when(notificationRepository.findById(101L)).thenReturn(Optional.of(testNotification));
 
         assertThatThrownBy(() -> notificationService.markAsRead(101L))
-                .isInstanceOf(RuntimeConflictException.class)
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class)
                 .hasMessageContaining("You do not have permission");
+    }
+
+    @Test
+    @DisplayName("Mark as read for another tenant's notification should report not found")
+    void markAsRead_CrossTenant_ShouldReportNotFound() {
+        testNotification.setTenantId(2L);
+        mockSecurityContext(1L); // principal tenant 1
+        when(notificationRepository.findById(101L)).thenReturn(Optional.of(testNotification));
+
+        assertThatThrownBy(() -> notificationService.markAsRead(101L))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("Notification not found");
     }
 
     @Test

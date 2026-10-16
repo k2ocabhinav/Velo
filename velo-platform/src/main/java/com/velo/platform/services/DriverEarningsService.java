@@ -2,6 +2,7 @@ package com.velo.platform.services;
 
 import com.velo.platform.dto.DriverEarningDto;
 import com.velo.platform.dto.EarningsSummaryDto;
+import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.Ride;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -16,4 +17,7 @@ public interface DriverEarningsService {
     EarningsSummaryDto getWeeklySummary(LocalDate date);
     EarningsSummaryDto getMonthlySummary(LocalDate date);
     BigDecimal getAvailableBalance();
+
+    /** Available balance for an already-resolved driver, so callers lock the driver row just once. */
+    BigDecimal getAvailableBalance(Driver driver);
 }

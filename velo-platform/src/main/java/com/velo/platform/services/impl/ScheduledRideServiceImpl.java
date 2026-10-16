@@ -36,7 +36,9 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.List;
 
 @Service
@@ -60,7 +62,7 @@ public class ScheduledRideServiceImpl implements ScheduledRideService {
     @Override
     @Transactional
     public ScheduledRideDto scheduleRide(RideRequestDto rideRequestDto) {
-        LocalDateTime scheduledTime = rideRequestDto.getScheduledTime();
+        LocalDateTime scheduledTime = toUtcLocalDateTime(rideRequestDto.getScheduledTime());
         validateScheduledTime(scheduledTime);
 
         Rider rider = riderService.getCurrentRider();
@@ -105,11 +107,12 @@ public class ScheduledRideServiceImpl implements ScheduledRideService {
 
     @Override
     @Transactional
-    public ScheduledRideDto rescheduleRide(Long rideRequestId, LocalDateTime newScheduledTime) {
-        validateScheduledTime(newScheduledTime);
+    public ScheduledRideDto rescheduleRide(Long rideRequestId, OffsetDateTime newScheduledTime) {
+        LocalDateTime scheduledTime = toUtcLocalDateTime(newScheduledTime);
+        validateScheduledTime(scheduledTime);
 
         RideRequest rideRequest = findOwnedScheduledRequest(rideRequestId);
-        rideRequest.setScheduledTime(newScheduledTime);
+        rideRequest.setScheduledTime(scheduledTime);
 
         BigDecimal fare = rideStrategyManager.rideFareCalculationStrategy().calculateFare(rideRequest);
         rideRequest.setFare(fare);
@@ -205,6 +208,13 @@ public class ScheduledRideServiceImpl implements ScheduledRideService {
         return true;
     }
 
+    /**
+     * The client sends an ISO-8601 instant with its offset; storage and dispatch are UTC.
+     */
+    private LocalDateTime toUtcLocalDateTime(OffsetDateTime instant) {
+        return instant == null ? null : instant.withOffsetSameInstant(ZoneOffset.UTC).toLocalDateTime();
+    }
+
     private void validateScheduledTime(LocalDateTime scheduledTime) {
         if (scheduledTime == null) {
             throw new RuntimeConflictException("Scheduled time is required");
@@ -245,10 +255,11 @@ public class ScheduledRideServiceImpl implements ScheduledRideService {
     private ScheduledRideDto toScheduledRideDto(RideRequest rideRequest) {
         ScheduledRideDto dto = modelMapper.map(rideRequest, ScheduledRideDto.class);
         dto.setStatus(rideRequest.getRideRequestStatus());
+        dto.setScheduledTime(toInstant(rideRequest.getScheduledTime()));
         return dto;
     }
 
-    private Long resolveTenantId(Long tenantId) {
-        return tenantId == null ? 1L : tenantId;
+    private OffsetDateTime toInstant(LocalDateTime utcLocalDateTime) {
+        return utcLocalDateTime == null ? null : utcLocalDateTime.atOffset(ZoneOffset.UTC);
     }
 }

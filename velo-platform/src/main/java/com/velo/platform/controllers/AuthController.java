@@ -3,6 +3,7 @@ package com.velo.platform.controllers;
 import com.velo.platform.dto.AuthResponseDto;
 import com.velo.platform.dto.DriverDto;
 import com.velo.platform.dto.ForgotPasswordRequestDto;
+import com.velo.platform.dto.LoginRequestDto;
 import com.velo.platform.dto.OnboardDriverDto;
 import com.velo.platform.dto.ResetPasswordRequestDto;
 import com.velo.platform.dto.RefreshTokenRequestDto;
@@ -40,16 +41,19 @@ public class AuthController {
 
     @PostMapping("/signup")
     @Operation(summary = "Create a new rider account")
-    public ResponseEntity<UserDto> signUp(@RequestBody @Valid SignupDto signupDto, HttpServletRequest request) {
+    public ResponseEntity<UserDto> signUp(
+            @RequestBody @Valid SignupDto signupDto,
+            @RequestHeader(value = "X-Velo-Tenant-Slug", required = false) String tenantSlug,
+            HttpServletRequest request) {
         authRateLimitService.check(request, signupDto.getEmail());
-        return new ResponseEntity<>(authService.signup(signupDto), HttpStatus.CREATED);
+        return new ResponseEntity<>(authService.signup(signupDto, tenantSlug), HttpStatus.CREATED);
     }
 
     @PostMapping("/login")
     @Operation(summary = "Authenticate a user and return a JWT")
-    public ResponseEntity<AuthResponseDto> login(@RequestBody Map<String, String> credentials, HttpServletRequest request) {
-        authRateLimitService.check(request, credentials.get("email"));
-        return ResponseEntity.ok(authService.login(credentials.get("email"), credentials.get("password")));
+    public ResponseEntity<AuthResponseDto> login(@RequestBody @Valid LoginRequestDto credentials, HttpServletRequest request) {
+        authRateLimitService.check(request, credentials.getEmail());
+        return ResponseEntity.ok(authService.login(credentials.getEmail(), credentials.getPassword()));
     }
 
     @PostMapping("/refresh")

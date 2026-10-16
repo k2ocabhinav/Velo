@@ -125,8 +125,9 @@ public class AdminController {
 
     @PostMapping("/drivers/{id}/reject")
     @Operation(summary = "Reject a driver")
-    public ResponseEntity<Void> rejectDriver(@PathVariable Long id, @RequestBody String reason) {
-        adminService.rejectDriver(id, reason);
+    public ResponseEntity<Void> rejectDriver(@PathVariable Long id,
+                                             @Valid @RequestBody AdminReasonRequestDto request) {
+        adminService.rejectDriver(id, request.getReason());
         return ResponseEntity.ok().build();
     }
 

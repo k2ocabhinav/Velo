@@ -42,6 +42,10 @@ public class Driver {
     @Builder.Default
     private DriverOnboardingStatus onboardingStatus = DriverOnboardingStatus.PENDING;
 
+    /** Reason an administrator gave when rejecting the application, shown back to the driver. */
+    @Column(name = "rejection_reason", length = 1024)
+    private String rejectionReason;
+
     @Column(columnDefinition = "Geometry(Point, 4326)")
     private Point currentLocation;
 

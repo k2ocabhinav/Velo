@@ -6,8 +6,10 @@ import {
   performLoginProxy,
   performLogoutProxy,
   performRefreshProxy,
+  performRegisterProxy,
   performWebSocketTicketProxy,
 } from "../src/auth";
+import { TENANT_SLUG_HEADER } from "../src/tenant";
 
 beforeEach(() => {
   vi.stubEnv("NODE_ENV", "test");
@@ -114,6 +116,34 @@ describe("performLoginProxy", () => {
     );
 
     expect(response.cookies.get("velo_token")?.secure).toBe(true);
+  });
+});
+
+describe("performRegisterProxy", () => {
+  it("forwards the BFF-resolved tenant slug as the signup tenant header", async () => {
+    const fetchMock = vi.fn(async () => createJsonResponse({ data: { userId: 1 } }, 201));
+
+    await performRegisterProxy(
+      { name: "Rae", email: "rae@example.com", password: "hunter2" },
+      fetchMock as unknown as typeof fetch,
+      "saffron-routes",
+    );
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toMatch(/\/auth\/signup$/);
+    expect((init.headers as Record<string, string>)[TENANT_SLUG_HEADER]).toBe("saffron-routes");
+  });
+
+  it("omits the tenant header when no slug is supplied", async () => {
+    const fetchMock = vi.fn(async () => createJsonResponse({ data: { userId: 1 } }, 201));
+
+    await performRegisterProxy(
+      { name: "Rae", email: "rae@example.com", password: "hunter2" },
+      fetchMock as unknown as typeof fetch,
+    );
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect((init.headers as Record<string, string>)[TENANT_SLUG_HEADER]).toBeUndefined();
   });
 });
 

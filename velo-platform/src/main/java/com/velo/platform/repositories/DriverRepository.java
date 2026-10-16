@@ -2,10 +2,12 @@ package com.velo.platform.repositories;
 
 import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.enums.DriverOnboardingStatus;
+import jakarta.persistence.LockModeType;
 import org.locationtech.jts.geom.Point;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -23,6 +25,10 @@ public interface DriverRepository extends JpaRepository<Driver, Long> {
 
     @Query("select d from Driver d where d.user.id = :userId and d.tenantId = :tenantId")
     Optional<Driver> findByUserIdAndTenantId(@Param("userId") Long userId, @Param("tenantId") Long tenantId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select d from Driver d where d.user.id = :userId and d.tenantId = :tenantId")
+    Optional<Driver> findByUserIdAndTenantIdForUpdate(@Param("userId") Long userId, @Param("tenantId") Long tenantId);
 
     long countByAvailableTrue();
     long countByTenantId(Long tenantId);

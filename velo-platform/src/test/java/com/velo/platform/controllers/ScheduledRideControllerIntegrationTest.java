@@ -25,7 +25,9 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.Set;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -79,7 +81,7 @@ class ScheduledRideControllerIntegrationTest {
     @DisplayName("POST /riders/schedule-ride should create scheduled ride")
     void scheduleRide_ShouldReturnOk() throws Exception {
         RideRequestDto requestDto = new RideRequestDto();
-        requestDto.setScheduledTime(LocalDateTime.now(ZoneId.of("UTC")).plusHours(1));
+        requestDto.setScheduledTime(OffsetDateTime.now(ZoneOffset.UTC).plusHours(1));
         requestDto.setPaymentMethod(PaymentMethod.WALLET);
         // Add coordinates for fare calculation
         requestDto.setPickupLocation(new com.velo.platform.dto.PointDto(new double[]{77.5946, 12.9716}));
@@ -115,7 +117,7 @@ class ScheduledRideControllerIntegrationTest {
                 .build();
         rideRequest = rideRequestRepository.save(rideRequest);
 
-        LocalDateTime newTime = LocalDateTime.now(ZoneId.of("UTC")).plusHours(2);
+        OffsetDateTime newTime = OffsetDateTime.now(ZoneOffset.UTC).plusHours(2);
         mockMvc.perform(withRiderAuth(put("/riders/scheduled-rides/" + rideRequest.getId() + "/reschedule")
                         .param("newTime", newTime.toString())))
                 .andExpect(status().isOk())

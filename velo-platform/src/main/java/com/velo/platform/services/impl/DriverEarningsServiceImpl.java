@@ -134,14 +134,19 @@ public class DriverEarningsServiceImpl implements DriverEarningsService {
     @Override
     @Transactional(readOnly = true)
     public BigDecimal getAvailableBalance() {
-        Driver driver = getCurrentDriver();
+        return getAvailableBalance(getCurrentDriver());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BigDecimal getAvailableBalance(Driver driver) {
         BigDecimal totalNet = driverEarningRepository.getTotalNetEarningsByDriver(driver);
         if (totalNet == null) totalNet = BigDecimal.ZERO;
-        
+
         BigDecimal pendingAndProcessedPayouts = payoutRequestRepository.getTotalPayoutsByDriverAndStatuses(
             driver, java.util.List.of(PayoutStatus.PENDING, PayoutStatus.APPROVED, PayoutStatus.PROCESSED));
         if (pendingAndProcessedPayouts == null) pendingAndProcessedPayouts = BigDecimal.ZERO;
-        
+
         BigDecimal balance = totalNet.subtract(pendingAndProcessedPayouts);
         return balance.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : balance;
     }

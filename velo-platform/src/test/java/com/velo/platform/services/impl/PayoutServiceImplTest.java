@@ -6,6 +6,7 @@ import com.velo.platform.entities.PayoutRequest;
 import com.velo.platform.entities.User;
 import com.velo.platform.entities.enums.PayoutStatus;
 import com.velo.platform.entities.enums.TransactionMethod;
+import com.velo.platform.exceptions.BadRequestException;
 import com.velo.platform.exceptions.RuntimeConflictException;
 import com.velo.platform.exceptions.ResourceNotFoundException;
 import com.velo.platform.repositories.DriverRepository;
@@ -83,13 +84,13 @@ class PayoutServiceImplTest {
         when(securityContext.getAuthentication()).thenReturn(authentication);
         SecurityContextHolder.setContext(securityContext);
 
-        when(driverRepository.findByUserIdAndTenantId(101L, 1L)).thenReturn(Optional.of(driver));
+        when(driverRepository.findByUserIdAndTenantIdForUpdate(101L, 1L)).thenReturn(Optional.of(driver));
     }
 
     @Test
     void requestPayout_ShouldSuccess_WhenBalanceIsSufficient() {
         mockSecurityContext();
-        when(driverEarningsService.getAvailableBalance()).thenReturn(BigDecimal.valueOf(500.0));
+        when(driverEarningsService.getAvailableBalance(driver)).thenReturn(BigDecimal.valueOf(500.0));
 
         PayoutRequest savedRequest = new PayoutRequest();
         savedRequest.setId(1L);
@@ -112,14 +113,24 @@ class PayoutServiceImplTest {
 
     @Test
     void requestPayout_ShouldThrowException_WhenBalanceIsInsufficient() {
-        when(driverEarningsService.getAvailableBalance()).thenReturn(BigDecimal.valueOf(50.0));
+        mockSecurityContext();
+        when(driverEarningsService.getAvailableBalance(driver)).thenReturn(BigDecimal.valueOf(50.0));
 
         RuntimeException ex = assertThrows(RuntimeConflictException.class, () -> {
             payoutService.requestPayout(BigDecimal.valueOf(100.0));
         });
 
         assertThat(ex.getMessage()).isEqualTo("Insufficient earnings balance for payout request");
+        verify(driverRepository).findByUserIdAndTenantIdForUpdate(101L, 1L);
         verifyNoInteractions(payoutRequestRepository);
+    }
+
+    @Test
+    void requestPayout_ShouldRejectNonPositiveAmount() {
+        assertThrows(BadRequestException.class, () -> payoutService.requestPayout(BigDecimal.ZERO));
+        assertThrows(BadRequestException.class, () -> payoutService.requestPayout(BigDecimal.valueOf(-5)));
+
+        verifyNoInteractions(driverRepository, driverEarningsService, payoutRequestRepository);
     }
 
     @Test

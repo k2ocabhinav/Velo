@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { resolveTenantSlugFromRequest } from "@velo/app-core/tenant";
 import type { RegisterPayload } from "../../../login/_lib/auth";
 import {
   handleRegisterFormPost,
@@ -9,6 +10,8 @@ import {
 } from "../../../login/_lib/auth";
 
 export async function POST(request: NextRequest) {
+  const tenantSlug = resolveTenantSlugFromRequest(request.headers);
+
   if (isFormSubmission(request)) {
     return handleRegisterFormPost(request, (form) =>
       performRegisterProxy({
@@ -16,7 +19,7 @@ export async function POST(request: NextRequest) {
         email: readFormString(form, "email"),
         password: readFormString(form, "password"),
         referredByCode: readFormString(form, "referredByCode") || undefined,
-      })
+      }, fetch, tenantSlug)
     );
   }
 
@@ -28,5 +31,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Request body must be JSON." }, { status: 400 });
   }
 
-  return performRegisterProxy(body);
+  return performRegisterProxy(body, fetch, tenantSlug);
 }

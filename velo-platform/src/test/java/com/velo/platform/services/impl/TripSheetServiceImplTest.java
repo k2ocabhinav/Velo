@@ -20,7 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -41,7 +41,7 @@ class TripSheetServiceImplTest {
 
     @Test
     void needsAttentionTrips_onlyIncludesTenantRowsInsideConfiguredWindow() {
-        LocalDateTime now = LocalDateTime.now(ZoneId.of("UTC"));
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         RideRequest soon = RideRequest.builder().id(22L).tenantId(5L).scheduledTime(now.plusMinutes(30))
                 .rideRequestStatus(RideRequestStatus.SCHEDULED).build();
         RideRequest later = RideRequest.builder().id(23L).tenantId(5L).scheduledTime(now.plusMinutes(90))
@@ -79,7 +79,8 @@ class TripSheetServiceImplTest {
         when(tenantScopeService.requireCurrentTenantId()).thenReturn(5L);
         when(scheduledRideConfig.getUnassignedAlertWindowMinutes()).thenReturn(60);
         when(rideRequestRepository.findByTenantIdAndScheduledTimeGreaterThanEqualAndScheduledTimeLessThanOrderByScheduledTimeAsc(
-                5L, date.atStartOfDay(), date.plusDays(1).atStartOfDay())).thenReturn(List.of(request));
+                5L, date.atStartOfDay(ZoneOffset.UTC).toLocalDateTime(),
+                date.plusDays(1).atStartOfDay(ZoneOffset.UTC).toLocalDateTime())).thenReturn(List.of(request));
 
         String csv = new String(service.exportCsv(date), java.nio.charset.StandardCharsets.UTF_8);
 

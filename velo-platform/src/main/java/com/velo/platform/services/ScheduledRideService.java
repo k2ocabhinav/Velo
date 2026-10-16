@@ -6,7 +6,7 @@ import com.velo.platform.entities.enums.ScheduledTripReasonCode;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public interface ScheduledRideService {
 
@@ -16,7 +16,7 @@ public interface ScheduledRideService {
 
     ScheduledRideDto cancelScheduledRide(Long rideRequestId, ScheduledTripReasonCode reasonCode, String reasonNote);
 
-    ScheduledRideDto rescheduleRide(Long rideRequestId, LocalDateTime newScheduledTime);
+    ScheduledRideDto rescheduleRide(Long rideRequestId, OffsetDateTime newScheduledTime);
 
     Page<ScheduledRideDto> getMyScheduledRides(PageRequest pageRequest);
 

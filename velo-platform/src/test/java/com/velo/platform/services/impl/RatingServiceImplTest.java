@@ -1,6 +1,7 @@
 package com.velo.platform.services.impl;
 
 import com.velo.platform.dto.DriverDto;
+import com.velo.platform.dto.RideDto;
 import com.velo.platform.dto.RiderDto;
 import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.Rating;
@@ -224,6 +225,32 @@ class RatingServiceImplTest {
         assertThatThrownBy(() -> ratingService.rateRider(testRide, 5))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Rating not found");
+    }
+
+    @Test
+    @DisplayName("Apply ride rating flags should fill both flags from a single batched lookup")
+    void applyRideRatingFlags_ShouldFillFlagsFromBatch() {
+        RideDto first = new RideDto();
+        first.setId(1L);
+        RideDto second = new RideDto();
+        second.setId(2L);
+        RideDto unrelated = new RideDto();
+        unrelated.setId(3L);
+
+        when(ratingRepository.findByRideIdIn(List.of(1L, 2L, 3L))).thenReturn(List.of(
+                Rating.builder().ride(Ride.builder().id(1L).build()).driverRating(5).build(),
+                Rating.builder().ride(Ride.builder().id(2L).build()).riderRating(4).build()
+        ));
+
+        ratingService.applyRideRatingFlags(List.of(first, second, unrelated));
+
+        assertThat(first.isDriverRated()).isTrue();
+        assertThat(first.isRiderRated()).isFalse();
+        assertThat(second.isDriverRated()).isFalse();
+        assertThat(second.isRiderRated()).isTrue();
+        assertThat(unrelated.isDriverRated()).isFalse();
+        assertThat(unrelated.isRiderRated()).isFalse();
+        verify(ratingRepository).findByRideIdIn(List.of(1L, 2L, 3L));
     }
 
     @Test

@@ -98,7 +98,8 @@ export default function TripSheetPage() {
   const groups = useMemo(() => {
     const byHour = new Map<string, TripSheetRow[]>();
     for (const row of rows) {
-      const hour = row.scheduledTime.slice(11, 13) || "—";
+      const time = new Date(row.scheduledTime);
+      const hour = Number.isFinite(time.getTime()) ? String(time.getHours()).padStart(2, "0") : "—";
       const key = hour === "—" ? hour : `${hour}:00`;
       byHour.set(key, [...(byHour.get(key) ?? []), row]);
     }

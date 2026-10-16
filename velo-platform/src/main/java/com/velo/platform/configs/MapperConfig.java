@@ -2,6 +2,7 @@ package com.velo.platform.configs;
 
 import com.velo.platform.dto.PointDto;
 import com.velo.platform.dto.RideRequestDto;
+import com.velo.platform.dto.ScheduledRideDto;
 import com.velo.platform.dto.SignupDto;
 import com.velo.platform.dto.UserDto;
 import com.velo.platform.entities.RideRequest;
@@ -42,8 +43,21 @@ public class MapperConfig {
             return new PointDto(coordinates);
         });
 
+        // Scheduled time is a UTC LocalDateTime on the entity but an offset-carrying instant on the
+        // wire, so each direction sets it explicitly rather than relying on implicit conversion.
         mapper.emptyTypeMap(RideRequestDto.class, RideRequest.class)
-                .addMappings(mapping -> mapping.skip(RideRequest::setRide))
+                .addMappings(mapping -> {
+                    mapping.skip(RideRequest::setRide);
+                    mapping.skip(RideRequest::setScheduledTime);
+                })
+                .implicitMappings();
+
+        mapper.emptyTypeMap(RideRequest.class, RideRequestDto.class)
+                .addMappings(mapping -> mapping.skip(RideRequestDto::setScheduledTime))
+                .implicitMappings();
+
+        mapper.emptyTypeMap(RideRequest.class, ScheduledRideDto.class)
+                .addMappings(mapping -> mapping.skip(ScheduledRideDto::setScheduledTime))
                 .implicitMappings();
 
         mapper.typeMap(SignupDto.class, User.class).addMappings(mapping -> {

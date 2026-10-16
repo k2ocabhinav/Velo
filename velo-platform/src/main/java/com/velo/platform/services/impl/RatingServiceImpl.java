@@ -1,11 +1,14 @@
 package com.velo.platform.services.impl;
 
 import com.velo.platform.dto.DriverDto;
+import com.velo.platform.dto.RideDto;
 import com.velo.platform.dto.RiderDto;
+import com.velo.platform.dto.UserDto;
 import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.Rating;
 import com.velo.platform.entities.Ride;
 import com.velo.platform.entities.Rider;
+import com.velo.platform.entities.User;
 import com.velo.platform.exceptions.ResourceNotFoundException;
 import com.velo.platform.exceptions.RuntimeConflictException;
 import com.velo.platform.repositories.DriverRepository;
@@ -17,7 +20,11 @@ import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -51,7 +58,9 @@ public class RatingServiceImpl implements RatingService {
         driver.setRating(newRating);
 
         Driver savedDriver = driverRepository.save(driver);
-        return modelMapper.map(savedDriver, DriverDto.class);
+        DriverDto driverDto = modelMapper.map(savedDriver, DriverDto.class);
+        driverDto.setUser(savedDriver.getUser() == null ? null : namedUser(savedDriver.getUser()));
+        return driverDto;
     }
 
     @Override
@@ -76,7 +85,38 @@ public class RatingServiceImpl implements RatingService {
         rider.setRating(newRating);
 
         Rider savedRider = riderRepository.save(rider);
-        return modelMapper.map(savedRider, RiderDto.class);
+        RiderDto riderDto = modelMapper.map(savedRider, RiderDto.class);
+        riderDto.setUser(savedRider.getUser() == null ? null : namedUser(savedRider.getUser()));
+        return riderDto;
+    }
+
+    private UserDto namedUser(User user) {
+        UserDto userDto = new UserDto();
+        userDto.setEmail(user.getEmail());
+        userDto.setRoles(user.getRoles());
+        String name = ((user.getFirstName() == null ? "" : user.getFirstName().trim()) + " "
+                + (user.getLastName() == null ? "" : user.getLastName().trim())).trim();
+        userDto.setName(name.isEmpty() ? null : name);
+        return userDto;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public void applyRideRatingFlags(List<RideDto> rides) {
+        if (rides == null || rides.isEmpty()) {
+            return;
+        }
+        List<Long> rideIds = rides.stream().map(RideDto::getId).filter(Objects::nonNull).toList();
+        if (rideIds.isEmpty()) {
+            return;
+        }
+        Map<Long, Rating> byRideId = ratingRepository.findByRideIdIn(rideIds).stream()
+                .collect(Collectors.toMap(rating -> rating.getRide().getId(), Function.identity(), (first, second) -> first));
+        for (RideDto ride : rides) {
+            Rating rating = byRideId.get(ride.getId());
+            ride.setDriverRated(rating != null && rating.getDriverRating() != null);
+            ride.setRiderRated(rating != null && rating.getRiderRating() != null);
+        }
     }
 
     @Override

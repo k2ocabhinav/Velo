@@ -70,6 +70,8 @@ type RiderRideItem = {
   fare?: DecimalValue | null;
   paymentMethod?: string | null;
   endedAt?: string | null;
+  /** True once this ride's driver has been rated by the rider. */
+  driverRated?: boolean;
 };
 
 function toMapPoint(point: PointDto | null | undefined): MapPoint | null {
@@ -520,7 +522,7 @@ export default function RiderActiveRidePage() {
             action={<a className="ui-button" data-variant="primary" href="/">{`Book a ${words.tripWord}`}</a>}
           />
           {ratingRide ? (
-            <Section title={`Rate your last ${words.tripWord}`}>
+            <Section title={ratingRide.driverRated ? `Your last ${words.tripWord}` : `Rate your last ${words.tripWord}`}>
               <div className="completed-trip-summary">
                 <div>
                   <StatusBadge status="ENDED" domain="ride" />
@@ -528,19 +530,23 @@ export default function RiderActiveRidePage() {
                 </div>
                 <Money amount={fareValue} />
               </div>
-              <div className="rating-form">
-                <label className="ui-field">
-                  <span className="ui-field-label">Your rating</span>
-                  <Select value={ratingValue} disabled={submittingRating} onChange={(event) => setRatingValue(event.target.value)}>
-                    <option value="5">5 stars</option>
-                    <option value="4">4 stars</option>
-                    <option value="3">3 stars</option>
-                    <option value="2">2 stars</option>
-                    <option value="1">1 star</option>
-                  </Select>
-                </label>
-                <Button loading={submittingRating} onClick={() => void submitRating()}>Submit rating</Button>
-              </div>
+              {ratingRide.driverRated ? (
+                <p className="booking-feedback" role="status">{`You rated your ${words.driverWord}.`}</p>
+              ) : (
+                <div className="rating-form">
+                  <label className="ui-field">
+                    <span className="ui-field-label">Your rating</span>
+                    <Select value={ratingValue} disabled={submittingRating} onChange={(event) => setRatingValue(event.target.value)}>
+                      <option value="5">5 stars</option>
+                      <option value="4">4 stars</option>
+                      <option value="3">3 stars</option>
+                      <option value="2">2 stars</option>
+                      <option value="1">1 star</option>
+                    </Select>
+                  </label>
+                  <Button loading={submittingRating} onClick={() => void submitRating()}>Submit rating</Button>
+                </div>
+              )}
               {message ? <p className="booking-feedback" role="status">{message}</p> : null}
             </Section>
           ) : null}

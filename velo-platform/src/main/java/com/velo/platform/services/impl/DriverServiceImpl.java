@@ -40,6 +40,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 @Service
@@ -66,7 +67,7 @@ public class DriverServiceImpl implements DriverService {
         requireApprovedDriver(currentDriver);
         RideRequest rideRequest = rideRequestService.findRideRequestById(rideRequestId);
         if (!resolveTenantId(rideRequest.getTenantId()).equals(resolveTenantId(currentDriver.getTenantId()))) {
-            throw new RuntimeConflictException("Cross-tenant ride request access is not allowed.");
+            throw new ResourceNotFoundException("Ride request not found with id: " + rideRequest.getId());
         }
 
         RideOffer acceptedOffer = null;
@@ -130,7 +131,7 @@ public class DriverServiceImpl implements DriverService {
         RideRequest rideRequest = rideRequestService.findRideRequestById(rideRequestId);
 
         if (!resolveTenantId(rideRequest.getTenantId()).equals(resolveTenantId(currentDriver.getTenantId()))) {
-            throw new RuntimeConflictException("Cross-tenant ride request access is not allowed.");
+            throw new ResourceNotFoundException("Ride request not found with id: " + rideRequest.getId());
         }
         if (!RideRequestStatus.PENDING.equals(rideRequest.getRideRequestStatus())) {
             return toRideRequestDto(rideRequest, null);
@@ -147,6 +148,7 @@ public class DriverServiceImpl implements DriverService {
 
     private RideRequestDto toRideRequestDto(RideRequest rideRequest, LocalDateTime expiresAt) {
         RideRequestDto dto = modelMapper.map(rideRequest, RideRequestDto.class);
+        dto.setScheduledTime(rideRequest.getScheduledTime() == null ? null : rideRequest.getScheduledTime().atOffset(ZoneOffset.UTC));
         dto.setPickupAddress(rideRequest.getPickupAddress());
         dto.setDropOffAddress(rideRequest.getDropOffAddress());
         dto.setExpiresAt(expiresAt);
@@ -169,7 +171,7 @@ public class DriverServiceImpl implements DriverService {
 
         Driver driver = getCurrentDriver();
         if (!resolveTenantId(ride.getTenantId()).equals(resolveTenantId(driver.getTenantId()))) {
-            throw new RuntimeConflictException("Cross-tenant ride access is not allowed.");
+            throw new ResourceNotFoundException("Ride not found with id: " + ride.getId());
         }
         if(!driver.equals(ride.getDriver())) {
             throw new RuntimeConflictException("Driver cannot start a ride as he has not accepted it earlier");
@@ -193,7 +195,7 @@ public class DriverServiceImpl implements DriverService {
         Ride ride = rideService.getRideById(rideId);
         Driver driver = getCurrentDriver();
         if (!resolveTenantId(ride.getTenantId()).equals(resolveTenantId(driver.getTenantId()))) {
-            throw new RuntimeConflictException("Cross-tenant ride access is not allowed.");
+            throw new ResourceNotFoundException("Ride not found with id: " + ride.getId());
         }
 
         if(!driver.equals(ride.getDriver())) {
@@ -225,7 +227,7 @@ public class DriverServiceImpl implements DriverService {
         Ride ride = rideService.getRideById(rideId);
         Driver driver = getCurrentDriver();
         if (!resolveTenantId(ride.getTenantId()).equals(resolveTenantId(driver.getTenantId()))) {
-            throw new RuntimeConflictException("Cross-tenant ride access is not allowed.");
+            throw new ResourceNotFoundException("Ride not found with id: " + ride.getId());
         }
 
         if(!driver.equals(ride.getDriver())) {
@@ -247,7 +249,9 @@ public class DriverServiceImpl implements DriverService {
         // Auto-create earning record for the driver
         driverEarningsService.createEarningRecord(savedRide);
 
-        return toRideDto(savedRide);
+        RideDto dto = toRideDto(savedRide);
+        ratingService.applyRideRatingFlags(List.of(dto));
+        return dto;
     }
 
     @Override
@@ -280,9 +284,11 @@ public class DriverServiceImpl implements DriverService {
     @Transactional(readOnly = true)
     public Page<RideDto> getAllMyRides(PageRequest pageRequest) {
         Driver currentDriver = getCurrentDriver();
-        return rideService.getAllRidesOfDriver(currentDriver, pageRequest).map(
+        Page<RideDto> page = rideService.getAllRidesOfDriver(currentDriver, pageRequest).map(
                 this::toRideDto
         );
+        ratingService.applyRideRatingFlags(page.getContent());
+        return page;
     }
 
     private RideDto toRideDto(Ride ride) {

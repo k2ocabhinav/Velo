@@ -41,8 +41,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.modelmapper.ModelMapper;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -122,7 +125,7 @@ class ScheduledRideServiceImplTest {
         @Test
         @DisplayName("Should schedule a ride with valid future time")
         void shouldScheduleRideSuccess() {
-            LocalDateTime scheduledTime = LocalDateTime.now(ZoneId.of("UTC")).plusHours(2);
+            OffsetDateTime scheduledTime = OffsetDateTime.now(ZoneOffset.UTC).plusHours(2);
             RideRequestDto requestDto = new RideRequestDto();
             requestDto.setScheduledTime(scheduledTime);
             requestDto.setPaymentMethod(PaymentMethod.WALLET);
@@ -145,6 +148,32 @@ class ScheduledRideServiceImplTest {
         }
 
         @Test
+        @DisplayName("A trip scheduled for 09:00 IST is stored as the 03:30 UTC instant")
+        void shouldStoreIstWallClockAsUtcInstant() {
+            ZoneOffset ist = ZoneOffset.ofHoursMinutes(5, 30);
+            LocalDate tomorrow = LocalDate.now(ist).plusDays(1);
+            OffsetDateTime scheduledTime = LocalDateTime.of(tomorrow, java.time.LocalTime.of(9, 0)).atOffset(ist);
+
+            RideRequestDto requestDto = new RideRequestDto();
+            requestDto.setScheduledTime(scheduledTime);
+            requestDto.setPaymentMethod(PaymentMethod.WALLET);
+
+            when(riderService.getCurrentRider()).thenReturn(testRider);
+            when(modelMapper.map(requestDto, RideRequest.class)).thenReturn(testRideRequest);
+            when(rideStrategyManager.rideFareCalculationStrategy()).thenReturn(fareCalculationStrategy);
+            when(fareCalculationStrategy.calculateFare(any())).thenReturn(BigDecimal.valueOf(150.0));
+            when(rideRequestRepository.save(any(RideRequest.class))).thenReturn(testRideRequest);
+            when(modelMapper.map(testRideRequest, ScheduledRideDto.class)).thenReturn(new ScheduledRideDto());
+
+            scheduledRideService.scheduleRide(requestDto);
+
+            ArgumentCaptor<RideRequest> captor = ArgumentCaptor.forClass(RideRequest.class);
+            verify(rideRequestRepository).save(captor.capture());
+            assertThat(captor.getValue().getScheduledTime())
+                    .isEqualTo(LocalDateTime.of(tomorrow, java.time.LocalTime.of(3, 30)));
+        }
+
+        @Test
         @DisplayName("Should reject scheduling with null time")
         void shouldRejectNullScheduledTime() {
             RideRequestDto requestDto = new RideRequestDto();
@@ -159,7 +188,7 @@ class ScheduledRideServiceImplTest {
         @DisplayName("Should reject scheduling less than 30 minutes ahead")
         void shouldRejectTooSoonScheduledTime() {
             RideRequestDto requestDto = new RideRequestDto();
-            requestDto.setScheduledTime(LocalDateTime.now(ZoneId.of("UTC")).plusMinutes(10));
+            requestDto.setScheduledTime(OffsetDateTime.now(ZoneOffset.UTC).plusMinutes(10));
 
             assertThatThrownBy(() -> scheduledRideService.scheduleRide(requestDto))
                     .isInstanceOf(RuntimeConflictException.class)
@@ -170,7 +199,7 @@ class ScheduledRideServiceImplTest {
         @DisplayName("Should reject scheduling more than 7 days ahead")
         void shouldRejectTooFarScheduledTime() {
             RideRequestDto requestDto = new RideRequestDto();
-            requestDto.setScheduledTime(LocalDateTime.now(ZoneId.of("UTC")).plusDays(8));
+            requestDto.setScheduledTime(OffsetDateTime.now(ZoneOffset.UTC).plusDays(8));
 
             assertThatThrownBy(() -> scheduledRideService.scheduleRide(requestDto))
                     .isInstanceOf(RuntimeConflictException.class)
@@ -229,7 +258,7 @@ class ScheduledRideServiceImplTest {
         @Test
         @DisplayName("Should reschedule and recalculate fare")
         void shouldRescheduleAndRecalculateFare() {
-            LocalDateTime newTime = LocalDateTime.now(ZoneId.of("UTC")).plusHours(5);
+            OffsetDateTime newTime = OffsetDateTime.now(ZoneOffset.UTC).plusHours(5);
             when(riderService.getCurrentRider()).thenReturn(testRider);
             when(rideRequestRepository.findByIdAndTenantIdAndRider_Id(1L, 1L, 1L)).thenReturn(Optional.of(testRideRequest));
             when(rideStrategyManager.rideFareCalculationStrategy()).thenReturn(fareCalculationStrategy);
@@ -242,7 +271,7 @@ class ScheduledRideServiceImplTest {
 
             ArgumentCaptor<RideRequest> captor = ArgumentCaptor.forClass(RideRequest.class);
             verify(rideRequestRepository).save(captor.capture());
-            assertThat(captor.getValue().getScheduledTime()).isEqualTo(newTime);
+            assertThat(captor.getValue().getScheduledTime()).isEqualTo(newTime.toLocalDateTime());
             verify(fareCalculationStrategy).calculateFare(any());
             verify(eventPublisher).publishEvent(any(ScheduledRideRescheduledEvent.class));
         }

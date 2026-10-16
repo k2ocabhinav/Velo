@@ -9,6 +9,7 @@ import com.velo.platform.dto.RideRequestDto;
 import com.velo.platform.dto.RideTrackingDriverDto;
 import com.velo.platform.dto.RideTrackingDto;
 import com.velo.platform.dto.RiderDto;
+import com.velo.platform.dto.UserDto;
 import com.velo.platform.entities.*;
 import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.enums.PaymentMethod;
@@ -50,6 +51,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 @Service
@@ -149,11 +151,12 @@ public class RiderServiceImpl implements RiderService {
         Rider rider = getCurrentRider();
         Ride ride = rideService.getRideById(rideId);
 
+        // Check tenancy before ownership so another tenant's ride is reported as not found.
+        if (!resolveTenantId(ride.getTenantId()).equals(resolveTenantId(rider.getTenantId()))) {
+            throw new ResourceNotFoundException("Ride not found with id: " + ride.getId());
+        }
         if(!rider.equals(ride.getRider())) {
             throw new RuntimeConflictException(("Rider does not own this ride with id: "+rideId));
-        }
-        if (!resolveTenantId(ride.getTenantId()).equals(resolveTenantId(rider.getTenantId()))) {
-            throw new RuntimeConflictException("Cross-tenant ride access is not allowed.");
         }
 
         if (!(ride.getRideStatus().equals(RideStatus.CONFIRMED) || ride.getRideStatus().equals(RideStatus.ONGOING))) {
@@ -165,7 +168,7 @@ public class RiderServiceImpl implements RiderService {
 
         eventPublisher.publishEvent(new RideCancelledEvent(this, savedRide));
 
-        return modelMapper.map(savedRide, RideDto.class);
+        return toRideDto(savedRide);
     }
 
     @Override
@@ -203,11 +206,12 @@ public class RiderServiceImpl implements RiderService {
         Rider rider = getCurrentRider();
         Ride ride = rideService.getRideById(rideId);
 
+        // Check tenancy before ownership so another tenant's ride is reported as not found.
+        if (!resolveTenantId(ride.getTenantId()).equals(resolveTenantId(rider.getTenantId()))) {
+            throw new ResourceNotFoundException("Ride not found with id: " + ride.getId());
+        }
         if (!rider.equals(ride.getRider())) {
             throw new RuntimeConflictException("Rider does not own this ride with id: " + rideId);
-        }
-        if (!resolveTenantId(ride.getTenantId()).equals(resolveTenantId(rider.getTenantId()))) {
-            throw new RuntimeConflictException("Cross-tenant ride access is not allowed.");
         }
         if (!RideStatus.ONGOING.equals(ride.getRideStatus())) {
             throw new RuntimeConflictException("Ride status is not ONGOING hence cannot be ended, status: " + ride.getRideStatus());
@@ -220,7 +224,9 @@ public class RiderServiceImpl implements RiderService {
         driverEarningsService.createEarningRecord(savedRide);
         eventPublisher.publishEvent(new RideEndedEvent(this, savedRide));
 
-        return modelMapper.map(savedRide, RideDto.class);
+        RideDto dto = toRideDto(savedRide);
+        ratingService.applyRideRatingFlags(List.of(dto));
+        return dto;
     }
 
     @Override
@@ -243,16 +249,53 @@ public class RiderServiceImpl implements RiderService {
     @Transactional(readOnly = true)
     public RiderDto getMyProfile() {
         Rider currentRider = getCurrentRider();
-        return modelMapper.map(currentRider, RiderDto.class);
+        RiderDto riderDto = modelMapper.map(currentRider, RiderDto.class);
+        populateRiderName(currentRider, riderDto);
+        return riderDto;
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<RideDto> getAllMyRides(PageRequest pageRequest) {
         Rider currentRider = getCurrentRider();
-        return rideService.getAllRidesOfRider(currentRider, pageRequest).map(
-                ride -> modelMapper.map(ride, RideDto.class)
-        );
+        Page<RideDto> page = rideService.getAllRidesOfRider(currentRider, pageRequest).map(this::toRideDto);
+        ratingService.applyRideRatingFlags(page.getContent());
+        return page;
+    }
+
+    private RideDto toRideDto(Ride ride) {
+        RideDto dto = modelMapper.map(ride, RideDto.class);
+        Rider rider = ride.getRider();
+        if (rider != null && rider.getUser() != null) {
+            RiderDto riderDto = dto.getRider() == null ? new RiderDto() : dto.getRider();
+            riderDto.setId(rider.getId());
+            riderDto.setRating(rider.getRating());
+            riderDto.setUser(userDto(rider.getUser()));
+            dto.setRider(riderDto);
+        }
+        Driver driver = ride.getDriver();
+        if (driver != null && driver.getUser() != null) {
+            DriverDto driverDto = dto.getDriver() == null ? new DriverDto() : dto.getDriver();
+            driverDto.setUser(userDto(driver.getUser()));
+            dto.setDriver(driverDto);
+        }
+        return dto;
+    }
+
+    private void populateRiderName(Rider rider, RiderDto riderDto) {
+        if (rider.getUser() != null) {
+            riderDto.setUser(userDto(rider.getUser()));
+        }
+    }
+
+    private UserDto userDto(User user) {
+        UserDto dto = new UserDto();
+        dto.setEmail(user.getEmail());
+        dto.setRoles(user.getRoles());
+        String name = ((user.getFirstName() == null ? "" : user.getFirstName().trim()) + " "
+                + (user.getLastName() == null ? "" : user.getLastName().trim())).trim();
+        dto.setName(name.isEmpty() ? null : name);
+        return dto;
     }
 
     @Override
@@ -323,6 +366,7 @@ public class RiderServiceImpl implements RiderService {
 
     private RideRequestDto toRideRequestDto(RideRequest rideRequest) {
         RideRequestDto dto = modelMapper.map(rideRequest, RideRequestDto.class);
+        dto.setScheduledTime(rideRequest.getScheduledTime() == null ? null : rideRequest.getScheduledTime().atOffset(ZoneOffset.UTC));
         LocalDateTime requestedTime = rideRequest.getRequestedTime();
         if (requestedTime != null && RideRequestStatus.PENDING.equals(rideRequest.getRideRequestStatus())) {
             dto.setExpiresAt(requestedTime.plusSeconds(Math.max(1, dispatchProperties.getOfferTtlSeconds())));

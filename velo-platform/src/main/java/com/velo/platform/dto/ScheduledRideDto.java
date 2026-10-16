@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Data
 @NoArgsConstructor
@@ -18,7 +19,8 @@ public class ScheduledRideDto {
     private PointDto dropOffLocation;
     private PaymentMethod paymentMethod;
     private BigDecimal fare;
-    private LocalDateTime scheduledTime;
+    /** UTC instant, serialized with its offset so clients render it in the viewer's zone. */
+    private OffsetDateTime scheduledTime;
     private RideRequestStatus status;
     private LocalDateTime requestedTime;
 }

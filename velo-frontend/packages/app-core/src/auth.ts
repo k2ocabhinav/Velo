@@ -3,6 +3,7 @@ import { authErrorCodeFromStatus } from "./auth-errors";
 import { getApiBaseUrl, getEnvValue } from "./env";
 import { getErrorMessage, isRecordLike, readResponsePayload } from "./http-payload";
 import { LOGIN_REDIRECT_FALLBACK, sanitizeNextPath } from "./redirect";
+import { TENANT_SLUG_HEADER } from "./tenant";
 
 export { LOGIN_REDIRECT_FALLBACK, sanitizeNextPath };
 export { getApiBaseUrl } from "./env";
@@ -289,11 +290,16 @@ function isTimeoutLike(error: unknown): boolean {
   return false;
 }
 
-function createAuthFetchInit(body: Record<string, unknown>, signal: AbortSignal | undefined): RequestInit {
+function createAuthFetchInit(
+  body: Record<string, unknown>,
+  signal: AbortSignal | undefined,
+  extraHeaders: Record<string, string> = {}
+): RequestInit {
   const init: RequestInit = {
     method: "POST",
     headers: {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      ...extraHeaders
     },
     body: JSON.stringify(body),
     cache: "no-store"
@@ -603,7 +609,8 @@ export async function performLogoutProxy(
 
 export async function performRegisterProxy(
   body: RegisterPayload,
-  fetchImpl: typeof fetch = fetch
+  fetchImpl: typeof fetch = fetch,
+  tenantSlug?: string
 ): Promise<NextResponse> {
   if (!body?.name || !body?.email || !body?.password) {
     return NextResponse.json(
@@ -617,6 +624,11 @@ export async function performRegisterProxy(
       ? AbortSignal.timeout(LOGIN_REQUEST_TIMEOUT_MS)
       : undefined;
 
+  // The tenant slug comes from the BFF-resolved host, never the signup body.
+  const tenantHeaders: Record<string, string> = tenantSlug?.trim()
+    ? { [TENANT_SLUG_HEADER]: tenantSlug.trim() }
+    : {};
+
   let upstreamResponse: Response;
   try {
     upstreamResponse = await fetchImpl(
@@ -628,7 +640,8 @@ export async function performRegisterProxy(
           password: body.password,
           referredByCode: body.referredByCode
         },
-        timeoutSignal
+        timeoutSignal,
+        tenantHeaders
       )
     );
   } catch (error) {

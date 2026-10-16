@@ -154,7 +154,7 @@ export default function RiderScheduledPage() {
       await requestRiderProxy("/riders/schedule-ride", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pickupLocation: pickup.point, dropOffLocation: drop.point, paymentMethod, scheduledTime }),
+        body: JSON.stringify({ pickupLocation: pickup.point, dropOffLocation: drop.point, paymentMethod, scheduledTime: when.isoDateTime }),
       });
       setMessage(`${words.trip} scheduled.`);
       setScheduledTime("");
@@ -278,7 +278,7 @@ export default function RiderScheduledPage() {
     }
 
     try {
-      const encodedTime = encodeURIComponent(rescheduleTime);
+      const encodedTime = encodeURIComponent(validation.isoDateTime);
       await requestRiderProxy(`/riders/scheduled-rides/${rideId}/reschedule?newTime=${encodedTime}`, { method: "PUT" });
       setMessage(`${words.trip} rescheduled.`);
       await loadRides();
