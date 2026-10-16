@@ -14,6 +14,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/drivers")
 @Tag(name = "Driver", description = "Driver ride management")
 @SecurityRequirement(name = "bearerAuth")
+@Validated
 public class DriverController {
 
     private final DriverService driverService;
@@ -70,8 +72,8 @@ public class DriverController {
 
     @GetMapping("/getMyRides")
     @Operation(summary = "Get paginated ride history for the current driver")
-    public ResponseEntity<Page<RideDto>> getAllMyRides(@RequestParam(defaultValue = "0") Integer pageOffset,
-                                                       @RequestParam(defaultValue = "10", required = false) Integer pageSize) {
+    public ResponseEntity<Page<RideDto>> getAllMyRides(@RequestParam(defaultValue = "0") @Min(0) Integer pageOffset,
+                                                       @RequestParam(defaultValue = "10", required = false) @Min(1) @Max(200) Integer pageSize) {
         PageRequest pageRequest = PageRequest.of(pageOffset, pageSize,
                 Sort.by(Sort.Direction.DESC, "createdTime", "id"));
         return ResponseEntity.ok(driverService.getAllMyRides(pageRequest));
