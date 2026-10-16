@@ -377,7 +377,7 @@ export default function AdminDispatchPage() {
 
       <div className="dispatch-columns">
         <Section title={pendingHeading} actions={<span className="helper">{pendingRequests.length} shown</span>}>
-          {loading ? <div aria-label="Loading pending requests" aria-busy="true" className="stack">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-24" />)}</div> : pendingRequests.length === 0 ? (
+          {loading ? <div role="status" aria-label="Loading pending requests" aria-busy="true" className="stack">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-24" />)}</div> : pendingRequests.length === 0 ? (
             <EmptyState title={noPendingTitle} description={noPendingDescription} action={<Button variant="secondary" onClick={() => void loadAll()}>Refresh requests</Button>} />
           ) : pendingRequests.map((request) => (
             <article className="dispatch-request" key={request.rideRequestId}>
@@ -419,7 +419,7 @@ export default function AdminDispatchPage() {
         </Section>
 
         <Section title={`Active ${tripPlural.toLowerCase()}`} actions={<span className="helper">{activeRides.length} shown</span>}>
-          {loading ? <div aria-label="Loading active trips" aria-busy="true" className="stack">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-24" />)}</div> : activeRides.length === 0 ? (
+          {loading ? <div role="status" aria-label="Loading active trips" aria-busy="true" className="stack">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-24" />)}</div> : activeRides.length === 0 ? (
             <EmptyState title={`No active ${tripPlural.toLowerCase()}`} description={`${tripPlural} with a ${driverWord} assigned will appear here.`} action={<Button variant="secondary" onClick={() => void loadAll()}>Refresh ${tripPlural.toLowerCase()}</Button>} />
           ) : activeRides.map((ride) => (
             <article className="dispatch-ride" key={ride.rideId}>
@@ -447,7 +447,7 @@ export default function AdminDispatchPage() {
       </div>
 
       <Section title="Dispatch audit" actions={<Button size="sm" variant="secondary" onClick={() => void loadAll()}>Refresh</Button>}>
-        {loading ? <div aria-label="Loading dispatch audit" aria-busy="true" className="stack">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-10" />)}</div> : (
+        {loading ? <div role="status" aria-label="Loading dispatch audit" aria-busy="true" className="stack">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-10" />)}</div> : (
           <DataTable className="dispatch-audit-table" data={auditRows} columns={auditColumns} getRowKey={(row) => row.id} ariaLabel="Dispatch audit" emptyState={<EmptyState title="No dispatch actions yet" description="Assignments and cancellations will appear here." action={<Button variant="secondary" onClick={() => setCreateOpen(true)}>Create a trip request</Button>} />} />
         )}
       </Section>

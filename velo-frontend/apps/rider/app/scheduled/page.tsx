@@ -409,7 +409,7 @@ export default function RiderScheduledPage() {
             }}
           />
         ) : null}
-        {loading ? <div className="stack" aria-label={`Loading scheduled ${words.tripsWord}`}>{[0, 1].map((row) => <Skeleton className="schedule-skeleton-row" key={row} />)}</div> : null}
+        {loading ? <div className="stack" role="status" aria-label={`Loading scheduled ${words.tripsWord}`}>{[0, 1].map((row) => <Skeleton className="schedule-skeleton-row" key={row} />)}</div> : null}
         {!loading && !loadError && rides.length === 0 ? (
           <EmptyState
             title={`No scheduled ${words.tripsWord} yet`}

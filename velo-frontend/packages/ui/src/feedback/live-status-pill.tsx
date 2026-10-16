@@ -22,6 +22,7 @@ export function LiveStatusPill({ state, label, ariaLabel }: LiveStatusPillProps)
 
   return (
     <span
+      role="status"
       aria-live="polite"
       aria-label={ariaLabel ?? `Live status: ${text}`}
       className="live-status-pill"

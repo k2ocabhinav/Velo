@@ -74,7 +74,7 @@ describe("STOMP ticket and reconnect lifecycle", () => {
 
 async function waitFor(condition: () => boolean): Promise<void> {
   for (let attempt = 0; attempt < 20 && !condition(); attempt += 1) {
-    await Promise.resolve();
+    await new Promise<void>((resolve) => { setImmediate(resolve); });
   }
   if (!condition()) {
     throw new Error("Condition was not reached before the test timeout");

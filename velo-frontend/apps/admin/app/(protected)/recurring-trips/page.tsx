@@ -246,7 +246,7 @@ export default function RecurringTripsPage() {
           rowActionsLabel={(template) => `Actions for ${template.riderName || `weekly ${tripWord}`}`}
           emptyState={<EmptyState title="No weekly templates yet" description={`Create a template to materialize scheduled ${tripsLabel.toLowerCase()} up to seven days ahead.`} />}
         />}
-        <div className="recurring-trip-mobile-list" aria-label={`Weekly ${tripWord} templates`}>
+        <div className="recurring-trip-mobile-list" role="group" aria-label={`Weekly ${tripWord} templates`}>
           {loading ? <div className="recurring-trip-mobile-loading" role="status" aria-label={`Loading weekly ${tripWord} templates`} aria-busy="true"><Skeleton /><Skeleton /></div> : templates.length === 0
             ? <EmptyState title="No weekly templates yet" description={`Create a template to materialize scheduled ${tripsLabel.toLowerCase()} up to seven days ahead.`} />
             : templates.map((template) => <article className="recurring-trip-mobile-card" key={template.id}>

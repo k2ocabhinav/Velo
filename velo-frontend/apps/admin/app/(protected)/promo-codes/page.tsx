@@ -149,7 +149,7 @@ export default function PromoCodesPage() {
       {error ? <ErrorState title="Couldn't update promo codes" description={error} onRetry={() => void load()} /> : null}
       {statusMessage ? <p role="status" className="helper">{statusMessage}</p> : null}
       <Section title="Campaigns" actions={<SegmentedControl ariaLabel="Promo code status" value={filter} onValueChange={setFilter} options={[{ value: "ALL", label: "All", count: rows.length }, { value: "ACTIVE", label: "Active", count: rows.filter((promo) => promo.active).length }, { value: "INACTIVE", label: "Inactive", count: rows.filter((promo) => !promo.active).length }]} />}>
-        {loading ? <div aria-label="Loading promo codes" aria-busy="true" className="stack">{Array.from({ length: 4 }, (_, index) => <Skeleton key={index} className="h-12" />)}</div> : (
+        {loading ? <div role="status" aria-label="Loading promo codes" aria-busy="true" className="stack">{Array.from({ length: 4 }, (_, index) => <Skeleton key={index} className="h-12" />)}</div> : (
           <DataTable
             data={sortedRows}
             columns={columns}

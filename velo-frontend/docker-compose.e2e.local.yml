@@ -1,0 +1,166 @@
+services:
+  postgres:
+    build:
+      context: ./docker/postgis
+    image: velo/postgis:16
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: user
+    ports:
+      - "15432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  backend:
+    image: maven:3.9.9-eclipse-temurin-22
+    working_dir: /workspace/velo-platform
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/postgres
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: user
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: "6379"
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      SPRING_FLYWAY_ENABLED: "true"
+      # The local demo fixtures are rewritten at every startup; the handshake's restart
+      # pass sets this to false so the mutation made before the restart stays observable.
+      VELO_DEMO_FIXTURE_REFRESH: "${VELO_DEMO_FIXTURE_REFRESH:-true}"
+    command: sh -lc "chmod +x ./mvnw && ./mvnw -q spring-boot:run"
+    volumes:
+      - .:/workspace
+      - m2_cache:/root/.m2
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+
+  frontend-deps:
+    image: node:22-alpine
+    working_dir: /workspace/velo-frontend
+    command: sh -lc "npm ci --include=dev && touch /tmp/deps.ready && tail -f /dev/null"
+    volumes:
+      - .:/workspace
+      - frontend_node_modules:/workspace/velo-frontend/node_modules
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/deps.ready"]
+      interval: 2s
+      timeout: 1s
+      retries: 60
+
+  frontend-admin:
+    image: node:22-alpine
+    working_dir: /workspace/velo-frontend
+    environment:
+      VELO_API_BASE_URL: http://backend:8080
+      NEXT_PUBLIC_API_BASE_URL: http://backend:8080
+      VELO_AUTH_COOKIE_SECURE: "false"
+      NODE_ENV: production
+    command: sh -lc "npm run build --workspace @velo/admin && npm run start --workspace @velo/admin"
+    volumes:
+      - .:/workspace
+      - frontend_node_modules:/workspace/velo-frontend/node_modules
+    depends_on:
+      backend:
+        condition: service_started
+      frontend-deps:
+        condition: service_healthy
+    ports:
+      - "4101:4101"
+
+  frontend-rider:
+    image: node:22-alpine
+    working_dir: /workspace/velo-frontend
+    environment:
+      VELO_API_BASE_URL: http://backend:8080
+      NEXT_PUBLIC_API_BASE_URL: http://backend:8080
+      VELO_AUTH_COOKIE_SECURE: "false"
+      NODE_ENV: production
+    command: sh -lc "npm run build --workspace @velo/rider && npm run start --workspace @velo/rider"
+    volumes:
+      - .:/workspace
+      - frontend_node_modules:/workspace/velo-frontend/node_modules
+    depends_on:
+      backend:
+        condition: service_started
+      frontend-deps:
+        condition: service_healthy
+    ports:
+      - "4102:4102"
+
+  frontend-driver:
+    image: node:22-alpine
+    working_dir: /workspace/velo-frontend
+    environment:
+      VELO_API_BASE_URL: http://backend:8080
+      NEXT_PUBLIC_API_BASE_URL: http://backend:8080
+      VELO_AUTH_COOKIE_SECURE: "false"
+      NODE_ENV: production
+    command: sh -lc "npm run build --workspace @velo/driver && npm run start --workspace @velo/driver"
+    volumes:
+      - .:/workspace
+      - frontend_node_modules:/workspace/velo-frontend/node_modules
+    depends_on:
+      backend:
+        condition: service_started
+      frontend-deps:
+        condition: service_healthy
+    ports:
+      - "4103:4103"
+
+  smoke:
+    image: node:22-alpine
+    working_dir: /workspace
+    environment:
+      VELO_HANDSHAKE_MODE: ${VELO_HANDSHAKE_MODE:-mutate}
+      VELO_DISPATCH_AUDIT_MARKER: integration-handshake-admin-assignment
+      VELO_BACKEND_BASE_URL: http://backend:8080
+      VELO_FRONTEND_BASE_URL: http://frontend-admin:4101
+      VELO_ADMIN_FRONTEND_BASE_URL: http://frontend-admin:4101
+      VELO_RIDER_FRONTEND_BASE_URL: http://frontend-rider:4102
+      VELO_DRIVER_FRONTEND_BASE_URL: http://frontend-driver:4103
+      VELO_E2E_ADMIN_EMAIL: admin@velo-platform.com
+      VELO_E2E_ADMIN_PASSWORD: password123
+      # The primary demo rider always has an active trip, so the booking checks use a
+      # seeded rider with no pending or confirmed request.
+      VELO_E2E_RIDER_EMAIL: henry@example.com
+      VELO_E2E_RIDER_PASSWORD: password123
+      VELO_E2E_DRIVER_EMAIL: eve.driver@example.com
+      VELO_E2E_DRIVER_PASSWORD: password123
+      # Seeded presenter driver the handshake takes online: the demo fixtures start every
+      # driver offline, and both the admin assignment and the rider booking need a match.
+      VELO_E2E_ONLINE_DRIVER_EMAIL: carol.driver@example.com
+      VELO_E2E_ONLINE_DRIVER_PASSWORD: password123
+    command: sh -lc "node velo-frontend/tests/integration/handshake.mjs"
+    volumes:
+      - .:/workspace
+    depends_on:
+      - frontend-admin
+      - frontend-rider
+      - frontend-driver
+
+volumes:
+  postgres_data:
+  redis_data:
+  m2_cache:
+  frontend_node_modules:

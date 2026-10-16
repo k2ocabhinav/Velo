@@ -14,7 +14,7 @@ const FleetMapView = dynamic(
   () => import("@velo/ui/fleet-map").then((module) => module.FleetMap),
   {
     ssr: false,
-    loading: () => <div className={styles.mapSkeleton} aria-label="Loading live fleet map" aria-busy="true" />,
+    loading: () => <div className={styles.mapSkeleton} role="status" aria-label="Loading live fleet map" aria-busy="true" />,
   },
 );
 
@@ -65,7 +65,7 @@ function Stat({ label, value }: { label: string; value: number }) {
 
 function StatsSkeleton() {
   return (
-    <div className={styles.stats} aria-label="Loading fleet counts" aria-busy="true">
+    <div className={styles.stats} role="status" aria-label="Loading fleet counts" aria-busy="true">
       {Array.from({ length: 4 }, (_, index) => <span className={styles.statSkeleton} key={index} />)}
     </div>
   );
@@ -73,7 +73,7 @@ function StatsSkeleton() {
 
 function ListSkeleton() {
   return (
-    <div className={styles.listSkeleton} aria-label="Loading fleet list" aria-busy="true">
+    <div className={styles.listSkeleton} role="status" aria-label="Loading fleet list" aria-busy="true">
       {Array.from({ length: 4 }, (_, index) => <span className={styles.rowSkeleton} key={index} />)}
     </div>
   );
@@ -149,7 +149,7 @@ export function LiveFleetPanel({ onOpenTripsChanged }: LiveFleetPanelProps) {
               focusRequest={focusRequest}
               onSelectionChange={selectFromMap}
             />
-            {!snapshot && live.isLoading ? <div className={styles.mapSkeleton} aria-label="Loading live fleet map" aria-busy="true" /> : null}
+            {!snapshot && live.isLoading ? <div className={styles.mapSkeleton} role="status" aria-label="Loading live fleet map" aria-busy="true" /> : null}
             {!snapshot && live.error ? (
               <div className={styles.mapError}>
                 <ErrorState title="Live fleet unavailable" description={live.error.message} onRetry={live.retry} />
@@ -160,7 +160,7 @@ export function LiveFleetPanel({ onOpenTripsChanged }: LiveFleetPanelProps) {
 
         <aside className={styles.sidePanel} aria-label="Fleet status and open trips">
           {snapshot ? (
-            <div className={styles.stats} aria-label="Live fleet counts">
+            <div className={styles.stats} role="group" aria-label="Live fleet counts">
               <Stat label="Available" value={counts.available} />
               <Stat label="To pickup" value={counts.pickup} />
               <Stat label={`On ${tripWord}`} value={counts.onTrip} />
@@ -174,7 +174,7 @@ export function LiveFleetPanel({ onOpenTripsChanged }: LiveFleetPanelProps) {
           </div>
 
           {snapshot ? (
-            <div className={styles.scrollList} aria-label={`${heading} and open ${tripPlural.toLowerCase()}`}>
+            <div className={styles.scrollList} role="group" aria-label={`${heading} and open ${tripPlural.toLowerCase()}`}>
               {snapshot.drivers.length ? (
                 <>
                   <h4 className={styles.groupHeading}>{heading}</h4>

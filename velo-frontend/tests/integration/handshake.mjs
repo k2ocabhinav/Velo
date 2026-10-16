@@ -8,10 +8,16 @@ const BACKEND_BASE_URL = process.env.VELO_BACKEND_BASE_URL ?? "http://localhost:
 
 const ADMIN_EMAIL = process.env.VELO_E2E_ADMIN_EMAIL ?? "admin@velo-platform.com";
 const ADMIN_PASSWORD = process.env.VELO_E2E_ADMIN_PASSWORD ?? "password123";
-const RIDER_EMAIL = process.env.VELO_E2E_RIDER_EMAIL ?? "alice@example.com";
+const RIDER_EMAIL = process.env.VELO_E2E_RIDER_EMAIL ?? "henry@example.com";
 const RIDER_PASSWORD = process.env.VELO_E2E_RIDER_PASSWORD ?? "password123";
 const DRIVER_EMAIL = process.env.VELO_E2E_DRIVER_EMAIL ?? "eve.driver@example.com";
 const DRIVER_PASSWORD = process.env.VELO_E2E_DRIVER_PASSWORD ?? "password123";
+const ONLINE_DRIVER_EMAIL = process.env.VELO_E2E_ONLINE_DRIVER_EMAIL ?? "carol.driver@example.com";
+const ONLINE_DRIVER_PASSWORD = process.env.VELO_E2E_ONLINE_DRIVER_PASSWORD ?? DRIVER_PASSWORD;
+
+const ADMIN_TOKEN_COOKIE = "velo_admin_token";
+const RIDER_TOKEN_COOKIE = "velo_rider_token";
+const DRIVER_TOKEN_COOKIE = "velo_driver_token";
 
 const PROFILE_CONTEXT = (process.env.VELO_PROFILE_CONTEXT ?? "local-dev").toLowerCase();
 const EXPECT_OPENAPI_IN_CONTEXT = new Set(["local", "dev", "development", "local-dev"]);
@@ -155,7 +161,7 @@ function assertAuthCookiePolicy(setCookieValues, appName) {
   );
 }
 
-async function loginViaFrontend({ appName, baseUrl, email, password }) {
+async function loginViaFrontend({ appName, baseUrl, email, password, cookieName }) {
   const loginResponse = await requestWithRetry(`${baseUrl}/api/auth/login`, {
     method: "POST",
     headers: {
@@ -166,17 +172,19 @@ async function loginViaFrontend({ appName, baseUrl, email, password }) {
 
   assert.equal(loginResponse.status, 200, `${appName} login BFF should return 200`);
   const payload = await readJsonSafe(loginResponse);
-  const token = extractToken(payload);
-  assert.ok(token, `${appName} login should return a JWT token`);
+  assert.equal(
+    extractToken(payload),
+    null,
+    `${appName} login BFF must keep the JWT out of the browser response body (httpOnly cookie only)`,
+  );
 
   const setCookieValues = getSetCookieValues(loginResponse);
   const cookieHeader = buildCookieHeader(setCookieValues);
-  assert.match(cookieHeader, /velo_token=/, `${appName} login should set the auth cookie`);
+  assert.match(cookieHeader, new RegExp(`${cookieName}=`), `${appName} login should set the ${cookieName} cookie`);
   assertAuthCookiePolicy(setCookieValues, appName);
 
   return {
     payload,
-    token,
     setCookieValues,
     cookieHeader,
   };
@@ -202,14 +210,15 @@ async function runAdminFrontendChecks() {
     baseUrl: ADMIN_FRONTEND_BASE_URL,
     email: ADMIN_EMAIL,
     password: ADMIN_PASSWORD,
+    cookieName: ADMIN_TOKEN_COOKIE,
   });
 
-  const adminStats = await requestWithRetry(`${BACKEND_BASE_URL}/api/v1/admin/stats/dashboard`, {
+  const adminStats = await requestWithRetry(`${ADMIN_FRONTEND_BASE_URL}/api/proxy/api/v1/admin/stats/dashboard`, {
     headers: {
-      Authorization: `Bearer ${adminLogin.token}`,
+      Cookie: adminLogin.cookieHeader,
     },
   });
-  assert.equal(adminStats.status, 200, "Backend protected admin endpoint should accept frontend-issued token");
+  assert.equal(adminStats.status, 200, "Backend protected admin endpoint should accept the frontend session cookie");
 
   const authenticatedHome = await requestWithRetry(`${ADMIN_FRONTEND_BASE_URL}/`, {
     headers: {
@@ -277,6 +286,47 @@ async function fetchDispatchPage(cookieHeader, path) {
   return extractPageContent(payload);
 }
 
+/**
+ * Signs in as a seeded presenter driver and puts them online, returning the driver id.
+ * The demo fixtures start every driver offline, so admin assignment and rider booking
+ * (which both need an available driver) would otherwise never exercise their real path.
+ */
+async function bringPresenterDriverOnline() {
+  const driverLogin = await loginViaFrontend({
+    appName: "Presenter driver",
+    baseUrl: DRIVER_FRONTEND_BASE_URL,
+    email: ONLINE_DRIVER_EMAIL,
+    password: ONLINE_DRIVER_PASSWORD,
+    cookieName: DRIVER_TOKEN_COOKIE,
+  });
+
+  const profileResponse = await requestWithRetry(`${DRIVER_FRONTEND_BASE_URL}/api/backend/drivers/getMyProfile`, {
+    headers: { Cookie: driverLogin.cookieHeader },
+  });
+  assert.equal(profileResponse.status, 200, "Presenter driver profile should be reachable");
+  const profile = toObject(unwrapData(await readJsonSafe(profileResponse)));
+  const driverId = profile?.id;
+  assert.ok(
+    Number.isInteger(driverId) && driverId > 0,
+    "Presenter driver profile should expose a numeric driver id",
+  );
+
+  const availabilityResponse = await requestWithRetry(
+    `${DRIVER_FRONTEND_BASE_URL}/api/backend/drivers/availability`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: driverLogin.cookieHeader,
+      },
+      body: JSON.stringify({ available: true }),
+    },
+  );
+  assert.equal(availabilityResponse.status, 200, "Presenter driver should be able to go online");
+
+  return driverId;
+}
+
 async function runAdminDispatchChecks(cookieHeader) {
   const pendingRequests = await fetchDispatchPage(cookieHeader, "/api/proxy/api/v1/admin/dispatch/requests?page=0&size=10");
   await fetchDispatchPage(cookieHeader, "/api/proxy/api/v1/admin/dispatch/active-rides?page=0&size=10");
@@ -326,8 +376,14 @@ async function runAdminDispatchChecks(cookieHeader) {
 
     assert.ok(offeredDriverIds.length > 0, "Dispatch mutation pass requires at least one offered driver");
 
+    // The demo fixtures start every driver offline, and the dispatch assignment rejects
+    // unavailable drivers, so the operator flow needs a driver online first: take the
+    // seeded presenter driver online through the driver app, then assign through admin.
+    const onlineDriverId = await bringPresenterDriverOnline();
+    const assignCandidates = [...new Set([onlineDriverId, ...offeredDriverIds])];
+
     let assigned = false;
-    for (const driverId of offeredDriverIds) {
+    for (const driverId of assignCandidates) {
       const assignResponse = await requestWithRetry(
         `${ADMIN_FRONTEND_BASE_URL}/api/proxy/api/v1/admin/dispatch/requests/${targetRequest.rideRequestId}/assign`,
         {
@@ -368,6 +424,7 @@ async function runRiderFrontendChecks() {
     baseUrl: RIDER_FRONTEND_BASE_URL,
     email: RIDER_EMAIL,
     password: RIDER_PASSWORD,
+    cookieName: RIDER_TOKEN_COOKIE,
   });
 
   const authenticatedHome = await requestWithRetry(`${RIDER_FRONTEND_BASE_URL}/`, {
@@ -399,6 +456,10 @@ async function runRiderFrontendChecks() {
   });
   assert.equal(fareEstimate.status, 200, "Rider fare estimate should succeed via frontend backend proxy");
 
+  // A booking only stays pending while a driver can be matched; with the demo fleet
+  // offline the backend expires the request immediately and there is nothing to cancel.
+  await bringPresenterDriverOnline();
+
   const rideRequest = await requestWithRetry(`${RIDER_FRONTEND_BASE_URL}/api/backend/riders/requestRide`, {
     method: "POST",
     headers: {
@@ -408,6 +469,16 @@ async function runRiderFrontendChecks() {
     body: JSON.stringify(riderRidePayload),
   });
   assert.equal(rideRequest.status, 200, "Rider request ride should succeed via frontend backend proxy");
+  const createdRequest = toObject(unwrapData(await readJsonSafe(rideRequest)));
+  assert.ok(
+    createdRequest && typeof createdRequest.id === "number",
+    "Rider request ride should return the created request"
+  );
+  assert.equal(
+    createdRequest.rideRequestStatus,
+    "PENDING",
+    "Rider request ride should stay pending while a matched driver is online",
+  );
 
   const ridesResponse = await requestWithRetry(
     `${RIDER_FRONTEND_BASE_URL}/api/backend/riders/getMyRides?pageOffset=0&pageSize=10`,
@@ -435,6 +506,19 @@ async function runRiderFrontendChecks() {
     body: JSON.stringify({ paymentMethod: "WALLET" }),
   });
   assert.ok(invalidRideRequest.status >= 400, "Invalid rider request payload should be rejected");
+
+  // Release the request again so the persistence-verification pass can book with the
+  // same rider instead of tripping the one-pending-request-per-rider guard.
+  const cancelRequest = await requestWithRetry(
+    `${RIDER_FRONTEND_BASE_URL}/api/backend/riders/cancel-request/${createdRequest.id}`,
+    {
+      method: "POST",
+      headers: {
+        Cookie: riderLogin.cookieHeader,
+      },
+    },
+  );
+  assert.equal(cancelRequest.status, 200, "Rider should be able to cancel the request it just created");
 }
 
 async function runDriverFrontendChecks() {
@@ -445,6 +529,7 @@ async function runDriverFrontendChecks() {
     baseUrl: DRIVER_FRONTEND_BASE_URL,
     email: DRIVER_EMAIL,
     password: DRIVER_PASSWORD,
+    cookieName: DRIVER_TOKEN_COOKIE,
   });
 
   const authenticatedHome = await requestWithRetry(`${DRIVER_FRONTEND_BASE_URL}/`, {

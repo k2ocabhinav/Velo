@@ -40,6 +40,9 @@ services:
       SPRING_DATA_REDIS_PORT: "6379"
       SPRING_JPA_HIBERNATE_DDL_AUTO: validate
       SPRING_FLYWAY_ENABLED: "true"
+      # The local demo fixtures are rewritten at every startup; the handshake's restart
+      # pass sets this to false so the mutation made before the restart stays observable.
+      VELO_DEMO_FIXTURE_REFRESH: "${VELO_DEMO_FIXTURE_REFRESH:-true}"
     command: sh -lc "chmod +x ./mvnw && ./mvnw -q spring-boot:run"
     volumes:
       - .:/workspace
@@ -138,10 +141,16 @@ services:
       VELO_DRIVER_FRONTEND_BASE_URL: http://frontend-driver:4103
       VELO_E2E_ADMIN_EMAIL: admin@velo-platform.com
       VELO_E2E_ADMIN_PASSWORD: password123
-      VELO_E2E_RIDER_EMAIL: alice@example.com
+      # The primary demo rider always has an active trip, so the booking checks use a
+      # seeded rider with no pending or confirmed request.
+      VELO_E2E_RIDER_EMAIL: henry@example.com
       VELO_E2E_RIDER_PASSWORD: password123
       VELO_E2E_DRIVER_EMAIL: eve.driver@example.com
       VELO_E2E_DRIVER_PASSWORD: password123
+      # Seeded presenter driver the handshake takes online: the demo fixtures start every
+      # driver offline, and both the admin assignment and the rider booking need a match.
+      VELO_E2E_ONLINE_DRIVER_EMAIL: carol.driver@example.com
+      VELO_E2E_ONLINE_DRIVER_PASSWORD: password123
     command: sh -lc "node velo-frontend/tests/integration/handshake.mjs"
     volumes:
       - .:/workspace
