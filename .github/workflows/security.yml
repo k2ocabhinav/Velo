@@ -55,7 +55,6 @@ jobs:
     timeout-minutes: 45
     env:
       NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-      ODC_DATA_DIR: ${{ runner.temp }}/dependency-check-data
       DEPENDENCY_CHECK_PLUGIN_VERSION: 12.2.1
 
     steps:
@@ -82,6 +81,8 @@ jobs:
         run: echo "week=$(date +%G-%V)" >> "$GITHUB_OUTPUT"
 
       - name: Cache dependency-check data
+        env:
+          ODC_DATA_DIR: ${{ runner.temp }}/dependency-check-data
         uses: actions/cache@v4
         with:
           path: ${{ env.ODC_DATA_DIR }}
@@ -91,10 +92,14 @@ jobs:
 
       - name: Warm OWASP NVD cache
         working-directory: velo-platform
+        env:
+          ODC_DATA_DIR: ${{ runner.temp }}/dependency-check-data
         run: ./mvnw -q -DdataDirectory="$ODC_DATA_DIR" "org.owasp:dependency-check-maven:$DEPENDENCY_CHECK_PLUGIN_VERSION:update-only"
 
       - name: Run OWASP dependency check (no update)
         working-directory: velo-platform
+        env:
+          ODC_DATA_DIR: ${{ runner.temp }}/dependency-check-data
         run: ./mvnw -q -DdataDirectory="$ODC_DATA_DIR" -DautoUpdate=false "org.owasp:dependency-check-maven:$DEPENDENCY_CHECK_PLUGIN_VERSION:check"
 
       - name: Upload dependency-check report
