@@ -153,4 +153,4 @@ ECS reads database credentials at task startup. The Terraform configuration disa
 - `backend-quality.yml` — Maven regression suite
 - `security.yml` — npm audit and OWASP dependency-check
 - `integration-e2e.yml` — compose-based frontend/backend handshake
-- `staging-deploy.yml` — requires a webhook URL, token, and admin/rider smoke URLs; the webhook must accept a bearer-authenticated repository/ref/SHA JSON request and return success after deployment completes. Missing configuration or failed deploy/smoke requests fail the job.
+- `staging-deploy.yml` — when the webhook URL, token, and admin/rider smoke URLs are set, the webhook must accept a bearer-authenticated repository/ref/SHA JSON request and return success after deployment completes; when any of them is absent, the deploy and smoke jobs are skipped with a warning instead of failing, and any failed deploy/smoke request still fails the job.

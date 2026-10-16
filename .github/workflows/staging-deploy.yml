@@ -93,8 +93,59 @@ jobs:
         working-directory: velo-platform
         run: ./mvnw -q test
 
+  staging-config:
+    # Secrets cannot be read from a job-level if:, so this job publishes the result of
+    # the configuration check as an output that the deploy and smoke jobs gate on.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      STAGING_DEPLOY_TARGET: ${{ vars.STAGING_DEPLOY_TARGET }}
+      STAGING_ADMIN_URL: ${{ vars.STAGING_ADMIN_URL }}
+      STAGING_RIDER_URL: ${{ vars.STAGING_RIDER_URL }}
+      STAGING_DEPLOY_TOKEN: ${{ secrets.STAGING_DEPLOY_TOKEN }}
+    outputs:
+      configured: ${{ steps.detect.outputs.configured }}
+    steps:
+      - name: Detect staging configuration
+        id: detect
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=()
+          for key in STAGING_DEPLOY_TARGET STAGING_ADMIN_URL STAGING_RIDER_URL STAGING_DEPLOY_TOKEN; do
+            if [ -z "${!key}" ]; then
+              missing+=("${key}")
+            fi
+          done
+          if [ "${#missing[@]}" -eq 0 ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "Staging is configured; the deploy and smoke jobs will run unchanged." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "configured=false" >> "$GITHUB_OUTPUT"
+          echo "::warning::Staging is not configured (missing: ${missing[*]}). The deploy and smoke jobs will be skipped, not failed."
+          cat >> "$GITHUB_STEP_SUMMARY" <<'SUMMARY'
+          ### Staging deployment skipped
+
+          Staging is not configured yet, so `deploy-staging` and `staging-smoke` were skipped (not failed).
+
+          Set these repository values to enable staging and run both jobs unchanged:
+
+          | Kind | Name | Purpose |
+          | --- | --- | --- |
+          | Variable | `STAGING_DEPLOY_TARGET` | HTTPS webhook that triggers the staging deploy |
+          | Variable | `STAGING_ADMIN_URL` | Base URL of the deployed admin app |
+          | Variable | `STAGING_RIDER_URL` | Base URL of the deployed rider app |
+          | Secret | `STAGING_DEPLOY_TOKEN` | Bearer token the deploy webhook accepts |
+
+          See `docs/DEPLOYMENT.md` for the full staging setup.
+          SUMMARY
+
   deploy-staging:
-    needs: quality-gate
+    needs:
+      - quality-gate
+      - staging-config
+    if: ${{ needs.staging-config.outputs.configured == 'true' && needs.quality-gate.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment:
@@ -137,7 +188,10 @@ jobs:
           printf 'Deployment trigger accepted for %s at %s.\n' "$GITHUB_REPOSITORY" "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
 
   staging-smoke:
-    needs: deploy-staging
+    needs:
+      - staging-config
+      - deploy-staging
+    if: ${{ needs.staging-config.outputs.configured == 'true' && needs.deploy-staging.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
