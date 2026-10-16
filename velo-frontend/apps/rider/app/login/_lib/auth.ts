@@ -62,9 +62,10 @@ export async function performLoginProxy(
 
 export async function performRegisterProxy(
   body: RegisterPayload,
-  fetchImpl: typeof fetch = fetch
+  fetchImpl: typeof fetch = fetch,
+  tenantSlug?: string
 ) {
-  return performSharedRegisterProxy(body, fetchImpl);
+  return performSharedRegisterProxy(body, fetchImpl, tenantSlug);
 }
 
 export function performRefreshProxy(refreshToken: string | null | undefined, fetchImpl: typeof fetch = fetch, requestHost?: string) {

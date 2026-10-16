@@ -239,6 +239,47 @@ class AdminServiceImplTest {
     }
 
     @Test
+    @DisplayName("Reject driver should persist the trimmed reason and evict the available-drivers cache")
+    void rejectDriver_ShouldPersistReasonAndEvictCaches() {
+        Driver driver = new Driver();
+        driver.setId(11L);
+        driver.setTenantId(1L);
+        when(driverRepository.findById(11L)).thenReturn(Optional.of(driver));
+
+        adminService.rejectDriver(11L, "  Documents incomplete  ");
+
+        assertThat(driver.getOnboardingStatus()).isEqualTo(DriverOnboardingStatus.REJECTED);
+        assertThat(driver.getRejectionReason()).isEqualTo("Documents incomplete");
+        assertThat(driver.getAvailable()).isFalse();
+        verify(driverRepository).save(driver);
+        verify(cacheService).evictAvailableDriversCache();
+        verify(cacheService).evictDashboardCache();
+    }
+
+    @Test
+    @DisplayName("Reject driver for another tenant should report not found")
+    void rejectDriver_CrossTenant_ShouldReturnNotFound() {
+        Driver driver = new Driver();
+        driver.setId(12L);
+        driver.setTenantId(2L);
+        when(driverRepository.findById(12L)).thenReturn(Optional.of(driver));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> adminService.rejectDriver(12L, "no"))
+                .isInstanceOf(ResourceNotFoundException.class);
+        verify(driverRepository, never()).save(any(Driver.class));
+    }
+
+    @Test
+    @DisplayName("Approve a missing driver should report not found")
+    void approveDriver_Missing_ShouldReturnNotFound() {
+        when(driverRepository.findById(404L)).thenReturn(Optional.empty());
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> adminService.approveDriver(404L))
+                .isInstanceOf(ResourceNotFoundException.class);
+        verify(driverRepository, never()).save(any(Driver.class));
+    }
+
+    @Test
     @DisplayName("Deactivate user should persist active=false")
     void deactivateUser_ShouldSetActiveFalse() {
         User user = new User();

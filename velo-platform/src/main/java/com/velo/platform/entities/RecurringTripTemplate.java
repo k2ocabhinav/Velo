@@ -45,6 +45,11 @@ public class RecurringTripTemplate {
     @Column(name = "local_time", nullable = false)
     private LocalTime localTime;
 
+    /** IANA zone {@link #localTime} is expressed in; occurrences materialise in this zone. */
+    @Column(name = "time_zone", nullable = false, length = 64)
+    @Builder.Default
+    private String timeZone = "UTC";
+
     @Column(name = "start_date", nullable = false)
     private LocalDate startDate;
 

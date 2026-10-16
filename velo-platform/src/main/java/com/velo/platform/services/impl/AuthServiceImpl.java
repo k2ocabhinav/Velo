@@ -9,12 +9,15 @@ import com.velo.platform.dto.UpdateProfileRequestDto;
 import com.velo.platform.dto.UserDto;
 import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.PasswordResetToken;
+import com.velo.platform.entities.Tenant;
 import com.velo.platform.entities.User;
 import com.velo.platform.entities.enums.DriverOnboardingStatus;
 import com.velo.platform.entities.enums.Role;
+import com.velo.platform.exceptions.BadRequestException;
 import com.velo.platform.exceptions.ResourceNotFoundException;
 import com.velo.platform.exceptions.RuntimeConflictException;
 import com.velo.platform.repositories.PasswordResetTokenRepository;
+import com.velo.platform.repositories.TenantRepository;
 import com.velo.platform.repositories.UserRepository;
 import com.velo.platform.security.JwtTokenProvider;
 import com.velo.platform.security.UserPrincipal;
@@ -58,6 +61,7 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenService refreshTokenService;
+    private final TenantRepository tenantRepository;
 
     @Override
     @Transactional
@@ -115,7 +119,13 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public UserDto signup(SignupDto signupDto){
+    public UserDto signup(SignupDto signupDto) {
+        return signup(signupDto, null);
+    }
+
+    @Override
+    @Transactional
+    public UserDto signup(SignupDto signupDto, String tenantSlug) {
 
         User user = userRepository.findByEmail(signupDto.getEmail()).orElse(null);
         if(user != null)
@@ -125,7 +135,7 @@ public class AuthServiceImpl implements AuthService {
         mappedUser.setPassword(passwordEncoder.encode(signupDto.getPassword()));
         mappedUser.setActive(true);
         mappedUser.setRoles(new HashSet<>(Set.of(Role.RIDER)));
-        mappedUser.setTenantId(resolveSignupTenantId());
+        mappedUser.setTenantId(resolveSignupTenantId(tenantSlug));
 
         String referralCode = generateReferralCode(signupDto.getName());
         mappedUser.setReferralCode(referralCode);
@@ -151,14 +161,21 @@ public class AuthServiceImpl implements AuthService {
     }
 
     /**
-     * An admin creating a rider should land it in the admin's own tenant; anonymous
-     * self-registration keeps falling back to the default tenant.
+     * An admin creating a rider should land it in the admin's own tenant. Anonymous self-registration
+     * resolves the tenant from the slug the BFF derived from the request host (never the request body);
+     * an unknown or inactive slug is rejected. Without a slug it falls back to the default tenant.
      */
-    private Long resolveSignupTenantId() {
+    private Long resolveSignupTenantId(String tenantSlug) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication != null && authentication.getPrincipal() instanceof UserPrincipal principal
                 && principal.getTenantId() != null) {
             return principal.getTenantId();
+        }
+        if (tenantSlug != null && !tenantSlug.isBlank()) {
+            return tenantRepository.findBySlug(tenantSlug.trim())
+                    .filter(tenant -> Boolean.TRUE.equals(tenant.getActive()))
+                    .map(Tenant::getId)
+                    .orElseThrow(() -> new BadRequestException("Unknown tenant: " + tenantSlug.trim()));
         }
         return DEFAULT_TENANT_ID;
     }

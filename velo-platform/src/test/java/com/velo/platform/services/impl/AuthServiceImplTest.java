@@ -7,12 +7,15 @@ import com.velo.platform.dto.SignupDto;
 import com.velo.platform.dto.UserDto;
 import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.PasswordResetToken;
+import com.velo.platform.entities.Tenant;
 import com.velo.platform.entities.User;
 import com.velo.platform.entities.enums.DriverOnboardingStatus;
 import com.velo.platform.entities.enums.Role;
+import com.velo.platform.exceptions.BadRequestException;
 import com.velo.platform.exceptions.ResourceNotFoundException;
 import com.velo.platform.exceptions.RuntimeConflictException;
 import com.velo.platform.repositories.PasswordResetTokenRepository;
+import com.velo.platform.repositories.TenantRepository;
 import com.velo.platform.repositories.UserRepository;
 import com.velo.platform.security.JwtTokenProvider;
 import com.velo.platform.security.UserPrincipal;
@@ -77,6 +80,9 @@ class AuthServiceImplTest {
     @Mock
     private RefreshTokenService refreshTokenService;
 
+    @Mock
+    private TenantRepository tenantRepository;
+
     private AuthServiceImpl authService;
 
     @BeforeEach
@@ -84,7 +90,7 @@ class AuthServiceImplTest {
         SecurityContextHolder.clearContext();
         authService = new AuthServiceImpl(
                 userRepository, passwordResetTokenRepository, modelMapper, riderService, walletService, driverService,
-                passwordEncoder, jwtTokenProvider, refreshTokenService);
+                passwordEncoder, jwtTokenProvider, refreshTokenService, tenantRepository);
     }
 
     @Test
@@ -193,6 +199,46 @@ class AuthServiceImplTest {
         authService.signup(signupDto);
 
         assertThat(mappedUser.getTenantId()).isEqualTo(1L);
+    }
+
+    @Test
+    @DisplayName("Anonymous signup resolves the tenant from the host-derived slug")
+    void signup_WithTenantSlug_ShouldUseResolvedTenant() {
+        SignupDto signupDto = new SignupDto();
+        signupDto.setName("Saffron Guest");
+        signupDto.setEmail("guest@sim.saffronroutes.demo");
+        signupDto.setPassword("password123");
+
+        User mappedUser = User.builder().email(signupDto.getEmail()).roles(new HashSet<>()).build();
+
+        when(userRepository.findByEmail(signupDto.getEmail())).thenReturn(Optional.empty());
+        when(tenantRepository.findBySlug("saffron-routes")).thenReturn(Optional.of(
+                Tenant.builder().id(3L).slug("saffron-routes").active(true).build()));
+        when(modelMapper.map(signupDto, User.class)).thenReturn(mappedUser);
+        when(passwordEncoder.encode(signupDto.getPassword())).thenReturn("encoded-password");
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(modelMapper.map(any(User.class), eq(UserDto.class))).thenReturn(new UserDto());
+
+        authService.signup(signupDto, "saffron-routes");
+
+        assertThat(mappedUser.getTenantId()).isEqualTo(3L);
+    }
+
+    @Test
+    @DisplayName("Anonymous signup rejects an unknown tenant slug with 400")
+    void signup_WithUnknownTenantSlug_ShouldReject() {
+        SignupDto signupDto = new SignupDto();
+        signupDto.setName("Nowhere");
+        signupDto.setEmail("nowhere@test.com");
+        signupDto.setPassword("password123");
+
+        when(userRepository.findByEmail(signupDto.getEmail())).thenReturn(Optional.empty());
+        when(modelMapper.map(signupDto, User.class)).thenReturn(User.builder().email(signupDto.getEmail()).roles(new HashSet<>()).build());
+        when(tenantRepository.findBySlug("ghost-tenant")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> authService.signup(signupDto, "ghost-tenant"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Unknown tenant");
     }
 
     @Test

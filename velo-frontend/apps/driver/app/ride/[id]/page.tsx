@@ -122,7 +122,7 @@ export default function DriverRidePage() {
     return () => window.clearInterval(intervalId);
   }, [loadRide, rideId, status]);
 
-  const ratingAlreadySubmitted = ratedRideId === ride?.id;
+  const ratingAlreadySubmitted = ratedRideId === ride?.id || ride?.riderRated === true;
   const otpRequired = Boolean(ride?.rider);
   const canEnterStartDetails = status === "CONFIRMED" && pendingAction === null;
   const canStart = canSubmitStartRide(status, otp, pendingAction !== null, otpRequired);

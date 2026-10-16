@@ -226,6 +226,24 @@ export function getDefaultTenantSlug(): string {
   return validSlug(configured) ? configured : DEFAULT_TENANT_SLUG;
 }
 
+/**
+ * Resolves the tenant slug from a request's host, the same way the middleware does. BFF routes are
+ * excluded from the middleware matcher, so they resolve the host themselves rather than trusting
+ * anything the browser sent in the body.
+ */
+export function resolveTenantSlugFromRequest(
+  headers: { get(name: string): string | null },
+  defaultTenantSlug = getDefaultTenantSlug(),
+  tenantBaseDomain = getEnvValue("VELO_TENANT_BASE_DOMAIN") ?? "velo.app",
+): string {
+  const trustProxy = getEnvValue("VELO_TRUST_PROXY") === "1";
+  const forwardedHost = trustProxy
+    ? headers.get("x-forwarded-host")?.split(",", 1)[0]?.trim()
+    : undefined;
+  const host = forwardedHost || headers.get("host") || "";
+  return resolveTenantSlug({ hostname: host, defaultTenantSlug, tenantBaseDomain });
+}
+
 export function attachTenantSlugHeader(
   request: NextRequest,
   response: NextResponse,

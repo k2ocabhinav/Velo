@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getApiBaseUrl } from "@velo/app-core/env";
+import { TENANT_SLUG_HEADER, resolveTenantSlugFromRequest } from "@velo/app-core/tenant";
 import { extractAuthValues, handleRegisterFormPost, isFormSubmission, readFormString } from "@velo/app-core/auth";
 
 interface RegisterBody {
@@ -39,6 +40,8 @@ async function readApiErrorPayload(response: Response, fallback: string): Promis
 }
 
 export async function POST(request: NextRequest) {
+  const tenantSlug = resolveTenantSlugFromRequest(request.headers);
+
   if (isFormSubmission(request)) {
     return handleRegisterFormPost(request, (form) =>
       registerDriver({
@@ -47,7 +50,7 @@ export async function POST(request: NextRequest) {
         password: readFormString(form, "password"),
         vehicleId: readFormString(form, "vehicleId"),
         referredByCode: readFormString(form, "referredByCode") || undefined,
-      })
+      }, tenantSlug)
     );
   }
 
@@ -59,10 +62,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Request body must be JSON." }, { status: 400 });
   }
 
-  return registerDriver(body);
+  return registerDriver(body, tenantSlug);
 }
 
-async function registerDriver(body: RegisterBody): Promise<NextResponse> {
+async function registerDriver(body: RegisterBody, tenantSlug: string): Promise<NextResponse> {
   const { name, email, password, vehicleId, referredByCode } = body;
 
   if (!name || !email || !password || !vehicleId) {
@@ -80,7 +83,8 @@ async function registerDriver(body: RegisterBody): Promise<NextResponse> {
   try {
     signupResponse = await fetch(`${baseUrl}/auth/signup`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      // The tenant slug is resolved from the request host by the BFF, never taken from the body.
+      headers: { "Content-Type": "application/json", Accept: "application/json", [TENANT_SLUG_HEADER]: tenantSlug },
       body: JSON.stringify({
         name: normalizedName,
         email,

@@ -7,7 +7,7 @@ import { DefinitionList, EmptyState, ErrorState, PageHeader, Section } from "@ve
 import { Skeleton } from "@velo/ui/feedback";
 import { DarkModeToggle, useTenantBrandingOrDefault } from "@velo/ui/theme";
 import { Button } from "@velo/ui/primitives";
-import { requestDriverProxy, type DriverProfile } from "../_lib/driver-client";
+import { getDriverRejectionMessage, requestDriverProxy, type DriverProfile } from "../_lib/driver-client";
 
 export default function DriverAccountPage() {
   const words = getTenantLabelWords(useTenantBrandingOrDefault());
@@ -62,6 +62,7 @@ export default function DriverAccountPage() {
               { label: "Vehicle", value: profile.vehicleId || "Not provided" },
               { label: "Rating", value: profile.rating === null || profile.rating === undefined ? "Not rated yet" : `${profile.rating.toFixed(1)} / 5` },
               { label: "Availability", value: <span className="badge" data-tone={profile.available ? "success" : "neutral"}>{profile.available ? "Online" : "Offline"}</span> },
+              ...(getDriverRejectionMessage(profile) ? [{ label: "Application", value: getDriverRejectionMessage(profile) }] : []),
             ]}
           />
         ) : null}

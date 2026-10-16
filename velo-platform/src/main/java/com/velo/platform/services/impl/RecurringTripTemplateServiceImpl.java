@@ -29,18 +29,19 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.DateTimeException;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class RecurringTripTemplateServiceImpl implements RecurringTripTemplateService {
-
-    private static final ZoneId SCHEDULER_ZONE = ZoneId.of("UTC");
 
     private final RecurringTripTemplateRepository templateRepository;
     private final RideRequestRepository rideRequestRepository;
@@ -172,13 +173,14 @@ public class RecurringTripTemplateServiceImpl implements RecurringTripTemplateSe
     @Override
     @Transactional
     public int materializeOccurrences() {
-        LocalDate today = LocalDate.now(SCHEDULER_ZONE);
-        LocalDate through = today.plusDays(Math.max(0, scheduledRideConfig.getRecurringMaterializationHorizonDays()));
-        LocalDateTime now = LocalDateTime.now(SCHEDULER_ZONE);
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         int created = 0;
 
         // Batch jobs have no request tenant. Enumerate tenant IDs, then keep every business query tenant-scoped.
         for (Tenant tenant : tenantRepository.findAll()) {
+            ZoneId tenantZone = parseZone(tenant.getTimeZone());
+            LocalDate today = LocalDate.now(tenantZone);
+            LocalDate through = today.plusDays(Math.max(0, scheduledRideConfig.getRecurringMaterializationHorizonDays()));
             List<Long> templateIds = templateRepository.findByTenantIdAndActiveTrueAndDeletedFalse(tenant.getId())
                     .stream().map(RecurringTripTemplate::getId).toList();
             for (Long templateId : templateIds) {
@@ -190,8 +192,9 @@ public class RecurringTripTemplateServiceImpl implements RecurringTripTemplateSe
                 LocalDate start = template.getStartDate().isAfter(today) ? template.getStartDate() : today;
                 LocalDate end = template.getEndDate().isBefore(through) ? template.getEndDate() : through;
                 Set<DayOfWeek> days = template.getDays();
+                ZoneId templateZone = parseZone(template.getTimeZone());
                 for (LocalDate date = start; !date.isAfter(end); date = date.plusDays(1)) {
-                    LocalDateTime scheduledTime = date.atTime(template.getLocalTime());
+                    LocalDateTime scheduledTime = toUtc(date, template.getLocalTime(), templateZone);
                     if (!days.contains(date.getDayOfWeek()) || !scheduledTime.isAfter(now)) continue;
                     if (rideRequestRepository.existsByTenantIdAndRecurringTemplate_IdAndOccurrenceDate(
                             tenant.getId(), template.getId(), date)) continue;
@@ -202,6 +205,29 @@ public class RecurringTripTemplateServiceImpl implements RecurringTripTemplateSe
             }
         }
         return created;
+    }
+
+    /** A template stores a local time of day; the instant is that wall clock in its zone, kept as UTC. */
+    private LocalDateTime toUtc(LocalDate date, LocalTime localTime, ZoneId zone) {
+        return LocalDateTime.of(date, localTime).atZone(zone).withZoneSameInstant(ZoneOffset.UTC).toLocalDateTime();
+    }
+
+    private ZoneId parseZone(String zoneId) {
+        if (zoneId == null || zoneId.isBlank()) {
+            return ZoneOffset.UTC;
+        }
+        try {
+            return ZoneId.of(zoneId.trim());
+        } catch (DateTimeException e) {
+            return ZoneOffset.UTC;
+        }
+    }
+
+    private String tenantTimeZoneId(Long tenantId) {
+        if (tenantId == null) {
+            return ZoneOffset.UTC.getId();
+        }
+        return parseZone(tenantRepository.findById(tenantId).map(Tenant::getTimeZone).orElse(null)).getId();
     }
 
     private RideRequest createOccurrence(RecurringTripTemplate template, LocalDate date, LocalDateTime scheduledTime) {
@@ -240,6 +266,7 @@ public class RecurringTripTemplateServiceImpl implements RecurringTripTemplateSe
         template.setRider(rider);
         template.setDays(request.getDaysOfWeek());
         template.setLocalTime(request.getLocalTime());
+        template.setTimeZone(tenantTimeZoneId(tenantId));
         template.setStartDate(request.getStartDate());
         template.setEndDate(request.getEndDate());
         template.setPickupLocation(GeometryUtil.createPoint(request.getPickupLocation()));
@@ -252,14 +279,15 @@ public class RecurringTripTemplateServiceImpl implements RecurringTripTemplateSe
     }
 
     private void syncFutureOccurrences(RecurringTripTemplate template) {
-        LocalDateTime now = LocalDateTime.now(SCHEDULER_ZONE);
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         List<RideRequest> rows = rideRequestRepository
                 .findByTenantIdAndRecurringTemplate_IdAndRideRequestStatusAndScheduledTimeAfter(
                         template.getTenantId(), template.getId(), RideRequestStatus.SCHEDULED, now);
         Set<DayOfWeek> days = template.getDays();
+        ZoneId templateZone = parseZone(template.getTimeZone());
         for (RideRequest row : rows) {
             LocalDate date = row.getOccurrenceDate() != null ? row.getOccurrenceDate() : row.getScheduledTime().toLocalDate();
-            LocalDateTime updatedTime = date.atTime(template.getLocalTime());
+            LocalDateTime updatedTime = toUtc(date, template.getLocalTime(), templateZone);
             if (date.isBefore(template.getStartDate()) || date.isAfter(template.getEndDate())
                     || !days.contains(date.getDayOfWeek()) || !updatedTime.isAfter(now)) {
                 row.setRideRequestStatus(RideRequestStatus.CANCELLED);

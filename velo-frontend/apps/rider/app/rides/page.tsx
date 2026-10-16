@@ -33,6 +33,8 @@ type RideItem = {
   startedAt?: string | null;
   endedAt?: string | null;
   fare?: DecimalValue | null;
+  /** True once this ride's driver has been rated by the rider. */
+  driverRated?: boolean;
 };
 
 const PAGE_SIZE = 10;
@@ -226,7 +228,10 @@ export default function RiderRidesPage() {
                 </div>
                 <div className="trip-row-actions">
                   <Money amount={ride.fare ?? null} />
-                  {isCompleted(ride.rideStatus) ? (
+                  {isCompleted(ride.rideStatus) && ride.driverRated ? (
+                    <p className="helper" role="status">{`You rated this ${words.tripWord}.`}</p>
+                  ) : null}
+                  {isCompleted(ride.rideStatus) && !ride.driverRated ? (
                     <div className="trip-rating" aria-label={`Rate this ${words.tripWord}`}>
                       <div className="rating-stars" role="group" aria-label="Choose a star rating">
                         {[1, 2, 3, 4, 5].map((star) => {

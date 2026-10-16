@@ -468,6 +468,7 @@ class RiderServiceImplTest {
         mockAuthenticatedRider();
         Page<Ride> ridePage = new PageImpl<>(List.of(testRide));
         when(rideService.getAllRidesOfRider(testRider, PageRequest.of(0, 10))).thenReturn(ridePage);
+        when(modelMapper.map(testRide, RideDto.class)).thenReturn(new RideDto());
 
         Page<RideDto> result = riderService.getAllMyRides(PageRequest.of(0, 10));
 

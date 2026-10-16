@@ -424,8 +424,8 @@ export const adminClient = {
   async rejectDriver(driverId: number, reason: string): Promise<void> {
     await requestAdminProxy<void>(`api/v1/admin/drivers/${driverId}/reject`, {
       method: "POST",
-      headers: { "Content-Type": "text/plain" },
-      body: reason
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason })
     });
   },
 

@@ -9,6 +9,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Data
 @NoArgsConstructor
@@ -40,7 +41,8 @@ public class RideRequestDto {
 
     private RideRequestStatus rideRequestStatus;
 
-    private LocalDateTime scheduledTime;
+    /** UTC instant with offset (ISO-8601 with zone) for a scheduled trip; null for immediate requests. */
+    private OffsetDateTime scheduledTime;
 
     private LocalDateTime expiresAt;
 }

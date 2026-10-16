@@ -20,7 +20,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @RestController
 @RequiredArgsConstructor
@@ -133,7 +133,7 @@ public class RiderController {
     @Operation(summary = "Reschedule a scheduled ride to a new time")
     public ResponseEntity<ScheduledRideDto> rescheduleRide(
             @PathVariable Long id,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime newTime) {
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime newTime) {
         return ResponseEntity.ok(scheduledRideService.rescheduleRide(id, newTime));
     }
 

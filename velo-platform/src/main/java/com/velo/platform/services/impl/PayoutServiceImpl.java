@@ -5,6 +5,7 @@ import com.velo.platform.entities.Driver;
 import com.velo.platform.entities.PayoutRequest;
 import com.velo.platform.entities.enums.PayoutStatus;
 import com.velo.platform.entities.enums.TransactionMethod;
+import com.velo.platform.exceptions.BadRequestException;
 import com.velo.platform.exceptions.ResourceNotFoundException;
 import com.velo.platform.exceptions.RuntimeConflictException;
 import com.velo.platform.repositories.DriverRepository;
@@ -40,16 +41,20 @@ public class PayoutServiceImpl implements PayoutService {
     @Override
     @Transactional
     public PayoutRequestDto requestPayout(BigDecimal amount) {
+        if (amount == null) {
+            throw new BadRequestException("Payout amount is required");
+        }
         if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new RuntimeConflictException("Payout amount must be greater than zero");
+            throw new BadRequestException("Payout amount must be greater than zero");
         }
 
-        BigDecimal availableBalance = driverEarningsService.getAvailableBalance();
+        // Lock the driver row first so two concurrent requests cannot both pass the balance check
+        // and overdraw the same earnings.
+        Driver driver = getCurrentDriverForUpdate();
+        BigDecimal availableBalance = driverEarningsService.getAvailableBalance(driver);
         if (amount.compareTo(availableBalance) > 0) {
             throw new RuntimeConflictException("Insufficient earnings balance for payout request");
         }
-
-        Driver driver = getCurrentDriver();
 
         PayoutRequest payoutRequest = PayoutRequest.builder()
                 .tenantId(driver.getTenantId())
@@ -138,6 +143,12 @@ public class PayoutServiceImpl implements PayoutService {
     private Driver getCurrentDriver() {
         UserPrincipal principal = (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         return driverRepository.findByUserIdAndTenantId(principal.getUserId(), principal.getTenantId())
+                .orElseThrow(() -> new ResourceNotFoundException("Driver profile not found"));
+    }
+
+    private Driver getCurrentDriverForUpdate() {
+        UserPrincipal principal = (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return driverRepository.findByUserIdAndTenantIdForUpdate(principal.getUserId(), principal.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Driver profile not found"));
     }
 

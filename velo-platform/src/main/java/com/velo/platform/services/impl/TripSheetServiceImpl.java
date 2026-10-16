@@ -25,10 +25,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
+import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -37,7 +39,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class TripSheetServiceImpl implements TripSheetService {
 
-    private static final ZoneId ZONE = ZoneId.of("UTC");
+    private static final ZoneId UTC = ZoneOffset.UTC;
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE;
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm");
     private static final List<RideRequestStatus> ALERTABLE_STATUSES = List.of(
@@ -68,7 +70,7 @@ public class TripSheetServiceImpl implements TripSheetService {
     @Transactional(readOnly = true)
     public List<TripSheetRowDto> getNeedsAttentionTrips() {
         Long tenantId = tenantScopeService.requireCurrentTenantId();
-        LocalDateTime now = LocalDateTime.now(ZONE);
+        LocalDateTime now = LocalDateTime.now(UTC);
         LocalDateTime until = now.plusMinutes(Math.max(0, scheduledRideConfig.getUnassignedAlertWindowMinutes()));
         return toRows(rideRequestRepository.findByTenantIdAndRideRequestStatusInAndScheduledTimeBetweenOrderByScheduledTimeAsc(
                         tenantId, ALERTABLE_STATUSES, now, until), now, until)
@@ -84,7 +86,7 @@ public class TripSheetServiceImpl implements TripSheetService {
     @Override
     @Transactional
     public int createUnassignedTripAlerts() {
-        LocalDateTime now = LocalDateTime.now(ZONE);
+        LocalDateTime now = LocalDateTime.now(UTC);
         LocalDateTime until = now.plusMinutes(Math.max(0, scheduledRideConfig.getUnassignedAlertWindowMinutes()));
         int created = 0;
         for (Tenant tenant : tenantRepository.findAll()) {
@@ -114,9 +116,10 @@ public class TripSheetServiceImpl implements TripSheetService {
     @Transactional(readOnly = true)
     public byte[] exportCsv(LocalDate date) {
         Long tenantId = tenantScopeService.requireCurrentTenantId();
+        ZoneId zone = tenantZone(tenantId);
         StringBuilder csv = new StringBuilder("date,time,booking reference,rider,pickup,drop-off,driver,status,reason code,reason note\r\n");
         for (TripSheetRowDto row : listForDate(tenantId, date)) {
-            LocalDateTime time = row.getScheduledTime();
+            ZonedDateTime time = row.getScheduledTime().atZoneSameInstant(zone);
             appendCsvRow(csv, List.of(
                     DATE_FORMAT.format(time.toLocalDate()),
                     TIME_FORMAT.format(time.toLocalTime()),
@@ -147,7 +150,7 @@ public class TripSheetServiceImpl implements TripSheetService {
         ride.setReasonCode(request == null || request.getReasonCode() == null
                 ? ScheduledTripReasonCode.OPERATOR_CANCELLED : request.getReasonCode());
         ride.setReasonNote(request == null ? null : clean(request.getNote()));
-        return toRow(ride, LocalDateTime.now(ZONE), LocalDateTime.now(ZONE));
+        return toRow(ride, LocalDateTime.now(UTC), LocalDateTime.now(UTC));
     }
 
     @Override
@@ -159,7 +162,7 @@ public class TripSheetServiceImpl implements TripSheetService {
         if (ride.getRideRequestStatus() != RideRequestStatus.CONFIRMED) {
             throw new RuntimeConflictException("A trip must be assigned before it can be marked as a no-show");
         }
-        if (ride.getScheduledTime() != null && ride.getScheduledTime().isAfter(LocalDateTime.now(ZONE))) {
+        if (ride.getScheduledTime() != null && ride.getScheduledTime().isAfter(LocalDateTime.now(UTC))) {
             throw new RuntimeConflictException("A future trip cannot be marked as a no-show");
         }
         ScheduledTripReasonCode code = request == null || request.getReasonCode() == null
@@ -170,13 +173,14 @@ public class TripSheetServiceImpl implements TripSheetService {
         ride.setRideRequestStatus(RideRequestStatus.NO_SHOW);
         ride.setReasonCode(code);
         ride.setReasonNote(request == null ? null : clean(request.getNote()));
-        return toRow(ride, LocalDateTime.now(ZONE), LocalDateTime.now(ZONE));
+        return toRow(ride, LocalDateTime.now(UTC), LocalDateTime.now(UTC));
     }
 
     private List<TripSheetRowDto> listForDate(Long tenantId, LocalDate date) {
-        LocalDateTime start = date.atStartOfDay();
-        LocalDateTime end = date.plusDays(1).atStartOfDay();
-        LocalDateTime now = LocalDateTime.now(ZONE);
+        ZoneId zone = tenantZone(tenantId);
+        LocalDateTime start = date.atStartOfDay(zone).withZoneSameInstant(UTC).toLocalDateTime();
+        LocalDateTime end = date.plusDays(1).atStartOfDay(zone).withZoneSameInstant(UTC).toLocalDateTime();
+        LocalDateTime now = LocalDateTime.now(UTC);
         LocalDateTime attentionEnd = now.plusMinutes(Math.max(0, scheduledRideConfig.getUnassignedAlertWindowMinutes()));
         return toRows(rideRequestRepository
                 .findByTenantIdAndScheduledTimeGreaterThanEqualAndScheduledTimeLessThanOrderByScheduledTimeAsc(
@@ -199,7 +203,7 @@ public class TripSheetServiceImpl implements TripSheetService {
         return TripSheetRowDto.builder()
                 .rideRequestId(request.getId())
                 .recurringTemplateId(request.getRecurringTemplate() == null ? null : request.getRecurringTemplate().getId())
-                .scheduledTime(scheduled)
+                .scheduledTime(scheduled == null ? null : scheduled.atOffset(ZoneOffset.UTC))
                 .bookingReference(request.getExternalReference())
                 .riderName(riderName)
                 .pickupAddress(request.getPickupAddress())
@@ -212,6 +216,24 @@ public class TripSheetServiceImpl implements TripSheetService {
                 .reasonCode(request.getReasonCode())
                 .reasonNote(request.getReasonNote())
                 .build();
+    }
+
+    private ZoneId tenantZone(Long tenantId) {
+        return tenantRepository.findById(tenantId)
+                .map(Tenant::getTimeZone)
+                .map(this::parseZone)
+                .orElse(UTC);
+    }
+
+    private ZoneId parseZone(String zoneId) {
+        if (zoneId == null || zoneId.isBlank()) {
+            return UTC;
+        }
+        try {
+            return ZoneId.of(zoneId.trim());
+        } catch (DateTimeException e) {
+            return UTC;
+        }
     }
 
     private String fullName(String first, String last) {

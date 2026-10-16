@@ -32,6 +32,11 @@ public class Tenant {
     @Builder.Default
     private Boolean active = true;
 
+    /** IANA zone the tenant's wall clock is expressed in (e.g. "Asia/Kolkata"). */
+    @Column(name = "time_zone", nullable = false, length = 64)
+    @Builder.Default
+    private String timeZone = "UTC";
+
     @Builder.Default
     @Column(name = "base_fare", nullable = false, precision = 12, scale = 2)
     private BigDecimal baseFare = new BigDecimal("5.00");

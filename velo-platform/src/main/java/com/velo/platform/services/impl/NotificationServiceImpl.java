@@ -5,7 +5,6 @@ import com.velo.platform.entities.Notification;
 import com.velo.platform.entities.User;
 import com.velo.platform.entities.enums.NotificationType;
 import com.velo.platform.exceptions.ResourceNotFoundException;
-import com.velo.platform.exceptions.RuntimeConflictException;
 import com.velo.platform.repositories.NotificationRepository;
 import com.velo.platform.security.UserPrincipal;
 import com.velo.platform.services.NotificationService;
@@ -16,6 +15,7 @@ import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -85,11 +85,12 @@ public class NotificationServiceImpl implements NotificationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Notification not found with id: " + notificationId));
 
         UserPrincipal principal = (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        if (!notification.getUser().getId().equals(principal.getUserId())) {
-            throw new RuntimeConflictException("You do not have permission to modify this notification");
-        }
+        // A notification in another tenant must not reveal that it exists.
         if (!resolveTenantId(notification.getTenantId()).equals(resolveTenantId(principal.getTenantId()))) {
-            throw new RuntimeConflictException("Cross-tenant notification access is not allowed.");
+            throw new ResourceNotFoundException("Notification not found with id: " + notificationId);
+        }
+        if (!notification.getUser().getId().equals(principal.getUserId())) {
+            throw new AccessDeniedException("You do not have permission to modify this notification");
         }
 
         notification.setRead(true);

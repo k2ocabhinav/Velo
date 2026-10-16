@@ -21,6 +21,13 @@ public interface AuthService {
 
     UserDto signup(SignupDto signupDto);
 
+    /**
+     * Anonymous self-registration resolved to the tenant the caller's host maps to. An
+     * authenticated caller (an admin creating a rider) always signs up in their own tenant,
+     * so {@code tenantSlug} is ignored in that case.
+     */
+    UserDto signup(SignupDto signupDto, String tenantSlug);
+
     DriverDto onboardNewDriver(Long userId, String vehicleId);
 
     UserDto updateProfile(UpdateProfileRequestDto requestDto);

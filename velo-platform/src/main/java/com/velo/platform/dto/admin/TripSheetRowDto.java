@@ -5,14 +5,14 @@ import com.velo.platform.entities.enums.ScheduledTripReasonCode;
 import lombok.Builder;
 import lombok.Value;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Value
 @Builder
 public class TripSheetRowDto {
     Long rideRequestId;
     Long recurringTemplateId;
-    LocalDateTime scheduledTime;
+    OffsetDateTime scheduledTime;
     String bookingReference;
     String riderName;
     String pickupAddress;

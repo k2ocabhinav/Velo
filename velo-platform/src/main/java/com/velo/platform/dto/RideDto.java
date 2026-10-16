@@ -25,4 +25,10 @@ public class RideDto {
     private Double fare;
     private String promoCode;
     private Double discountAmount;
+
+    /** True once the rider has rated this ride's driver. */
+    private boolean driverRated;
+
+    /** True once the driver has rated this ride's rider. */
+    private boolean riderRated;
 }

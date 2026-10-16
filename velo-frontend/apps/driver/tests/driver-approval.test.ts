@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isDriverApproved, type DriverProfile } from "../app/_lib/driver-client";
+import { getDriverRejectionMessage, isDriverApproved, isDriverRejected, type DriverProfile } from "../app/_lib/driver-client";
 
 function profile(overrides: Partial<DriverProfile> = {}): DriverProfile {
   return { id: 1, available: false, ...overrides };
@@ -21,5 +21,20 @@ describe("isDriverApproved", () => {
     expect(isDriverApproved(profile({ onboardingStatus: "PENDING" }))).toBe(false);
     expect(isDriverApproved(profile({ onboardingStatus: "REJECTED" }))).toBe(false);
     expect(isDriverApproved(profile({ onboardingStatus: "SUSPENDED" }))).toBe(false);
+  });
+});
+
+describe("driver rejection state", () => {
+  it("only flags a rejected application", () => {
+    expect(isDriverRejected(profile({ onboardingStatus: "REJECTED" }))).toBe(true);
+    expect(isDriverRejected(profile({ onboardingStatus: "PENDING" }))).toBe(false);
+    expect(isDriverRejected(profile({ onboardingStatus: "APPROVED" }))).toBe(false);
+  });
+
+  it("surfaces the rejection reason, trimmed", () => {
+    expect(getDriverRejectionMessage(profile({ onboardingStatus: "REJECTED", rejectionReason: " Documents incomplete " })))
+      .toBe("Rejected: Documents incomplete");
+    expect(getDriverRejectionMessage(profile({ onboardingStatus: "REJECTED" }))).toBe("Application rejected");
+    expect(getDriverRejectionMessage(profile({ onboardingStatus: "PENDING", rejectionReason: "stale" }))).toBeNull();
   });
 });

@@ -393,7 +393,7 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
         RideRequest rideRequest = rideRequestRepository.findById(rideRequestId)
                 .orElseThrow(() -> new ResourceNotFoundException("Ride request not found with id: " + rideRequestId));
         if (!tenantId.equals(rideRequest.getTenantId())) {
-            throw new RuntimeConflictException("Cross-tenant ride request access is not allowed.");
+            throw new ResourceNotFoundException("Ride request not found with id: " + rideRequest.getId());
         }
         boolean simulatedRequest = isSimulatedRideRequest(rideRequest);
         return rideOfferRepository.findByRideRequestIdAndTenantIdOrderByOfferedAtDesc(rideRequestId, tenantId)
@@ -437,7 +437,7 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
         RideRequest rideRequest = rideRequestRepository.findById(rideRequestId)
                 .orElseThrow(() -> new ResourceNotFoundException("Ride request not found with id: " + rideRequestId));
         if (!tenantId.equals(rideRequest.getTenantId())) {
-            throw new RuntimeConflictException("Cross-tenant ride request access is not allowed.");
+            throw new ResourceNotFoundException("Ride request not found with id: " + rideRequest.getId());
         }
         if (rideRequest.getRideRequestStatus() != RideRequestStatus.PENDING) {
             throw new RuntimeConflictException("Ride request is not pending and cannot be assigned.");
@@ -474,7 +474,7 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
         Long tenantId = tenantScopeService.requireCurrentTenantId();
         Ride ride = rideService.getRideById(rideId);
         if (!tenantId.equals(ride.getTenantId())) {
-            throw new RuntimeConflictException("Cross-tenant ride access is not allowed.");
+            throw new ResourceNotFoundException("Ride not found with id: " + rideId);
         }
         if (ride.getRideStatus() == RideStatus.CANCELLED || ride.getRideStatus() == RideStatus.ENDED) {
             throw new RuntimeConflictException("Only active rides can be reassigned.");
@@ -510,7 +510,7 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
         RideRequest rideRequest = rideRequestRepository.findById(rideRequestId)
                 .orElseThrow(() -> new ResourceNotFoundException("Ride request not found with id: " + rideRequestId));
         if (!tenantId.equals(rideRequest.getTenantId())) {
-            throw new RuntimeConflictException("Cross-tenant ride request access is not allowed.");
+            throw new ResourceNotFoundException("Ride request not found with id: " + rideRequest.getId());
         }
 
         if (rideRequest.getRideRequestStatus() == RideRequestStatus.CONFIRMED) {
@@ -548,7 +548,7 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
         Long tenantId = tenantScopeService.requireCurrentTenantId();
         Ride ride = rideService.getRideById(rideId);
         if (!tenantId.equals(ride.getTenantId())) {
-            throw new RuntimeConflictException("Cross-tenant ride access is not allowed.");
+            throw new ResourceNotFoundException("Ride not found with id: " + rideId);
         }
         if (ride.getRideStatus() == RideStatus.CANCELLED || ride.getRideStatus() == RideStatus.ENDED) {
             return modelMapper.map(ride, RideDto.class);
@@ -590,7 +590,7 @@ public class AdminDispatchServiceImpl implements AdminDispatchService {
         Driver driver = driverRepository.findById(driverId)
                 .orElseThrow(() -> new ResourceNotFoundException("Driver not found with id: " + driverId));
         if (!tenantId.equals(driver.getTenantId())) {
-            throw new RuntimeConflictException("Cross-tenant driver access is not allowed.");
+            throw new ResourceNotFoundException("Driver not found with id: " + driverId);
         }
         if (driver.getOnboardingStatus() != DriverOnboardingStatus.APPROVED) {
             throw new RuntimeConflictException("Driver is not approved for dispatch assignments.");

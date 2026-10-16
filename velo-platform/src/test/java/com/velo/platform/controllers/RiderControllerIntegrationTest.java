@@ -154,11 +154,40 @@ class RiderControllerIntegrationTest {
     }
 
     @Test
-    @DisplayName("GET /riders/getMyProfile should return rider profile")
+    @DisplayName("GET /riders/getMyProfile should return rider profile with the user's name")
     void getMyProfile_ShouldReturnProfile() throws Exception {
         mockMvc.perform(withRiderAuth(get("/riders/getMyProfile")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.user.email").value("rider@test.com"));
+                .andExpect(jsonPath("$.data.user.email").value("rider@test.com"))
+                .andExpect(jsonPath("$.data.user.name").value("Test Rider"));
+    }
+
+    @Test
+    @DisplayName("GET /riders/getMyRides exposes the driverRated flag so the rate control can hide")
+    void getMyRides_ShouldExposeRatedFlag() throws Exception {
+        String before = mockMvc.perform(withRiderAuth(get("/riders/getMyRides")
+                        .param("pageOffset", "0").param("pageSize", "10")))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(rideFlag(before, endedRide.getId(), "driverRated")).isFalse();
+
+        mockMvc.perform(withRiderAuth(post("/riders/rateDriver/" + endedRide.getId() + "/5")))
+                .andExpect(status().isOk());
+
+        String after = mockMvc.perform(withRiderAuth(get("/riders/getMyRides")
+                        .param("pageOffset", "0").param("pageSize", "10")))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(rideFlag(after, endedRide.getId(), "driverRated")).isTrue();
+    }
+
+    private boolean rideFlag(String body, long rideId, String flag) throws Exception {
+        for (com.fasterxml.jackson.databind.JsonNode node : objectMapper.readTree(body).path("data").path("content")) {
+            if (node.path("id").asLong() == rideId) {
+                return node.path(flag).asBoolean();
+            }
+        }
+        throw new AssertionError("ride " + rideId + " not found in response");
     }
 
     @Test
@@ -219,7 +248,8 @@ class RiderControllerIntegrationTest {
     void rateDriver_ShouldReturnOk() throws Exception {
         mockMvc.perform(withRiderAuth(post("/riders/rateDriver/" + endedRide.getId() + "/5")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.user.email").value("driver@test.com"));
+                .andExpect(jsonPath("$.data.user.email").value("driver@test.com"))
+                .andExpect(jsonPath("$.data.user.name").value("Test Driver"));
     }
 
     @Test

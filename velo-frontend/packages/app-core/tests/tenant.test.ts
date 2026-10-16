@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest, NextResponse } from "next/server";
-import { attachTenantSlugHeader, DEFAULT_TENANT_BRANDING, fetchTenantBranding, getTenantAdminUsersLabel, getTenantLabelForCount, getTenantLabelWords, getTenantPluralLabel, getTenantPluralTripLabel, getTenantTripLabelForCount, getTenantWordmark, resolveTenantSlug, resolveTenantSlugFromHeader, TENANT_SLUG_HEADER } from "../src/tenant";
+import { attachTenantSlugHeader, DEFAULT_TENANT_BRANDING, fetchTenantBranding, getTenantAdminUsersLabel, getTenantLabelForCount, getTenantLabelWords, getTenantPluralLabel, getTenantPluralTripLabel, getTenantTripLabelForCount, getTenantWordmark, resolveTenantSlug, resolveTenantSlugFromHeader, resolveTenantSlugFromRequest, TENANT_SLUG_HEADER } from "../src/tenant";
 
 afterEach(() => vi.unstubAllEnvs());
 
@@ -47,6 +47,11 @@ describe("tenant resolution", () => {
     const response = attachTenantSlugHeader(request, NextResponse.next());
 
     expect(response.headers.get("x-middleware-request-" + TENANT_SLUG_HEADER)).toBe("saffron-routes");
+  });
+
+  it("resolves the tenant slug from a request's host for BFF routes", () => {
+    expect(resolveTenantSlugFromRequest(new Headers({ host: "saffron-routes.localhost:6401" }))).toBe("saffron-routes");
+    expect(resolveTenantSlugFromRequest(new Headers({ host: "localhost:6401" }))).toBe("default");
   });
 });
 

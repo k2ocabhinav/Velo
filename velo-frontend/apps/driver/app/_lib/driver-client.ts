@@ -35,12 +35,26 @@ export interface DriverProfile {
   available: boolean;
   vehicleId?: string | null;
   onboardingStatus?: string | null;
+  rejectionReason?: string | null;
   user?: DriverUserSummary | null;
 }
 
 export function isDriverApproved(profile: DriverProfile | null | undefined): boolean {
   // Older responses may omit the status; treat that as approved so the toggle still works.
   return !profile?.onboardingStatus || profile.onboardingStatus.toUpperCase() === "APPROVED";
+}
+
+export function isDriverRejected(profile: DriverProfile | null | undefined): boolean {
+  return profile?.onboardingStatus?.toUpperCase() === "REJECTED";
+}
+
+/** "Rejected: <reason>" for a rejected application, or null when the driver is not rejected. */
+export function getDriverRejectionMessage(profile: DriverProfile | null | undefined): string | null {
+  if (!isDriverRejected(profile)) {
+    return null;
+  }
+  const reason = profile?.rejectionReason?.trim();
+  return reason ? `Rejected: ${reason}` : "Application rejected";
 }
 
 export interface DriverRidePerson {
@@ -65,6 +79,10 @@ export interface DriverRide {
   endedAt?: string | null;
   promoCode?: string | null;
   discountAmount?: DecimalValue | null;
+  /** True once the driver has rated this ride's rider. */
+  riderRated?: boolean;
+  /** True once the rider has rated this ride's driver. */
+  driverRated?: boolean;
 }
 
 export interface DriverRideRequestPreview {
