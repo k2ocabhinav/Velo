@@ -51,6 +51,11 @@ jobs:
           java-version: 21
           cache: maven
 
+      - name: Create Flyway migration test database
+        run: |
+          docker exec "${{ job.services.postgres.id }}" createdb --username=postgres testpostgres_flyway
+          docker exec "${{ job.services.postgres.id }}" psql --username=postgres --dbname=testpostgres_flyway --command="CREATE EXTENSION IF NOT EXISTS postgis"
+
       - name: Run backend tests
         working-directory: velo-platform
         run: ./mvnw -q test
