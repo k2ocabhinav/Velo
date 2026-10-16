@@ -4,7 +4,7 @@
 
 ## Tech Stack
 
-- **Runtime:** Java 21, Spring Boot 3.5.13
+- **Runtime:** Java 21+, Spring Boot 3.5.13
 - **Database:** PostgreSQL + PostGIS (Hibernate Spatial)
 - **Auth:** Stateless JWT (Spring Security + JJWT)
 - **Mapping:** ModelMapper (entity <-> DTO)
@@ -116,7 +116,7 @@ Long userId = principal.getUserId(); // This is User.id
 | `testpostgres_flyway` | Flyway migration integration test database |
 
 - User: `postgres`, Password: `user`
-- `ddl-auto=validate`; Flyway migrations `V1` through `V6` own the schema.
+- `ddl-auto=validate`; Flyway migrations `V1`–`V14` own the schema.
 - Local and dev profiles also load the demo seed in `db/demo-migration/`; staging and prod load only schema migrations.
 - SQL initialization is disabled (`spring.sql.init.mode=never`).
 - Create the two test databases and enable PostGIS in each before running tests; see `DEPLOYMENT.md`.
@@ -143,8 +143,8 @@ Because `GlobalResponseHandler` wraps everything, JSON assertions target `$.data
 ### Test Data Builders
 Reusable builders in `testdata/` package: `UserTestBuilder`, `RiderTestBuilder`, `DriverTestBuilder`, `RideTestBuilder`, `RideRequestTestBuilder`, `WalletTestBuilder`.
 
-### Current Test Count
-234 tests run (233 passing, 1 skipped) in the latest verified suite.
+### Test Suite
+The suite is green in the latest verified run; `PROGRESS.md` records the current count.
 
 ## Ride Lifecycle
 

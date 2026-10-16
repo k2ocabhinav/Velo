@@ -31,7 +31,7 @@
 - [x] Rider pending-request recovery + duplicate guard, stale earnings guard, dispatch form kept on failure, maps fit once + follow toggle, reduced motion, skeletons on admin users/payouts and driver earnings (decision 0017)
 - [x] npm audit: 20 vulnerabilities → 0
 - [x] Test infra safe by default (small pool, dedicated Flyway DB), concurrent dispatch race test, PostGIS in local compose, staging deploy fails on missing config, Prometheus metrics behind ADMIN, docs drift fixed (47437d1)
-- [x] Backend suite: 240 tests, 0 failures (was 197 claimed / 196 actual)
+- [x] Backend suite: 0 failures (an earlier over-count was corrected in this round)
 
 ### Follow-ups found during the 2026-10-14 rounds
 - [x] EP-1 Rider wallet balance/transactions endpoint + admin revenue per driver
@@ -41,7 +41,7 @@
 - [x] EP-5 Demo readiness: second branded tenant (Saffron Routes), `scripts/demo-up.sh`, README with screenshots, `docs/DEMO_SCRIPT.md`
 - [x] EP-6 Recurring trip templates (V10), trip sheet + CSV, unassigned alerts, reason codes (decision 0023)
 - [x] Landing page: researched redesign 'Livery' (light-first, paper/ink/livery green, cartographic 3D hero, day/night), 4 critique rounds; gates green (axe 0, 123 kB first load)
-- [x] E2E determinism: mock API for server-side branding; 48 passed, 0 failed (3 consecutive runs + orchestrator CI run)
+- [x] E2E determinism: mock API for server-side branding; all green across 3 consecutive runs plus the orchestrator CI run
 - [x] Landing polish: debug-looking labels removed; README screenshots refreshed (day + night) (small fleets, pre-booked transfers), pricing hypothesis, contact form; Netlify-free-tier deployable
 - [x] Demo rehearsal fixes: per-host tenant branding, production demo stack, fresh fixture reset, ride request mapping, tenant currency (V11), form-post login with same-origin check, realistic fares/wallets, offer addresses and expiry (V12)
 - [x] Live fleet map on admin Dispatch (`GET /admin/dispatch/live`, decision 0024)
@@ -57,7 +57,7 @@
 - Corporate accounts + contract tariffs + monthly statements; driver/vehicle document readiness + incidents; DPDP features (consent, export/deletion, retention); PWA + web push; OSRM road-based ETA dispatch; Hindi localization
 - [ ] Apply Terraform — deferred: no AWS account or budget; demos run locally (see research for $0 options)
 
-### UI/UX improvement round (merged; e2e 32/32)
+### UI/UX improvement round (merged; e2e green)
 - [x] Plan written: `docs/UX_REFINEMENT_PLAN.md`
 - [x] UI-0 shared foundation (styles, components, formatters, RouteStrip)
 - [x] UI-1 admin pages
@@ -115,7 +115,7 @@
 - [x] Driver/Rider service errors return 409 via `RuntimeConflictException` (not 500)
 
 ### Testing
-- [x] 197 backend tests passing (unit + integration), including docs-endpoint profile tests and Flyway migration stability tests — `3d2d369`
+- [x] Backend suite verified 2026-10-16: 335 tests in 67 suites (334 passing, 1 skipped) — unit, integration, docs-endpoint profile and Flyway migration stability tests
 
 ---
 

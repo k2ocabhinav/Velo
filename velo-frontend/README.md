@@ -48,9 +48,9 @@ The backend handshake contracts use `VELO_API_BASE_URL` or `NEXT_PUBLIC_API_BASE
 
 ## Apps
 
-- Admin: `http://localhost:3000`
-- Rider: `http://localhost:3001`
-- Driver: `http://localhost:3002`
+- Admin: `http://localhost:4101`
+- Rider: `http://localhost:4102`
+- Driver: `http://localhost:4103`
 
 ## Environment
 

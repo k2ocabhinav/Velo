@@ -282,7 +282,7 @@ The frontend only needs to: call the right endpoint, display the response, and l
   - protected route shell (`/`, `/drivers`, `/users`, `/payouts`, `/promo-codes`, `/revenue`, `/scheduled-rides`)
   - auth BFF route (`/api/auth/login`) and cookie-based session flow
   - open-redirect-safe middleware and login redirect handling
-- Rider and driver shells exist and run on dedicated ports (`3001`, `3002`).
+- Rider and driver shells exist and run on dedicated ports (`4102`, `4103`).
 - Shared packages are active:
   - `packages/api`: backend-aligned service clients + response/page unwrapping
   - `packages/ui`: primitives/composed/motion/feedback/theme layers
@@ -485,7 +485,7 @@ The frontend only needs to: call the right endpoint, display the response, and l
 - Driver register BFF now follows backend auth contracts (`name` for signup) and resolves onboarding `userId` through login fallback when needed.
 - Current QA snapshot for this stabilization pass:
   - Frontend gates: `lint`, `typecheck`, `test:unit`, `test:contracts`, `build` all passing.
-  - Playwright smoke: admin + driver + rider all passing (19/19).
+  - Playwright smoke: admin + driver + rider all passing.
   - Compose handshake: passing from clean state.
 
 ## Implementation Status Update (2026-04-10, Admin Ops Completion Slice)

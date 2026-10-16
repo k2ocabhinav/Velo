@@ -188,7 +188,7 @@ class DriverServiceImplTest {
         mockAuthenticatedDriver();
         Rider rider = Rider.builder()
                 .id(12L)
-                .user(User.builder().firstName("Henry").lastName("Rider").build())
+                .user(User.builder().firstName("Henry").lastName("Walsh").build())
                 .build();
         testRide.setRider(rider);
         UserDto userDto = new UserDto();
@@ -205,7 +205,7 @@ class DriverServiceImplTest {
         RideDto result = driverService.acceptRide(1L);
 
         assertThat(result.getFare()).isEqualTo(100.0);
-        assertThat(result.getRider().getUser().getName()).isEqualTo("Henry Rider");
+        assertThat(result.getRider().getUser().getName()).isEqualTo("Henry Walsh");
     }
 
     @Test
@@ -266,7 +266,7 @@ class DriverServiceImplTest {
     @DisplayName("Pending offer preview includes rider-selected addresses and server expiry")
     void getRideRequestForAcceptance_WithOffer_ShouldReturnAddressesAndExpiry() {
         mockAuthenticatedDriver();
-        User riderUser = User.builder().firstName("Henry").lastName("Rider").build();
+        User riderUser = User.builder().firstName("Henry").lastName("Walsh").build();
         Rider rider = Rider.builder().id(27L).user(riderUser).build();
         RiderDto riderDto = new RiderDto();
         UserDto riderUserDto = new UserDto();
@@ -289,7 +289,7 @@ class DriverServiceImplTest {
         assertThat(result.getPickupAddress()).isEqualTo("The Leela Palace, Old Airport Road");
         assertThat(result.getDropOffAddress()).isEqualTo("Kempegowda International Airport, Terminal 1");
         assertThat(result.getExpiresAt()).isEqualTo(expiresAt);
-        assertThat(result.getRider().getUser().getName()).isEqualTo("Henry Rider");
+        assertThat(result.getRider().getUser().getName()).isEqualTo("Henry Walsh");
     }
 
     @Test
@@ -503,7 +503,7 @@ class DriverServiceImplTest {
     @DisplayName("Get my profile should populate the driver's full name")
     void getMyProfile_ShouldPopulateDriverName() {
         mockAuthenticatedDriver();
-        testDriver.setUser(User.builder().firstName("Bob").lastName("Driver").build());
+        testDriver.setUser(User.builder().firstName("Bob").lastName("Lindqvist").build());
         UserDto userDto = new UserDto();
         DriverDto driverDto = new DriverDto();
         driverDto.setUser(userDto);
@@ -511,7 +511,7 @@ class DriverServiceImplTest {
 
         DriverDto result = driverService.getMyProfile();
 
-        assertThat(result.getUser().getName()).isEqualTo("Bob Driver");
+        assertThat(result.getUser().getName()).isEqualTo("Bob Lindqvist");
     }
 
     @Test

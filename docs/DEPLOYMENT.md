@@ -8,10 +8,10 @@
 
 | Service | Required | Install |
 |---|---|---|
-| Java 21 | Backend | `brew install openjdk@21` |
+| Java 21+ | Backend | `brew install openjdk@21` |
 | PostgreSQL 16 + PostGIS | Backend | `brew install postgresql@16 postgis` |
 | Redis | Optional location cache | `brew install redis` |
-| Node.js 20+ | Frontend | `brew install node` |
+| Node.js 22+ | Frontend | `brew install node` |
 
 ### Database Setup
 
@@ -53,7 +53,7 @@ cd velo-platform
 cd ../velo-frontend
 npm install
 npm run dev
-# Landing: :4100, Admin: :4101, Requester: :4102, Driver: :4103
+# Landing: :4100, Admin: :4101, Rider: :4102, Driver: :4103
 ```
 
 ### Run Tests
@@ -70,7 +70,7 @@ npm run test:contracts
 npm run test:e2e
 ```
 
-The backend test pool defaults to two connections. Keep the test application database and Flyway integration database separate. The Playwright E2E suite contains 20 tests.
+The backend test pool defaults to two connections. Keep the test application database and Flyway integration database separate. The Playwright E2E suite covers the admin, rider and driver apps.
 
 ### Docker Compose
 

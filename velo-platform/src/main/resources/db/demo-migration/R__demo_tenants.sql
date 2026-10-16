@@ -58,11 +58,11 @@ SELECT seed.first_name, seed.last_name, seed.email,
        '$2y$10$Nt93cyP1zWSTQC12nvIGkO6OuFhozbuu48Kjv6Z0UMRtATnhYFy0a',
        seed.phone_number, TRUE, TIMESTAMP '2026-10-01 09:00:00', 0, tenant.id
 FROM (VALUES
-    ('Admin', 'User', 'admin@velo-platform.com', '+91-9999999999', 'default'),
-    ('Alice', 'Rider', 'alice@example.com', '+91-9000000001', 'default'),
-    ('Bob', 'Driver', 'bob.driver@example.com', '+91-9000000002', 'default'),
-    ('Carol', 'Captain', 'carol.driver@example.com', '+91-9000000003', 'default'),
-    ('Dave', 'Rider', 'dave@example.com', '+91-9000000004', 'default'),
+    ('Nadia', 'Farouk', 'admin@velo-platform.com', '+91-9999999999', 'default'),
+    ('Alice', 'Moreau', 'alice@example.com', '+91-9000000001', 'default'),
+    ('Bob', 'Lindqvist', 'bob.driver@example.com', '+91-9000000002', 'default'),
+    ('Carol', 'Mendes', 'carol.driver@example.com', '+91-9000000003', 'default'),
+    ('Dave', 'Okafor', 'dave@example.com', '+91-9000000004', 'default'),
     ('Ishita', 'Rao', 'owner@saffronroutes.demo', '+91-9900000101', 'saffron-routes'),
     ('Ananya', 'Shah', 'guest@saffronroutes.demo', '+91-9900000102', 'saffron-routes'),
     ('Rohan', 'Mehta', 'guest2@saffronroutes.demo', '+91-9900000103', 'saffron-routes'),
@@ -77,6 +77,19 @@ SET first_name = EXCLUDED.first_name,
     phone_number = EXCLUDED.phone_number,
     active = TRUE,
     tenant_id = EXCLUDED.tenant_id;
+
+-- V2 owns these durable accounts, so refresh their demo surnames here. Only the display name changes;
+-- emails, ids, roles and relationships stay as seeded.
+UPDATE app_user
+SET first_name = seed.first_name,
+    last_name = seed.last_name
+FROM (VALUES
+    ('henry@example.com', 'Henry', 'Walsh'),
+    ('frank@example.com', 'Frank', 'Mensah'),
+    ('eve.driver@example.com', 'Eve', 'Petrov'),
+    ('grace.driver@example.com', 'Grace', 'Kim')
+) AS seed(email, first_name, last_name)
+WHERE app_user.email = seed.email;
 
 INSERT INTO user_roles (user_id, roles)
 SELECT app_user.id, assigned.role
@@ -156,7 +169,7 @@ SET balance = EXCLUDED.balance,
 
 -- Give the original Velo pending request readable pickup/drop-off details.
 UPDATE ride_request request
-SET customer_name = 'Dave Rider',
+SET customer_name = 'Dave Okafor',
     customer_phone = '+91-9000000004',
     pickup_address = 'Cubbon Park, Bengaluru',
     drop_off_address = 'Kempegowda International Airport, Terminal 1',
@@ -178,7 +191,7 @@ INSERT INTO ride_request (
 )
 SELECT ST_SetSRID(ST_MakePoint(77.5946, 12.9716), 4326),
        ST_SetSRID(ST_MakePoint(77.7060, 13.1986), 4326), NOW() - INTERVAL '5 minutes', rider.id,
-       'CASH', 'PENDING', 0.00::NUMERIC, 0, tenant.id, 'Dave Rider', '+91-9000000004',
+       'CASH', 'PENDING', 0.00::NUMERIC, 0, tenant.id, 'Dave Okafor', '+91-9000000004',
        'Cubbon Park, Bengaluru', 'Kempegowda International Airport, Terminal 1',
        'DEMO-VELO-PENDING-01'
 FROM tenant
