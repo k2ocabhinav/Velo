@@ -16,7 +16,7 @@ export function VerifyToday() {
     { value: copy.backendScope, label: copy.backend },
     {
       value: checkedOn
-        ? `${verifyFacts.landingChecksPassed} ${copy.endToEndScope} · ${copy.checkedLabel} ${checkedOn}`
+        ? `${copy.endToEndScope} · ${copy.checkedLabel} ${checkedOn}`
         : copy.dateUnavailable,
       label: copy.endToEnd,
     },

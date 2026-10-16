@@ -1,0 +1,1 @@
+`og-image.svg` is the editable source for `../public/og-image.png`, which the app metadata references and the static export ships; after editing it, re-rasterise the PNG (e.g. `rsvg-convert -w 1200 -h 630 og-image.svg -o ../public/og-image.png`).

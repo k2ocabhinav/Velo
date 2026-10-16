@@ -2,6 +2,7 @@ node_modules
 .next
 apps/landing/out
 .turbo
+.turbo-local
 dist
 coverage
 playwright-report
