@@ -54,6 +54,7 @@
 - [x] Rider live trip updates delivered over WebSocket (principal fix, decision 0025)
 - [x] Demo polish: single request countdown, driver name on profile, operator-style audit seed text, rounded distance, plurals; demo seed fixtures repaired
 - [x] Per-tenant tariffs and service areas (V14, decision 0026); offline font builds; compact driver offer card; demo rehearsals #6/#7 demo-ready
+- [x] Full functional audit of every existing feature (rider, driver, admin, API, first-run, landing, simulator) with fixes: driver self-registration and approval gating, pending-request cancel, payout lifecycle, admin route protection, tenant-aware signup, tenant time zones and UTC backend (decisions 0028, 0030), rated flags, rejection reasons, accurate 4xx codes, atomic payouts, notification currency/time/labels, after-commit realtime delivery; CI green on GitHub incl. backend tests under UTC and Asia/Kolkata (verified 2026-10-17)
 
 ### Tenant commercial settings (V14)
 - [x] Per-tenant fare tariffs and geocoder service areas; Saffron demo money fixtures follow INR rates (decision 0026)
