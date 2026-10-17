@@ -65,6 +65,17 @@ public class AuthRateLimitService {
 
     }
 
+    /**
+     * Clears the in-memory windows and the cleanup counter. The limiter bean lives in a Spring
+     * context that tests cache and reuse, so without this a counter left behind by one test class
+     * can throttle a later one. Test-only: production never calls it, and
+     * {@link #check(HttpServletRequest, String)} is otherwise unchanged.
+     */
+    public void reset() {
+        localCounters.clear();
+        checks.set(0);
+    }
+
     private long consume(String bucket, int limit, long windowMillis) {
         String key = "velo:auth:rate:" + sha256(bucket);
         if (properties.isRedisEnabled()) {

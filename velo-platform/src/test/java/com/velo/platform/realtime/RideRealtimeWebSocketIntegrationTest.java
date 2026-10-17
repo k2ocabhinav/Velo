@@ -49,8 +49,10 @@ import java.time.Duration;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -60,7 +62,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 class RideRealtimeWebSocketIntegrationTest {
 
     private static final String RIDE_UPDATES_DESTINATION = "/user/queue/ride-updates";
+    private static final String WEBSOCKET_PATH = "/ws/websocket";
     private static final String ALLOWED_ORIGIN = "http://localhost:3000";
+    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(10);
     private static final Duration EVENT_TIMEOUT = Duration.ofSeconds(2);
     private static final int PUBLISH_ATTEMPTS = 5;
 
@@ -180,13 +184,7 @@ class RideRealtimeWebSocketIntegrationTest {
         StompHeaders connectHeaders = new StompHeaders();
         connectHeaders.add("Authorization", "Bearer " + ticket);
 
-        StompSession session = stompClient.connectAsync(
-                        "ws://localhost:" + port + "/ws/websocket",
-                        handshakeHeaders,
-                        connectHeaders,
-                        new StompSessionHandlerAdapter() {
-                        })
-                .get(EVENT_TIMEOUT.toSeconds(), TimeUnit.SECONDS);
+        StompSession session = connect(stompClient, handshakeHeaders, connectHeaders);
 
         try {
             BlockingQueue<RideUpdateEventDto> events = new LinkedBlockingQueue<>();
@@ -219,6 +217,25 @@ class RideRealtimeWebSocketIntegrationTest {
         }
     }
 
+    private StompSession connect(WebSocketStompClient stompClient,
+                                 WebSocketHttpHeaders handshakeHeaders,
+                                 StompHeaders connectHeaders) {
+        String url = "ws://localhost:" + port + WEBSOCKET_PATH;
+        try {
+            return stompClient.connectAsync(url, handshakeHeaders, connectHeaders, new StompSessionHandlerAdapter() {
+                    })
+                    .get(CONNECT_TIMEOUT.toSeconds(), TimeUnit.SECONDS);
+        } catch (TimeoutException timeout) {
+            throw new AssertionError("STOMP CONNECT to " + url + " did not complete within "
+                    + CONNECT_TIMEOUT.toSeconds() + "s", timeout);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new AssertionError("Interrupted while connecting to " + url, interrupted);
+        } catch (ExecutionException failure) {
+            throw new AssertionError("STOMP CONNECT to " + url + " failed", failure);
+        }
+    }
+
     private RideUpdateEventDto awaitRideUpdate(BlockingQueue<RideUpdateEventDto> events) throws Exception {
         // The SUBSCRIBE frame reaches the broker asynchronously, so publish the driver location
         // again until the rider's subscription delivers the event.
@@ -229,7 +246,8 @@ class RideRealtimeWebSocketIntegrationTest {
                 return event;
             }
         }
-        throw new AssertionError("No ride update received on " + RIDE_UPDATES_DESTINATION);
+        throw new AssertionError("Received no ride update on " + RIDE_UPDATES_DESTINATION + " within "
+                + PUBLISH_ATTEMPTS + " publish attempts of " + EVENT_TIMEOUT.toSeconds() + "s each");
     }
 
     private void publishDriverLocationUpdate() {
