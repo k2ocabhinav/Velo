@@ -9,6 +9,7 @@ import com.velo.platform.entities.RideRequest;
 import com.velo.platform.entities.User;
 import com.velo.platform.entities.enums.RideStatus;
 import com.velo.platform.services.RideRealtimeService;
+import com.velo.platform.utils.AfterCommit;
 import com.velo.platform.utils.UserDestinations;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -96,14 +97,20 @@ public class RideRealtimeServiceImpl implements RideRealtimeService {
             return;
         }
 
+        String destination = UserDestinations.resolve(user);
+        Long userId = user.getId();
+        AfterCommit.run(() -> sendToDestination(destination, userId, payload));
+    }
+
+    private void sendToDestination(String destination, Long userId, RideUpdateEventDto payload) {
         try {
             messagingTemplate.convertAndSendToUser(
-                    UserDestinations.resolve(user),
+                    destination,
                     RIDER_RIDE_UPDATES_DESTINATION,
                     payload
             );
         } catch (Exception exception) {
-            log.error("Failed to publish ride update to user {}: {}", user.getId(), exception.getMessage());
+            log.error("Failed to publish ride update to user {}: {}", userId, exception.getMessage());
         }
     }
 
