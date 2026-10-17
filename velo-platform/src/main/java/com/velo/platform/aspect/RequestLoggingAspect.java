@@ -1,7 +1,13 @@
 package com.velo.platform.aspect;
 
+import com.velo.platform.exceptions.BadRequestException;
+import com.velo.platform.exceptions.InvalidRefreshTokenException;
+import com.velo.platform.exceptions.RateLimitExceededException;
+import com.velo.platform.exceptions.ResourceNotFoundException;
 import com.velo.platform.exceptions.RuntimeConflictException;
 import com.velo.platform.security.CorrelationIdFilter;
+import jakarta.persistence.OptimisticLockException;
+import jakarta.validation.ConstraintViolationException;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
@@ -9,7 +15,12 @@ import org.aspectj.lang.annotation.Pointcut;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Component;
+import org.springframework.web.ErrorResponse;
 
 @Aspect
 @Component
@@ -29,17 +40,16 @@ public class RequestLoggingAspect {
         log.info("Starting {}.{} | correlationId={}", className, methodName, correlationId);
         
         long startTime = System.currentTimeMillis();
-        Object result = null;
         try {
-            result = joinPoint.proceed();
+            Object result = joinPoint.proceed();
             long duration = System.currentTimeMillis() - startTime;
             log.info("Completed {}.{} in {}ms | correlationId={}", 
                     className, methodName, duration, correlationId);
             return result;
         } catch (Exception e) {
             long duration = System.currentTimeMillis() - startTime;
-            if (isExpectedAcceptRace(e)) {
-                log.info("Rejected concurrent ride accept in {}.{} in {}ms | correlationId={} | error={}",
+            if (isClientError(e)) {
+                log.warn("Rejected {}.{} in {}ms | correlationId={} | error={}",
                         className, methodName, duration, correlationId, e.getMessage());
             } else {
                 log.error("Failed {}.{} in {}ms | correlationId={} | error={}",
@@ -67,8 +77,8 @@ public class RequestLoggingAspect {
             return result;
         } catch (Exception e) {
             long duration = System.currentTimeMillis() - startTime;
-            if (isExpectedAcceptRace(e)) {
-                log.info("Concurrent ride accept lost in {}.{} in {}ms | error={}",
+            if (isClientError(e)) {
+                log.warn("Rejected {}.{} in {}ms | error={}",
                         className, methodName, duration, e.getMessage());
             } else {
                 log.error("Service failed: {}.{} in {}ms | error={}",
@@ -78,8 +88,21 @@ public class RequestLoggingAspect {
         }
     }
 
-    private boolean isExpectedAcceptRace(Exception exception) {
-        return exception instanceof RuntimeConflictException
-                && "This ride has already been assigned.".equals(exception.getMessage());
+    private boolean isClientError(Exception exception) {
+        if (exception instanceof ErrorResponse errorResponse) {
+            HttpStatusCode statusCode = errorResponse.getStatusCode();
+            return statusCode.is4xxClientError();
+        }
+
+        return exception instanceof ResourceNotFoundException
+                || exception instanceof RuntimeConflictException
+                || exception instanceof BadRequestException
+                || exception instanceof BadCredentialsException
+                || exception instanceof InvalidRefreshTokenException
+                || exception instanceof RateLimitExceededException
+                || exception instanceof AccessDeniedException
+                || exception instanceof ConstraintViolationException
+                || exception instanceof ObjectOptimisticLockingFailureException
+                || exception instanceof OptimisticLockException;
     }
 }

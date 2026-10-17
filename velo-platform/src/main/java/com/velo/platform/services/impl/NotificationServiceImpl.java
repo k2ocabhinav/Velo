@@ -8,6 +8,7 @@ import com.velo.platform.exceptions.ResourceNotFoundException;
 import com.velo.platform.repositories.NotificationRepository;
 import com.velo.platform.security.UserPrincipal;
 import com.velo.platform.services.NotificationService;
+import com.velo.platform.utils.AfterCommit;
 import com.velo.platform.utils.UserDestinations;
 import com.velo.platform.utils.UtcTimes;
 import lombok.RequiredArgsConstructor;
@@ -46,19 +47,25 @@ public class NotificationServiceImpl implements NotificationService {
 
         Notification saved = notificationRepository.save(notification);
         NotificationDto dto = toDto(saved);
-        
+
+        String destination = UserDestinations.resolve(user);
+        Long userId = user.getId();
+        AfterCommit.run(() -> publishNotification(destination, userId, title, dto));
+
+        return dto;
+    }
+
+    private void publishNotification(String destination, Long userId, String title, NotificationDto dto) {
         try {
             messagingTemplate.convertAndSendToUser(
-                    UserDestinations.resolve(user),
+                    destination,
                     "/queue/notifications",
                     dto
             );
-            log.debug("Notification pushed to user {}: {}", user.getId(), title);
+            log.debug("Notification pushed to user {}: {}", userId, title);
         } catch (Exception e) {
-            log.error("Failed to push notification to user {}: {}", user.getId(), e.getMessage());
+            log.error("Failed to push notification to user {}: {}", userId, e.getMessage());
         }
-        
-        return dto;
     }
 
     @Override
